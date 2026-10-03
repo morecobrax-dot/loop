@@ -19,6 +19,13 @@ Run `npm run verify` before shipping anything.
 > trainer enforcement without explicit approval. The trainer is
 > **shadow-only**; Phase 5F is locked pending real-world evidence.
 
+> **Readability rule (owner, D125).** A primary surface answers in this
+> order: 1. what matters; 2. what to do; 3. why, if the athlete wants to know;
+> 4. deeper evidence, only when useful. Make a screen smarter by making the
+> numbers on it right, not by adding a card, a confidence meter or an
+> explanation. Analysis stays behind the interface. (D125 applied it to the
+> workout: the plan arrives as the numbers already in the set rows.)
+
 ---
 
 ## 1. Protected systems
@@ -17792,3 +17799,271 @@ else was restated.
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
 key, no history rewritten. E45 closed. No new finding.
+
+## §164 — THE WORKING-SET PLAN, AND A WARM-UP IS LOCAL (D125 · LOOP 10.42 · loop-v219)
+
+The brief for this phase was titled "D124 — Workout Prescription 1.0". D124
+had already shipped (10.41, the Personal Best tap targets, §163), so this
+phase is D125 in the repository.
+
+**What the owner saw, 10.41.** Bench Press, D49 at 205, three working sets.
+- Turning Set 1 into a warm-up and typing 125 × 3 rewrote every working set
+  to 125 × 3. The athlete had to put the working sets back by hand.
+- The Suggested Warm-up was redrawn around 125 (50 / 75 / 100), because it
+  followed whatever the first row held.
+- Every working set opened at the same 8, the range's first number, whatever
+  the athlete had actually done at 205.
+- Sets were numbered by row, so after a warm-up the work read "Set 2, Set 3".
+- Resuming kept the damage, and "Last time" headlined the warm-up (135 × 6).
+
+### Who owns what
+
+| Layer | Owns |
+|---|---|
+| Program / template | the exercise, the set count, the rep range (its top bounds every target) |
+| D49 | the working load (consumed, unchanged) |
+| D119 | bodyweight reps (bodyweight rows keep the program's seed, unchanged) |
+| D125 `deriveWorkingSetPlan` | the reps of each working set, laid out once, at the start |
+| D50B | what changes after a working set is done (unchanged) |
+| The athlete | every value they type or step |
+| Suggested Warm-up | drawn from the prescribed working load (`rxLoad`) |
+
+### The plan
+
+`deriveWorkingSetPlan(name, templateReps, setCount, rec, { deload })`, called
+once per loaded exercise by `startTemplateLog`, and by nothing else.
+
+- **Evidence** is a performed working set with real reps and a real load
+  (`isPerformanceSet`, `performedReps`, `performedLoad`): never a warm-up, a
+  set marked not done, or a programmed deload (`isDeloadWorkout`). One
+  workout is one session, every loaded row of the lift in it read in order, as
+  D49 reads it (`workingSetSequenceOf`). Two workouts on one date are two.
+- **The anchor** is the latest of the last five such sessions (D49's window)
+  with at least two working sets at exactly D49's load (D49's own floor;
+  one when the program asks for one). Reps at another load are never read.
+- **Each set** takes the anchor's set in the same place, floored, and never
+  above the range's top. A set past the anchor's last repeats it.
+- **BUILD** (D49: "aim for one more") adds one rep to one set. With effort
+  logged, it goes to the first set logged with at least one rep in reserve.
+  With none logged anywhere, it goes to the first set at the session's top
+  reps, which is the set D49's target is about. A failure or AMRAP set, or
+  one at the range's top, never takes it. Every other D49 answer repeats the
+  pattern.
+- **Fallback.** No range, no load, a deload session, a timed hold
+  (`substitutionIsHold`, so E39 is unchanged) or no anchor gives the seed
+  LOOP has always used: the range's first number in every row.
+
+What it is not: a fatigue model or an "optimal" number. It is a starting point
+taken from the athlete's own sets, with the program's range as its ceiling.
+The range's floor is not imposed on later sets: the owner's own example is
+8 / 6 / 4, and the study below shows a floor asks for reps that were not there.
+
+**Stored.** `row.dataset.rxPlan` (history plans only) and the draft's
+`meta.rxPlan`. Never history: `saveLog` and `capturedPrescription` are
+byte-identical.
+
+### A warm-up is local
+
+| Edit | Reaches |
+|---|---|
+| warm-up load / reps / RIR (typed or stepped) | that warm-up only; the strip does not move |
+| tick or un-tick a warm-up | nothing else; D50B is not run (it is not its evidence) |
+| add, remove or retype a warm-up | nothing else; working sets keep their numbers and values |
+| working load | later working sets, as before (never a warm-up, a completed or an owned set) |
+| working reps | later working sets that showed the same number (one edit still moves 8 / 8 / 8; 8 / 6 / 5 keeps Set 2's 6) |
+| D50B after a working set | the sets still to do, by its own rules; never the strip |
+
+- **Suggested Warm-up.** Drawn from `rxLoad` when the row is built,
+  restored or swapped, and left alone after that. A row with no prescribed
+  load follows its first working set, never a warm-up. The 40 / 60 / 80 %
+  ramp is unchanged; only its input moved.
+- **Numbers.** "Set k" counts working sets; a warm-up is "W" (and "Warm-up"
+  to assistive tech). Building, removing and retyping all renumber through
+  `renumberSets`.
+- **Type changes** touch only the row changed. Working → Warm-up changes no
+  value. Warm-up → Working (`seedWorkingTarget`) gives the row its working
+  set's target: the plan's reps for its place and, before any working set is
+  done, the prescribed load. After that the load is D50B's, which it has
+  already written into the row if nobody else did. A value the athlete typed
+  or stepped stays theirs, and so does a completed set. Other types never seed.
+- **Add Set** fills from the last working set, never a warm-up. Inside the
+  plan it takes the plan's reps for its place; past it, it repeats the last
+  working set. The prescription still says the program's set count.
+- **Ownership.** The stepper now marks what it sets (`markUserSet`), as
+  D50B's own comment always said. The draft carries ownership per set
+  (`own: 'w' | 'r' | 'wr'`) and restores it. A 10.41 draft has none and
+  restores exactly as before.
+- **Last time** shows every set, and a warm-up carries the history's own
+  badge; the summary beside it is the first working set.
+
+### Measured
+
+**The owner's bug, real headless Edge, 390×844, real taps** (Bench Press, last
+sessions 205 × 8@2 / 6@1 / 4–5@0 after a 135 × 6 warm-up, template 3 × 8–12):
+
+| Step | 10.41 | 10.42 |
+|---|---|---|
+| start | 205 × 8 / 8 / 8 | 205 × 9 / 6 / 5 |
+| Set 1 → warm-up, 125 × 3 (typed, or by thumb) | every row 125 × 3, strip 50 / 75 / 100 | W 125 × 3, Set 1 205 × 6, Set 2 205 × 5, strip 80 / 125 / 165 |
+| warm-up + + to 135 | every row 135, strip 55 / 80 / 110 | warm-up only |
+| warm-up reps 3 → 5 | every row × 5 | warm-up only |
+| tick the warm-up | loads restored by the coach, reps left at 3 | nothing else moves, the coach is not run |
+| warm-up → Working | every row 125 × 8 | that row only (125 typed stays, reps 9) |
+| Working Set 2 → warm-up | labels "Set 1, W, Set 3" | "Set 1, W, Set 2", no value moves |
+| Set 1 reps 8 → 9 | every row 9 | Set 1 only (6 / 5 stay) |
+| reload and resume | the damage kept, strip 50 / 75 / 100 | as left, strip 80 / 125 / 165 |
+| "Last time" | 135 lb × 6 (the warm-up) | 205 lb × 8 |
+
+**Replay study** (scratch `backtest125.js`). Two cohorts of 120 generated
+athletes, 26 sessions each, with D49 choosing every load. The athletes have
+warm-ups, deloads, idle gaps, failure sets and RIR logged or not. Each
+session's plan is built from what came before and compared with what the
+athlete then did. 2,886 sessions compared per cohort. The model is the only
+"truth" here, so this measures realism and safety under stated assumptions.
+
+| Candidate | MAE (reps) | ±1 | severe over (≥3) | more reps after 0 RIR / failure |
+|---|---|---|---|---|
+| A — 10.41's seed (the range floor, every set) | 1.99 | 39.5% | 19.1% | 598 |
+| B — copy the latest session at the load | 0.69 | 85.1% | 2.3% | 0 |
+| **C — B, plus BUILD's one rep where reserve was logged (shipped)** | **0.70** | **84.8%** | **2.4%** | **0** |
+| D — B, plus one rep on every set under BUILD | 0.74 | 84.1% | 2.8% | 195 |
+| E — B, floored at the range's bottom | 1.32 | 64.5% | 19.9% | 598 |
+
+- The faster-gaining cohort: A 2.76, B 0.51, C 0.51, D 0.52, E 0.68.
+- On BUILD sessions alone, C over-predicts more often than B (32% vs 21%).
+  The model's athletes do not respond to a target, so this is the price of
+  stating D49's own "one more" on one set.
+- D over-predicts 73% of the time and E 20%, so both were rejected. C was
+  chosen over B because B would ignore D49's BUILD entirely.
+- 85% of the generated sessions were tagged plateau (E47).
+
+**The owner's backups**, read-only, hashed before and after (unchanged):
+- 08-29: 2 of 5 loaded lifts get a plan from history (Seated Row 110,
+  Shoulder Press 80: 11 / 10 / 10). The other three trained D49's next load
+  in only one set last time, so they keep the seed.
+- 08-30 reads like test entries (185 × 8 on every lift): 8 of 9 get
+  9 / 8 / 8; Bench Press 315 × 8 (one set) keeps the seed.
+- Nothing from the owner's history reaches any copy.
+
+**Browser QA** (scratch `qa125.js`, real headless Edge, real taps): 20
+fixtures at 320×568, 360×640, 375×667, 390×844, 393×852, 414×896 and
+430×932. Every run checks:
+- the rows and their numbers, the strip, the coach and the rest timer where
+  they matter, and a draft restore;
+- no horizontal overflow, no clipped value, the last set reachable by
+  scrolling, and no console error.
+
+**777 / 777.** On frozen 10.41 the same rig at 390 gives 92 / 111. Its 19
+failures are all behaviour. The four fixtures D125 leaves as they were (a new
+load, reduce, a first session, bodyweight) pass on both, and so does every
+layout check.
+
+**What's New:** 4 / 4 claims are false on 10.41 and true on 10.42.
+
+**Performance** (vm, medians of 15, three lifts):
+- **The plan:** 0.01–0.22 ms per lift with the log cache cold.
+- **Start, draft restore and a working-set edit:** the same as 10.41 within
+  noise (two years: about 17–20 ms, 11–12 ms and 0.13 ms).
+- **A warm-up edit:** 0.5 ms → 0.13 ms; it no longer redraws the strip or
+  walks the rows.
+- A first comparison showed restore 7 ms slower. It was the benchmark's own
+  cache clear (timing the plan cold invalidated the PR caches) and is gone
+  when the plan is timed separately.
+
+### Contract 242 (108 checks)
+
+It proves brief items 1–51 and the four properties, running the live logger's
+real functions on a small DOM in the vm (`miniDomD125`): the start, the inline
+handlers, steppers, the type toggle and picker, completion, Add Set, Remove,
+the draft, swap and a real `saveLog`.
+- **10.41 compiled back** from `D125_EDITS` shows the owner's bug: 125 × 3
+  everywhere, the strip at 50 / 75 / 100, and the same through the thumb.
+- **Isolation**, ordinals, type changes, ownership, the propagation matrix,
+  the draft (and a 10.41 draft), a deload start, swap, Last time.
+- **The plan**: D49's load, program structure (3×8–12, 4×6–10, 2×5–8,
+  3×10–15, 5×4–6), the real sequence, warm-ups, deloads, invalid and
+  unperformed sets, the window, first session, insufficient evidence, BUILD
+  (with and without effort, unlogged sets), INCREASE (new load; a load
+  trained in the window), HOLD, PLATEAU, REDUCE, zero reserve, failure,
+  AMRAP, set counts, repeated rows, same-day workouts, holds.
+- **Properties** on 60 generated histories: the warm-up no-op, row layout,
+  evidence sensitivity, and the plan is not a constant.
+- **D50B** byte-identical and behaviourally the same (one change per
+  exercise); its adaptation is never overwritten.
+- **Protected**: a digest of records, PR XP, XP, level, rank, volume,
+  Session Score, Mastery, Recovery, D49, D123's plateau and D119, frozen from
+  10.41; pins; E38, E39, E43, E45 untouched; keys, schema; a real save holds
+  no plan and no ownership.
+
+Run against frozen 10.41 it fails 65 of the 82 that can run there (the sections that need D125’s own functions stop at the first one missing) checks.
+
+**Mutation.** 61 mutants, all killed, each run against Contract 242 alone.
+- **58 by behaviour.** These are the brief's list and D125's own:
+  - warm-up propagation, the strip reading a row, raw row indexes (four
+    places), uniform seeding;
+  - +1 on every set, zero RIR or an unlogged set taken as reserve, failure
+    ignored or taken as headroom, BUILD on any tag;
+  - deloads and warm-ups trained, unperformed or invalid sets admitted,
+    same-day merging, repeated rows split, the range ignored, a floor clamp,
+    the set count from history, D49's load replaced, another load's reps
+    copied, the oldest session, the window, one-set sessions;
+  - manual edits overwritten, D50B overwritten, D50B run for a warm-up,
+    seeding removed or applied to any type, the rep match rule removed, a
+    working edit reaching a warm-up, the stepper not marking ownership, Add
+    Set copying a warm-up;
+  - "Last time" headlining a warm-up, the warm-up chip unmarked;
+  - the draft losing the plan or ownership, a resume forgetting ownership,
+    the row forgetting its plan, ownership or the plan written to history;
+  - holds laid out, XP, PRs, E43 fixed, the warm-up ramp changed, D50B
+    retuned.
+- **3 by pin, by design:** E38, E39 and E45. Those are other features'
+  code; a pin says D125 did not touch them.
+- **The first pass found the contract short, not the fix:**
+  - two raw-index mutants survived (no test had a warm-up above the row
+    being converted or added);
+  - "any type seeds" survived (its row already held its target);
+  - a one-set session was only seen through a crash (its 8 reps equalled
+    the seed);
+  - two mutants that moved a D125 statement crashed the run through the
+    contract's own 10.41 reversal.
+
+  The contract was strengthened in each place and every mutant was run
+  again.
+
+### Restated contracts
+
+Every one is restated by reversal: `D125_EDITS` holds each changed
+function's statements as [now, as of 10.41]. `pinAsOf1041` puts them back and
+must reproduce the 10.41 pin; any other change still fails.
+- Pins restated in Contracts 217, 218, 219, 220, 221, 222, 236, 239 and 240:
+  `startTemplateLog`, `captureActiveDraft`, `restoreDraftToSheet`,
+  `swapLogExercise`, `appendSetRow`, `addSetRow`, `stepValue`,
+  `toggleSetType`, `toggleSetComplete`, `maybeRefreshWarmup`, `lastTimeHtml`.
+- Contract 65's source check now names the first working chip.
+- Contract 220 takes 10.41 back before D105.1's plan line.
+- Contract 231's raw-text pin of `restoreDraftToSheet` (D114) holds 10.30's
+  text with D125's one statement taken out.
+- Two behaviours restated on purpose. After a warm-up the working sets are
+  "Set 1, Set 2", not "Set 2, Set 3". The "Last time" summary reads the first
+  working chip.
+
+### Found, not fixed
+
+- **E46 (P4).** D50B's writer puts its load into an untouched warm-up row.
+- **E47 (P3).** Reps rising at a held load read as "Performance has stalled".
+  This is why BUILD's one rep is rarer than D49's BUILD rule would make it.
+
+Both are in FINDINGS-D88.md.
+
+### Held
+
+- The owner's Mastery request (each exercise's own illustration on the
+  podium) is the next visual phase.
+- The app-wide simplification pass is held; the readability rule is now in §0.
+- E38, E39 and E43 are open and untouched. E45 was closed in D124.
+- Bodyweight set layouts are a future opportunity. D119 answers one best set;
+  laying out the other sets needs semantics of its own.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
+key. The plan and ownership live only in the active draft. No history is
+rewritten.

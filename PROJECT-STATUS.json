@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.41",
+  "version": "10.42",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner check on iPhone: Progress → Strength → the dots under the Personal Best card are easy to hit with a thumb, one tap per lift, and still look small.",
+  "nextAction": "Owner iPhone check: on Bench, thumb the warm-up load and reps, tick it, reach Set 1. Sets 2 and 3 keep their own reps and the suggested warm-up stays put; then D50B after Set 1.",
   "blocker": null,
-  "updatedAt": "2026-10-03T13:55:22Z"
+  "updatedAt": "2026-10-03T22:44:24Z"
 }

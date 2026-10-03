@@ -1583,6 +1583,52 @@ Measured on frozen 10.40 vs 10.41, in real headless Edge:
 
 Contract 241, §163.
 
+## E46 — The coach writes its load into an untouched warm-up row · P4 · PROVEN · OPEN
+
+Found by D125 while making warm-up rows local. Recorded, not fixed.
+
+**What is wrong.** After a working set is done, D50B's writer
+(`applyCoachToFutureSets`) puts the coach's load into every set still to do
+that the athlete has not set themselves. It does not ask a set's type, so an
+untouched warm-up row gets the working load too. D125 stopped the coach
+running when a warm-up is ticked, and stopped every edit reaching or leaving a
+warm-up, but this writer is D50B's and D125 was told not to change D50B.
+
+**Measured.** Bench Press, plan 205 × 9 / 6 / 5. Add Set, mark it a warm-up and
+leave it (W 205 × 5). Do Set 1 at 205 × 4 with 0 in reserve. D50B takes the
+next sets to 200 as it should, and the untouched warm-up also becomes 200 × 5.
+A warm-up the athlete has typed into keeps its own values, as does every set
+they own.
+
+**Why it was not fixed in D125.** D50B is protected and unchanged. The likely
+fix is one condition in `applyCoachToFutureSets` (skip a warm-up), in a phase
+that may touch D50B.
+
+## E47 — Reps rising at a held load read as "Performance has stalled" · P3 · PROVEN · OPEN
+
+Found by D125's replay study, where D49 answered "plateau" for most sessions.
+Recorded, not fixed.
+
+**What is wrong.** `detectPlateau` reads only each workout's top load. Four
+workouts with no load increase are a plateau, whatever happened to the reps.
+D49 then says "Performance has stalled for 4 sessions — hold the weight, or
+switch to a similar exercise." An athlete adding reps at the same load, the
+way BUILD asks them to, is told they have stalled and offered a swap.
+
+**Measured, 10.42.** Bench Press at 205 for four sessions, top set 6, 7, 8 and
+9 reps: `detectPlateau` returns a 4-session plateau and D49's tag is
+`plateau`. In D125's study, 85% of generated sessions were tagged plateau.
+
+**Effect on D125.** Under a plateau tag the set plan repeats the last session
+and adds no rep (only BUILD adds one). That is the conservative reading, so the
+workout is never pushed harder by this. It does mean that BUILD's one rep is
+rarer than D49's own BUILD rule would make it.
+
+**Why it was not fixed in D125.** The plateau rule is D49's (D122 and D123
+already restated it), and changing it moves D49's answers, Progress and the
+workout cards. That is its own phase, measured with the same drift study D122
+and D123 used.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

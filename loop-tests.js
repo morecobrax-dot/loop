@@ -311,6 +311,91 @@ function pinAsOf1039(name){
   return require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
 }
 
+/* D125 — the live workout's set rows changed ON PURPOSE (the working-set plan, warm-up isolation, working-set
+   numbering, the stepper marking what it sets, Last time's warm-up chips, the draft carrying ownership and the plan).
+   Every contract that held one of these functions byte-identical now holds it at its 10.41 pin with exactly these
+   statements put back; any other change to any of them still fails every one. Pairs are [now, as of 10.41],
+   comment-free and whitespace-collapsed exactly as the pins are; Contract 242 proves what each one does. */
+const D125_EDITS = {
+  lastTimeHtml: [[
+    "const w = prev.bodyweight ? 'BW' : (s.weight || '—'); const warm = setTypeOf(s) === SET_TYPES.WARMUP; return `<span class=\"last-time-chip${warm ? ' last-time-chip-warmup' : ''}\">${escapeHtml(String(w))}${prev.bodyweight?'':' lb'} × ${escapeHtml(String(s.reps||'—'))}` + `${warm ? '<span class=\"set-chip-badge stb-warmup\">' + escapeHtml(setTypeShortLabel(SET_TYPES.WARMUP)) + '</span>' : ''}</span>`;",
+    "const w = prev.bodyweight ? 'BW' : (s.weight || '—'); return `<span class=\"last-time-chip\">${escapeHtml(String(w))}${prev.bodyweight?'':' lb'} × ${escapeHtml(String(s.reps||'—'))}</span>`;"]],
+  captureActiveDraft: [[
+    "const st = sr.dataset.setType; const wIn = sr.querySelector('.set-weight-in'), rIn = sr.querySelector('.set-reps-in'); const setObj = { weight: wIn.value, reps: rIn.value, rir: sr.querySelector('.set-rir-in').value, completed: sr.classList.contains('completed') }; if(st) setObj.type = st; const own = (wIn.dataset.userSet ? 'w' : '') + (rIn.dataset.userSet ? 'r' : ''); if(own) setObj.own = own; sets.push(setObj); }); const meta = { targetSets: row.dataset.targetSets || '', targetReps: row.dataset.targetReps || '', recommended: row.dataset.recommended || '', slotName: row.dataset.slotName || '', slotKey: row.dataset.slotKey || '', slotRecommended: row.dataset.slotRecommended || '' }; if(row.dataset.rxPlan) meta.rxPlan = row.dataset.rxPlan; exercises.push({ name, shadowRecId: row.dataset.shadowRecId || null, shadowFeedback: row.dataset.shadowFeedback || null, skipped: row.dataset.skipped === '1', effort: effortEl ? effortEl.value : '', bodyweight: bwEl ? bwEl.checked : false, sets, restSec: panel ? (parseInt(panel.dataset.defaultRest) || 75) : 75, restRemaining: (panel && panel.style.display !== 'none') ? (parseInt(panel.dataset.remaining) || null) : null, meta });",
+    "const st = sr.dataset.setType; const setObj = { weight: sr.querySelector('.set-weight-in').value, reps: sr.querySelector('.set-reps-in').value, rir: sr.querySelector('.set-rir-in').value, completed: sr.classList.contains('completed') }; if(st) setObj.type = st; sets.push(setObj); }); exercises.push({ name, shadowRecId: row.dataset.shadowRecId || null, shadowFeedback: row.dataset.shadowFeedback || null, skipped: row.dataset.skipped === '1', effort: effortEl ? effortEl.value : '', bodyweight: bwEl ? bwEl.checked : false, sets, restSec: panel ? (parseInt(panel.dataset.defaultRest) || 75) : 75, restRemaining: (panel && panel.style.display !== 'none') ? (parseInt(panel.dataset.remaining) || null) : null, meta: { targetSets: row.dataset.targetSets || '', targetReps: row.dataset.targetReps || '', recommended: row.dataset.recommended || '', slotName: row.dataset.slotName || '', slotKey: row.dataset.slotKey || '', slotRecommended: row.dataset.slotRecommended || '' } });"]],
+  restoreDraftToSheet: [[
+    "} if(s && typeof s.own === 'string' && setRows[j]){ if(s.own.indexOf('w') !== -1) markUserSet(setRows[j].querySelector('.set-weight-in')); if(s.own.indexOf('r') !== -1) markUserSet(setRows[j].querySelector('.set-reps-in')); }",
+    "}"]],
+  startTemplateLog: [[
+    "wrap.innerHTML = ''; const deloadSession = isDeloadWorkout({ phase: pendingWorkoutPhase }); tpl.exercises.forEach(ex => { const isBW = rowStartsAsBodyweight(ex.name, ex.recommended); const rec = isBW ? null : progressionFor(ex.name, ex.reps, ex.recommended); const weightVal = isBW ? '' : (rec && rec.weight != null ? rec.weight : ''); const repVal = programRepSeed(ex.reps); const setCount = parseInt(ex.sets) || 3; const plan = isBW ? null : deriveWorkingSetPlan(ex.name, ex.reps, setCount, rec, { deload: deloadSession }); const sets = []; for(let i=0;i<setCount;i++) sets.push({ weight: weightVal, reps: plan ? plan.reps[i] : repVal }); const meta = { targetSets: ex.sets, targetReps: ex.reps, recommended: ex.recommended }; if(plan && plan.source !== 'program') meta.rxPlan = plan.reps.join(','); addLogExerciseRow(ex.name, firstNumber(ex.effort), isBW, sets, restSecondsForReps(ex.reps), rec, meta);",
+    "wrap.innerHTML = ''; tpl.exercises.forEach(ex => { const isBW = rowStartsAsBodyweight(ex.name, ex.recommended); const rec = isBW ? null : progressionFor(ex.name, ex.reps, ex.recommended); const weightVal = isBW ? '' : (rec && rec.weight != null ? rec.weight : ''); const repVal = firstNumber(ex.reps) || ex.reps; const setCount = parseInt(ex.sets) || 3; const sets = []; for(let i=0;i<setCount;i++) sets.push({ weight: weightVal, reps: repVal }); addLogExerciseRow(ex.name, firstNumber(ex.effort), isBW, sets, restSecondsForReps(ex.reps), rec, { targetSets: ex.sets, targetReps: ex.reps, recommended: ex.recommended });"]],
+  addLogExerciseRow: [[
+    "if(effort !== '' && effort != null) row.dataset.rxEffort = effort; if(meta.rxPlan) row.dataset.rxPlan = meta.rxPlan; const firstWorking = sets.find(s => !s || s.type !== SET_TYPES.WARMUP); const initialWeight = rowWorkingLoad(row) !== null ? row.dataset.rxLoad : (firstWorking ? firstWorking.weight : '');",
+    "if(effort !== '' && effort != null) row.dataset.rxEffort = effort; const initialWeight = sets[0] ? sets[0].weight : '';"]],
+  refreshExContext: [[
+    "const parts = []; const lastChip = row.querySelector('.last-time-chip:not(.last-time-chip-warmup)');",
+    "const parts = []; const lastChip = row.querySelector('.last-time-chip');"]],
+  swapLogExercise: [[
+    "const warmupWrap = target.querySelector('.warmup-wrap'); if(warmupWrap) warmupWrap.innerHTML = warmupBoxHtml(clean, rowWorkingLoad(target) !== null ? target.dataset.rxLoad : '');",
+    "const warmupWrap = target.querySelector('.warmup-wrap'); if(warmupWrap) warmupWrap.innerHTML = warmupBoxHtml(clean, '');"]],
+  appendSetRow: [[
+    "function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){ const idx = Array.prototype.filter.call(setsListEl.children, r => !r.dataset || r.dataset.setType !== SET_TYPES.WARMUP).length + 1;",
+    "function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){ const idx = setsListEl.children.length + 1;"], [
+    "setsListEl.appendChild(div); const repsIn = div.querySelector('.set-reps-in'); if(repsIn) repsIn.dataset.v = repsIn.value;",
+    "setsListEl.appendChild(div);"]],
+  addSetRow: [[
+    "const bw = row.querySelector('.ex-bw-in').checked; const working = Array.prototype.filter.call(setsList.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP); const last = working.length ? working[working.length - 1] : null; const plan = row.dataset.rxPlan ? String(row.dataset.rxPlan).split(',') : null; const ordinal = working.length + 1; const w = last ? last.querySelector('.set-weight-in').value : (rowWorkingLoad(row) !== null ? row.dataset.rxLoad : ''); const r = (plan && ordinal <= plan.length) ? plan[ordinal - 1] : last ? last.querySelector('.set-reps-in').value : (plannedRepsFor(row, ordinal) || '');",
+    "const bw = row.querySelector('.ex-bw-in').checked; const last = setsList.querySelector('.set-row:last-child'); const w = last ? last.querySelector('.set-weight-in').value : ''; const r = last ? last.querySelector('.set-reps-in').value : '';"]],
+  renumberSets: [[
+    "function renumberSets(setsList){ let n = 0; setsList.querySelectorAll('.set-row').forEach(r => { const warm = r.dataset.setType === SET_TYPES.WARMUP; if(!warm) n++; const el = r.querySelector('.set-idx'); if(el) el.innerHTML = setIdxHtml(n, warm);",
+    "function renumberSets(setsList){ setsList.querySelectorAll('.set-row').forEach((r,i)=> { r.querySelector('.set-idx').innerHTML = setIdxHtml(i + 1, r.dataset.setType === SET_TYPES.WARMUP);"]],
+  stepValue: [[
+    "const isReps = input.classList.contains('set-reps-in'); const before = input.value; input.value = clampStepValue(input.value, delta, isReps); markUserSet(input);",
+    "const isReps = input.classList.contains('set-reps-in'); input.value = clampStepValue(input.value, delta, isReps);"], [
+    "else if(isReps){ propagateRepsForward(input, before);",
+    "else if(isReps){ propagateRepsForward(input);"]],
+  maybeRefreshWarmup: [[
+    "if(!setsList || !setRow) return; const exRow = weightInput.closest('.ex-log-row'); if(!exRow) return; if(rowWorkingLoad(exRow) !== null) return; const firstWorking = Array.prototype.find.call(setsList.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP); if(firstWorking !== setRow) return;",
+    "if(!setsList || !setRow) return; const firstRow = setsList.querySelector('.set-row'); if(firstRow !== setRow) return; const exRow = weightInput.closest('.ex-log-row'); if(!exRow) return;"]],
+  propagateRepsForward: [[
+    "function propagateRepsForward(repsInput, before){ propagateSetValueForward(repsInput, '.set-reps-in', before); }",
+    "function propagateRepsForward(repsInput){ propagateSetValueForward(repsInput, '.set-reps-in'); }"]],
+  propagateSetValueForward: [[
+    "function propagateSetValueForward(sourceInput, selector, before){ const setRow = sourceInput.closest('.set-row');",
+    "function propagateSetValueForward(sourceInput, selector){ const setRow = sourceInput.closest('.set-row');"], [
+    "}catch(e){} const reps = selector === '.set-reps-in'; const was = before !== undefined ? before : sourceInput.dataset.v; const newVal = sourceInput.value; if(reps) sourceInput.dataset.v = newVal; if(setRow.dataset.setType === SET_TYPES.WARMUP) return; const allRows = [...setsList.querySelectorAll('.set-row')]; const idx = allRows.indexOf(setRow); if(idx === -1) return; allRows.slice(idx + 1).forEach(row => { if(row.classList.contains('completed')) return; if(row.dataset.setType === SET_TYPES.WARMUP) return; const laterInput = row.querySelector(selector); if(!laterInput || laterInput.disabled || laterInput.dataset.userSet) return; if(reps && laterInput.value !== was) return; laterInput.value = newVal; if(reps) laterInput.dataset.v = newVal;",
+    "}catch(e){} const allRows = [...setsList.querySelectorAll('.set-row')]; const idx = allRows.indexOf(setRow); if(idx === -1) return; const newVal = sourceInput.value; allRows.slice(idx + 1).forEach(row => { if(row.classList.contains('completed')) return; const laterInput = row.querySelector(selector); if(laterInput && !laterInput.disabled && !laterInput.dataset.userSet) laterInput.value = newVal;"]],
+  toggleSetType: [[
+    "applySetTypeToRow(row, next); if(current === SET_TYPES.WARMUP) seedWorkingTarget(row);",
+    "applySetTypeToRow(row, next);"]],
+  applySetTypeToRow: [[
+    "if(idxEl){ if(row.parentNode && row.parentNode.querySelectorAll) renumberSets(row.parentNode); else idxEl.innerHTML = setIdxHtml(1, typeId === SET_TYPES.WARMUP);",
+    "if(idxEl){ const idx = Array.prototype.indexOf.call(row.parentNode ? row.parentNode.children : [], row) + 1; idxEl.innerHTML = setIdxHtml(idx, typeId === SET_TYPES.WARMUP);"]],
+  chooseSetType: [[
+    "} const was = row.dataset.setType; applySetTypeToRow(row, typeId); if(was === SET_TYPES.WARMUP && typeId === SET_TYPES.WORKING) seedWorkingTarget(row);",
+    "} applySetTypeToRow(row, typeId);"]],
+  toggleSetComplete: [[
+    "const isDone = !row.classList.contains('completed'); const warmup = row.dataset.setType === SET_TYPES.WARMUP;",
+    "const isDone = !row.classList.contains('completed');"], [
+    "markExerciseComplete(exRow, allRows); if(!warmup){ try{ refreshSetCoach(exRow); }catch(e){} }",
+    "markExerciseComplete(exRow, allRows); try{ refreshSetCoach(exRow); }catch(e){}"], [
+    "exRow.classList.remove('ex-complete'); if(!warmup){ try{ refreshSetCoach(exRow); }catch(e){} } }",
+    "exRow.classList.remove('ex-complete'); try{ refreshSetCoach(exRow); }catch(e){} }"]]
+};
+function asOf1041(name){
+  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
+  for(const [now, then] of (D125_EDITS[name] || [])){
+    if(t.split(now).length !== 2) return null;           // a D125 statement itself moved
+    t = t.split(now).join(then);
+  }
+  return t;
+}
+function pinAsOf1041(name){
+  const t = asOf1041(name);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+
 /* A CSS rule's body, bounded by its own closing brace rather than by a
    character count that a new declaration pushes a property out of. */
 function cssRule(css, selector){
@@ -6780,8 +6865,9 @@ function testD10Consolidation(app){
      Coach and moved into the exercise header, where it is the plan for today
      rather than something the athlete had to tap to discover. What the
      disclosure still holds — and therefore still summarises — is last time. */
+  /* D125 restated: it reads the first WORKING chip of that block — a warm-up is never what last time is summed up by. */
   T('refreshExContext reads the block it still summarises',
-    /querySelector\('\.last-time-chip'\)/.test(fnSrc(src, 'refreshExContext')));
+    /querySelector\('\.last-time-chip:not\(\.last-time-chip-warmup\)'\)/.test(fnSrc(src, 'refreshExContext')));
   T('and the target it stopped summarising is in the header instead', (() => {
     const m = exMarkup.replace(/<!--[\s\S]*?-->/g, ' ');
     return m.indexOf('recommend-wrap') < m.indexOf('ex-context-detail');
@@ -42735,9 +42821,10 @@ async function testStartProvenanceD103(){
     T('a Program edit after Start leaves the running workout exactly as it was started (Pull B, not the new Pull C)',
       same(resumed.rows.map(a => a[0]), B) && resumed.title === j.started.title && resumed.origin === 'program' && resumed.programId === 'p1', JSON.stringify(resumed));
     /* D105.1 restated: the draft now carries its own plan (E29); Contract 220 proves that one line is the only change. */
+    /* D125 restated: both carry the set plan and the athlete's ownership now; held at 10.41 with D125_EDITS put back. */
     T('the draft never asks the program: captured and restored from its own rows',
       !/getProgramWorkoutForDate|resolveStartWorkout/.test(fnSrc(src, 'captureActiveDraft') + fnSrc(src, 'restoreDraftToSheet'))
-      && pin('captureActiveDraft') === '664cdceb553301b7' && pin('restoreDraftToSheet') === '2bbd08f689e23bc0');
+      && pinAsOf1041('captureActiveDraft') === '664cdceb553301b7' && pinAsOf1041('restoreDraftToSheet') === '2bbd08f689e23bc0');
   });
 
   sub('history remembers what was started — and reads it back without the program');
@@ -42947,16 +43034,19 @@ async function testExerciseCardD104(){
     T('only the stepper badge trades the words for the number: the plain form still reads "Set 2" and "Warm-up" (D18)',
       /(^|\n)\.set-idx-w\{ display: none; \}/.test(css) && /\.stepper-on \.ws-current \.set-idx-w\{ display: inline; \}/.test(css)
       && /\.stepper-on \.ws-current \.set-idx-word\{[^}]*position: absolute;[^}]*clip: rect\(0 0 0 0\);/.test(css));
+    /* D125 restated: still one writer. Renumbering counts WORKING sets (a warm-up is W and takes no number), and a
+       type change renumbers the whole list through it rather than labelling its own row by row position. */
     T('one writer for every path: building, renumbering and changing a set\'s type',
-      /\$\{setIdxHtml\(idx\)\}/.test(fnSrc(src, 'appendSetRow')) && /setIdxHtml\(i \+ 1, r\.dataset\.setType === SET_TYPES\.WARMUP\)/.test(fnSrc(src, 'renumberSets'))
-      && /idxEl\.innerHTML = setIdxHtml\(idx, typeId === SET_TYPES\.WARMUP\);/.test(fnSrc(src, 'applySetTypeToRow'))
+      /\$\{setIdxHtml\(idx\)\}/.test(fnSrc(src, 'appendSetRow')) && /el\.innerHTML = setIdxHtml\(n, warm\);/.test(fnSrc(src, 'renumberSets'))
+      && /renumberSets\(row\.parentNode\);/.test(fnSrc(src, 'applySetTypeToRow')) && /idxEl\.innerHTML = setIdxHtml\(1, typeId === SET_TYPES\.WARMUP\);/.test(fnSrc(src, 'applySetTypeToRow'))
       && !/textContent = 'Set '/.test(fnSrc(src, 'renumberSets') + fnSrc(src, 'applySetTypeToRow')));
     /* renumbering used to write "Set N" over a warm-up's label */
     const mk = type => { const idx = { innerHTML: '' }; return { dataset: type ? { setType: type } : {}, querySelector: () => idx, idx }; };
     const rows = [mk('warmup'), mk(null), mk(null)];
     c.renumberSets({ querySelectorAll: () => rows });
+    /* D125 restated: and the sets after a warm-up are Set 1 and Set 2 — working sets are numbered among themselves. */
     T('removing a set no longer turns a warm-up into "Set 1"',
-      /Warm-up/.test(rows[0].idx.innerHTML) && rows[1].idx.innerHTML === '<span class="set-idx-word">Set </span>2' && rows[2].idx.innerHTML === '<span class="set-idx-word">Set </span>3');
+      /Warm-up/.test(rows[0].idx.innerHTML) && rows[1].idx.innerHTML === '<span class="set-idx-word">Set </span>1' && rows[2].idx.innerHTML === '<span class="set-idx-word">Set </span>2');
     T('the badge keeps the 44px target and draws a 30px circle inside it, in no colour of its own',
       /\.stepper-on \.ws-current \.set-idx\{[^}]*width: 44px;/.test(css) && !/\.stepper-on \.ws-current \.set-idx\{[^}]*color:/.test(css)
       && /\.stepper-on \.ws-current \.set-idx::before\{[^}]*width: 30px; height: 30px;/.test(css));
@@ -42983,18 +43073,22 @@ async function testExerciseCardD104(){
 
   sub('everything the card calls is untouched');
   await guard('protected', async () => {
+    /* D125 restated: the stepper, completion, Add Set and the warm-up toggle changed on purpose (Contract 242); each is
+       held at 10.41 with D125_EDITS put back. */
     T('logging: steppers, completion, Bodyweight, add/remove set, set type, set menu',
-      pin('stepValue') === '9ddfa0cf6ccb8b02' && pin('toggleSetComplete') === '46059f0d3306793b' && pin('toggleBW') === '8299f1c082c1e68d'
-      && pin('addSetRow') === '1b220d04e378d96a' && pin('removeSetRow') === 'd32b19dbde88600b' && pin('toggleSetType') === 'b4fdb34aa3514a5c'
+      pinAsOf1041('stepValue') === '9ddfa0cf6ccb8b02' && pinAsOf1041('toggleSetComplete') === '46059f0d3306793b' && pin('toggleBW') === '8299f1c082c1e68d'
+      && pinAsOf1041('addSetRow') === '1b220d04e378d96a' && pin('removeSetRow') === 'd32b19dbde88600b' && pinAsOf1041('toggleSetType') === 'b4fdb34aa3514a5c'
       && pin('toggleSetMore') === '806e551bdbf2c377');
     /* D105.1 restated: the draft now carries its own plan (E29); Contract 220 proves that one line is the only change. */
+    /* D125 restated: the draft and the start changed again (the set plan, ownership); held at 10.41 by D125_EDITS. */
     T('the workout: draft capture and restore, save, start, the stepper',
-      pin('captureActiveDraft') === '664cdceb553301b7' && pin('restoreDraftToSheet') === '2bbd08f689e23bc0' && pin('saveLog') === '66c63714822ef5ee'
-      && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('resolveStartWorkout') === '47700a2badbc9e2e' && pin('renderWorkoutStep') === 'f92999bce55ec36b');
+      pinAsOf1041('captureActiveDraft') === '664cdceb553301b7' && pinAsOf1041('restoreDraftToSheet') === '2bbd08f689e23bc0' && pin('saveLog') === '66c63714822ef5ee'
+      && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52' && pin('resolveStartWorkout') === '47700a2badbc9e2e' && pin('renderWorkoutStep') === 'f92999bce55ec36b');
+    /* D125 restated: swap, the warm-up refresh and last time changed on purpose; the warm-up box itself and the coach did not. */
     T('what the card shows: swap, notes, warm-up, last time, the coach',
-      pin('openSubstitutions') === 'a57e36b26c5a4285' && pin('swapLogExercise') === '53e0f712db604c13' && pin('exerciseNoteBlockHtml') === '4cd4699fde7d8b5f'
-      && pin('refreshExerciseNoteBlock') === 'b7affb26cc68f860' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('maybeRefreshWarmup') === 'c8ae17b3ef832173'
-      && pin('lastTimeHtml') === '7fbccabf7dc8ca7f' && pin('refreshSetCoach') === '5c84cf297638cae2');
+      pin('openSubstitutions') === 'a57e36b26c5a4285' && pinAsOf1041('swapLogExercise') === '53e0f712db604c13' && pin('exerciseNoteBlockHtml') === '4cd4699fde7d8b5f'
+      && pin('refreshExerciseNoteBlock') === 'b7affb26cc68f860' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pinAsOf1041('maybeRefreshWarmup') === 'c8ae17b3ef832173'
+      && pinAsOf1041('lastTimeHtml') === '7fbccabf7dc8ca7f' && pin('refreshSetCoach') === '5c84cf297638cae2');
     /* D110 restated: exerciseSessionHistory changed again, for E34 — see Contract 225. */
     /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227. */
     T('progression, records, XP, capability, recovery, Mastery and D100/D101 are byte-identical',
@@ -43203,9 +43297,10 @@ async function testSummaryTimeD105(){
     T('the estimate, the formatter and the plan figure are byte-identical', pin('estimateLoggedDuration') === '9827ffd0e63e6737'
       && pin('formatClock') === '0b1eb2d13865199b' && pin('computeWorkoutDuration') === '2ea2a0c3c72b7941');
     /* D107 restated: saveWorkoutEdits reopens the edited entry's OWN id now (E30). */
+    /* D125 restated: the start and the draft changed on purpose; held at 10.41 by D125_EDITS. */
     T('saving, starting, editing and reopening a workout are byte-identical', pin('saveLog') === '66c63714822ef5ee'
-      && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('saveWorkoutEdits') === 'cd9cf93070dfd4a0' && pin('openWorkoutSummary') === '58c0ec576bb1bad2'
-      && pin('captureActiveDraft') === '664cdceb553301b7' && pin('restoreDraftToSheet') === '2bbd08f689e23bc0');
+      && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52' && pin('saveWorkoutEdits') === 'cd9cf93070dfd4a0' && pin('openWorkoutSummary') === '58c0ec576bb1bad2'
+      && pinAsOf1041('captureActiveDraft') === '664cdceb553301b7' && pinAsOf1041('restoreDraftToSheet') === '2bbd08f689e23bc0');
     T('Session Score, quality, XP and records are byte-identical', pin('renderSummaryScore') === 'be7971b69696ae40'
       && pin('computeWorkoutQuality') === '30f1165dd94654eb' && pin('getWorkoutXPEntry') === 'f3cd1b21875f5d65' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20'
       && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pin('prEventsForEntry') === 'afda7994a51f7b09' && pin('canonicalPRIndex') === 'b30db7e31fad5051');
@@ -43508,17 +43603,21 @@ async function testWorkoutTimeTruthD1051(){
     T('sdCardHtml and openDayDetail keep D105\'s exact time reading, inside D107\'s restructure for E30',
       /const time = workoutTimeShort\(entry\);/.test(fnSrc(src, 'sdCardHtml')) && /const time = workoutTimeShort\(entry\);/.test(fnSrc(src, 'openDayDetail'))
       && pin('workoutTimeShort') === 'c97db5fead27b9ec' && pin('workoutTimeOf') === '58233330914cd18f');
+    /* D125 restated: the two draft functions changed again (the set plan and ownership travel with the draft), so
+       their 10.41 text is taken back first (D125_EDITS) and then D105.1's one line, exactly as before. */
+    const back1041 = (name, pairs) => pairs.reduce((s, [a, b]) => s.replace(a, b), asOf1041(name) || '');
     T('the four session functions changed only by their plan line (removed → 10.19\'s pins)',
       hash(back('openFreeformLog', [['pendingPlannedMinutes = null;', '']])) === '5997c307f4c24a7c'
       && hash(back('clearActiveDraft', [['pendingPlannedMinutes = null;', '']])) === 'c9885654fce10f35'
-      && hash(back('captureActiveDraft', [['plannedMinutes: pendingPlannedMinutes || null,', '']])) === '442c8c89a288ef0d'
-      && hash(back('restoreDraftToSheet', [["pendingPlannedMinutes = (typeof draft.plannedMinutes === 'number' && draft.plannedMinutes > 0) ? draft.plannedMinutes : null;", '']])) === '3d1b7cf79f71d591');
+      && hash(back1041('captureActiveDraft', [['plannedMinutes: pendingPlannedMinutes || null,', '']])) === '442c8c89a288ef0d'
+      && hash(back1041('restoreDraftToSheet', [["pendingPlannedMinutes = (typeof draft.plannedMinutes === 'number' && draft.plannedMinutes > 0) ? draft.plannedMinutes : null;", '']])) === '3d1b7cf79f71d591');
   });
 
   sub('everything else is untouched');
   await guard('protected', async () => {
     /* D107 restated: saveWorkoutEdits reopens by id now (E30). */
-    T('saving, starting, discarding, resuming and editing are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pin('startTemplateLog') === '5c14f8e6f7f41f52'
+    /* D125 restated: the start seeds the set plan now; held at 10.41 by D125_EDITS. */
+    T('saving, starting, discarding, resuming and editing are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52'
       && pin('discardActiveWorkout') === '020dca77235709c7' && pin('resumeActiveWorkout') === 'a6b29b4389ef77c8' && pin('loadActiveDraft') === '4bf204a7626c45ec'
       && pin('persistDraftNow') === '029fa02a38c64331' && pin('confirmOverwriteDraft') === 'ac92b2b2509c9d60' && pin('saveWorkoutEdits') === 'cd9cf93070dfd4a0');
     /* D107 restated: its Full-workout link opens by id now (E30). */
@@ -43699,7 +43798,9 @@ async function testMasteryTourD106(){
 
   sub('everything else is untouched');
   await guard('protected', async () => {
-    T('the builders the tour borrows are byte-identical — so the examples change only when the real screens do', pin('appendSetRow') === '15d160342d105b97' && pin('refreshSetMeta') === '938470e0460c3c58'
+    /* D125 restated: appendSetRow numbers by working-set place and records each row's reps for propagation; held at
+       10.41 by D125_EDITS (the tour's example rows have no warm-up, so they read exactly as before). */
+    T('the builders the tour borrows are byte-identical — so the examples change only when the real screens do', pinAsOf1041('appendSetRow') === '15d160342d105b97' && pin('refreshSetMeta') === '938470e0460c3c58'
       && pin('exerciseThumbHtml') === 'fe3dc90ec306b794' && pin('workoutIconHtml') === 'c95dabd80b455c5b' && pin('workoutIdentity') === '9196e8f108a3a7ad' && pin('restRingSvg') === '830b35d31e01d2b4'
       && pin('substitutionOptionHtml') === '36c7820f98b0491b' && pin('bodyDiagramSvg') === '50d44084806369ae' && pin('volumeBarSvg') === 'e4c8f5df157fb24a' && pin('setChipHtml') === '350b4e34eb582056');
     /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227. */
@@ -43708,7 +43809,8 @@ async function testMasteryTourD106(){
     /* D107 restated: renderTodayWorkout's own hero shows the day's LAST
        session now (E30) — never a stale first-of-the-day entry left behind
        once a second session that day is also logged. */
-    T('the real Today card, the stepper and logging are byte-identical', pin('renderTodayWorkout') === '7957f591c99febed' && pin('renderWorkoutStep') === 'f92999bce55ec36b' && pin('toggleSetComplete') === '46059f0d3306793b');
+    /* D125 restated: completing a warm-up no longer runs the coach; held at 10.41 by D125_EDITS. */
+    T('the real Today card, the stepper and logging are byte-identical', pin('renderTodayWorkout') === '7957f591c99febed' && pin('renderWorkoutStep') === 'f92999bce55ec36b' && pinAsOf1041('toggleSetComplete') === '46059f0d3306793b');
   });
 }
 
@@ -43936,14 +44038,16 @@ async function testWorkoutIdentityD107(){
 
   sub('everything else is untouched');
   await guard('protected', async () => {
-    T('saving, starting and the summary chain are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pin('startTemplateLog') === '5c14f8e6f7f41f52'
+    /* D125 restated: the start seeds the set plan now; held at 10.41 by D125_EDITS. */
+    T('saving, starting and the summary chain are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52'
       && pin('openWorkoutEditor') === 'b3bd3af59344624b' && pin('deleteLog') === 'c285ece4eae2315d');
     T('time, PR and XP engines are byte-identical', pin('workoutTimeShort') === 'c97db5fead27b9ec' && pin('workoutTimeOf') === '58233330914cd18f'
       && pin('getSessionPRs') === '2a121bed25bfa6ab' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
       && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded');
     T('workout identity, the shared action label and the category table are byte-identical',
       pin('workoutIdentity') === '9196e8f108a3a7ad' && pin('workoutIdentityHtml') === 'be3b1b8c56ceb888' && pin('twActionLabel') === '21824852a16e4df2' && pin('CAT_LABEL') === 'e3b0c44298fc1c14');
-    T('the stepper and logging are untouched', pin('renderWorkoutStep') === 'f92999bce55ec36b' && pin('toggleSetComplete') === '46059f0d3306793b' && pin('appendSetRow') === '15d160342d105b97');
+    /* D125 restated: completion and the row builder changed on purpose; held at 10.41 by D125_EDITS. */
+    T('the stepper and logging are untouched', pin('renderWorkoutStep') === 'f92999bce55ec36b' && pinAsOf1041('toggleSetComplete') === '46059f0d3306793b' && pinAsOf1041('appendSetRow') === '15d160342d105b97');
     T('no new data key and no schema change', !/DATA_SCHEMA_VERSION = 2/.test(src) && /DATA_SCHEMA_VERSION = 1;/.test(src));
   });
 }
@@ -46684,7 +46788,11 @@ async function testStartupRevealD114(){
      redrawn with the tabs). With that statement taken out it must still hash to 10.30's pin. */
   const D118_RENDER_ALL = "  if(exDetailName && exDetailIsOpen()) renderSurface('renderExDetail', renderExDetail);\n";
   T('renderAll carries the one D118 statement, once', fnSrc(raw, 'renderAll').split(D118_RENDER_ALL).length === 2);
-  const moved = Object.keys(PINS).filter(n => sha(n === 'renderAll' ? fnSrc(raw, n).replace(D118_RENDER_ALL, '') : fnSrc(raw, n)) !== PINS[n]);
+  /* D125 restated by reversal: restoreDraftToSheet gained exactly one statement (on resume, the values the athlete set
+     are marked theirs again). With it taken out it must still hash to 10.30's pin. [now, as of 10.41], comment-free. */
+  const D125_RESTORE = ["       \n      if(s && typeof s.own === 'string' && setRows[j]){\n        if(s.own.indexOf('w') !== -1) markUserSet(setRows[j].querySelector('.set-weight-in'));\n        if(s.own.indexOf('r') !== -1) markUserSet(setRows[j].querySelector('.set-reps-in'));\n      }\n    });\n","    });\n"];
+  T('restoreDraftToSheet carries the one D125 statement, once', fnSrc(raw, 'restoreDraftToSheet').split(D125_RESTORE[0]).length === 2);
+  const moved = Object.keys(PINS).filter(n => sha(n === 'renderAll' ? fnSrc(raw, n).replace(D118_RENDER_ALL, '') : n === 'restoreDraftToSheet' ? fnSrc(raw, n).split(D125_RESTORE[0]).join(D125_RESTORE[1]) : fnSrc(raw, n)) !== PINS[n]);
   T('all 18 startup-adjacent functions are unchanged: boot, both screens, the D106 tour decision and start, the draft load/restore/banner/flush, the update reload, tabs, Today',
     moved.length === 0, moved);
   T('storage is untouched: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow', (() => {
@@ -48529,9 +48637,11 @@ async function testBodyweightProgressionD119(){
       ['renderTodayInsights', 'objectiveDailyCandidates', 'computeProgressionBuckets', 'deriveWeeklyReview', 'restoreDraftToSheet', 'startTemplateLog', 'swapLogExercise', 'computeNextTimeNotes']
         .every(nm => /progressionFor\(/.test(fnSrc(raw, nm)) && !/progressionRecommendationFor\(|bodyweightProgressionFor\(/.test(fnSrc(raw, nm))) &&
       (raw.match(/progressionRecommendationFor\(/g) || []).length === 2);
+    /* D125 restated: the start, the draft restore and swap changed on purpose (they still ask progressionFor, above);
+       held at 10.41 by D125_EDITS. */
     T('7  and each of them is byte-identical to 10.35: the audit held them, so nothing there moved',
       pin('renderTodayInsights') === '92cb86beae6038eb' && pin('deriveWeeklyReview') === '54cedeb502954944' && pin('computeNextTimeNotes') === '16d50e35392c9180' &&
-      pin('restoreDraftToSheet') === '2bbd08f689e23bc0' && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('swapLogExercise') === '53e0f712db604c13');
+      pinAsOf1041('restoreDraftToSheet') === '2bbd08f689e23bc0' && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52' && pinAsOf1041('swapLogExercise') === '53e0f712db604c13');
   });
 
   /* ---------------------------------------------------------------- */
@@ -49697,9 +49807,10 @@ async function testPlateauEvidenceD122(){
       && at.falsePlateau.s.next.indexOf('Beat last session — aim for 9 reps at 200 lb.') !== -1);
     T('5  the workout card names the working load it is stuck at, never a warm-up’s', Object.keys(at).every(k => !at[k].s.card || /stuck at (185|200)lb/.test(at[k].s.card)), Object.keys(at).map(k => at[k].s.card).filter(Boolean));
     T('5  capability’s plateau field is the same signal (it has no other reader)', Object.keys(at).every(k => at[k].s.capPlateau === (at[k].s.plateau ? at[k].s.plateau[1] : 0)));
+    /* D125 restated: the start seeds the set plan now; held at 10.41 by D125_EDITS. */
     T('5  the readers themselves are byte-identical', pin('computeProgressionBuckets') === '87e47e4a883cc140' && pin('renderTodayInsights') === '92cb86beae6038eb'
       && pin('computeNextTimeNotes') === '16d50e35392c9180' && pin('templateCardHtml') === '43178b8aeb27a2aa' && pin('computeExerciseCapability') === '3a283e02ebdad568'
-      && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5');
+      && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5');
   });
 
   /* ---------------------------------------------------------------- */
@@ -50106,7 +50217,7 @@ async function testDeloadPlateauEvidenceD123(){
       && /return \{ template: prog\.template, scheduled: true, date: day, programId, phase: prog\.phase \|\| null \};/.test(col(fnSrc(raw, 'resolveStartWorkout')))
       && /pendingWorkoutPhase = draft\.phase \|\| null;/.test(col(fnSrc(raw, 'restoreDraftToSheet')))
       && /pendingWorkoutOrigin = 'freeform'; pendingWorkoutProgramId = null; pendingWorkoutPhase = null;/.test(col(fnSrc(raw, 'openFreeformLog')))
-      && pin('saveLog') === '66c63714822ef5ee' && pin('resolveStartWorkout') === '47700a2badbc9e2e' && pin('restoreDraftToSheet') === '2bbd08f689e23bc0' && pin('openFreeformLog') === 'a8e86c09a6b9c51c');
+      && pin('saveLog') === '66c63714822ef5ee' && pin('resolveStartWorkout') === '47700a2badbc9e2e' && pinAsOf1041('restoreDraftToSheet') === '2bbd08f689e23bc0' && pin('openFreeformLog') === 'a8e86c09a6b9c51c');   // D125 restated: held at 10.41
     T('1  D119’s bodyweight history keeps the very same one-line test, byte-identical, and the phase policy still reads D49’s own history: one meaning of "deload"',
       /\(l\.phase === 'deload' \? deloaded : sessions\)\.push\(/.test(col(fnSrc(raw, 'bodyweightSessionHistory'))) && pin('bodyweightSessionHistory') === '107a63744acb4508'
       && /const prior = exerciseSessionHistory\(exerciseName, 1\); if\(prior\.length && prior\[0\]\.phase !== 'deload' && prior\[0\]\.weight > 0\) hold = prior\[0\]\.weight;/.test(col(fnSrc(raw, 'applyPhaseProgressionPolicy'))));
@@ -50293,7 +50404,7 @@ async function testDeloadPlateauEvidenceD123(){
       && /if\(rec && rec\.weight != null && !bodyweight\) row\.dataset\.rxLoad = rec\.weight;/.test(col(fnSrc(raw, 'addLogExerciseRow'))));
     T('5  the readers are byte-identical', pin('findPlateauedExercises') === 'dd8083d950bf20eb' && pin('computeProgressionBuckets') === '87e47e4a883cc140'
       && pin('renderTodayInsights') === '92cb86beae6038eb' && pin('computeNextTimeNotes') === '16d50e35392c9180' && pin('templateCardHtml') === '43178b8aeb27a2aa'
-      && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('deriveWeeklyReview') === '54cedeb502954944');
+      && pin('computeExerciseCapability') === '3a283e02ebdad568' && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52' && pin('deriveWeeklyReview') === '54cedeb502954944');   // D125 restated: held at 10.41
     const keep = E44.map(k => untouched(at[k].c));
     T('5  records, PR XP, XP, level, rank, session and weekly volume, Session Score, Mastery and Recovery of every E44 history are 10.39’s exactly — a deload’s own records and tonnage still count (a digest frozen from 10.39)',
       sha(JSON.stringify(keep)) === 'a5edca1bdfb54170', sha(JSON.stringify(keep)));
@@ -50630,6 +50741,703 @@ async function testPbtTouchTargetsD124(){
   });
 }
 
+/* A small element tree for the vm (Contract 242). It parses the app's own templates (tags, attributes, text,
+   comments), answers class / id / tag / attribute / :not / :first-child / :last-child selectors with descendant and
+   child combinators, and keeps dataset, value, disabled and checked as strings and flags the way a browser does. That
+   is enough to run the live logger's real functions — the start, appendSetRow, the inline handlers, propagation, set
+   types, completion, Add Set, the draft — without a browser. Layout is not modelled: geometry is the browser rig's. */
+function miniDomD125(){
+  const VOID = new Set(['input', 'br', 'img', 'hr', 'meta', 'link', 'source', 'wbr', 'area', 'col', 'embed', 'param', 'track']);
+  const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', times: '×', middot: '·', ndash: '–', mdash: '—', rsaquo: '›', lsaquo: '‹', hellip: '…' };
+  const decode = s => String(s).replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, k) => k[0] === '#'
+    ? String.fromCodePoint(k[1] === 'x' || k[1] === 'X' ? parseInt(k.slice(2), 16) : parseInt(k.slice(1), 10)) : (ENT[k] != null ? ENT[k] : m));
+  const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const camel = s => s.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+  const kebab = s => s.replace(/[A-Z]/g, c => '-' + c.toLowerCase());
+  const textNode = t => ({ nodeType: 3, data: String(t), parentNode: null, get textContent(){ return this.data; } });
+  function el(tag){
+    const cls = new Set(), attrs = {}, data = {};
+    const dataset = new Proxy(data, { set(t, k, v){ t[k] = String(v); return true; }, deleteProperty(t, k){ delete t[k]; return true; } });
+    let value = '', disabled = false, checked = false;
+    const e = {
+      nodeType: 1, tagName: String(tag).toUpperCase(), localName: String(tag).toLowerCase(), childNodes: [], parentNode: null,
+      style: {}, dataset, attributes: attrs,
+      get value(){ return value; }, set value(v){ value = v == null ? '' : String(v); },
+      get disabled(){ return disabled; }, set disabled(v){ disabled = !!v; },
+      get checked(){ return checked; }, set checked(v){ checked = !!v; },
+      get id(){ return attrs.id || ''; }, set id(v){ attrs.id = String(v); },
+      get className(){ return [...cls].join(' '); }, set className(v){ cls.clear(); String(v).split(/\s+/).filter(Boolean).forEach(c => cls.add(c)); },
+      classList: {
+        add: (...c) => c.forEach(x => cls.add(x)), remove: (...c) => c.forEach(x => cls.delete(x)), contains: c => cls.has(c),
+        toggle: (c, f) => { const on = f === undefined ? !cls.has(c) : !!f; if(on) cls.add(c); else cls.delete(c); return on; }
+      },
+      get children(){ return this.childNodes.filter(n => n.nodeType === 1); },
+      get parentElement(){ return this.parentNode && this.parentNode.nodeType === 1 ? this.parentNode : null; },
+      get firstElementChild(){ return this.children[0] || null; },
+      get lastElementChild(){ const k = this.children; return k[k.length - 1] || null; },
+      get previousElementSibling(){ if(!this.parentNode) return null; const k = this.parentNode.children; return k[k.indexOf(this) - 1] || null; },
+      get nextElementSibling(){ if(!this.parentNode) return null; const k = this.parentNode.children; const i = k.indexOf(this); return i === -1 ? null : (k[i + 1] || null); },
+      get nextSibling(){ if(!this.parentNode) return null; const k = this.parentNode.childNodes; return k[k.indexOf(this) + 1] || null; },
+      setAttribute(k, v){
+        v = v == null ? '' : String(v);
+        if(k === 'class') this.className = v;
+        else if(k.startsWith('data-')) data[camel(k.slice(5))] = v;
+        else if(k === 'value'){ attrs.value = v; value = v; }
+        else if(k === 'disabled'){ attrs.disabled = v; disabled = true; }
+        else if(k === 'checked'){ attrs.checked = v; checked = true; }
+        else attrs[k] = v;
+      },
+      getAttribute(k){
+        if(k === 'class') return cls.size ? this.className : null;
+        if(k.startsWith('data-')){ const v = data[camel(k.slice(5))]; return v === undefined ? null : v; }
+        return Object.prototype.hasOwnProperty.call(attrs, k) ? attrs[k] : null;
+      },
+      hasAttribute(k){ return this.getAttribute(k) !== null; },
+      removeAttribute(k){ if(k === 'class') cls.clear(); else if(k.startsWith('data-')) delete data[camel(k.slice(5))]; else { delete attrs[k]; if(k === 'disabled') disabled = false; if(k === 'checked') checked = false; } },
+      appendChild(n){ if(n.parentNode) n.parentNode.removeChild(n); n.parentNode = this; this.childNodes.push(n); return n; },
+      removeChild(n){ const i = this.childNodes.indexOf(n); if(i !== -1) this.childNodes.splice(i, 1); n.parentNode = null; return n; },
+      insertBefore(n, ref){ if(!ref) return this.appendChild(n); if(n.parentNode) n.parentNode.removeChild(n); const i = this.childNodes.indexOf(ref); n.parentNode = this; this.childNodes.splice(i === -1 ? this.childNodes.length : i, 0, n); return n; },
+      remove(){ if(this.parentNode) this.parentNode.removeChild(this); },
+      get innerHTML(){ return this.childNodes.map(serialize).join(''); },
+      set innerHTML(h){ this.childNodes.forEach(n => { n.parentNode = null; }); this.childNodes = []; parse(String(h == null ? '' : h)).forEach(n => this.appendChild(n)); },
+      get textContent(){ return this.childNodes.map(n => n.nodeType === 3 ? n.data : n.textContent).join(''); },
+      set textContent(v){ this.childNodes = []; if(v !== '' && v != null) this.appendChild(textNode(v)); },
+      querySelectorAll(sel){ const out = [], groups = parseSelector(sel); walk(this, n => { if(groups.some(g => matchChain(n, g))) out.push(n); }); return out; },
+      querySelector(sel){ return this.querySelectorAll(sel)[0] || null; },
+      closest(sel){ const groups = parseSelector(sel); for(let n = this; n && n.nodeType === 1; n = n.parentNode) if(groups.some(g => matchChain(n, g))) return n; return null; },
+      matches(sel){ return parseSelector(sel).some(g => matchChain(this, g)); },
+      focus(){}, blur(){}, click(){}, scrollIntoView(){}, scrollBy(){}, scrollTo(){}, addEventListener(){}, removeEventListener(){}, dispatchEvent(){ return true; },
+      getBoundingClientRect(){ return { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, x: 0, y: 0 }; },
+      offsetHeight: 0, offsetWidth: 0, offsetTop: 0, offsetLeft: 0, scrollTop: 0, scrollHeight: 0, clientHeight: 0, clientWidth: 0
+    };
+    return e;
+  }
+  function serialize(n){
+    if(n.nodeType === 3) return esc(n.data);
+    const a = [];
+    if(n.className) a.push('class="' + n.className + '"');
+    Object.keys(n.attributes).forEach(k => a.push(k + '="' + String(n.attributes[k]).replace(/"/g, '&quot;') + '"'));
+    Object.keys(n.dataset).forEach(k => a.push('data-' + kebab(k) + '="' + String(n.dataset[k]).replace(/"/g, '&quot;') + '"'));
+    const open = '<' + n.localName + (a.length ? ' ' + a.join(' ') : '') + '>';
+    return VOID.has(n.localName) ? open : open + n.childNodes.map(serialize).join('') + '</' + n.localName + '>';
+  }
+  function parse(html){
+    const root = el('root'); let cur = root;
+    const re = /<!--[\s\S]*?-->|<\/([a-zA-Z][\w:-]*)\s*>|<([a-zA-Z][\w:-]*)((?:\s+[^\s=\/>]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(\/?)>|([^<]+)|(<)/g;
+    let m;
+    while((m = re.exec(html))){
+      if(m[0].startsWith('<!--')) continue;
+      if(m[1]){ const t = m[1].toLowerCase(); let n = cur; while(n && n !== root && n.localName !== t) n = n.parentNode; if(n && n !== root) cur = n.parentNode; continue; }
+      if(m[2]){
+        const node = el(m[2]);
+        const ar = /([^\s=\/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g; let a;
+        while((a = ar.exec(m[3] || ''))) node.setAttribute(a[1], decode(a[2] != null ? a[2] : a[3] != null ? a[3] : a[4] != null ? a[4] : ''));
+        cur.appendChild(node);
+        if(!m[4] && !VOID.has(node.localName)) cur = node;
+        continue;
+      }
+      if(m[5] != null){ cur.appendChild(textNode(decode(m[5]))); continue; }
+      if(m[6]) cur.appendChild(textNode('<'));
+    }
+    const out = root.childNodes.slice(); out.forEach(n => { n.parentNode = null; }); return out;
+  }
+  function walk(n, fn){ n.childNodes.forEach(k => { if(k.nodeType === 1){ fn(k); walk(k, fn); } }); }
+  const cache = new Map();
+  function parseSelector(sel){
+    if(cache.has(sel)) return cache.get(sel);
+    const groups = splitTop(sel, ',').map(g => { const chain = []; let comb = ' ';
+      tokens(g.trim()).forEach(t => { if(t === '>'){ comb = '>'; return; } chain.push({ comb, simple: compound(t) }); comb = ' '; }); return chain; });
+    cache.set(sel, groups); return groups;
+  }
+  function splitTop(s, ch){ const out = []; let depth = 0, cur = ''; for(const c of s){ if(c === '(' || c === '[') depth++; if(c === ')' || c === ']') depth--; if(c === ch && depth === 0){ out.push(cur); cur = ''; } else cur += c; } out.push(cur); return out; }
+  function tokens(s){ const out = []; let depth = 0, cur = ''; for(const c of s){ if(c === '(' || c === '[') depth++; if(c === ')' || c === ']') depth--;
+      if(depth === 0 && (c === ' ' || c === '>')){ if(cur){ out.push(cur); cur = ''; } if(c === '>') out.push('>'); continue; } cur += c; } if(cur) out.push(cur); return out; }
+  function compound(t){
+    const parts = []; const re = /(^[a-zA-Z*][\w-]*)|#([\w-]+)|\.([\w-]+)|\[([\w-]+)(?:([~^$*|]?=)"?([^"\]]*)"?)?\]|:not\(([^)]*)\)|:(first-child|last-child)/g; let mm;
+    while((mm = re.exec(t))){
+      const m = mm.slice();
+      if(m[1]) parts.push(n => m[1] === '*' || n.localName === m[1].toLowerCase());
+      else if(m[2]) parts.push(n => n.id === m[2]);
+      else if(m[3]) parts.push(n => n.classList.contains(m[3]));
+      else if(m[4]) parts.push(n => { const a = n.getAttribute(m[4]); if(a === null) return false; if(!m[5]) return true; if(m[5] === '=') return a === m[6];
+        if(m[5] === '^=') return a.startsWith(m[6]); if(m[5] === '$=') return a.endsWith(m[6]); if(m[5] === '*=') return a.includes(m[6]); return a.split(/\s+/).includes(m[6]); });
+      else if(m[7] != null){ const inner = compound(m[7]); parts.push(n => !inner(n)); }
+      else if(m[8] === 'first-child') parts.push(n => !!n.parentNode && n.parentNode.children[0] === n);
+      else if(m[8] === 'last-child') parts.push(n => !!n.parentNode && n.parentNode.children[n.parentNode.children.length - 1] === n);
+    }
+    return n => parts.every(p => p(n));
+  }
+  function matchChain(n, chain){
+    if(!chain[chain.length - 1].simple(n)) return false;
+    let node = n;
+    for(let i = chain.length - 2; i >= 0; i--){
+      const comb = chain[i + 1].comb, want = chain[i].simple;
+      if(comb === '>'){ node = node.parentNode; if(!node || node.nodeType !== 1 || !want(node)) return false; }
+      else { let p = node.parentNode, ok = false; while(p && p.nodeType === 1){ if(want(p)){ ok = true; node = p; break; } p = p.parentNode; } if(!ok) return false; }
+    }
+    return true;
+  }
+  return { el, parse };
+}
+
+/* =========================================================
+   CONTRACT 242 — WORKOUT PRESCRIPTION 1.0: WARM-UP ISOLATION AND THE WORKING-SET PLAN  (Phase D125)
+   ---------------------------------------------------------
+   The owner's live workout, 10.41: turning Set 1 into a warm-up and
+   typing 125 × 3 rewrote every working set to 125 × 3, and the
+   Suggested Warm-up was redrawn around 125 (50 / 75 / 100) because it
+   followed whatever the FIRST ROW held. Working sets all opened at
+   the same 8, whatever the athlete had actually done. Resuming kept
+   the damage; "Last time" headlined a warm-up.
+
+   Now: one working-set plan (deriveWorkingSetPlan), seeded once at
+   the start from the latest session at D49's load — real working
+   sets in order, never a warm-up, a deload or an unperformed set;
+   the program's set count and range bound it; BUILD adds one rep to
+   one set with reserve; anything less is the seed LOOP always used.
+   The Suggested Warm-up is drawn from the prescribed load and stays.
+   A warm-up is local: nothing typed, stepped, ticked or removed on
+   one reaches a working set, and D50B is not run for it. Working sets
+   are numbered among themselves. A warm-up turned back into a working
+   set takes that set's target unless the athlete set the value. The
+   stepper marks what it sets (D50B's rule, at last). The draft keeps
+   the plan and the athlete's ownership. Nothing new is stored in
+   history; no key, no schema.
+
+   10.41's behaviour is shown on its own functions, compiled back from
+   D125_EDITS. The live logger runs here for real on miniDomD125: the
+   start, the inline handlers, Add Set, the type toggle and picker,
+   completion and the draft. Geometry and real touch are the browser
+   rig's (d125/qa125.js).
+   ========================================================= */
+async function testWorkingSetPlanD125(){
+  section('CONTRACT 242 — warm-up isolation and the working-set plan (D125)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const pin = n => sha(col(fnSrc(raw, n)));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const NOW = '2026-10-03T12:00:00';
+  const S = (w, r, rir, type, extra) => Object.assign({ weight: String(w), reps: String(r), rir: rir == null ? '' : String(rir), type: type || 'working' }, extra || {});
+  const WU = (w, r) => S(w, r, null, 'warmup');
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const W = (id, date, exs, extra) => Object.assign({ id, date, category: 'push', title: 'Push', notes: '', exercises: exs }, extra || {});
+  const BP = (id, date, sets, extra) => W(id, date, [E('Bench Press', sets)], extra);
+  const DL = { origin: 'program', programId: 'p-qa', phase: 'deload' };
+  /* the owner's history: two 205 sessions after a warm-up of 135 × 6, D49 says BUILD 205 */
+  const OWNER = [
+    BP('h1', '2026-09-12', [S(195, 10, 2), S(195, 9, 1), S(195, 8, 1)]),
+    BP('h2', '2026-09-19', [WU(135, 6), S(205, 8, 2), S(205, 6, 1), S(205, 4, 0)]),
+    BP('h3', '2026-09-26', [WU(135, 6), S(205, 8, 2), S(205, 6, 1), S(205, 5, 0)])
+  ];
+  const boot = async log => {
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log || []),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) });
+    const rel = pinClock(a.ctx, NOW); try{ await H.settle(300); for(let t = 0; t < 60 && a.ctx.workoutLog.length !== (log || []).length; t++) await H.settle(100); } finally { rel(); }
+    return a;
+  };
+  const fresh = c => ['invalidateSortedLogCache', 'invalidateWorkoutGroups', 'invalidatePRCaches', 'invalidatePRSetCache', 'invalidateXPTimelineCache', 'invalidateRepRangeCache',
+    'invalidateRecoveryCache', 'invalidateCapabilityCache', 'invalidateContextCache', 'invalidateAllMasteryCaches', 'invalidateProgramCache', 'invalidateConsistencyCache']
+    .forEach(k => { if(typeof c[k] === 'function') try{ c[k](); }catch(e){} });
+  const useLog = (c, log) => { c.workoutLog = JSON.parse(JSON.stringify(log)); fresh(c); };
+  /* D49's answer and the plan for one exercise, exactly as the start asks for them */
+  const planOf = (c, log, sets, reps, opts, name, recd) => { useLog(c, log); return withClockOn(c, NOW, () => {
+    const rec = c.progressionFor(name || 'Bench Press', reps, recd == null ? '185' : recd);
+    return { rec, plan: c.deriveWorkingSetPlan(name || 'Bench Press', reps, sets, rec, opts || {}) }; }); };
+  /* 10.41's functions, compiled back from D125_EDITS into a running app */
+  const as1041 = c => { const keep = {}; Object.keys(D125_EDITS).forEach(n => { keep[n] = c[n]; const t = asOf1041(n);
+      /* a D125 statement that moved cannot be put back: say so, and leave that function as it is rather than break the app */
+      if(t === null){ T('10.41 — ' + n + ' cannot be compiled back: one of its D125 statements moved', false); return; }
+      c[n] = vm.runInContext('(' + (raw.indexOf('async function ' + n + '(') !== -1 ? 'async ' : '') + t + ')', c); });
+    return () => Object.keys(keep).forEach(n => { c[n] = keep[n]; }); };
+
+  /* ---- a live workout: the app's own logger on miniDomD125. The stepper's drawing (renderWorkoutStep,
+     onWorkoutRowAdded) is stood in for — it lays out the step and nothing here depends on it. ---- */
+  const live = async (log, o) => {
+    o = o || {};
+    const app = await boot(log); const c = app.ctx;
+    const D = miniDomD125(), body = D.el('body');
+    body.innerHTML = '<div id="logOverlay"><div class="sheet-scroll"><div id="logExercises"></div></div></div><div id="coachLive"></div><div id="setTypeOverlay"></div><div id="setTypeBody"></div>';
+    const byId = id => body.querySelector('#' + id), stub = c.document.getElementById.bind(c.document);
+    Object.assign(c.document, { getElementById: id => byId(id) || stub(id), createElement: tag => D.el(tag), querySelectorAll: sel => body.querySelectorAll(sel), querySelector: sel => body.querySelector(sel) });
+    Object.assign(c, { openLogSheet(){ byId('logOverlay').classList.add('open'); }, onWorkoutRowAdded(){}, renderWorkoutStep(){} });
+    const undo = o.at1041 ? as1041(c) : null;
+    const like = c.DEFAULT_PLANS.balanced.templates.push[0].exercises[0];
+    const tplEx = Object.assign({}, like, { name: o.name || 'Bench Press', sets: o.sets || 3, reps: o.reps || '8-12', recommended: o.recommended || '185', effort: '8' });
+    const tpl = { id: 'qa-d125', name: 'QA Push', exercises: [tplEx].concat(o.more || []) };
+    const getT = c.getTemplates; c.getTemplates = cat => cat === 'push' ? (getT(cat) || []).concat([tpl]) : getT(cat);
+    if(o.phase) c.resolveStartWorkout = () => ({ template: tpl, scheduled: true, date: null, programId: 'p-qa', phase: o.phase });
+    const release = pinClock(c, NOW);
+    await c.clearActiveDraft();
+    await c.startTemplateLog('push', 'qa-d125');
+    const ex = (i) => body.querySelectorAll('#logExercises .ex-log-row')[i || 0];
+    return { app, c, body, ex, release, undo };
+  };
+  const rowsOf = ex => ex.querySelectorAll('.set-row');
+  const idOf = r => r.dataset.setType === 'warmup' ? 'W' : 'S' + col(r.querySelector('.set-idx').textContent).replace(/^Set\s*/, '');
+  const read = ex => ({ rows: rowsOf(ex).map(r => idOf(r) + ' ' + r.querySelector('.set-weight-in').value + 'x' + r.querySelector('.set-reps-in').value + (r.classList.contains('completed') ? '+' : '')),
+    strip: ex.querySelectorAll('.warmup-wrap .warmup-chip').map(x => col(x.textContent)), last: col((ex.querySelector('.exc-summary') || {}).textContent || '') });
+  const call = (c, el, attr) => vm.runInContext('(function(){ ' + el.getAttribute(attr) + ' })', c).call(el);
+  const type = (c, input, v) => { input.value = String(v); call(c, input, 'oninput'); };
+  const tap = (c, el) => call(c, el, 'onclick');
+  const step = (c, row, field, plus) => tap(c, row.querySelectorAll('.stepper')[field === 'w' ? 0 : 1].querySelectorAll('button')[plus ? 1 : 0]);
+  const wIn = r => r.querySelector('.set-weight-in');
+  const repsIn = r => r.querySelector('.set-reps-in');
+  const STRIP205 = ['80 lb × 5', '125 lb × 3', '165 lb × 2'];
+
+  /* ---------------------------------------------------------------- */
+  sub('1–2  the owner’s bug, on 10.41’s own functions (compiled back from D125_EDITS)');
+  await guard('10.41', async () => {
+    const L = await live(OWNER, { at1041: true }), c = L.c, ex = L.ex();
+    const start = read(ex);
+    T('1  10.41 opens every working set the same: 205 × 8, 205 × 8, 205 × 8 (the range’s first number in every row)', same(start.rows, ['S1 205x8', 'S2 205x8', 'S3 205x8']), JSON.stringify(start));
+    tap(c, rowsOf(ex)[0].querySelector('.set-idx'));
+    type(c, wIn(rowsOf(ex)[0]), 125); type(c, repsIn(rowsOf(ex)[0]), 3);
+    const a = read(ex);
+    T('1  10.41: Set 1 made a warm-up and typed 125 × 3 rewrites EVERY working set to 125 × 3 (the owner’s screenshot)',
+      same(a.rows, ['W 125x3', 'S2 125x3', 'S3 125x3']), JSON.stringify(a));
+    T('2  10.41: the Suggested Warm-up follows the first ROW, so it is redrawn around the warm-up: 50 / 75 / 100',
+      same(start.strip, STRIP205) && same(a.strip, ['50 lb × 5', '75 lb × 3', '100 lb × 2']), JSON.stringify([start.strip, a.strip]));
+    step(c, rowsOf(ex)[0], 'w', true); step(c, rowsOf(ex)[0], 'w', true);
+    const b = read(ex);
+    T('2  10.41: the thumb does the same: + + on the warm-up’s load moves the strip again and every working set with it', same(b.rows, ['W 135x3', 'S2 135x3', 'S3 135x3']) && same(b.strip, ['55 lb × 5', '80 lb × 3', '110 lb × 2']), JSON.stringify(b));
+    T('2  the unstable source, named: 10.41’s maybeRefreshWarmup re-draws from whatever the first row holds, and its propagation walks warm-ups and working sets alike',
+      /const firstRow = setsList\.querySelector\('\.set-row'\); if\(firstRow !== setRow\) return;/.test(asOf1041('maybeRefreshWarmup')) && !/SET_TYPES\.WARMUP/.test(asOf1041('propagateSetValueForward')));
+    L.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('3–8  the Suggested Warm-up is the prescription’s, and a warm-up is local');
+  await guard('isolation', async () => {
+    const L = await live(OWNER), c = L.c, ex = L.ex();
+    const start = read(ex);
+    T('3  the start: D49 holds 205, the plan is 9 / 6 / 5, and the strip is drawn from the prescribed 205 (rxLoad), not from a row',
+      same(start.rows, ['S1 205x9', 'S2 205x6', 'S3 205x5']) && same(start.strip, STRIP205) && ex.dataset.rxLoad === '205' && ex.dataset.rxPlan === '9,6,5', JSON.stringify(start));
+    T('3  the warm-up ALGORITHM is untouched — only its input moved: the 40 / 60 / 80 % ramp and its renderer are 10.41\u2019s', pin('computeWarmupRamp') === 'b826d1445f153d77' && pin('warmupBoxHtml') === '12ed1e93107dbc78');
+    T('3  the anchor in the source: the row builder and the swap draw it from rowWorkingLoad, the refresh returns while there is one',
+      /const initialWeight = rowWorkingLoad\(row\) !== null \? row\.dataset\.rxLoad : \(firstWorking \? firstWorking\.weight : ''\);/.test(col(fnSrc(raw, 'addLogExerciseRow')))
+      && /if\(rowWorkingLoad\(exRow\) !== null\) return;/.test(col(fnSrc(raw, 'maybeRefreshWarmup'))) && /warmupBoxHtml\(clean, rowWorkingLoad\(target\) !== null \? target\.dataset\.rxLoad : ''\)/.test(col(fnSrc(raw, 'swapLogExercise'))));
+    tap(c, rowsOf(ex)[0].querySelector('.set-idx'));
+    type(c, wIn(rowsOf(ex)[0]), 125);
+    const a = read(ex);
+    T('4  a warm-up’s typed load (125) leaves the Suggested Warm-up exactly as drawn', same(a.strip, STRIP205), JSON.stringify(a.strip));
+    T('6  ...and every working load', same(a.rows.slice(1), ['S1 205x6', 'S2 205x5']), JSON.stringify(a.rows));
+    type(c, repsIn(rowsOf(ex)[0]), 3);
+    step(c, rowsOf(ex)[0], 'r', true); step(c, rowsOf(ex)[0], 'r', true);
+    const b = read(ex);
+    T('5  a warm-up’s reps, typed and stepped (3 then + +), leave the strip as drawn', same(b.strip, STRIP205) && b.rows[0] === 'W 125x5', JSON.stringify(b));
+    T('7  ...and every working set’s reps', same(b.rows.slice(1), ['S1 205x6', 'S2 205x5']), JSON.stringify(b.rows));
+    step(c, rowsOf(ex)[0], 'w', true); step(c, rowsOf(ex)[0], 'w', false); step(c, rowsOf(ex)[0], 'w', true);
+    const sr = rowsOf(ex)[0].querySelectorAll('.rir-opt')[2]; tap(c, sr);
+    const b2 = read(ex);
+    T('4  the thumb on the warm-up’s load (+ − +) and its RIR stay on that row', same(b2.strip, STRIP205) && b2.rows[0] === 'W 130x5' && same(b2.rows.slice(1), ['S1 205x6', 'S2 205x5'])
+      && rowsOf(ex)[0].querySelector('.set-rir-in').value === '2' && rowsOf(ex).slice(1).every(r => r.querySelector('.set-rir-in').value === ''), JSON.stringify(b2));
+    tap(c, rowsOf(ex)[0].querySelector('.set-complete-btn'));
+    const d = read(ex);
+    T('8  completing the warm-up changes no working set and the strip stays', same(d.rows, ['W 130x5+', 'S1 205x6', 'S2 205x5']) && same(d.strip, STRIP205), JSON.stringify(d));
+    T('8  ...and the coach is not run for it: a warm-up is not D50B’s evidence, so it is never a reason to rewrite what comes next', ex.querySelector('.recommend-wrap').innerHTML === '');
+    tap(c, rowsOf(ex)[0].querySelector('.set-complete-btn'));
+    T('8  un-ticking it does not run the coach either', ex.querySelector('.recommend-wrap').innerHTML === '' && same(read(ex).rows.slice(1), ['S1 205x6', 'S2 205x5']));
+    L.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('9–13  working sets are numbered among themselves; type changes touch one row; the athlete’s values are theirs');
+  await guard('ordinals', async () => {
+    let L = await live(OWNER), c = L.c, ex = L.ex();
+    /* 9 — add a warm-up: Add Set appends a working set (the plan holds nothing past 3, so it repeats the last working set), made a warm-up */
+    tap(c, ex.querySelector('.add-set-btn'));
+    const added = read(ex);
+    T('32  Add Set on a three-set plan adds Set 4, repeating the last working set (205 × 5) — extra work, never claimed as prescribed (targetSets stays 3)',
+      same(added.rows, ['S1 205x9', 'S2 205x6', 'S3 205x5', 'S4 205x5']) && ex.dataset.targetSets === '3', JSON.stringify(added));
+    tap(c, rowsOf(ex)[3].querySelector('.set-idx'));
+    type(c, wIn(rowsOf(ex)[3]), 95);
+    T('9  made a warm-up and typed 95: the three working sets keep their numbers and targets', same(read(ex).rows, ['S1 205x9', 'S2 205x6', 'S3 205x5', 'W 95x5']), JSON.stringify(read(ex)));
+    tap(c, ex.querySelector('.add-set-btn'));
+    T('32  Add Set when the LAST row is a warm-up: the new set is filled from the last WORKING set (205 × 5), never the warm-up\u2019s 95, and numbered Set 4',
+      read(ex).rows[4] === 'S4 205x5', JSON.stringify(read(ex)));
+    tap(c, rowsOf(ex)[4].querySelector('.rm-set'));
+    /* an extra warm-up put ABOVE the work (the order a draft or a future control can produce) */
+    const list = ex.querySelector('.sets-list'), wRow = rowsOf(ex)[3];
+    list.insertBefore(wRow, rowsOf(ex)[0]); c.renumberSets(list);
+    T('9  a warm-up inserted above Working Set 1: still Set 1 / 2 / 3 with the same targets', same(read(ex).rows, ['W 95x5', 'S1 205x9', 'S2 205x6', 'S3 205x5']), JSON.stringify(read(ex)));
+    tap(c, rowsOf(ex)[0].querySelector('.rm-set'));
+    T('10  removing the warm-up: Set 1 / 2 / 3, same targets', same(read(ex).rows, ['S1 205x9', 'S2 205x6', 'S3 205x5']), JSON.stringify(read(ex)));
+    /* 11 — Working → Warm-up */
+    tap(c, rowsOf(ex)[1].querySelector('.set-idx'));
+    T('11  Set 2 made a warm-up: no value anywhere changes, and the set after it is now Set 2', same(read(ex).rows, ['S1 205x9', 'W 205x6', 'S2 205x5']), JSON.stringify(read(ex)));
+    T('11  its accessible words follow: the warm-up says "Warm-up", the work says "Set 1" and "Set 2"',
+      col(rowsOf(ex)[1].querySelector('.set-idx').textContent) === 'WWarm-up' && col(rowsOf(ex)[2].querySelector('.set-idx').textContent) === 'Set 2' && rowsOf(ex)[1].querySelector('.set-idx-w').getAttribute('aria-hidden') === 'true');
+    /* 12 — Warm-up → Working: pristine → its own target back */
+    tap(c, rowsOf(ex)[1].querySelector('.set-idx'));
+    T('12  and back: an untouched row takes its place’s target — exactly the start again', same(read(ex).rows, ['S1 205x9', 'S2 205x6', 'S3 205x5']), JSON.stringify(read(ex)));
+    L.release();
+
+    L = await live(OWNER); c = L.c; ex = L.ex();
+    tap(c, rowsOf(ex)[0].querySelector('.set-idx'));
+    type(c, wIn(rowsOf(ex)[0]), 125);
+    step(c, rowsOf(ex)[1], 'r', true);                    // the athlete's own Set 1 (row 2): 6 -> 7
+    tap(c, rowsOf(ex)[0].querySelector('.set-idx'));
+    T('12  a warm-up typed 125 then turned back: the load the athlete typed stays theirs, the untouched reps take Working Set 1’s target (9)',
+      read(ex).rows[0] === 'S1 125x9', JSON.stringify(read(ex)));
+    T('12  ...and nothing else moved: the stepped 7 and the 5 are as they were', same(read(ex).rows.slice(1), ['S2 205x7', 'S3 205x5']), JSON.stringify(read(ex)));
+    tap(c, rowsOf(ex)[0].querySelector('.set-idx')); step(c, rowsOf(ex)[0], 'r', false); tap(c, rowsOf(ex)[0].querySelector('.set-idx'));
+    T('12  reps the athlete stepped on the warm-up (9 → 8) stay theirs too when it turns back: 125 × 8', read(ex).rows[0] === 'S1 125x8', JSON.stringify(read(ex)));
+    L.release();
+
+    /* through the picker too (chooseSetType), and a converted row past the plan repeats its last target */
+    L = await live(OWNER); c = L.c; ex = L.ex();
+    tap(c, rowsOf(ex)[2].querySelector('.set-idx'));
+    repsIn(rowsOf(ex)[2]).value = '3'; wIn(rowsOf(ex)[2]).value = '100';       // written by something other than the athlete: no ownership
+    tap(c, rowsOf(ex)[2].querySelector('.set-idx'));
+    T('12  the tap path: a pristine warm-up whose values something else wrote (100 × 3) turns back into Set 3\u2019s target, 205 × 5', read(ex).rows[2] === 'S3 205x5', JSON.stringify(read(ex)));
+    tap(c, rowsOf(ex)[2].querySelector('.set-idx'));
+    repsIn(rowsOf(ex)[2]).value = '3'; wIn(rowsOf(ex)[2]).value = '100';
+    tap(c, rowsOf(ex)[2].querySelector('.set-type-btn')); c.chooseSetType('working');
+    T('12  the picker path: a pristine warm-up chosen back to Working takes Set 3’s target, 205 × 5', read(ex).rows[2] === 'S3 205x5', JSON.stringify(read(ex)));
+    repsIn(rowsOf(ex)[2]).value = '10'; wIn(rowsOf(ex)[2]).value = '185';
+    tap(c, rowsOf(ex)[2].querySelector('.set-type-btn')); c.chooseSetType('drop');
+    T('12  only Warm-up → Working seeds: a working set changed to Drop keeps the values it shows (185 × 10), even ones nobody typed', read(ex).rows[2] === 'S3 185x10' && rowsOf(ex)[2].dataset.setType === 'drop', JSON.stringify(read(ex)));
+    L.release();
+
+    /* with a warm-up above: a row's place is counted among working sets, never rows */
+    L = await live(OWNER); c = L.c; ex = L.ex();
+    tap(c, rowsOf(ex)[0].querySelector('.set-idx'));
+    tap(c, rowsOf(ex)[2].querySelector('.set-idx'));
+    repsIn(rowsOf(ex)[2]).value = '3'; wIn(rowsOf(ex)[2]).value = '100';
+    tap(c, rowsOf(ex)[2].querySelector('.set-idx'));
+    T('12  below a warm-up, the row turned back is Working Set 2 (its third row): it takes Set 2\u2019s 6, not Set 3\u2019s 5', read(ex).rows[2] === 'S2 205x6', JSON.stringify(read(ex)));
+    L.release();
+    L = await live(OWNER); c = L.c; ex = L.ex();
+    tap(c, rowsOf(ex)[2].querySelector('.set-meta-btn')); tap(c, rowsOf(ex)[2].querySelector('.rm-set'));
+    tap(c, rowsOf(ex)[0].querySelector('.set-idx'));
+    tap(c, ex.querySelector('.add-set-btn'));
+    T('32  Add Set below a warm-up adds Working Set 2 and takes the plan\u2019s Set 2 (6) — counted among working sets, not rows', same(read(ex).rows, ['W 205x9', 'S1 205x6', 'S2 205x6']), JSON.stringify(read(ex)));
+    L.release();
+
+    /* 13 — the athlete's Set 2 survives later warm-up edits and earlier-set edits */
+    L = await live(OWNER); c = L.c; ex = L.ex();
+    type(c, repsIn(rowsOf(ex)[1]), 7);
+    tap(c, rowsOf(ex)[0].querySelector('.set-idx'));
+    type(c, wIn(rowsOf(ex)[0]), 135); step(c, rowsOf(ex)[0], 'r', false); tap(c, rowsOf(ex)[0].querySelector('.set-complete-btn'));
+    T('13  Set 2 typed 6 → 7, then a warm-up edited, stepped and ticked: Set 2 is still 7 (Scenario 6)', read(ex).rows[1] === 'S1 205x7', JSON.stringify(read(ex)));
+    tap(c, rowsOf(ex)[0].querySelector('.set-complete-btn')); tap(c, rowsOf(ex)[0].querySelector('.set-idx'));
+    step(c, rowsOf(ex)[0], 'r', true);
+    T('13  ...and when Set 1 changes it is still 7: a value the athlete set is theirs (D50B’s rule), and Set 3 keeps its own 5', same(read(ex).rows.slice(1), ['S2 205x7', 'S3 205x5']), JSON.stringify(read(ex)));
+    L.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('PROPAGATION MATRIX — what an edit to each kind of set may reach');
+  await guard('matrix', async () => {
+    /* uniform: a first session, the program's seed 8 / 8 / 8 */
+    let L = await live([]), c = L.c, ex = L.ex();
+    T('M  a first session opens on the program’s seed in every row, as LOOP always did (8 / 8 / 8 at the plan’s 185)', same(read(ex).rows, ['S1 185x8', 'S2 185x8', 'S3 185x8']) && !ex.dataset.rxPlan, JSON.stringify(read(ex)));
+    step(c, rowsOf(ex)[0], 'r', true);
+    T('M  working reps, uniform plan: one + on Set 1 still moves every later set that showed the same 8 (the existing one-edit change)', same(read(ex).rows, ['S1 185x9', 'S2 185x9', 'S3 185x9']), JSON.stringify(read(ex)));
+    type(c, wIn(rowsOf(ex)[0]), 190);
+    T('M  working load: carries forward to later working sets, as it always did', same(read(ex).rows, ['S1 190x9', 'S2 190x9', 'S3 190x9']), JSON.stringify(read(ex)));
+    tap(c, rowsOf(ex)[2].querySelector('.set-idx'));
+    type(c, wIn(rowsOf(ex)[0]), 195); type(c, repsIn(rowsOf(ex)[0]), 10);
+    T('M  working → warm-up: a working edit never reaches a warm-up (Set 3 made a warm-up keeps 190 × 9)', same(read(ex).rows, ['S1 195x10', 'S2 195x10', 'W 190x9']), JSON.stringify(read(ex)));
+    tap(c, rowsOf(ex)[1].querySelector('.set-complete-btn'));
+    type(c, wIn(rowsOf(ex)[0]), 200);
+    T('M  a completed set is a record and is never rewritten', read(ex).rows[1] === 'S2 195x10+' && read(ex).rows[0] === 'S1 200x10', JSON.stringify(read(ex)));
+    T('M  the stepper marks what it sets, exactly as typing does (D50B: "typed into or stepped")', !!repsIn(rowsOf(ex)[0]).dataset.userSet && /markUserSet\(input\);/.test(fnSrc(raw, 'stepValue')));
+    L.release();
+    /* history plan: distinct targets keep their own */
+    L = await live(OWNER); c = L.c; ex = L.ex();
+    step(c, rowsOf(ex)[0], 'r', true);
+    T('M  working reps, laid-out plan: Set 1 9 → 10 leaves Set 2’s 6 and Set 3’s 5 — each is its own target', same(read(ex).rows, ['S1 205x10', 'S2 205x6', 'S3 205x5']), JSON.stringify(read(ex)));
+    type(c, repsIn(rowsOf(ex)[1]), 5);
+    T('M  ...and a later set showing the same number as the one changed follows it (Set 2 6 → 5 leaves Set 3 at 5; 5 → 4 takes Set 3 along)',
+      (() => { const r1 = read(ex).rows; type(c, repsIn(rowsOf(ex)[1]), 4); const r2 = read(ex).rows; return r1[2] === 'S3 205x5' && r2[2] === 'S3 205x4'; })(), JSON.stringify(read(ex)));
+    L.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('20 / swap  a deload start, and a swap before any work');
+  await guard('deload-swap', async () => {
+    let L = await live(OWNER, { phase: 'deload' }), c = L.c, ex = L.ex();
+    T('20  a session the program composed inside a deload starts on the program\u2019s seed — no history pattern in a lighter week — and keeps its strip', same(read(ex).rows, ['S1 205x8', 'S2 205x8', 'S3 205x8']) && !ex.dataset.rxPlan && same(read(ex).strip, STRIP205), JSON.stringify(read(ex)));
+    L.release();
+    L = await live(OWNER.concat([W('i1', '2026-09-27', [E('Incline Bench Press', [S(155, 10, 2), S(155, 9, 1), S(155, 8, 1)])])])); c = L.c; ex = L.ex();
+    c.swapLogExercise(ex, 'Incline Bench Press');
+    const sw = L.ex();
+    T('swap  swapped before any work, the warm-up is drawn from the replacement\u2019s own prescribed load (155: 60 / 95 / 125), the slot\u2019s reps stay (Phase B)',
+      sw.dataset.rxLoad === '155' && same(read(sw).strip, ['60 lb × 5', '95 lb × 3', '125 lb × 2']) && same(rowsOf(sw).map(r => repsIn(r).value), ['9', '6', '5']), JSON.stringify(read(sw)));
+    L.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('14  the draft keeps the plan, the strip and what the athlete set');
+  await guard('draft', async () => {
+    const L = await live(OWNER), c = L.c, ex = L.ex();
+    tap(c, rowsOf(ex)[0].querySelector('.set-idx')); type(c, wIn(rowsOf(ex)[0]), 125); type(c, repsIn(rowsOf(ex)[0]), 3);
+    step(c, rowsOf(ex)[1], 'r', true);
+    const before = read(ex);
+    const draft = c.captureActiveDraft();
+    const ds = draft.exercises[0];
+    T('14  the draft carries the plan the row was seeded with and which values the athlete set (w = load, r = reps) — nothing else new',
+      ds.meta.rxPlan === '9,6,5' && ds.sets[0].own === 'wr' && ds.sets[1].own === 'r' && !('own' in ds.sets[2]) && same(Object.keys(ds.sets[2]), ['weight', 'reps', 'rir', 'completed']), JSON.stringify(ds));
+    c.restoreDraftToSheet(JSON.parse(JSON.stringify(draft)));
+    const ex2 = L.ex(), after = read(ex2);
+    T('14  resumed: the rows, their numbers, the Suggested Warm-up and "Last time" are exactly as left (the owner’s J)', same(after, before), JSON.stringify([before, after]));
+    T('14  resumed: the plan is the one the start took (not re-derived), and the athlete’s values are still theirs',
+      ex2.dataset.rxPlan === '9,6,5' && !!wIn(rowsOf(ex2)[0]).dataset.userSet && !!repsIn(rowsOf(ex2)[1]).dataset.userSet && !wIn(rowsOf(ex2)[1]).dataset.userSet && !repsIn(rowsOf(ex2)[2]).dataset.userSet);
+    type(c, wIn(rowsOf(ex2)[0]), 135);
+    T('14  ...so after resuming, a warm-up edit is still local and the strip still stays', same(read(ex2).rows.slice(1), ['S1 205x7', 'S2 205x5']) && same(read(ex2).strip, STRIP205), JSON.stringify(read(ex2)));
+    /* a draft written by 10.41 has neither field: it restores as it always did */
+    const old = JSON.parse(JSON.stringify(draft)); delete old.exercises[0].meta.rxPlan; old.exercises[0].sets.forEach(s => { delete s.own; });
+    c.restoreDraftToSheet(old);
+    const ex3 = L.ex();
+    T('14  a 10.41 draft (no plan, no ownership) restores its rows exactly, marks nothing, and keeps the strip on the prescribed load',
+      same(read(ex3).rows, before.rows) && !ex3.dataset.rxPlan && rowsOf(ex3).every(r => !wIn(r).dataset.userSet && !repsIn(r).dataset.userSet) && same(read(ex3).strip, STRIP205), JSON.stringify(read(ex3)));
+    L.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('15–34  the plan: one source, real working sets, inside the program');
+  const eng = await boot([]); const c = eng.ctx;
+  await guard('engine', async () => {
+    const own = planOf(c, OWNER, 3, '8-12');
+    T('15  D49 is the load: the plan carries D49’s 205 and never a weight of its own; the start writes D49’s weight into every row',
+      own.rec.weight === 205 && own.rec.tag === 'build' && own.plan.load === 205 && /const weightVal = isBW \? '' : \(rec && rec\.weight != null \? rec\.weight : ''\);/.test(col(fnSrc(raw, 'startTemplateLog')))
+      && /sets\.push\(\{ weight: weightVal, reps: plan \? plan\.reps\[i\] : repVal \}\);/.test(col(fnSrc(raw, 'startTemplateLog'))), JSON.stringify(own));
+    T('17  one source: deriveWorkingSetPlan is called once, by the start, per loaded exercise — nothing else lays out reps, and nothing re-runs it after the first set',
+      (raw.match(/deriveWorkingSetPlan\(/g) || []).length === 2 && /deriveWorkingSetPlan\(ex\.name, ex\.reps, setCount, rec, \{ deload: deloadSession \}\)/.test(fnSrc(raw, 'startTemplateLog'))
+      && (raw.match(/workingSetSequenceOf\(/g) || []).length === 2 && (raw.match(/buildRepIndex\(/g) || []).length === 2);
+    T('18  it reads the real sequence: 8@2 / 6@1 / 5@0 last time at 205, BUILD → 9 / 6 / 5 (one rep, on the set that had two in reserve)', same(own.plan.reps, ['9', '6', '5']) && own.plan.source === 'history+1', JSON.stringify(own.plan));
+    /* 16 — the program: set count and range for each fixture */
+    const prog = [[3, '8-12'], [4, '6-10'], [2, '5-8'], [3, '10-15'], [5, '4-6']].map(([n, r]) => {
+      const H8 = [BP('a', '2026-09-19', [S(205, 11), S(205, 9), S(205, 8), S(205, 7)]), BP('b', '2026-09-26', [S(205, 11), S(205, 9), S(205, 8), S(205, 7)])];
+      const p = planOf(c, H8, n, r).plan, rg = c.parseRepRange(r);
+      return { n, r, reps: p.reps, ok: p.reps.length === n && p.reps.every(x => +x >= 1 && +x <= rg.max) };
+    });
+    T('16  the program owns structure: the same 11 / 9 / 8 / 7 history under 3×8–12, 4×6–10, 2×5–8, 3×10–15, 5×4–6 gives exactly each set count, never past the range’s top (BUILD adds its one rep where D49 says build)',
+      prog.every(p => p.ok) && same(prog.map(p => p.reps.join('/')), ['12/9/8', '10/9/8/7', '8/8', '12/9/8', '6/6/6/6/6']), JSON.stringify(prog));
+    /* 19 — warm-ups never train it */
+    const noisy = OWNER.map(w => Object.assign({}, w, { exercises: w.exercises.map(e => Object.assign({}, e, { sets: [WU(95, 12), WU(205, 3)].concat(e.sets).concat([WU(225, 1)]) })) }));
+    T('19  typed warm-ups anywhere — even one AT 205, or heavier — never enter the plan', same(planOf(c, noisy, 3, '8-12').plan, own.plan));
+    /* 20 — deload */
+    const dl = OWNER.concat([BP('d', '2026-09-30', [S(205, 12, 4), S(205, 12, 4), S(205, 12, 4)], DL)]);
+    T('20  a programmed deload at the same load (205 × 12 × 3) is not the pattern: the plan is still the ordinary session’s', same(planOf(c, dl, 3, '8-12').plan.reps, own.plan.reps), JSON.stringify(planOf(c, dl, 3, '8-12').plan));
+    T('20  a deload session being started takes the program’s seed (D85): no history pattern inside a lighter week', same(c.deriveWorkingSetPlan('Bench Press', '8-12', 3, own.rec, { deload: true }), { source: 'program', reps: ['8', '8', '8'], load: null, tag: 'build' }));
+    T('20  the start asks the session’s own phase, the classifier D85 and D123 share', /const deloadSession = isDeloadWorkout\(\{ phase: pendingWorkoutPhase \}\);/.test(col(fnSrc(raw, 'startTemplateLog'))));
+    const onlyDl = [BP('d1', '2026-09-26', [S(205, 12, 4), S(205, 12, 4), S(205, 12, 4)], DL)];
+    T('20  deload-only history gives no pattern at all — the seed', planOf(c, onlyDl, 3, '8-12').plan.source === 'program');
+    /* 21 — invalid reps and loads */
+    const bad = [BP('a', '2026-09-26', [S(205, 'abc'), S(205, '0'), S(205, '-5'), S(205, '1e999'), S(205, 'Infinity'), S(205, ''), S('1e999', 8), S('BW', 8), S('', 8), S('abc', 8)])];
+    T('21  no invalid rep count or load is evidence: a session of only those gives the seed, never NaN or Infinity', (() => { const p = planOf(c, bad, 3, '8-12').plan; return p.source === 'program' && p.reps.every(x => x === '8'); })());
+    const mixed = [BP('a', '2026-09-26', [S(205, 8), S(205, 'Infinity'), S(205, 6), S('1e999', 9), S(205, 5)])];
+    T('21  beside real sets, the invalid ones are simply absent: the session reads 8 / 6 / 5, so BUILD gives 9 / 6 / 5', same(planOf(c, mixed, 3, '8-12').plan.reps, ['9', '6', '5']), JSON.stringify(planOf(c, mixed, 3, '8-12').plan));
+    /* 22 — skipped and unperformed */
+    const skip = [BP('a', '2026-09-19', [S(205, 8), S(205, 6), S(205, 5)]), BP('b', '2026-09-26', [S(205, 10, null, 'working', { completed: false }), S(205, 10, null, 'working', { completed: false }), S(205, 9, null, 'working', { completed: false })])];
+    T('22  sets marked not done are not evidence: the plan comes from the last PERFORMED session (8 / 6 / 5, BUILD → 9 / 6 / 5), never the unperformed 10 / 10 / 9', same(planOf(c, skip, 3, '8-12').plan.reps, ['9', '6', '5']), JSON.stringify(planOf(c, skip, 3, '8-12').plan));
+    /* the window: D49 reads five sessions, and so does the plan */
+    const old205 = [BP('o', '2026-08-01', [S(205, 8, 2), S(205, 7, 1), S(205, 6, 1)])].concat(['2026-08-29', '2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'].map((d, i) => BP('n' + i, d, [S(195, 9), S(195, 8), S(195, 7)])));
+    useLog(c, old205);
+    const win = withClockOn(c, NOW, () => [c.deriveWorkingSetPlan('Bench Press', '8-12', 3, { weight: 205, tag: 'hold' }, {}), c.deriveWorkingSetPlan('Bench Press', '8-12', 3, { weight: 195, tag: 'hold' }, {})]);
+    T('24  evidence is the last five sessions, as D49 reads it: 205 from six sessions ago is not read (the seed), 195 last time is (9 / 8 / 7)',
+      win[0].source === 'program' && same(win[1].reps, ['9', '8', '7']), JSON.stringify(win));
+    const junk = [BP('o', '2026-08-01', [S(205, 8), S(205, 7), S(205, 6)])].concat(['2026-08-29', '2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'].map((d, i) => BP('j' + i, d, [S('1e999', 9), S('Infinity', 8), S('abc', 7)])));
+    useLog(c, junk);
+    T('21  a session of only malformed loads is no session at all: five of them do not use up the window, so the real 205 session before them is still read',
+      same(withClockOn(c, NOW, () => c.deriveWorkingSetPlan('Bench Press', '8-12', 3, { weight: 205, tag: 'hold' }, {})).reps, ['8', '7', '6']));
+    /* 23, 24 — first session, insufficient */
+    T('23  never trained: the program’s seed, the same every time', same(planOf(c, [], 3, '8-12').plan, { source: 'program', reps: ['8', '8', '8'], load: null, tag: 'new' }) && same(planOf(c, [], 3, '8-12').plan, planOf(c, [], 3, '8-12').plan));
+    const one = [BP('a', '2026-09-26', [S(205, 10, 2)])];
+    T('24  one set at the load is not a session (D49’s own floor is two): the seed', same(planOf(c, one, 3, '8-12').plan.reps, ['8', '8', '8']));
+    T('24  a one-set program needs one', same(planOf(c, one, 1, '8-12').plan.reps, ['10']) && planOf(c, one, 1, '8-12').plan.source !== 'program');
+    /* 25 — BUILD */
+    const b1 = planOf(c, [BP('a', '2026-09-19', [S(205, 8, 1), S(205, 6, 1), S(205, 4, 0)]), BP('b', '2026-09-26', [S(205, 8, 0), S(205, 7, 1), S(205, 5, 2)])], 3, '8-12');
+    T('25  BUILD with effort logged (Scenario 3: 8@0 / 7@1 / 5@2): one rep on the first set that had one in reserve — 8 / 8 / 5, never 9 / 8 / 6',
+      b1.rec.tag === 'build' && same(b1.plan.reps, ['8', '8', '5']), JSON.stringify(b1));
+    const b3 = planOf(c, [BP('a', '2026-09-19', [S(205, 8), S(205, 6, 1), S(205, 4, 1)]), BP('b', '2026-09-26', [S(205, 8), S(205, 7, 1), S(205, 5, 2)])], 3, '8-12');
+    T('25  effort logged on Sets 2 and 3 but not Set 1: an unlogged set is not assumed to have reserve, so the rep goes to Set 2 — 8 / 8 / 5',
+      b3.rec.tag === 'build' && same(b3.plan.reps, ['8', '8', '5']), JSON.stringify(b3));
+    const b2 = planOf(c, [BP('a', '2026-09-19', [S(205, 8), S(205, 6), S(205, 4)]), BP('b', '2026-09-26', [S(205, 8), S(205, 7), S(205, 5)])], 3, '8-12');
+    T('25  BUILD with no effort logged: the one rep goes where D49’s "aim for 9" points — the top set: 9 / 7 / 5', b2.rec.tag === 'build' && same(b2.plan.reps, ['9', '7', '5']) && /aim for 9 reps/.test(b2.rec.why), JSON.stringify(b2));
+    T('25  never more than one rep in total, whatever the history (every BUILD plan here differs from its session by exactly one rep)',
+      [b1, b2, own].every(x => x.plan.reps.reduce((n, r, i, a) => n + (+r), 0) === 1 + [b1, b2, own].indexOf(x) * 0 + (x === b1 ? 20 : x === b2 ? 20 : 19)));
+    /* 26 — INCREASE */
+    const inc = planOf(c, [BP('a', '2026-09-19', [S(200, 12, 3), S(200, 12, 3), S(200, 12, 3)]), BP('b', '2026-09-26', [S(200, 12, 3), S(200, 12, 2), S(200, 12, 2)])], 3, '8-12');
+    T('26  INCREASE to a new load (Scenario 4): nothing at 205 to read, so the program’s seed (8 / 8 / 8) — never 200’s 12s', inc.rec.tag === 'increase' && inc.rec.weight === 205 && same(inc.plan.reps, ['8', '8', '8']) && inc.plan.source === 'program', JSON.stringify(inc));
+    const back = planOf(c, [BP('a', '2026-09-12', [S(200, 7, 0), S(200, 6, 0), S(200, 5, 0)]), BP('b', '2026-09-19', [S(195, 12, 3), S(195, 12, 3), S(195, 12, 3)]), BP('c', '2026-09-26', [S(195, 12, 3), S(195, 12, 3), S(195, 12, 3)])], 3, '8-12');
+    T('26  INCREASE back to a load trained within the window reads that session at that load: 195 → 200, and 200 was 7 / 6 / 5', back.rec.tag === 'increase' && back.rec.weight === 200 && same(back.plan.reps, ['7', '6', '5']), JSON.stringify(back));
+    /* 27 — HOLD / PLATEAU: repeat, no rep added */
+    const plat = planOf(c, [0, 1, 2, 3].map(i => BP('p' + i, ['2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'][i], [S(205, 8), S(205, 7), S(205, 6)])), 3, '8-12');
+    T('27  PLATEAU (same load four times): the demonstrated pattern, no rep added — 8 / 7 / 6', plat.rec.tag === 'plateau' && same(plat.plan.reps, ['8', '7', '6']) && plat.plan.source === 'history', JSON.stringify(plat));
+    const hold = planOf(c, [BP('a', '2026-09-19', [S(205, 12, 1), S(205, 11, 1), S(205, 10, 0)]), BP('b', '2026-09-26', [S(205, 12, 1), S(205, 12, 1), S(205, 10, 0)])], 3, '8-12');
+    T('27  HOLD (top of the range without the reserve to add load): repeat 12 / 12 / 10, nothing added', hold.rec.tag === 'hold' && same(hold.plan.reps, ['12', '12', '10']), JSON.stringify(hold));
+    /* 28 — REDUCE */
+    const red = planOf(c, [BP('a', '2026-09-05', [S(200, 9, 1), S(200, 8, 1), S(200, 7, 0)]), BP('b', '2026-09-19', [S(205, 6, 0), S(205, 5, 0), S(205, 4, 0)]), BP('c', '2026-09-26', [S(205, 6, 0), S(205, 5, 0), S(205, 4, 0)])], 3, '8-12');
+    T('28  REDUCE 205 → 200 with 200 trained in the window: that session’s 9 / 8 / 7 — real evidence at the reduced load', red.rec.tag === 'reduce' && red.rec.weight === 200 && same(red.plan.reps, ['9', '8', '7']), JSON.stringify(red));
+    const red2 = planOf(c, [BP('b', '2026-09-19', [S(205, 6, 0), S(205, 5, 0), S(205, 4, 0)]), BP('c', '2026-09-26', [S(205, 6, 0), S(205, 5, 0), S(205, 4, 0)])], 3, '8-12');
+    T('28  REDUCE with nothing at 200: the seed (8 / 8 / 8) — never the top of the range', red2.rec.tag === 'reduce' && same(red2.plan.reps, ['8', '8', '8']), JSON.stringify(red2));
+    /* 29 — zero reserve / failure / AMRAP */
+    const zero = planOf(c, [BP('a', '2026-09-19', [S(205, 8, 1), S(205, 7, 1), S(205, 5, 1)]), BP('b', '2026-09-26', [S(205, 8, 0), S(205, 6, 0), S(205, 4, null, 'failure')])], 3, '8-12');
+    T('29  Scenario 5 — 8@0, 6@0, 4 to failure, D49 BUILD: no set is given a rep, 8 / 6 / 4', zero.rec.tag === 'build' && same(zero.plan.reps, ['8', '6', '4']) && zero.plan.source === 'history', JSON.stringify(zero));
+    const fail = planOf(c, [BP('a', '2026-09-19', [S(205, 8), S(205, 7), S(205, 5)]), BP('b', '2026-09-26', [S(205, 8, null, 'failure'), S(205, 7), S(205, 5)])], 3, '8-12');
+    const amrap = planOf(c, [BP('a', '2026-09-19', [S(205, 8), S(205, 7), S(205, 5)]), BP('b', '2026-09-26', [S(205, 8, null, 'amrap'), S(205, 7), S(205, 5)])], 3, '8-12');
+    T('29  a top set taken to failure or AMRAP had nothing left: it is real evidence (its 8 stands) but never takes the rep', same(fail.plan.reps, ['8', '7', '5']) && same(amrap.plan.reps, ['8', '7', '5']), JSON.stringify([fail, amrap]));
+    /* 30 — missing RIR deterministic */
+    T('30  missing effort is a rule, not a guess: the same history gives the same plan, every time', same(planOf(c, [BP('a', '2026-09-19', [S(205, 8), S(205, 6), S(205, 4)]), BP('b', '2026-09-26', [S(205, 8), S(205, 7), S(205, 5)])], 3, '8-12').plan, b2.plan));
+    /* 31 — set count changes */
+    const h3 = [BP('a', '2026-09-19', [S(205, 10, 0), S(205, 9, 0), S(205, 8, 0)]), BP('b', '2026-09-26', [S(205, 10, 0), S(205, 9, 0), S(205, 8, 0)])];
+    T('31  the program goes 3 → 4: no Set 4 is invented from history — it repeats the last real set (10 / 9 / 8 / 8)', same(planOf(c, h3, 4, '8-12').plan.reps, ['10', '9', '8', '8']));
+    const h4 = [BP('a', '2026-09-19', [S(205, 10, 0), S(205, 9, 0), S(205, 8, 0), S(205, 7, 0)]), BP('b', '2026-09-26', [S(205, 10, 0), S(205, 9, 0), S(205, 8, 0), S(205, 7, 0)])];
+    T('31  4 → 3 takes the first three; 2 takes the first two', same(planOf(c, h4, 3, '8-12').plan.reps, ['10', '9', '8']) && same(planOf(c, h4, 2, '8-12').plan.reps, ['10', '9']));
+    /* 33 — repeated rows: one performance */
+    const split = OWNER.map(w => Object.assign({}, w, { exercises: [E('Bench Press', w.exercises[0].sets.slice(0, 2)), E('Bench Press', w.exercises[0].sets.slice(2))] }));
+    T('33  the same sets stored across two rows of the lift in each workout give the same plan (D96C-3: one performance)', same(planOf(c, split, 3, '8-12').plan, own.plan), JSON.stringify(planOf(c, split, 3, '8-12').plan));
+    /* 34 — same-day workouts stay separate */
+    const day = [BP('am', '2026-09-26', [S(205, 8), S(205, 6), S(205, 5)]), BP('pm', '2026-09-26', [S(205, 5), S(205, 4)])];
+    const latest = withClockOn(c, NOW, () => { useLog(c, day); return c.sortedLog().map(w => w.id); });
+    const dp = planOf(c, day, 3, '8-12').plan;
+    T('34  two workouts on one date are two sessions: the plan is ONE of them (the latest), never a merged 8 / 6 / 5 / 5 / 4',
+      latest[0] === 'pm' && same(dp.reps, ['5', '4', '4']), JSON.stringify([latest, dp]));
+    /* hold timed */
+    T('E39 untouched: a hold is never laid out (its numbers are seconds) — the program’s seed, through the one hold rule substitution uses',
+      planOf(c, [W('a', '2026-09-26', [E('Farmer Carry', [S(100, 40), S(100, 30), S(100, 30)])])], 3, '40', null, 'Farmer Carry', '100').plan.source === 'program');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('PROPERTIES — generated histories');
+  await guard('properties', async () => {
+    let seed = 2026;
+    const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const gen = () => {
+      const n = pick([2, 3, 4, 5]), loads = [185, 195, 205], days = ['2026-08-29', '2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'];
+      return days.map((d, i) => { const L0 = pick(loads); const k = pick([2, 3, 4, 5]); let r = 6 + Math.floor(rnd() * 6);
+        const sets = []; for(let j = 0; j < k; j++){ sets.push(S(L0, Math.max(1, r), rnd() < 0.5 ? String(Math.floor(rnd() * 4)) : null, rnd() < 0.1 ? pick(['failure', 'amrap']) : 'working', rnd() < 0.08 ? { completed: false } : {})); r -= Math.floor(rnd() * 3); }
+        return BP('g' + i, d, sets, rnd() < 0.15 ? DL : null); });
+    };
+    let warmNoop = 0, layout = 0, sensitive = 0, tried = 0, varied = 0;
+    for(let i = 0; i < 60; i++){
+      const log = gen(), n = pick([2, 3, 4, 5]), reps = pick(['8-12', '6-10', '5-8', '10-15']);
+      const base = planOf(c, log, n, reps);
+      /* warm-up no-op: typed warm-ups of any load and reps, anywhere */
+      const warm = log.map(w => Object.assign({}, w, { exercises: w.exercises.map(e => { const s = e.sets.slice(); for(let k = 0; k < 3; k++) s.splice(Math.floor(rnd() * (s.length + 1)), 0, WU(pick([95, 135, 185, 205, 225]), 1 + Math.floor(rnd() * 12))); return Object.assign({}, e, { sets: s }); }) }));
+      if(same(planOf(c, warm, n, reps).plan, base.plan)) warmNoop++;
+      /* row layout: the same sets across two or three rows of the lift */
+      const rows = log.map(w => Object.assign({}, w, { exercises: (() => { const s = w.exercises[0].sets; const a = Math.floor(rnd() * (s.length + 1)), b = a + Math.floor(rnd() * (s.length - a + 1));
+        return [E('Bench Press', s.slice(0, a)), E('Bench Press', s.slice(a, b)), E('Bench Press', s.slice(b))].filter(e => e.sets.length); })() }));
+      if(same(planOf(c, rows, n, reps).plan, base.plan)) layout++;
+      /* evidence sensitivity: change the anchor session's reps and the plan follows (when there is an anchor) */
+      if(base.plan.source !== 'program'){
+        tried++;
+        /* the session the plan read: the same walk, asked of the app's own sequence reader */
+        const anchorId = withClockOn(c, NOW, () => { useLog(c, log); let seen = 0;
+          for(const w of c.sortedLog()){ if(c.isDeloadWorkout(w)) continue; const seq = c.workingSetSequenceOf(w, 'bench press'); if(!seq) continue; seen++;
+            if(seq.filter(x => x.load === base.plan.load).length >= Math.min(n, 2)) return w.id; if(seen >= 5) break; } return null; });
+        const moved = JSON.parse(JSON.stringify(log));
+        if(!anchorId){ tried--; continue; }
+        moved.find(w => w.id === anchorId).exercises[0].sets.forEach(s => { if(+s.weight === base.plan.load && s.type !== 'warmup') s.reps = String(+s.reps >= 3 ? +s.reps - 2 : +s.reps + 2); });
+        useLog(c, moved);
+        const again = withClockOn(c, NOW, () => c.deriveWorkingSetPlan('Bench Press', reps, n, base.rec, {}));
+        if(!same(again.reps, base.plan.reps)) sensitive++;
+      }
+      if(new Set(base.plan.reps).size > 1) varied++;
+    }
+    T('P  warm-up no-op: typed warm-ups of any load and reps inserted anywhere never change the plan (60 of 60 generated histories)', warmNoop === 60, warmNoop);
+    T('P  row layout: the same sets across one, two or three stored rows give the same plan (60 of 60)', layout === 60, layout);
+    T('P  evidence sensitivity: changing the real sets the plan came from changes the plan (' + sensitive + ' of ' + tried + ' anchored histories)', tried > 20 && sensitive === tried, [sensitive, tried]);
+    T('P  and it is not a constant: ' + varied + ' of 60 plans lay sets out unevenly, as the histories did', varied > 10, varied);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('35–36  D50B: unchanged, and its adaptation is never overwritten');
+  await guard('d50b', async () => {
+    T('35  D50B is byte-identical: the coach, its constants, its evidence, its writer, its card and the ownership mark',
+      pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('liveSetEvidence') === 'f7ff87b1e49c93df' && pin('markUserSet') === '557fba41fff1a079' && pin('applyCoachToFutureSets') === '3983abe34667dc86' && pin('setCoachHtml') === '0aa5d1e22c4ab928'
+      && /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(stripComments(raw)));
+    const L = await live(OWNER), c2 = L.c, ex = L.ex();
+    type(c2, repsIn(rowsOf(ex)[0]), 4); tap(c2, rowsOf(ex)[0].querySelectorAll('.rir-opt')[0]); tap(c2, rowsOf(ex)[0].querySelector('.set-complete-btn'));
+    const after = read(ex);
+    T('36  Scenario 7: Set 1 done 205 × 4 at 0 in reserve → D50B takes the next sets one step down, to 200; the plan’s reps stand (6, 5)',
+      same(after.rows, ['S1 205x4+', 'S2 200x6', 'S3 200x5']) && /coach-reduce/.test(ex.querySelector('.recommend-wrap').innerHTML), JSON.stringify(after));
+    type(c2, repsIn(rowsOf(ex)[1]), 4); tap(c2, rowsOf(ex)[1].querySelectorAll('.rir-opt')[0]); tap(c2, rowsOf(ex)[1].querySelector('.set-complete-btn'));
+    T('35  D50B\u2019s own rules still hold: a second grinding set does not move the load again (one change per exercise), so Set 3 stays 200 × 5',
+      same(read(ex).rows, ['S1 205x4+', 'S2 200x4+', 'S3 200x5']) && /Load already adjusted/.test(ex.querySelector('.recommend-wrap').innerHTML), JSON.stringify(read(ex)));
+    tap(c2, ex.querySelector('.add-set-btn'));
+    T('36  a set added after it takes D50B’s 200 from the last working set (and, past the plan, that set’s 5)', read(ex).rows[3] === 'S4 200x5', JSON.stringify(read(ex)));
+    tap(c2, rowsOf(ex)[3].querySelector('.set-idx')); tap(c2, rowsOf(ex)[3].querySelector('.set-idx'));
+    T('36  made a warm-up and back after a working set is done: the load stays D50B’s 200 (only the start’s plan is reseeded before any work), the reps are its place’s',
+      read(ex).rows[3] === 'S4 200x5', JSON.stringify(read(ex)));
+    tap(c2, rowsOf(ex)[3].querySelector('.set-idx')); type(c2, wIn(rowsOf(ex)[3]), 135); type(c2, repsIn(rowsOf(ex)[3]), 5);
+    T('36  a warm-up edited after D50B acted changes nothing D50B wrote: its 200s stand', same(read(ex).rows, ['S1 205x4+', 'S2 200x4+', 'S3 200x5', 'W 135x5']), JSON.stringify(read(ex)));
+    L.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('LAST TIME');
+  await guard('last', async () => {
+    const L = await live(OWNER), ex = L.ex();
+    const chips = ex.querySelectorAll('.last-time-chip');
+    T('LT  "Last time" sums up the first WORKING set (205 lb × 8), never the warm-up before it (10.41 said 135 lb × 6)', read(ex).last === '205 lb × 8', read(ex).last);
+    T('LT  every set is still shown, and the warm-up is marked as one with the history’s own badge',
+      chips.length === 4 && chips[0].classList.contains('last-time-chip-warmup') && col(chips[0].textContent) === '135 lb × 6Warm-up' && chips[0].querySelector('.set-chip-badge.stb-warmup') && chips.slice(1).every(x => !x.classList.contains('last-time-chip-warmup')));
+    T('LT  a working chip is byte-for-byte 10.41’s', chips[1].innerHTML === '205 lb × 8' && /\.last-time-chip-warmup\{ opacity: 0\.72; \}/.test(raw));
+    L.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('37–51  protected systems, held findings, storage');
+  await guard('protected', async () => {
+    T('37–39  D119 / D120 / D121 / D122 / D123 are byte-identical',
+      pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' && pin('progressionRecommendationFor') === '4be672abd167121a'
+      && pin('isPerformanceSet') === 'af02c77cf98e70ef' && pin('performedReps') === '0436ff32a1b6eaf1' && pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('isDeloadWorkout') === 'ad99d9e182eb1f22' && pinAsOf1038('detectPlateau') === '5328b907ce3432c7' && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613'
+      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97');
+    /* outputs, against a digest frozen from 10.41 on the same fixture */
+    const FIX = [
+      W('f1', '2026-08-29', [E('Bench Press', [WU(95, 10), S(185, 8, 2), S(185, 7, 1), S(185, 6, 1)]), E('Pull-Up', [S('BW', 9), S('BW', 8), S('BW', 7)], true)]),
+      W('f2', '2026-09-05', [E('Back Squat', [WU(135, 5), S(225, 6, 1), S(225, 5, 1)]), E('Plank', [S('BW', 45), S('BW', 40)], true)], { category: 'legs' }),
+      W('f3', '2026-09-12', [E('Bench Press', [S(195, 8, 1), S(195, 6, 1), S(195, 5, 0)]), E('Overhead Press', [S(115, 8, 2), S(115, 7, 1)])]),
+      W('f4', '2026-09-19', [E('Back Squat', [S(185, 8, 4), S(185, 8, 4)])], Object.assign({ category: 'legs' }, DL)),
+      W('f5', '2026-09-26', [E('Bench Press', [WU(135, 6), S(205, 8, 2), S(205, 6, 1), S(205, 5, 0)]), E('Pull-Up', [S('BW', 10), S('BW', 9)], true)]),
+      W('f6', '2026-09-26', [E('Bench Press', [S(155, 12, 3), S(155, 10, 2)])])
+    ];
+    const pa = await boot(FIX), pc = pa.ctx;
+    const digest = withClockOn(pc, NOW, () => { fresh(pc); const tl = pc.computeXPTimeline(), pr = pc.getCurrentProgression();
+      return sha(JSON.stringify([pc.computeAllPREvents().map(e => [e.id, e.exerciseName, e.hits.map(x => x.type + ':' + x.next)]), tl.lifetimeXP, tl.prCount, pr.level,
+        pr.rank && (pr.rank.name || pr.rank), pc.workoutLog.map(e => pc.sessionVolume(e)), pc.workoutLog.map(e => { const s = pc.sessionScore(e); return s && s.available ? s.score : null; }),
+        pc.masteryPRCounts(), pc.computeMuscleRecovery(), ['Bench Press', 'Back Squat', 'Overhead Press'].map(n => { const r = pc.progressionFor(n, '8-12', null); return [r.tag, r.weight]; }),
+        ['Bench Press', 'Back Squat'].map(n => { const p = pc.detectPlateau(n); return p ? [p.weight, p.sessions] : null; }),
+        ['Pull-Up'].map(n => { const r = pc.progressionRecommendationFor(n, '8-12', null); return r ? [r.tag, r.mode, r.reps] : null; }), pc.computePRs().map(p => [p.name, p.weight, p.reps, !!p.isBW])])); });
+    T('40–45  records, PR XP, XP, level, rank, volume, Session Score of every historical workout, Mastery, Recovery, D49, D123’s plateau and D119 are 10.41’s exactly (a digest frozen from 10.41)',
+      digest === '8942d3459584516a', digest);
+    T('41  XP, level and rank engines are byte-identical', pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateRankFromLevel') === '868fd909074da898' && pin('getCurrentProgression') === 'bf3a7572296c620c');
+    T('46  no new surface: the exercise card and the set row templates are 10.41’s, byte for byte — the plan arrives as numbers in the rows that were already there',
+      (() => { const tpl = s => (s || '').slice(s.indexOf('row.innerHTML = `'), s.indexOf('`;', s.indexOf('row.innerHTML = `'))); const stpl = s => (s || '').slice(s.indexOf('div.innerHTML = `'), s.indexOf('`;', s.indexOf('div.innerHTML = `')));
+        return tpl(col(fnSrc(raw, 'addLogExerciseRow'))) === tpl(asOf1041('addLogExerciseRow')) && stpl(col(fnSrc(raw, 'appendSetRow'))) === stpl(asOf1041('appendSetRow')) && tpl(asOf1041('addLogExerciseRow')).length > 1000; })());
+    T('46  no words: no "optimal", no confidence, no analytics surface; the only new style is the warm-up chip’s',
+      !/optimal/i.test(fnSrc(raw, 'deriveWorkingSetPlan') + fnSrc(raw, 'buildRepIndex') + fnSrc(raw, 'lastTimeHtml')) && (raw.match(/last-time-chip-warmup/g) || []).length === 3);
+    T('47  E43 is untouched: the XP set count, both payers and the "working sets" label', pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && /working set/.test(raw));
+    T('48  E45 stays closed exactly as D124 left it (Contract 241’s rules)', /\.pbt-dot\{[^}]*width: 44px;/.test(raw));
+    T('49  E38 and E39 are untouched: the history chip and the hold rule', pin('setChipHtml') === '350b4e34eb582056' && pin('substitutionIsHold') === '049ba50329c76db3');
+    T('50  storage: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow — the plan and ownership live only in the active draft', (() => { const a = H.loadApp(); return a.ctx.DATA_KEYS.length === 16 && a.ctx.DATA_SCHEMA_VERSION === 1 && a.ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow'; })());
+    const SV = await live(OWNER), sc = SV.c, sx = SV.ex();
+    tap(sc, rowsOf(sx)[0].querySelector('.set-idx')); type(sc, wIn(rowsOf(sx)[0]), 135); step(sc, rowsOf(sx)[1], 'r', true);
+    rowsOf(sx).forEach(r => r.classList.add('completed'));
+    const before = JSON.stringify(sc.workoutLog);
+    sc.saveLog();
+    const saved = sc.workoutLog.filter(w => !/^h\d$/.test(w.id));
+    const ent = saved[0] && saved[0].exercises[0];
+    T('51  a real save: the history before it is untouched, and the new workout holds only what a set always held — no plan, no ownership, the same rx',
+      saved.length === 1 && JSON.stringify(sc.workoutLog.filter(w => /^h\d$/.test(w.id))) === before
+      && same(Object.keys(ent), ['name', 'effort', 'bodyweight', 'sets', 'rx']) && ent.sets.every(st => Object.keys(st).every(k => ['weight', 'reps', 'rir', 'type'].indexOf(k) !== -1))
+      && same(ent.sets.map(st => st.weight + 'x' + st.reps + (st.type ? ':' + st.type : '')), ['135x9:warmup', '205x7', '205x5']) && same(Object.keys(ent.rx), ['sets', 'reps', 'load', 'effort']) && ent.rx.load === 205,
+      JSON.stringify(ent));
+    SV.release();
+    T('51  history is never rewritten: the save path and the captured prescription are byte-identical, so a saved set is { weight, reps, rir, type } as before',
+      pin('saveLog') === '66c63714822ef5ee' && pin('capturedPrescription') === '4b741af98b989695' && !/rxPlan|\.own\b/.test(fnSrc(raw, 'saveLog') + fnSrc(raw, 'capturedPrescription')));
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -50832,6 +51640,7 @@ async function main(){
   await testPlateauEvidenceD122();
   await testDeloadPlateauEvidenceD123();
   await testPbtTouchTargetsD124();
+  await testWorkingSetPlanD125();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

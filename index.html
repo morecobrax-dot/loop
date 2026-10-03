@@ -5398,6 +5398,8 @@ textarea{ resize: vertical; min-height: 56px; }
 .last-time-label{ font-size: var(--fs-micro); letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); display: block; margin-bottom: 6px; }
 .last-time-chips{ display: flex; flex-wrap: wrap; gap: 6px; }
 .last-time-chip{ font-family: 'JetBrains Mono', monospace; font-size: 11.5px; font-weight: 700; color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--border); padding: 3px 8px; border-radius: var(--radius-sm); }
+/* D125 — a warm-up last time looks like one, as it does in the history. */
+.last-time-chip-warmup{ opacity: 0.72; }
 .ex-log-controls{ display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 10px; }
 /* ---- D10: exercise context ----
    The recommendation and last-time blocks are unchanged and still rendered —
@@ -18532,6 +18534,25 @@ const LOOP_UPDATES = [
     changes: [
       'The dots sit slightly further apart, so each one has a tap area of its own'
     ]
+  },
+  {
+    id: 'v10-42',
+    version: 'LOOP 10.42',
+    title: 'Steadier Working Sets',
+    date: '2026-10-03',
+    swVersion: 'loop-v219',
+    summary: 'Working sets stay on plan when you adjust a warm-up, and their reps now follow what you did last time.',
+    newFeatures: [],
+    improvements: [
+      'Each working set starts from what you did at that weight last time, like 8, 6 and 5 instead of 8, 8 and 8'
+    ],
+    bugFixes: [
+      'Changing or finishing a warm-up no longer changes your working sets or the suggested warm-up',
+      '"Last time" shows your first working set, not your warm-up'
+    ],
+    changes: [
+      'Warm-ups are marked W and your working sets are numbered 1, 2, 3 after them'
+    ]
   }
 ];
 
@@ -22885,6 +22906,149 @@ function progressionFor(exerciseName, templateReps, templateRecommended){
     exerciseName, templateReps);
 }
 
+/* =========================================================
+   WORKING-SET PLAN  (Phase D125)
+   ---------------------------------------------------------
+   D49 decides the load. This decides only what each working
+   set at that load asks for before the first set is done,
+   and it reads that from what the athlete actually did at
+   that same load: the latest such session's working sets, in
+   the order they were done. 8 / 6 / 5 last time is a better
+   start than 8 / 8 / 8, which nobody did.
+
+     · Evidence is a performed working set with real reps and
+       a real load (D96A, D121): never a warm-up, never a set
+       marked not done, never a programmed deload (D85, D123).
+       One workout is one session, every row of the lift in
+       it (D96C-3); two workouts on one date are two.
+     · Only sets AT today's load count. Reps at another load
+       say nothing about this one, so a new load, up or down,
+       starts from the program's own seed.
+     · The program owns the set count and the top of its
+       range. History fills the plan inside them: it never
+       adds or removes a set, and a set the athlete has no
+       history for repeats the last one shown.
+     · BUILD (D49: "aim for one more") adds ONE rep to ONE
+       set: the first that was logged with a rep in reserve,
+       or with no effort logged at all, the set D49's own
+       target reads. Never after failure or AMRAP, never past
+       the range. Every other D49 answer repeats the pattern.
+     · Anything less than a real session at the load is the
+       seed LOOP has always used.
+
+   It is seeded once, when the workout starts. From then on
+   every value belongs to the athlete, and what changes after
+   a working set is D50B's. Nothing here is written to
+   history. Measured against generated athletes before it was
+   chosen (D125 report): it is a starting point taken from the
+   athlete's own sets, not a model of what they should do. */
+const WORKING_SET_PLAN = {
+  window: 5,       // sessions read, as D49 reads five
+  buildStep: 1     // one rep, on one set
+};
+
+/* The reps LOOP has always put in every row: the first number of the
+   prescription ("8-12" gives 8), or the text as written. */
+function programRepSeed(templateReps){
+  return firstNumber(templateReps) || templateReps;
+}
+
+/* One workout's performed LOADED working sets of a lift, in the order they were
+   logged, read exactly as D49 reads its evidence: every loaded row of the lift in
+   the workout (D96C-3), each set on the D96A/D121 boundary. null when the
+   workout has none. */
+function workingSetSequenceOf(entry, key){
+  const rows = (workoutExerciseRows(entry, key) || []).filter(r => !r.bodyweight);
+  const out = [];
+  rows.forEach(r => (r.sets || []).forEach(set => {
+    if(!isPerformanceSet(set)) return;
+    const reps = performedReps(set.reps), load = performedLoad(set.weight);
+    if(reps === null || load === null || load <= 0) return;
+    const rir = (set.rir === '' || set.rir == null) ? NaN : parseFloat(String(set.rir).replace('+', ''));
+    out.push({ load, reps, rir: Number.isFinite(rir) ? rir : null, type: setTypeOf(set) });
+  }));
+  return out.length ? out : null;
+}
+
+/* Where BUILD's one rep goes, or -1. Recorded effort decides when there is any:
+   the first set logged with at least one rep in reserve. With none recorded on
+   any set, the first set at the session's top reps, which is the set D49's "aim
+   for one more" is about. A failure or AMRAP set had nothing left, and the range
+   is the program's, so neither ever takes it. */
+function buildRepIndex(shown, reps, range){
+  const open = k => shown[k].type !== SET_TYPES.FAILURE && shown[k].type !== SET_TYPES.AMRAP && reps[k] < range.max;
+  if(shown.some(s => s.rir !== null)){
+    for(let k = 0; k < shown.length; k++) if(shown[k].rir !== null && shown[k].rir >= 1 && open(k)) return k;
+    return -1;
+  }
+  const top = Math.max(...shown.map(s => s.reps));
+  const k = shown.findIndex(s => s.reps === top);
+  return k !== -1 && open(k) ? k : -1;
+}
+
+/* The plan for one exercise: { source, reps, load, tag }. `reps` holds one string
+   per working set; `source` is 'program' (the seed), 'history' (the latest
+   session at this load) or 'history+1' (that, plus BUILD's one rep). */
+function deriveWorkingSetPlan(exerciseName, templateReps, setCount, rec, opts){
+  const n = Math.max(1, parseInt(setCount, 10) || 3);
+  const seed = programRepSeed(templateReps);
+  const tag = rec ? rec.tag : null;
+  const fallback = { source: 'program', reps: Array(n).fill(seed), load: null, tag };
+  const range = parseRepRange(templateReps);
+  const load = rec && rec.weight != null ? performedLoad(rec.weight) : null;
+  if(!range || load === null || load <= 0 || (opts && opts.deload) || typeof exerciseName !== 'string') return fallback;
+  /* A hold is timed: its targets are durations, and they stay as the program wrote them. */
+  let id = null;
+  try{ id = resolveExerciseId(exerciseName); }catch(e){ id = null; }
+  if(substitutionIsHold(id, exerciseName)) return fallback;
+
+  const key = loggedExerciseKey(exerciseName);
+  const log = sortedLog();
+  let anchor = null;
+  for(let i = 0, seen = 0; i < log.length && seen < WORKING_SET_PLAN.window; i++){
+    if(isDeloadWorkout(log[i])) continue;
+    const seq = workingSetSequenceOf(log[i], key);
+    if(!seq) continue;
+    seen++;
+    const at = seq.filter(s => s.load === load);
+    /* A session is two working sets or more, D49's own floor for one (or one,
+       when the program asks for one). */
+    if(at.length >= Math.min(n, PROGRESSION_EVIDENCE.minSetsWithoutRx)){ anchor = at; break; }
+  }
+  if(!anchor) return fallback;
+
+  const reps = [];
+  for(let k = 0; k < n; k++){
+    const src = anchor[Math.min(k, anchor.length - 1)];
+    reps.push(Math.max(1, Math.min(range.max, Math.floor(src.reps))));
+  }
+  let source = 'history';
+  if(tag === 'build'){
+    const k = buildRepIndex(anchor.slice(0, n), reps, range);
+    if(k !== -1){ reps[k] += WORKING_SET_PLAN.buildStep; source = 'history+1'; }
+  }
+  return { source, reps: reps.map(String), load, tag };
+}
+
+/* The working load LOOP prescribed for this exercise today (rxLoad, D49's
+   number), or null when it prescribed none. */
+function rowWorkingLoad(exRow){
+  const v = exRow && exRow.dataset ? performedLoad(exRow.dataset.rxLoad) : null;
+  return v !== null && v > 0 ? v : null;
+}
+
+/* The reps the plan holds for one working set (1-based), or null. A row LOOP
+   seeded from history carries its plan; one seeded from the program has the
+   program's seed for every set; a row with no prescription has nothing. A set
+   past the end of the plan repeats its last. */
+function plannedRepsFor(exRow, ordinal){
+  if(!exRow || !exRow.dataset) return null;
+  const plan = exRow.dataset.rxPlan ? String(exRow.dataset.rxPlan).split(',') : null;
+  if(plan && plan.length) return plan[Math.max(0, Math.min(ordinal, plan.length) - 1)];
+  const seed = exRow.dataset.targetReps ? programRepSeed(exRow.dataset.targetReps) : '';
+  return seed ? String(seed) : null;
+}
+
 /* ---------- BODYWEIGHT PROGRESSION (Phase D119) ----------
    D49 answers in load; a lift done against bodyweight moves in reps. One canonical
    rep model beside D49, never inside it — every loaded answer is still D49's. */
@@ -23327,7 +23491,11 @@ function lastTimeHtml(exerciseName){
   if(!prev) return '';
   const chips = prev.sets.map(s => {
     const w = prev.bodyweight ? 'BW' : (s.weight || '—');
-    return `<span class="last-time-chip">${escapeHtml(String(w))}${prev.bodyweight?'':' lb'} × ${escapeHtml(String(s.reps||'—'))}</span>`;
+    /* D125 — every set is still shown, and a warm-up says so with the badge the
+       history uses, so 135 × 6 before 205 × 6 can no longer read as work. */
+    const warm = setTypeOf(s) === SET_TYPES.WARMUP;
+    return `<span class="last-time-chip${warm ? ' last-time-chip-warmup' : ''}">${escapeHtml(String(w))}${prev.bodyweight?'':' lb'} × ${escapeHtml(String(s.reps||'—'))}` +
+      `${warm ? '<span class="set-chip-badge stb-warmup">' + escapeHtml(setTypeShortLabel(SET_TYPES.WARMUP)) + '</span>' : ''}</span>`;
   }).join('');
   return `<div class="last-time-block"><span class="last-time-label">Last time</span><div class="last-time-chips">${chips}</div></div>`;
 }
@@ -53475,15 +53643,32 @@ function captureActiveDraft(){
     const sets = [];
     row.querySelectorAll('.set-row').forEach(sr => {
       const st = sr.dataset.setType;
+      const wIn = sr.querySelector('.set-weight-in'), rIn = sr.querySelector('.set-reps-in');
       const setObj = {
-        weight: sr.querySelector('.set-weight-in').value,
-        reps: sr.querySelector('.set-reps-in').value,
+        weight: wIn.value,
+        reps: rIn.value,
         rir: sr.querySelector('.set-rir-in').value,
         completed: sr.classList.contains('completed')
       };
       if(st) setObj.type = st;          // omitted entirely when unknown
+      /* D125 — which of the two values the athlete set themselves, so a resumed
+         workout still knows they are theirs. Omitted when neither is. */
+      const own = (wIn.dataset.userSet ? 'w' : '') + (rIn.dataset.userSet ? 'r' : '');
+      if(own) setObj.own = own;
       sets.push(setObj);
     });
+    const meta = {
+      targetSets: row.dataset.targetSets || '',
+      targetReps: row.dataset.targetReps || '',
+      recommended: row.dataset.recommended || '',
+      /* Phase B — the slot survives leaving and resuming, so a swap made
+         before the app was closed is still recorded as a swap. */
+      slotName: row.dataset.slotName || '',
+      slotKey: row.dataset.slotKey || '',
+      slotRecommended: row.dataset.slotRecommended || ''
+    };
+    /* D125 — the working-set plan the row was seeded with, never re-derived. */
+    if(row.dataset.rxPlan) meta.rxPlan = row.dataset.rxPlan;
     exercises.push({
       name,
       shadowRecId: row.dataset.shadowRecId || null,
@@ -53497,16 +53682,7 @@ function captureActiveDraft(){
       sets,
       restSec: panel ? (parseInt(panel.dataset.defaultRest) || 75) : 75,
       restRemaining: (panel && panel.style.display !== 'none') ? (parseInt(panel.dataset.remaining) || null) : null,
-      meta: {
-        targetSets: row.dataset.targetSets || '',
-        targetReps: row.dataset.targetReps || '',
-        recommended: row.dataset.recommended || '',
-        /* Phase B — the slot survives leaving and resuming, so a swap made
-           before the app was closed is still recorded as a swap. */
-        slotName: row.dataset.slotName || '',
-        slotKey: row.dataset.slotKey || '',
-        slotRecommended: row.dataset.slotRecommended || ''
-      }
+      meta
     });
   });
 
@@ -53641,6 +53817,12 @@ function restoreDraftToSheet(draft){
         setRows[j].classList.add('completed');
         const btn = setRows[j].querySelector('.set-complete-btn');
         if(btn){ btn.setAttribute('aria-label','Completed'); btn.setAttribute('aria-pressed','true'); }
+      }
+      /* D125 — what the athlete set before leaving is still theirs. A draft
+         written before 10.42 has no record and nothing is marked. */
+      if(s && typeof s.own === 'string' && setRows[j]){
+        if(s.own.indexOf('w') !== -1) markUserSet(setRows[j].querySelector('.set-weight-in'));
+        if(s.own.indexOf('r') !== -1) markUserSet(setRows[j].querySelector('.set-reps-in'));
       }
     });
     if(ex.shadowRecId) row.dataset.shadowRecId = ex.shadowRecId;
@@ -54447,16 +54629,23 @@ async function startTemplateLog(cat, tplId, date){
 
   const wrap = document.getElementById('logExercises');
   wrap.innerHTML = '';
+  /* D125 — a session the program composed inside a deload is not a normal one,
+     the same reading D85 gives it once it is saved. */
+  const deloadSession = isDeloadWorkout({ phase: pendingWorkoutPhase });
   tpl.exercises.forEach(ex => {
     const isBW = rowStartsAsBodyweight(ex.name, ex.recommended);
     const rec = isBW ? null : progressionFor(ex.name, ex.reps, ex.recommended);
     const weightVal = isBW ? '' : (rec && rec.weight != null ? rec.weight : '');
-    const repVal = firstNumber(ex.reps) || ex.reps;
+    const repVal = programRepSeed(ex.reps);
     const setCount = parseInt(ex.sets) || 3;
+    /* D125 — each working set's reps from the working-set plan, taken once, here.
+       Bodyweight work keeps the program's seed: D119 owns its reps. */
+    const plan = isBW ? null : deriveWorkingSetPlan(ex.name, ex.reps, setCount, rec, { deload: deloadSession });
     const sets = [];
-    for(let i=0;i<setCount;i++) sets.push({ weight: weightVal, reps: repVal });
-    addLogExerciseRow(ex.name, firstNumber(ex.effort), isBW, sets, restSecondsForReps(ex.reps), rec,
-      { targetSets: ex.sets, targetReps: ex.reps, recommended: ex.recommended });
+    for(let i=0;i<setCount;i++) sets.push({ weight: weightVal, reps: plan ? plan.reps[i] : repVal });
+    const meta = { targetSets: ex.sets, targetReps: ex.reps, recommended: ex.recommended };
+    if(plan && plan.source !== 'program') meta.rxPlan = plan.reps.join(',');
+    addLogExerciseRow(ex.name, firstNumber(ex.effort), isBW, sets, restSecondsForReps(ex.reps), rec, meta);
   });
   openLogSheet();
 }
@@ -54598,7 +54787,15 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
      neither, and its absence must always read as unknown rather than zero. */
   if(rec && rec.weight != null && !bodyweight) row.dataset.rxLoad = rec.weight;
   if(effort !== '' && effort != null) row.dataset.rxEffort = effort;
-  const initialWeight = sets[0] ? sets[0].weight : '';
+  /* D125 — the working-set plan this row was seeded with, kept beside it so a
+     set added or turned back into a working set later takes its own target. */
+  if(meta.rxPlan) row.dataset.rxPlan = meta.rxPlan;
+  /* D125 — the Suggested Warm-up is LOOP's plan for reaching today's working
+     load, so it is drawn from that prescription and never from a row: the first
+     row may be a warm-up the athlete has already changed. With no prescribed
+     load, the first WORKING set's weight, as it always was. */
+  const firstWorking = sets.find(s => !s || s.type !== SET_TYPES.WARMUP);
+  const initialWeight = rowWorkingLoad(row) !== null ? row.dataset.rxLoad : (firstWorking ? firstWorking.weight : '');
   /* D104 — one exercise, read in the order it is used: what it is (the name
      field, and in the stepper the head above it), what can be done to it
      (Swap, Edit), today's plan (the coach), what to know before lifting (last
@@ -54686,9 +54883,10 @@ function refreshExContext(row){
   /* D50B — the target moved into the header, so this no longer summarises it.
      The disclosure now holds last time and says so; with no history it has
      nothing to offer and hides itself, exactly as it did before. */
-  const lastChip = row.querySelector('.last-time-chip');
   /* D104 — the row now carries its own "Last time" label, so the summary is
-     just the value beside it. */
+     just the value beside it. D125 — the first WORKING set: a warm-up is never
+     what last time is summed up by. */
+  const lastChip = row.querySelector('.last-time-chip:not(.last-time-chip-warmup)');
   if(lastChip) parts.push(lastChip.textContent.trim());
   out.textContent = parts.join('  ·  ');
   wrap.classList.toggle('is-empty', parts.length === 0);
@@ -55004,8 +55202,10 @@ function swapLogExercise(row, newName){
   const lastTimeWrap = target.querySelector('.last-time-wrap');
   if(lastTimeWrap) lastTimeWrap.innerHTML = lastTimeHtml(clean);
   try{ refreshExerciseNoteBlock(target); }catch(e){}
+  /* D125 — the replacement's own working load, when LOOP prescribes one, is what
+     its warm-up leads to; with none, its prep guidance, as before. */
   const warmupWrap = target.querySelector('.warmup-wrap');
-  if(warmupWrap) warmupWrap.innerHTML = warmupBoxHtml(clean, '');
+  if(warmupWrap) warmupWrap.innerHTML = warmupBoxHtml(clean, rowWorkingLoad(target) !== null ? target.dataset.rxLoad : '');
   const recWrap = target.querySelector('.recommend-wrap');
   if(recWrap) recWrap.innerHTML = '';
   const restSub = target.querySelector('.rest-panel-sub');
@@ -55112,7 +55312,9 @@ function setIdxHtml(n, warm){
     : '<span class="set-idx-word">Set </span>' + n;
 }
 function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){
-  const idx = setsListEl.children.length + 1;
+  /* D125 — numbered by its place among the WORKING sets: a warm-up above it
+     does not make it "Set 2". */
+  const idx = Array.prototype.filter.call(setsListEl.children, r => !r.dataset || r.dataset.setType !== SET_TYPES.WARMUP).length + 1;
   const div = document.createElement('div');
   div.className = 'set-row';
   // null/undefined = unknown type; only an explicit, registered value is stored
@@ -55171,6 +55373,9 @@ function appendSetRow(setsListEl, weight, reps, bodyweight, rir, setType){
     </div>
   `;
   setsListEl.appendChild(div);
+  /* D125 — the reps a later set compares with when this one is changed. */
+  const repsIn = div.querySelector('.set-reps-in');
+  if(repsIn) repsIn.dataset.v = repsIn.value;
   refreshSetMeta(div);
 }
 /* The collapsed row must always say what it is. One place writes that chip so
@@ -55269,9 +55474,18 @@ function addSetRow(btnEl){
   const row = btnEl.closest('.ex-log-row');
   const setsList = row.querySelector('.sets-list');
   const bw = row.querySelector('.ex-bw-in').checked;
-  const last = setsList.querySelector('.set-row:last-child');
-  const w = last ? last.querySelector('.set-weight-in').value : '';
-  const r = last ? last.querySelector('.set-reps-in').value : '';
+  /* D125 — a new set is a working set, so it is filled from the working sets and
+     never from a warm-up that happens to be last: the last working set's load
+     and effort, and inside the plan the reps the plan holds for its place. Past
+     the plan, or with none, it repeats the last working set as it always did:
+     extra work, and the prescription still says what was prescribed. */
+  const working = Array.prototype.filter.call(setsList.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP);
+  const last = working.length ? working[working.length - 1] : null;
+  const plan = row.dataset.rxPlan ? String(row.dataset.rxPlan).split(',') : null;
+  const ordinal = working.length + 1;
+  const w = last ? last.querySelector('.set-weight-in').value : (rowWorkingLoad(row) !== null ? row.dataset.rxLoad : '');
+  const r = (plan && ordinal <= plan.length) ? plan[ordinal - 1]
+    : last ? last.querySelector('.set-reps-in').value : (plannedRepsFor(row, ordinal) || '');
   const rir = last ? last.querySelector('.set-rir-in').value : '';
   appendSetRow(setsList, w, r, bw, rir);
   // A new set is work outstanding again: a finished exercise stops being one.
@@ -55288,9 +55502,15 @@ function removeSetRow(btn){
   syncWorkoutCompletionState(exRow);
   persistDraftNow();
 }
+/* D125 — a working set's number is its place among the WORKING sets, so adding,
+   removing or retyping a warm-up never renumbers the work around it. */
 function renumberSets(setsList){
-  setsList.querySelectorAll('.set-row').forEach((r,i)=> {
-    r.querySelector('.set-idx').innerHTML = setIdxHtml(i + 1, r.dataset.setType === SET_TYPES.WARMUP);
+  let n = 0;
+  setsList.querySelectorAll('.set-row').forEach(r => {
+    const warm = r.dataset.setType === SET_TYPES.WARMUP;
+    if(!warm) n++;
+    const el = r.querySelector('.set-idx');
+    if(el) el.innerHTML = setIdxHtml(n, warm);
   });
 }
 
@@ -55314,14 +55534,18 @@ function stepValue(btn, delta){
   const stepper = btn.closest('.stepper');
   const input = stepper.querySelector('input');
   const isReps = input.classList.contains('set-reps-in');
+  const before = input.value;
   input.value = clampStepValue(input.value, delta, isReps);
+  /* D125 — a stepped value is the athlete's, as a typed one is: D50B's rule was
+     always "typed into or stepped", and only typing marked it. */
+  markUserSet(input);
   // The stepper sets .value directly, which does not fire `oninput`, so the
   // same propagation the typed path gets has to be triggered here too.
   if(input.classList.contains('set-weight-in')){
     maybeRefreshWarmup(input);
     propagateWeightForward(input);
   } else if(isReps){
-    propagateRepsForward(input);
+    propagateRepsForward(input, before);
   }
   /* ...and for the same reason the delegated autosave listener never sees a
      stepper tap. Without this a set adjusted only with +/- lives in the DOM
@@ -55334,10 +55558,15 @@ function maybeRefreshWarmup(weightInput){
   const setsList = weightInput.closest('.sets-list');
   const setRow = weightInput.closest('.set-row');
   if(!setsList || !setRow) return;
-  const firstRow = setsList.querySelector('.set-row');
-  if(firstRow !== setRow) return;
   const exRow = weightInput.closest('.ex-log-row');
   if(!exRow) return;
+  /* D125 — the Suggested Warm-up is LOOP's plan for reaching the working load it
+     prescribed, so while there is one it stays as it was drawn: what the athlete
+     logs for a warm-up is what they did, not a new plan. Only an exercise with
+     no prescribed load follows its first WORKING set, and never a warm-up. */
+  if(rowWorkingLoad(exRow) !== null) return;
+  const firstWorking = Array.prototype.find.call(setsList.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP);
+  if(firstWorking !== setRow) return;
   const warmupWrap = exRow.querySelector('.warmup-wrap');
   if(!warmupWrap) return;
   const nameInput = exRow.querySelector('.ex-name-in');
@@ -55358,13 +55587,20 @@ function propagateWeightForward(weightInput){
    so changing a prescription mid-exercise takes one edit instead of one per
    set. Completed sets are never touched — what you've already logged is a
    record of what happened, not a value to be rewritten. */
-function propagateRepsForward(repsInput){
-  propagateSetValueForward(repsInput, '.set-reps-in');
+function propagateRepsForward(repsInput, before){
+  propagateSetValueForward(repsInput, '.set-reps-in', before);
 }
 
 /* Shared walk: copy this input's value into the same field on every LATER set
-   in the same exercise, skipping completed rows and disabled inputs. */
-function propagateSetValueForward(sourceInput, selector){
+   in the same exercise, skipping completed rows and disabled inputs.
+
+   D125 — WORKING SETS ONLY. A warm-up is preparation, local to itself: what is
+   typed into one reaches no other set, and a working set's value never reaches
+   a warm-up. And because reps are now laid out set by set, a later set follows
+   a rep change only when it was showing the number this set had: one edit still
+   moves 8 / 8 / 8, and 8 / 6 / 5 keeps Set 2's 6 when Set 1 becomes 9. Loads
+   are one number per session and carry forward as they always did. */
+function propagateSetValueForward(sourceInput, selector, before){
   const setRow = sourceInput.closest('.set-row');
   const setsList = sourceInput.closest('.sets-list');
   if(!setRow || !setsList) return;
@@ -55373,18 +55609,25 @@ function propagateSetValueForward(sourceInput, selector){
      directly — so a held "Rest complete" card clears itself the moment work
      resumes, with no separate dismiss tap. */
   try{ dismissRestComplete(); }catch(e){}
+  const reps = selector === '.set-reps-in';
+  const was = before !== undefined ? before : sourceInput.dataset.v;
+  const newVal = sourceInput.value;
+  if(reps) sourceInput.dataset.v = newVal;
+  if(setRow.dataset.setType === SET_TYPES.WARMUP) return;
   const allRows = [...setsList.querySelectorAll('.set-row')];
   const idx = allRows.indexOf(setRow);
   if(idx === -1) return;
-  const newVal = sourceInput.value;
   allRows.slice(idx + 1).forEach(row => {
     if(row.classList.contains('completed')) return;
+    if(row.dataset.setType === SET_TYPES.WARMUP) return;
     const laterInput = row.querySelector(selector);
     /* D50B — a later set the athlete has deliberately set is theirs. This
        used to overwrite it, so choosing 125 for the last set and then
        adjusting the first silently discarded that choice. */
-    if(laterInput && !laterInput.disabled && !laterInput.dataset.userSet)
-      laterInput.value = newVal;
+    if(!laterInput || laterInput.disabled || laterInput.dataset.userSet) return;
+    if(reps && laterInput.value !== was) return;
+    laterInput.value = newVal;
+    if(reps) laterInput.dataset.v = newVal;
   });
 }
 
@@ -55404,7 +55647,30 @@ function toggleSetType(el){
   const current = row.dataset.setType || SET_TYPES.WORKING;
   const next = current === SET_TYPES.WARMUP ? SET_TYPES.WORKING : SET_TYPES.WARMUP;
   applySetTypeToRow(row, next);
+  if(current === SET_TYPES.WARMUP) seedWorkingTarget(row);
   persistDraftNow();
+}
+
+/* D125 — a warm-up turned into a working set takes the target for its place:
+   the reps the plan holds for that working set and, before any working set is
+   done, today's working load (after one, the load is D50B's, which it has
+   already written into this row if nobody else did). A value the athlete typed
+   or stepped stays theirs, a completed set stays as logged, and no other row
+   changes. Turning a working set into a warm-up changes no value at all. */
+function seedWorkingTarget(row){
+  if(!row || !row.closest || row.classList.contains('completed')) return;
+  const exRow = row.closest('.ex-log-row');
+  const setsList = row.closest('.sets-list');
+  if(!exRow || !setsList) return;
+  const rows = Array.prototype.slice.call(setsList.querySelectorAll('.set-row'));
+  const ordinal = rows.filter(r => r.dataset.setType !== SET_TYPES.WARMUP).indexOf(row) + 1;
+  if(ordinal < 1) return;
+  const started = rows.some(r => r.classList.contains('completed') && r.dataset.setType !== SET_TYPES.WARMUP);
+  const w = row.querySelector('.set-weight-in');
+  if(w && !w.disabled && !w.dataset.userSet && !started && rowWorkingLoad(exRow) !== null) w.value = String(exRow.dataset.rxLoad);
+  const r = row.querySelector('.set-reps-in');
+  const target = plannedRepsFor(exRow, ordinal);
+  if(r && !r.dataset.userSet && target !== null){ r.value = target; r.dataset.v = target; }
 }
 
 /* ---------- ADVANCED SET TYPES (Phase D5) ----------
@@ -55427,8 +55693,10 @@ function applySetTypeToRow(row, typeId){
 
   const idxEl = row.querySelector('.set-idx');
   if(idxEl){
-    const idx = Array.prototype.indexOf.call(row.parentNode ? row.parentNode.children : [], row) + 1;
-    idxEl.innerHTML = setIdxHtml(idx, typeId === SET_TYPES.WARMUP);
+    /* D125 — one set's type decides the number of every working set after it,
+       so the whole list is renumbered by working-set place, never by row. */
+    if(row.parentNode && row.parentNode.querySelectorAll) renumberSets(row.parentNode);
+    else idxEl.innerHTML = setIdxHtml(1, typeId === SET_TYPES.WARMUP);
     idxEl.setAttribute('title', typeId === SET_TYPES.WARMUP ? 'Tap to mark working set' : 'Tap to mark warm-up');
   }
   /* The control always names the current classification. An untyped set reads
@@ -55477,7 +55745,9 @@ function closeSetTypePicker(){
 function chooseSetType(typeId){
   const row = setTypePickerRow;
   if(!row || !isKnownSetType(typeId)){ closeSetTypePicker(); return; }
+  const was = row.dataset.setType;
   applySetTypeToRow(row, typeId);
+  if(was === SET_TYPES.WARMUP && typeId === SET_TYPES.WORKING) seedWorkingTarget(row);
   closeSetTypePicker();
   persistDraftNow();
 }
@@ -55485,6 +55755,7 @@ function chooseSetType(typeId){
 function toggleSetComplete(btn){
   const row = btn.closest('.set-row');
   const isDone = !row.classList.contains('completed');
+  const warmup = row.dataset.setType === SET_TYPES.WARMUP;
   row.classList.toggle('completed', isDone);
   btn.setAttribute('aria-label', isDone ? 'Completed' : 'Mark complete');
   try{ revealFeedbackStrip(row.closest('.ex-log-row')); }catch(e){}
@@ -55509,8 +55780,10 @@ function toggleSetComplete(btn){
     }
     markExerciseComplete(exRow, allRows);
     /* D50B — the coach runs AFTER the rest timer has already started, so a
-       recommendation can never delay the thing the athlete is waiting on. */
-    try{ refreshSetCoach(exRow); }catch(e){}
+       recommendation can never delay the thing the athlete is waiting on.
+       D125 — and only for a working set. A warm-up is not its evidence, so
+       finishing one is never a reason to rewrite the sets still to come. */
+    if(!warmup){ try{ refreshSetCoach(exRow); }catch(e){} }
     if(next) revealNextSetAfterLayout(next);
   } else if(panel && panel._interval){
     clearInterval(panel._interval);
@@ -55520,8 +55793,8 @@ function toggleSetComplete(btn){
   if(!isDone && exRow){
     exRow.classList.remove('ex-complete');
     /* Un-completing a set removes evidence; the coach must not keep standing
-       on a set that is no longer done. */
-    try{ refreshSetCoach(exRow); }catch(e){}
+       on a set that is no longer done. A warm-up was never evidence (D125). */
+    if(!warmup){ try{ refreshSetCoach(exRow); }catch(e){} }
   }
   syncWorkoutCompletionState(exRow);
   persistDraftNow();
