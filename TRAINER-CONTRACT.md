@@ -17667,3 +17667,128 @@ Restated by reversal:
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
 key, no stored answer, no history rewritten. E44 closed. No new finding.
+
+## §163 — A TAP TARGET IS THE BOX A BROWSER MEASURES (D124 · LOOP 10.41 · loop-v218)
+
+**Rule.** The Personal Best carousel's page buttons (`.pbt-dot`) are real
+44 × 44 boxes: `width`, `height` and `flex-basis` on the button itself.
+
+- The button is transparent and borderless; only the mark inside it is drawn.
+- Neighbours touch edge to edge (`gap: 0`, no negative margin), so no two
+  targets overlap and every tap belongs to exactly one page.
+- The mark is untouched: 6 px, 9 px for the current page, centred.
+- Keyboard focus is a small ring (20 px) drawn round the mark (`::after`),
+  not the global 2 px outline, which would have been a 48 px square around a
+  6 px dot. It follows the rail's own approach (`.rank-rail-seg`).
+- The row's top margin went from 14 px to 7 px, so the marks sit exactly
+  where they sat.
+
+CSS only. No markup, JavaScript, data or storage changed.
+
+**Why E45 existed.** D83's comment said "a 44px tap target lives in the
+button's own padding". The padding was 12 px around a 6 px mark:
+6 + 12 + 12 = 30. A browser measures 30 × 30, at every viewport. Nothing
+had ever measured it.
+
+**Not changed:**
+- The markup. Each button is still a native `<button type="button">`, named
+  "<lift>, i of n", with `aria-current` on the current page and a decorative
+  mark hidden from assistive tech. Tab, Enter and Space are the browser's own.
+  There was no arrow-key model, and none was added.
+- The page count rules: no buttons for 0 or 1 pages, two for two, at most
+  five (`PBT_CONFIG.maxCarouselExercises`).
+- The swipe sync (`pbtSettleCarousel`, `pbtSyncCarouselChrome`), the jump
+  (`pbtGoToPage`: smooth, instant under Reduce Motion), the page data and
+  order (D82/D83), and Exercise Detail.
+- Every training system: records, XP, D49, D50B, plateau and deload
+  evidence, the bodyweight model. E38, E39 and E43.
+
+**Shared class.** `.pbt-dot` has one markup template, drawn only by
+`renderPersonalBestTimeline`, and one reader, `pbtSyncCarouselChrome`.
+Exercise Detail and the rest of the app use other classes. The fix is scoped
+by construction.
+
+**Visual cost, stated.** A 44 px target cannot sit closer than 44 px to its
+neighbour without overlapping. The dots are 44 px apart (was 32 px). Five
+dots span 220 px; the card is 242 px wide at 320 (the narrowest phone), so
+five fit. `maxCarouselExercises` caps the strip at five.
+
+### Measured
+
+- **E45 on 10.40, reproduced with the shipped code in real headless Edge,
+  at 320×568, 360×640, 375×667, 390×844, 393×852, 414×896, 430×932,
+  768×1024, 1024×768 and 1280×800.** Every button (two-page and five-page
+  cards) measures 30 × 30, with a 2 px gap between them. The mark is 6 px
+  (9 px current). The row does not overflow, and the carousel does not scroll
+  the page sideways.
+- **10.41, the same ten viewports:** every button measures 44 × 44, with no gap and
+  no overlap. The mark is the same 6 px (9 px current) and centred in its
+  button to within 0.6 px. The row is centred under the card, inside it and
+  does not scroll. The first mark is 29 px under the carousel, as on 10.40.
+- **Real touch taps** at 320, 390 and 1024: the centre, the left edge and
+  the right edge of every button each select exactly that page. The pixel
+  either side of every seam belongs to its own button. Rapid taps settle on
+  the last page. Tapping the current page changes nothing. Swiping to the
+  next page and back moves the current button with it. A vertical drag that
+  begins on the row scrolls the page and chooses no page.
+- **Keyboard** at 390 and 1280: Tab reaches each button once in order and
+  never the inner mark. Enter and Space select the page. Focus shows the
+  ring, which is centred on the mark and inside the card. Focus changes no
+  size. Reduce Motion: the jump lands at once and the mark does not animate.
+- **Page counts:** 0 and 1 show no buttons; 2 shows 2; six lifts show 5.
+- **Beyond the cap (hypothetical).** At 320, 8 pages need 352 px and 12 need
+  528 px of the 242 px row. It would scroll sideways. `maxCarouselExercises`
+  is 5, so this cannot be reached today. Raising the cap needs the row to
+  wrap first.
+- **Real headless Edge, final:** 389/389 checks across those cases. On frozen
+  10.40 the same rig fails only the geometry, focus-ring and position
+  checks. Every tap, swipe, keyboard, accessible-name and page-count check
+  passes there too, so interaction behaviour is unchanged.
+- **Performance:** rendering the five-page card and forcing a layout, median
+  of 60, three rounds: 2.5 ms on both builds. No data work, no history scan,
+  no storage.
+
+### Contract 241 (24 checks)
+
+It covers:
+- the CSS as rules: 44 × 44 on the button, flex-basis, no padding, gap 0 and
+  no negative margin, transparent, the mark centred, the 6 px mark and the
+  scaled current mark unchanged, the focus ring, Reduce Motion;
+- the class shared with nothing;
+- the card for 0, 1, 2 and 6 lifts renders as 10.40 did (a digest frozen from
+  10.40): the markup, page order and page data;
+- each button's page index; no buttons for one page;
+- the jump to every page, smooth and instant; a missing page does nothing;
+- the swipe chrome for every page;
+- every Personal Best function byte-identical; Exercise Detail, records,
+  XP, plateau, D49, D50B and bodyweight byte-identical;
+- PR XP, D49's answers, every record and lifetime XP (a digest frozen from
+  10.40);
+- E38, E39, E43 untouched, zero writes, keys and schema.
+
+A vm cannot lay a page out, so the geometry itself is proven in a browser
+(`qa124.js`). The contract proves the CSS that produces it.
+
+**Mutation: 30 mutants, all killed.** Each was run against Contract 241 alone and against
+the browser rig, at 390 with one and five pages.
+- **21 by the real browser** (geometry, taps, swipe, focus, accessible names, Reduce Motion, page counts): the target reverted to 30 x 30; width 44 with height 30, and the reverse; the mark drawn at 44 x 44; the mark off-centre; overlapping buttons; an off-by-one page; the current state not updating on a swipe; a swipe that updates nothing; a 64 px target overflowing at 320; focus ring removed, or a 44 px square; aria-label removed; aria-current removed; the mark separately focusable; one-page pagination; a visible fill; the jump ignoring Reduce Motion; the ring escaping its button; a 4 px gap; the mark's vertical position moved.
+- **5 by the vm running the app** against digests frozen from 10.40: page order changed; record data changed; a storage write; PR XP; D49.
+- **3 by pins:** E38, E39 and E43 silently fixed.
+- **1 equivalent, proven.** "Reduce Motion stops being honoured by the mark's
+  own rule." LOOP's global rule under Reduce Motion
+  (`*{ transition: none !important }`) already stops the transition, so the
+  local rule is redundant. Only the source check sees it.
+- **A first pass found the rig short**, not the fix: the focus, Reduce Motion
+  and position mutants survived a 320-only run, because those checks run at
+  390. The rig was widened to run both, with new pitch and mark-position
+  checks, and the 10 weakest mutants were run again. All died.
+
+### Restated contracts
+
+Contract 240 asserted E45 "untouched": 12 px of padding around a 6 px mark.
+D124 closes E45 on purpose, so that one assertion now says D123 did not touch
+the dot's look (the 6 px mark). The button geometry is Contract 241's. Nothing
+else was restated.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
+key, no history rewritten. E45 closed. No new finding.

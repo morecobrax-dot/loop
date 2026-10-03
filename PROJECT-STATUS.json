@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.40",
+  "version": "10.41",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner check on iPhone: the week after a planned deload, a lift that kept climbing reads Building, not Hold, and a real stall still reads Hold with a deload in between.",
+  "nextAction": "Owner check on iPhone: Progress → Strength → the dots under the Personal Best card are easy to hit with a thumb, one tap per lift, and still look small.",
   "blocker": null,
-  "updatedAt": "2026-10-03T02:07:22Z"
+  "updatedAt": "2026-10-03T13:55:22Z"
 }

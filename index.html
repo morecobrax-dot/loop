@@ -4511,12 +4511,23 @@ button.mpod-card:focus-visible{ outline: 2px solid var(--accent); outline-offset
 .pbt-stats .snap-num{ font-size: 15.5px; line-height: 1.3; }
 
 /* PAGE INDICATOR — dots plus a plain "N of M", so position never depends on
-   counting dots alone. A 44px tap target lives in the button's own padding;
-   only the small visible mark is drawn. */
-.pbt-dots{ display: flex; justify-content: center; align-items: center; gap: 2px; margin-top: 14px; }
+   counting dots alone. D124 (E45): the BUTTON is a real 44 x 44 box — the old
+   padding sat around a 6px mark and measured 30 x 30 in a browser, whatever the
+   comment said. It is transparent and its neighbours touch without overlapping,
+   so each tap belongs to exactly one page; only the small mark is drawn, centred.
+   The top margin gives back the 7px the taller box adds above the mark, so the
+   dots stay where they were. Focus is a small ring round the mark (the rail's
+   own approach), not a 44px square. */
+.pbt-dots{ display: flex; justify-content: center; align-items: center; gap: 0; margin-top: 7px; }
 .pbt-dot{
-  appearance: none; background: none; border: none; padding: 12px; margin: 0;
+  appearance: none; background: none; border: none; padding: 0; margin: 0;
+  position: relative; flex: 0 0 44px; width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center; cursor: pointer;
+}
+.pbt-dot:focus-visible{ outline: none; }
+.pbt-dot:focus-visible::after{
+  content: ''; position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px;
+  border-radius: 50%; box-shadow: inset 0 0 0 2px var(--accent);
 }
 .pbt-dot-mark{ width: 6px; height: 6px; border-radius: 50%; background: var(--text-faint); opacity: 0.5; transition: transform 0.15s var(--ease), opacity 0.15s var(--ease), background 0.15s var(--ease); }
 .pbt-dot.active .pbt-dot-mark{ background: var(--accent); opacity: 1; transform: scale(1.5); }
@@ -18504,6 +18515,22 @@ const LOOP_UPDATES = [
     ],
     changes: [
       'Next-session advice may change for lifts you trained through a planned deload'
+    ]
+  },
+  {
+    id: 'v10-41',
+    version: 'LOOP 10.41',
+    title: 'Easier Page Dots',
+    date: '2026-10-03',
+    swVersion: 'loop-v218',
+    summary: 'Personal Best controls are easier to tap on mobile while keeping the same compact look.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'The page dots under your Personal Best card are now a comfortable size to tap'
+    ],
+    changes: [
+      'The dots sit slightly further apart, so each one has a tap area of its own'
     ]
   }
 ];

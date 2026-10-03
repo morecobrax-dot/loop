@@ -1534,7 +1534,7 @@ Measured on frozen 10.39 vs 10.40:
 
 Contract 240, §162.
 
-## E45 — The Personal Best carousel's dots are 30 px targets, not the 44 px their own CSS claims · P4 · PROVEN · OPEN
+## E45 — The Personal Best carousel's dots are 30 px targets, not the 44 px their own CSS claims · P4 · PROVEN · **CLOSED in D124 (LOOP 10.41)**
 
 Found by D122's browser QA, in the one fixture with two lifts. It is unrelated
 to plateau detection and was not caused by D122. It is recorded, not fixed.
@@ -1553,6 +1553,35 @@ control. It is still a tap target 14 px short of the size the code says it is.
 **Why it was not fixed in D122.** It is a styling change to another feature.
 The likely fix is padding 19 px (or a 44 px min-width/min-height), with the
 D83 contract checking the measured size, in its own phase.
+
+**Closed in D124 (LOOP 10.41).** The page buttons are now real 44 × 44 boxes:
+`width`, `height` and `flex-basis` on the button itself, with the padding
+gone. The button is transparent and borderless, and its neighbours touch
+without overlapping, so every tap belongs to exactly one page. The 6 px mark
+(9 px for the current page) is untouched and centred inside. CSS only: no
+markup, no JavaScript, no data.
+
+Keyboard focus is now a small ring (20 px) drawn round the mark, not the
+global outline, which would have been a 48 px square around a 6 px dot.
+
+The row's top margin went from 14 px to 7 px, so the marks sit exactly where
+they sat. The dots are 12 px further apart (44 px pitch, was 32 px). That is
+the minimum for non-overlapping 44 px targets.
+
+Measured on frozen 10.40 vs 10.41, in real headless Edge:
+- **E45 on 10.40:** every button measures 30 x 30 with a 2 px gap, at all ten
+  viewports checked (seven phones, 768, 1024, 1280), for two pages and for five.
+- **10.41:** every button measures 44 x 44, touching and never overlapping,
+  with the same 6 px mark centred in it and the marks in the same place. Real
+  taps at the centre, left edge and right edge of every button choose exactly
+  that page. Swipe, keyboard (Tab, Enter, Space), focus ring, accessible names,
+  Reduce Motion and the 0, 1, 2 and 5 page states all pass: 389/389 browser
+  checks. On 10.40 the same rig fails only the geometry, ring and position
+  checks.
+- **Never moved:** the markup, page order and page data (a frozen digest),
+  records, XP, D49 and every other function.
+
+Contract 241, §163.
 
 ## Not findings — checked and clean
 

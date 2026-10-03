@@ -50451,8 +50451,10 @@ async function testDeloadPlateauEvidenceD123(){
     T('8  E38 is untouched: a stored non-finite weight still prints as a load on Day Detail’s chip', /Infinity lb/.test(chip), chip);
     const l = (await boot([W('l1', 10, 'Core', [E('L-Sit', [BW(20), BW(18)], true)], { category: 'core' }), W('l2', 3, 'Core', [E('L-Sit', [BW(25), BW(20)], true)], { category: 'core' })])).ctx;
     T('8  E39 is untouched: a custom hold the name rule misses (L-Sit) still gets a rep target', withClockOn(l, NOW, () => l.bodyweightProgressionFor('L-Sit')).reps === 26);
-    T('8  E45 is untouched: the Personal Best dots are still 12px of padding around a 6px mark',
-      /\.pbt-dot\{\s*appearance: none; background: none; border: none; padding: 12px; margin: 0;/.test(raw) && /\.pbt-dot-mark\{ width: 6px; height: 6px;/.test(raw));
+    /* D124 restated: D123 left E45 alone (12px padding around a 6px mark). D124 has since closed it, so the button's size is
+       Contract 241's; what D123 must still not have touched is the dot's own look. */
+    T('8  E45 was not D123\u2019s: the Personal Best dot is still a 6px mark (the button geometry is Contract 241\u2019s, since D124)',
+      /\.pbt-dot-mark\{ width: 6px; height: 6px;/.test(raw));
     T('8  E38’s, E39’s and E43’s functions and the trainer are byte-identical; the trainer reads no plateau and no phase', pin('setChipHtml') === '350b4e34eb582056' && pin('substitutionIsHold') === '049ba50329c76db3'
       && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('calculateSetXP') === '625722a99a04e30f' && at.controlStall.c.TRAINER_ENGINE_VERSION === '0.1.1-shadow'
       && !/plateau|phase|isDeloadWorkout/i.test(fnSrc(raw, 'extractPerformanceSignal') + fnSrc(raw, 'extractCapabilitySignal') + fnSrc(raw, 'computeTrainerConfidence') + fnSrc(raw, 'computeShadowRecommendation')));
@@ -50483,6 +50485,148 @@ async function testDeloadPlateauEvidenceD123(){
       times.push(Number(process.hrtime.bigint() - t0) / 1e6); }
     times.sort((x, y) => x - y);
     T('9  two years, 416 workouts, a deload every seventh: both plateaus, a D49 answer and the Progress buckets in ' + times[3].toFixed(1) + ' ms with every cache cleared, well under 250', times[3] < 250, JSON.stringify(times));
+  });
+}
+
+/* =========================================================
+   CONTRACT 241 — PERSONAL BEST PAGE BUTTONS ARE 44 PX TARGETS  (Phase D124 — closes E45)
+   ---------------------------------------------------------
+   D83's page buttons carried a comment promising a 44px tap target
+   "in the button's own padding". The padding was 12px around a 6px
+   mark: a browser measures 30 x 30. They are now real 44 x 44 boxes
+   (width, height and flex-basis on the button itself), transparent,
+   touching but never overlapping, with the 6px mark centred inside;
+   focus is a small ring round the mark. CSS only.
+   A vm cannot lay a page out, so the GEOMETRY itself is proven in a
+   real browser (d124/qa124.js: every button's getBoundingClientRect at
+   ten viewports, real taps at centre and both edges, swipe, keys,
+   focus, reduced motion). Held HERE: the CSS that produces it, read as
+   rules; the markup, page order and page data byte-for-byte as 10.40
+   (digest frozen from 10.40); each button's page index; the swipe
+   chrome; the page count rules (0, 1, 2, 5); no JavaScript changed in
+   the Personal Best area; the training systems, E38/E39/E43, storage.
+   ========================================================= */
+async function testPbtTouchTargetsD124(){
+  section('CONTRACT 241 — Personal Best page buttons are real 44 px targets (D124, E45)');
+  const fs = require('fs'), crypto = require('crypto');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => s.replace(/\s+/g, ' ').trim();
+  const pin = n => sha(col(fnSrc(raw, n)));
+  const NOW = '2026-09-30T12:00:00';
+  const css = col(raw.slice(raw.indexOf('/* PAGE INDICATOR'), raw.indexOf('/* EMPTY — describes what will appear')));
+  const rule = sel => { const m = new RegExp('(?:^|[ }])' + sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\{([^}]*)\\}').exec(css); return m ? m[1] : null; };
+  const LIFTS = ['Bench Press', 'Back Squat', 'Barbell Row', 'Overhead Press', 'Deadlift', 'Hip Thrust'];
+  const logFor = n => n === 0 ? [] : ['2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'].map((d, i) => ({ id: 'w' + i, date: d, category: 'push', title: 'S' + i, notes: '',
+    exercises: LIFTS.slice(0, n).map((nm, k) => ({ name: nm, effort: '', bodyweight: false, sets: [0, 1, 2].map(() => ({ weight: String(95 + k * 10 + i * 10), reps: '8', rir: '2', type: 'working' })) })) }));
+  const boot = async log => { const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) });
+    const rel = pinClock(a.ctx, NOW); try{ await H.settle(300); for(let t = 0; t < 60 && a.ctx.workoutLog.length !== log.length; t++) await H.settle(100); } finally { rel(); } return a; };
+  const cards = {};
+  for(const n of [0, 1, 2, 6]){ const a = await boot(logFor(n)), c = a.ctx;
+    withClockOn(c, NOW, () => { c.pbtSelectedExercise = null; c.pbtDisplaySet = null; c.pbtTempSet = false; c.renderPersonalBestTimeline(); });
+    cards[n] = { a, c, html: c.document.getElementById('progPBTimeline').innerHTML }; }
+
+  /* ---------------------------------------------------------------- */
+  sub('1  the CSS that makes the target real');
+  await guard('css', async () => {
+    const dot = rule('.pbt-dot'), dots = rule('.pbt-dots'), mark = rule('.pbt-dot-mark');
+    const has = (body, re) => !!body && re.test(body);
+    T('1  the BUTTON itself is 44 x 44: width, height and flex-basis, with no padding to make up the difference',
+      has(dot, /(^|;)\s*width: 44px;/) && has(dot, /(^|;)\s*height: 44px;/) && has(dot, /flex: 0 0 44px;/) && has(dot, /padding: 0;/) && !/padding: [1-9]/.test(dot || ''), dot);
+    T('1  it is a transparent, borderless, native-appearance-free box with the mark centred in it',
+      has(dot, /appearance: none;/) && has(dot, /background: none;/) && has(dot, /border: none;/) && has(dot, /display: flex;/) && has(dot, /align-items: center;/) && has(dot, /justify-content: center;/), dot);
+    T('1  neighbours touch without overlapping: gap 0 and no negative margin on the row or the button',
+      has(dots, /gap: 0;/) && !/margin[^;]*-\d/.test((dots || '') + (dot || '')) && has(dots, /display: flex;/) && has(dots, /justify-content: center;/), [dots, dot]);
+    T('1  the row keeps the mark where it was: 7 px above it plus the 7 px of the taller box is the old 14 px', has(dots, /margin-top: 7px;/));
+    T('1  the visible mark is the old 6 px circle, current one scaled 1.5, with its quiet fade — untouched',
+      col(mark || '') === 'width: 6px; height: 6px; border-radius: 50%; background: var(--text-faint); opacity: 0.5; transition: transform 0.15s var(--ease), opacity 0.15s var(--ease), background 0.15s var(--ease);', mark);
+    T('1  the current mark is still accent, full opacity, scaled 1.5 — the active state’s look and its aria-current are unchanged',
+      /\.pbt-dot\.active \.pbt-dot-mark\{ background: var\(--accent\); opacity: 1; transform: scale\(1\.5\); \}/.test(css));
+    T('1  keyboard focus is a small ring round the mark, not the global 48 px square: the button’s outline is dropped and a 20 px circle is drawn inside the button, on top of nothing else',
+      /\.pbt-dot:focus-visible\{ outline: none; \}/.test(css)
+      && /\.pbt-dot:focus-visible::after\{[^}]*content: '';[^}]*position: absolute;[^}]*left: 50%;[^}]*top: 50%;[^}]*width: 20px;[^}]*height: 20px;[^}]*margin: -10px 0 0 -10px;[^}]*border-radius: 50%;[^}]*box-shadow: inset 0 0 0 2px var\(--accent\);/.test(css)
+      && has(dot, /position: relative;/), css.slice(0, 900));
+    T('1  Reduce Motion still stops the mark’s transition', /@media \(prefers-reduced-motion: reduce\)\{ \.pbt-dot-mark\{ transition: none; \} \}/.test(css));
+    T('1  the comment no longer promises a target the CSS did not make', !/lives in the button's own padding/.test(css) && /real 44 x 44 box/.test(css));
+    T('1  the page number text under the row is untouched', /\.pbt-pagenum\{ text-align: center; font-size: 11px; color: var\(--text-faint\); font-family: 'JetBrains Mono', monospace; margin-top: 2px; \}/.test(css));
+    /* the class belongs to this one carousel: no other markup or rule uses it */
+    T('1  the class is shared with nothing: one markup template, drawn only by the carousel, followed only by its own chrome sync (so the fix is scoped by construction)',
+      (raw.match(/class="pbt-dot(?![s-])/g) || []).length === 1 && fnSrc(raw, 'pbtSyncCarouselChrome').indexOf("querySelectorAll('#pbtDots .pbt-dot')") !== -1 && !/(exd|rank|wr|tm|pl)-[a-z-]*pbt-dot/.test(raw));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('2  markup, page order and page data are 10.40’s, byte for byte');
+  await guard('markup', async () => {
+    const digest = sha(JSON.stringify([0, 1, 2, 6].map(n => cards[n].html)));
+    T('2  the whole card for 0, 1, 2 and 6 logged lifts (empty state, a single page, two, five of six) renders exactly as 10.40 did (a digest frozen from 10.40)', digest === 'd2d5ec5a0102888e', digest);
+    const h = cards[6].html, c = cards[6].c;
+    const btns = [...h.matchAll(/<button type="button" class="pbt-dot( active)?"\s+aria-current="(true|false)" aria-label="([^"]*)"\s+onclick="pbtGoToPage\((\d+)\)"><span class="pbt-dot-mark" aria-hidden="true"><\/span><\/button>/g)];
+    const names = c.buildPersonalBestTimelineModel().carousel.map(t => t.exerciseName);
+    T('2  five buttons for six lifts (the strip is capped at five), each a plain button: "<lift>, i of 5", onclick page i, the decorative mark hidden from assistive tech, exactly one current',
+      btns.length === 5 && btns.every((m, i) => +m[4] === i && m[3] === c.escapeAttr(names[i]) + ', ' + (i + 1) + ' of 5') && btns.filter(m => m[2] === 'true').length === 1 && btns[0][1] === ' active' && btns[0][2] === 'true'
+      && !/tabindex/.test(h.slice(h.indexOf('id="pbtDots"'), h.indexOf('id="pbtPageNum"'))), btns.map(m => m[3]));
+    T('2  the single-page and zero-page states show no page buttons at all', !/pbt-dots|class="pbt-dot/.test(cards[1].html) && !/pbt-dots|class="pbt-dot/.test(cards[0].html) && /class="pbt-dot( active)?"/.test(cards[2].html)
+      && (cards[2].html.match(/class="pbt-dot( active)?"/g) || []).length === 2);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('3  each button goes to its own page, and the chrome follows a swipe');
+  await guard('behaviour', async () => {
+    const c = cards[6].c, doc = c.document;
+    const real = doc.getElementById; const calls = [];
+    const car = { clientWidth: 300, scrollLeft: 0, querySelectorAll(sel){ return sel === '.pbt-page' ? [0, 1, 2, 3, 4].map(() => ({})) : []; }, scrollTo(o){ calls.push(o); } };
+    let reduced = false; const realMM = c.window && c.window.matchMedia;
+    try{
+      doc.getElementById = id => id === 'pbtCarousel' ? car : real.call(doc, id);
+      if(c.window) c.window.matchMedia = q => ({ matches: reduced && /reduce/.test(q) });
+      const go = i => { calls.length = 0; c.pbtGoToPage(i); return calls[0]; };
+      T('3  button i scrolls the strip to page i exactly (i x the page width), smoothly', [0, 1, 2, 3, 4].every(i => { const o = go(i); return o && o.left === i * 300 && o.behavior === 'smooth'; }));
+      reduced = true;
+      T('3  under Reduce Motion the same jump is instant', [0, 2, 4].every(i => { const o = go(i); return o && o.left === i * 300 && o.behavior === 'auto'; }));
+      reduced = false;
+      T('3  a button for a page that is not there does nothing', go(5) === undefined && go(-1) === undefined);
+    } finally { doc.getElementById = real; if(c.window && realMM) c.window.matchMedia = realMM; }
+    /* the swipe side: the chrome sets aria-current on exactly the page in front */
+    const dots = [0, 1, 2, 3, 4].map(i => ({ i, cls: new Set(i === 0 ? ['active'] : []), attrs: {}, classList: null }));
+    dots.forEach(d => { d.classList = { toggle(k, f){ if(f) d.cls.add(k); else d.cls.delete(k); } }; d.setAttribute = (k, v) => { d.attrs[k] = v; }; });
+    const realQ = doc.querySelectorAll, realG = doc.getElementById;
+    try{
+      doc.querySelectorAll = s => s === '#pbtDots .pbt-dot' ? dots : realQ.call(doc, s);
+      doc.getElementById = id => id === 'pbtExerciseSelect' ? { value: '' } : id === 'pbtPageNum' ? { textContent: '' } : id === 'pbtLive' ? { textContent: '' } : realG.call(doc, id);
+      const names = ['a', 'b', 'c', 'd', 'e'];
+      const ok = [0, 3, 1, 4, 2, 0].every(i => { c.pbtSyncCarouselChrome(names, i); return dots.every(d => d.cls.has('active') === (d.i === i) && d.attrs['aria-current'] === (d.i === i ? 'true' : 'false')); });
+      T('3  after a swipe to any page, exactly that button is current (the look and aria-current agree)', ok);
+    } finally { doc.querySelectorAll = realQ; doc.getElementById = realG; }
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4  nothing but CSS changed');
+  await guard('pins', async () => {
+    T('4  every Personal Best function is byte-identical: the model, the ranking, the page, the display set, the jump, the swipe, the chrome sync, reduced motion',
+      pin('pbtGoToPage') === 'be569a2a3f27abc1' && pin('pbtOnCarouselScroll') === 'd84ca79a77e1735e' && pin('pbtSettleCarousel') === 'd3000c578a475bf9' && pin('pbtSyncCarouselChrome') === '00407e54379a61c2'
+      && pin('renderPersonalBestTimeline') === '37fe00bee983b7c3' && pin('pbtPageHtml') === '55609789976957ab' && pin('pbtPageModel') === 'df6ca87cd50e2a81' && pin('buildPersonalBestTimelineModel') === 'c1093d92c4d0d30f'
+      && pin('computePersonalBestTimeline') === 'e41926dcb1cfa844' && pin('computePBTCandidates') === 'ba795fd4ab772a63' && pin('rankPBTCandidates') === '5e5f609ad9a2053a' && pin('pbtDisplaySetFor') === 'e02f5b01afda5e39'
+      && pin('pbtChooseExercise') === '7dbb161474f5baf4' && pin('pbtReducedMotion') === '908b3cd745e6d3b0' && pin('pbtDisplayMilestones') === '2e4c475017355cd1' && /PBT_CONFIG = \{\s*maxDots: 8,[^}]*maxCarouselExercises: 5/.test(raw));
+    T('4  Exercise Detail, Progress → Strength, records, XP, plateau, D49, D50B and the bodyweight model are byte-identical',
+      pin('deriveExerciseDetail') === '2e7f87f1c8567b0a' && pin('renderProgStrength') === 'd442d15c036246a1' && pin('computeExercisePREvents') === '222267c3066ab2bf' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
+      && pin('computeXPTimeline') === '4eb287033499d612' && pin('detectPlateau') === '8a54bd2201dda81f' && pin('exerciseSessionHistory') === '0947083a50c4e8b7' && pin('isDeloadWorkout') === 'ad99d9e182eb1f22'
+      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc');
+    T('4  E38, E39 and E43 are untouched', pin('setChipHtml') === '350b4e34eb582056' && pin('substitutionIsHold') === '049ba50329c76db3' && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('calculateSetXP') === '625722a99a04e30f');
+    const cx = cards[6].c;
+    const answers = withClockOn(cx, NOW, () => ({ xp: ['weight', 'reps_at_weight', '1rm', 'volume', 'reps'].map(t => cx.calculatePRXP(t)),
+      d49: LIFTS.map(l => { const r = cx.progressionFor(l, '8-12', null); return [r.tag, r.weight, r.why]; }),
+      prs: cx.computeAllPREvents().map(e => [e.id, e.exerciseName, e.hits.map(h => h.type + ':' + h.next)]), xpTotal: cx.computeXPTimeline().lifetimeXP }));
+    T('4  PR XP, D49’s answers, every record and the lifetime XP of the six-lift history are 10.40’s exactly (a digest frozen from 10.40), and the constants behind them are in place',
+      sha(JSON.stringify(answers)) === '12c8ebabfa94229c' && /const PR_XP = \{ weight:15, reps_at_weight:10, '1rm':10, volume:5, reps:10 \};/.test(raw)
+      && /const PROGRESSION_EVIDENCE = \{[^}]*minSetsWithoutRx: 2,[^}]*headroomOverTarget: 1,[^}]*headroomAbsolute: 1\.5,[^}]*settleExposures: 1/.test(col(stripComments(raw))), sha(JSON.stringify(answers)));
+    const c = cards[6].c, app = cards[6].a;
+    const store0 = JSON.stringify(app.store), log0 = JSON.stringify(c.workoutLog);
+    let writes = 0; const realSet = c.LOOPStore.set; c.LOOPStore.set = function(){ writes++; return realSet.apply(this, arguments); };
+    try{ withClockOn(c, NOW, () => { c.renderPersonalBestTimeline(); c.pbtGoToPage(2); c.pbtSyncCarouselChrome(['a', 'b', 'c', 'd', 'e'], 2); }); } catch(e){ /* the stand-in DOM may lack a scroller */ } finally { c.LOOPStore.set = realSet; }
+    T('4  drawing the card and moving between its pages writes nothing: no store write, the log byte-identical', writes === 0 && JSON.stringify(app.store) === store0 && JSON.stringify(c.workoutLog) === log0);
+    T('4  no key, schema or migration change; the trainer is 0.1.1-shadow', c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
   });
 }
 
@@ -50687,6 +50831,7 @@ async function main(){
   await testLoadedRecordEligibilityD121();
   await testPlateauEvidenceD122();
   await testDeloadPlateauEvidenceD123();
+  await testPbtTouchTargetsD124();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
