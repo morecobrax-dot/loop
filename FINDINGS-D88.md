@@ -1473,7 +1473,7 @@ phase:
 - make the label true ("5 sets"): copy only, XP unchanged;
 - count working sets only: an XP-economy change with level and rank drift.
 
-## E44 — The plateau window counts a deload week as an ordinary workout · P4 · PROVEN · OPEN
+## E44 — The plateau window counts a deload week as an ordinary workout · P4 · PROVEN · **CLOSED in D123 (LOOP 10.40)**
 
 Found by D122 while proving the plateau policy unchanged. It is window policy,
 which D122 protected, so it is recorded, not fixed.
@@ -1500,6 +1500,39 @@ can be the week LOOP calls the lift stalled.
 and was told the plateau window is protected. The likely fix is the window
 setting deload-phase workouts aside as D85's history does, with D49's drift
 measured, in its own phase.
+
+**Closed in D123 (LOOP 10.40).** D85's rule is now one helper,
+`isDeloadWorkout`: a workout is a deload when its stored phase says so. D49's
+history and `detectPlateau` both ask it. `detectPlateau` skips a deload before
+it can take one of the four places, so the window is the last four ordinary
+workouts. An older one fills the slot.
+
+The phase written when the program's own session was saved decides. The
+calendar and today's program never do. So a pause, a deload written in later,
+a moved day, a schedule revision, or a completed or deleted program
+reclassify nothing. A freeform workout in a deload week stays ordinary
+training, as D49's history has always counted it.
+
+The plateau policy is word for word as it was:
+- one occurrence per workout;
+- four needed;
+- the last four;
+- stalled when none beats the first.
+
+Measured on frozen 10.39 vs 10.40:
+- **No change:** 400 generated no-E44 histories, bodyweight and both owner
+  backups. The no-E44 set includes a deload over today with none in the
+  history, and programs without a deload. The backups hold no deload.
+- **E44 histories:** 315 lifts moved, only on the plateau side:
+  - 105 false stalls removed;
+  - 142 hidden stalls found;
+  - 68 stall weights moved.
+
+  Each equals 10.39 run on the same log with its deload workouts removed.
+- **Never moved:** records, XP, levels, ranks, Session Score, Mastery,
+  Recovery and volume. A deload still sets records and its tonnage counts.
+
+Contract 240, §162.
 
 ## E45 — The Personal Best carousel's dots are 30 px targets, not the 44 px their own CSS claims · P4 · PROVEN · OPEN
 

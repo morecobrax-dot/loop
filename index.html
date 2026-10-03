@@ -18488,6 +18488,23 @@ const LOOP_UPDATES = [
     changes: [
       'Next-session advice may change for lifts with a heavy warm-up, because it now follows the sets you actually worked'
     ]
+  },
+  {
+    id: 'v10-40',
+    version: 'LOOP 10.40',
+    title: 'Deloads Aren’t Stalls',
+    date: '2026-10-02',
+    swVersion: 'loop-v217',
+    summary: 'Planned deload workouts no longer make a lift look stalled. Plateau checks now compare your normal training sessions.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'A planned deload workout no longer makes steady progress look stalled',
+      'A deload workout in the middle of a real stall no longer hides it'
+    ],
+    changes: [
+      'Next-session advice may change for lifts you trained through a planned deload'
+    ]
   }
 ];
 
@@ -22441,6 +22458,17 @@ function parseRepRange(repsStr){
   return { min: parseInt(nums[0],10), max: parseInt(nums[0],10) };
 }
 
+/* Is this logged workout a programmed DELOAD?  (Phase D85's rule, named in D123 - D88 finding E44.)
+   The program's own session started inside a deload carries phase 'deload', written once when it was saved
+   (pendingWorkoutPhase). Nothing infers it later from the calendar or from today's program, so a past workout
+   keeps the classification it was logged with whatever the program does afterwards; a freeform workout in a
+   deload week, and every session logged before D85, carry no phase and are ordinary training. D49's own history
+   sets a deload aside and plateau detection skips it - both ask here, so they can never disagree about which
+   workouts are deloads. It decides nothing else: records, volume, score and history never read it. */
+function isDeloadWorkout(entry){
+  return !!entry && entry.phase === 'deload';
+}
+
 function exerciseSessionHistory(exerciseName, limit){
   const key = exerciseName.trim().toLowerCase();
   const sessions = [];
@@ -22513,7 +22541,7 @@ function exerciseSessionHistory(exerciseName, limit){
          dropped, so an exercise trained only during a deload still has a
          history to work from. Sessions logged before D85 carry no phase and
          are ordinary evidence, exactly as they have always been. */
-      (l.phase === 'deload' ? deloaded : sessions).push({
+      (isDeloadWorkout(l) ? deloaded : sessions).push({
         date: l.date,
         weight: topLoad,
         topReps,
@@ -23411,6 +23439,11 @@ function detectPlateau(exerciseName){
   const key = exerciseName.trim().toLowerCase();
   const occurrences = [];
   sortedLog().slice().reverse().forEach(l => {
+    /* D123 (E44) - a programmed deload was prescribed to be easy, so it is not a plateau observation, exactly as
+       D49's own history sets it aside (isDeloadWorkout). It is skipped here, before it can take a place, so the
+       window below is the last four ORDINARY workouts and an older one fills the slot. The workout, its records,
+       volume and score are untouched. */
+    if(isDeloadWorkout(l)) return;
     /* D96C-3 — one occurrence per WORKOUT, from every loaded row of the lift in
        it. Per row, one workout could fill most of the four-session window. */
     const rows = workoutExerciseRows(l, key);
@@ -56233,8 +56266,10 @@ function saveLog(btn){
   }
   /* D85 — the phase this session was started in, written only when the
      program's own work was trained in one. It is read by the progression
-     engine's evidence and by nothing else; history, PRs, Session Score, XP
-     and consistency never look at it. A session without it is not a claim
+     engines' evidence (D49's history through isDeloadWorkout, D119's with the
+     same one-line test) and by plateau detection (isDeloadWorkout, D123), and
+     by nothing else; history, PRs, Session Score, XP, volume and consistency
+     never look at it. A session without it is not a claim
      that it was ordinary training — it is the absence of a claim, which is
      what every session logged before D85 honestly is. */
   if(pendingWorkoutOrigin === 'program' && pendingWorkoutPhase)

@@ -281,8 +281,31 @@ const D122_EDITS = {
 function pinAsOf1038(name){
   if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
-  for(const [now, then] of (D122_EDITS[name] || [])){
-    if(t.split(now).length !== 2) return null;           // the D122 statement itself moved
+  for(const [now, then] of (D123_EDITS[name] || []).concat(D122_EDITS[name] || [])){
+    if(t.split(now).length !== 2) return null;           // a D123 or D122 statement itself moved
+    t = t.split(now).join(then);
+  }
+  return require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+
+/* D123 (E44) — a programmed deload is not a plateau observation. D85's rule for a deload workout is now named
+   once, isDeloadWorkout(entry), and read by both systems that must agree on it: exerciseSessionHistory (D49's
+   evidence, its one statement now asks the helper, same answer) and detectPlateau (one new statement skips a
+   deload before it can take a window slot). Every contract that held either function byte-identical now holds
+   it at its 10.39 pin with these statements put back. Pairs are [now, as of 10.39]. */
+const D123_EDITS = {
+  exerciseSessionHistory: [[
+    "(isDeloadWorkout(l) ? deloaded : sessions).push({",
+    "(l.phase === 'deload' ? deloaded : sessions).push({"]],
+  detectPlateau: [[
+    "forEach(l => { if(isDeloadWorkout(l)) return; const rows = workoutExerciseRows(l, key);",
+    "forEach(l => { const rows = workoutExerciseRows(l, key);"]]
+};
+function pinAsOf1039(name){
+  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
+  for(const [now, then] of (D123_EDITS[name] || [])){
+    if(t.split(now).length !== 2) return null;           // a D123 statement itself moved
     t = t.split(now).join(then);
   }
   return require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -42808,7 +42831,7 @@ async function testStartProvenanceD103(){
     /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227. */
     T('E16 capability, recovery (as D112 left it), D49 evidence (as D110 left it) and E22 XP/Mastery are untouched',
       pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === 'd3589033bdb54c67'
-      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
+      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
       && pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('masteryPointsFor') === '0c704c40a853d991');
     T('D100/D101 are byte-identical', pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('getMasteryProgress') === '77aca2558d11f3d5'
@@ -42978,7 +43001,7 @@ async function testExerciseCardD104(){
       pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('workoutGroupsOf') === 'f346201c58363ccb'
       && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
       && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === 'd3589033bdb54c67'
-      && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('calculateSetXP') === '625722a99a04e30f' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
+      && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('calculateSetXP') === '625722a99a04e30f' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('twActionLabel') === '21824852a16e4df2');
     T('trainer 0.1.1-shadow, DATA_KEYS 16, schema 1, no migration', c.TRAINER_ENGINE_VERSION === '0.1.1-shadow' && c.DATA_KEYS.length === 16
       && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0);
@@ -44356,7 +44379,7 @@ async function testRealSetPairingD109(){
       .replace(/topReps,\s*setsLogged/, 'topReps: Math.max(...reps), setsLogged');
     const reversedPin = crypto.createHash('sha256').update(reversed.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
     T('34 — retired: D110 rewrote the lines this reversal targets (see Contract 225\'s own single-hop reversal against D109\'s pin instead)',
-      pin('exerciseSessionHistory') === 'ffef0621fac8e613', reversedPin);
+      pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613', reversedPin);
     T('35 — the pair is chosen from the session\'s own sets while they are already in hand — no second history walk',
       (now.match(/sortedLog\(\)/g) || []).length === 1 && !/workoutLog/.test(now) && /perf\.filter\(s => performedLoad\(s\.weight\) === topLoad\)/.test(now));
   });
@@ -44649,6 +44672,8 @@ async function testFiniteRepEligibilityD110(){
     const now = fnSrc(src, 'exerciseSessionHistory');
     let reversed = now;
     const undo = (a, b, label) => { const n = reversed.split(a).length - 1; if(n !== 1) throw new Error(label + ': anchor x' + n); reversed = reversed.split(a).join(b); };
+    /* D123 restated: D123 later made one more statement of this function ask isDeloadWorkout (same answer); it is put back first */
+    for(const [a, b] of D123_EDITS.exerciseSessionHistory) undo(a, b, 'D123 restated');
     undo('return performedReps(st && st.reps) !== null;', 'return parseFloat(st && st.reps) > 0;', 'eligibility');
     undo("const weights = perf.map(s => performedLoad(s.weight)).filter(w => w !== null);\r\n",
       "const weights = perf.map(s => performedLoad(s.weight)).filter(w => w !== null);\r\n      const reps = perf.map(s => parseFloat(s.reps)).filter(r => !isNaN(r));\r\n", 'reinsert reps');
@@ -44656,7 +44681,7 @@ async function testFiniteRepEligibilityD110(){
     undo('.map(s => performedReps(s.reps)));', '.map(s => parseFloat(s.reps)));', 'topReps map');
     const reversedPin = crypto.createHash('sha256').update(reversed.replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
     T('35 — undoing exactly the D110 lines gives back D109\'s own exerciseSessionHistory, byte for byte (7ebd60c21c542e80)',
-      reversedPin === '7ebd60c21c542e80' && pin('exerciseSessionHistory') === 'ffef0621fac8e613', reversedPin);
+      reversedPin === '7ebd60c21c542e80' && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613', reversedPin);
     T('36 — the boundary is checked while the session\'s own sets are already in hand — no second history walk',
       (now.match(/sortedLog\(\)/g) || []).length === 1 && !/workoutLog/.test(now));
   });
@@ -45193,7 +45218,7 @@ async function testRecoveryLayoutD111(){
       top.tag === 'increase' && top.weight === 255 && evA === evB && evB === evBBase, [top.tag, top.weight]);
     T('52 — D49 and D50B are byte-identical, and their constants are the same values',
       pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
-      && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('capturedPrescription') === '4b741af98b989695'
+      && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('capturedPrescription') === '4b741af98b989695'
       && pin('effectiveWorkingLoad') === 'c0d91327f6ac9f76'
       && /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(code)
       && /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(code));
@@ -45763,7 +45788,7 @@ async function testRecoveryValidityD112(){
     const top = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
     T('37 — D49, by behaviour: 245 × 8 × 2 with effort to spare still earns 245 -> 255 — recovery never fed this', top.tag === 'increase' && top.weight === 255);
     T('38 — D49, D50B, records and their own constants are byte-identical',
-      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('exerciseSessionHistory') === 'ffef0621fac8e613'
+      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613'
       && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
       && /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(code));
     const t = ctx.effortToRir(8), rx = { sets: 3, reps: '8-10', effort: 8, load: 200 };
@@ -48149,7 +48174,7 @@ async function testExerciseDetailD118(){
       computePRs: '51bd020b4aa2a8a3', getSessionPRs: '2a121bed25bfa6ab', deriveWeeklyReview: '54cedeb502954944', saveLog: '66c63714822ef5ee',
       persistLog: '060c04d3663271ab', deleteLog: 'c285ece4eae2315d' };
     /* D120 restated: the record engines that D120 moved are held at their 10.36 pins by reversal (D120_EDITS). */
-    const moved = Object.keys(PINS).filter(n => (D120_EDITS[n] || D121_EDITS[n] ? pinAsOf1036(n) : pin(n)) !== PINS[n]);
+    const moved = Object.keys(PINS).filter(n => (D120_EDITS[n] || D121_EDITS[n] ? pinAsOf1036(n) : D123_EDITS[n] ? pinAsOf1039(n) : pin(n)) !== PINS[n]);
     T('16  ' + Object.keys(PINS).length + ' engines and routes the sheet reads are unchanged: PRs, timeline, trend, D49, history, identity, mastery, workouts, score, recovery, XP, D44, logging',
       moved.length === 0, moved);
   });
@@ -48454,6 +48479,14 @@ async function testBodyweightProgressionD119(){
     const pick = xs => xs[Math.floor(R() * xs.length)];
     let lifts = 0, same49 = 0, bwLifts = 0;
     const answers = [];
+    /* D123 restated: 8% of these workouts are deloads (phase 'deload'), which D123 sets aside from plateau evidence. The digest
+       below is D49's answer with D123's one statement put back (D123_EDITS) - 10.35's exactly - and what D123 changed is
+       attributed beside it. */
+    let moved = 0, movedByDeload = 0;
+    const plateauNow = c.detectPlateau;
+    const plateau1039 = (() => { let t = fnSrc(raw, 'detectPlateau').replace(/\s+/g, ' ').trim();
+      for(const [now, then] of D123_EDITS.detectPlateau) t = t.split(now).join(then);
+      return require('vm').runInContext('(' + t + ')', c); })();
     for(let h = 0; h < 40; h++){
       const log = [];
       /* one lift for every branch of D49's increment: big lift either side of 225, cable either side of 120,
@@ -48475,17 +48508,22 @@ async function testBodyweightProgressionD119(){
         lifts++;
         const range = at(() => c.repRangeForExercise(nm));
         const own = at(() => c.progressionFor(nm, range, null));
-        answers.push(nm + '|' + JSON.stringify(own));
+        c.detectPlateau = plateau1039; const then = at(() => c.progressionFor(nm, range, null)); c.detectPlateau = plateauNow;
+        answers.push(nm + '|' + JSON.stringify(then));
+        if(!same(then, own)){ moved++;
+          if((then.tag === 'plateau') !== (own.tag === 'plateau') && log.some(w => w.phase === 'deload' && w.exercises.some(x => x.name === nm))) movedByDeload++; }
         const p = at(() => c.progressionRecommendationFor(nm, range, null));
         if(p && p.mode === 'bodyweight'){ bwLifts++; return; }
         if(same(p, own)) same49++;
       });
     }
     T('7  ' + (lifts - bwLifts) + ' loaded and mixed lifts across 40 generated histories: the public answer IS progressionFor’s, every time', same49 === lifts - bwLifts && lifts - bwLifts > 100, JSON.stringify([same49, lifts, bwLifts]));
-    T('7  and D49 answers every one of those ' + answers.length + ' lifts exactly as 10.35 did — a digest of its answers, frozen from 10.35', sha(answers.join('\n')) === '098e5640fc20ade0', sha(answers.join('\n')));
+    T('7  and, with D123’s deload skip put back, D49 answers every one of those ' + answers.length + ' lifts exactly as 10.35 did — a digest of its answers, frozen from 10.35', sha(answers.join('\n')) === '098e5640fc20ade0', sha(answers.join('\n')));
+    T('7  D123 restated: of those answers, ' + moved + ' moved, every one only in the plateau call and only for a lift with a deload workout in its history',
+      moved > 0 && movedByDeload === moved, JSON.stringify([moved, movedByDeload]));
     T('7  D49 itself is byte-identical: its engine, evidence, phase policy, history reader, range and buckets',
       pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' &&
-      pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('repRangeForExercise') === '07b3b26014a8e57f' &&
+      pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('repRangeForExercise') === '07b3b26014a8e57f' &&
       pin('computeProgressionBuckets') === '87e47e4a883cc140' && pinAsOf1038('detectPlateau') === '5328b907ce3432c7' && pin('progressionIncrement') === '3d77ad004234607e');
     T('7  every other D49 consumer still asks D49 directly — Today, Objectives, Progress, Weekly Review, the live workout and the summary — and none asks the new question',
       ['renderTodayInsights', 'objectiveDailyCandidates', 'computeProgressionBuckets', 'deriveWeeklyReview', 'restoreDraftToSheet', 'startTemplateLog', 'swapLogExercise', 'computeNextTimeNotes']
@@ -48988,7 +49026,7 @@ async function testBodyweightPerformanceD120(){
   sub('9  protected');
   await guard('protected', async () => {
     T('9  D49, D50B, D91 and D96A’s boundary are byte-identical', pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' &&
-      pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('prModeOf') === 'a0ac7f761228372f' &&
+      pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('prModeOf') === 'a0ac7f761228372f' &&
       pin('performedReps') === '0436ff32a1b6eaf1' && pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('isWorkingSet') === '1517c2a5dffcdc55' && pin('setTypeOf') === '6b8c6877109ed9e3');
     T('9  Session Score, Mastery scoring, Recovery and Objectives are byte-identical', pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
       pin('execWorkingSets') === 'c8a4d5ff56240272' && pin('masteryPointsFor') === '0c704c40a853d991' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79' && pin('masteryPRCounts') === 'f77664c53b2ea14a' &&
@@ -49367,7 +49405,7 @@ async function testLoadedRecordEligibilityD121(){
     T('6  D50B still coaches every edge as it did (in-workout load is not a record and was not touched)',
       same(coached, ['increase', 'hold', 'reduce', 'hold', 'reduce', 'hold', 'hold', 'hold']), JSON.stringify(coached));
     T('6  D49, D50B and D119 are byte-identical', pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' &&
-      pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' &&
+      pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' &&
       pin('bodyweightSessionHistory') === '107a63744acb4508');
     /* D49's one record-derived phrase reads the Records card: a 245 warm-up single was "your best", so an increase to 235 was never "a match or beat". */
     const dl = [W('d1', 10, 'Push', [E('Bench Press', [S(225, 8), S(225, 8), S(225, 8)])]),
@@ -49478,7 +49516,7 @@ async function testPlateauEvidenceD122(){
   const fresh = c => { c.invalidateSortedLogCache(); c.invalidateXPTimelineCache(); if(c.invalidateCapabilityCache) c.invalidateCapabilityCache(); if(c.invalidateContextCache) c.invalidateContextCache(); };
   /* 10.38's detectPlateau, compiled from today's source with D122's one statement put back (a no-op on 10.38 itself) */
   const plateau1038 = () => { let t = fnSrc(raw, 'detectPlateau').replace(/\s+/g, ' ').trim();
-    for(const [now, then] of (D122_EDITS.detectPlateau || [])) t = t.split(now).join(then);
+    for(const [now, then] of (D123_EDITS.detectPlateau || []).concat(D122_EDITS.detectPlateau || [])) t = t.split(now).join(then);   // D123 restated: undo D123, then D122
     return t; };
   const asOf1038 = c => { c.detectPlateau = vm.runInContext('(' + plateau1038() + ')', c); fresh(c); };
   /* Every surface the plateau signal reaches, read as the athlete meets it — only through functions 10.38 already had. */
@@ -49572,8 +49610,8 @@ async function testPlateauEvidenceD122(){
     T('1  the plateau POLICY is word for word: one occurrence per workout, four needed, the last four, stalled when none beats the first',
       /const rows = workoutExerciseRows\(l, key\); if\(!rows\) return;/.test(dp.replace(/\s+/g, ' ')) && /if\(weights\.length\) occurrences\.push\(\{ date: l\.date, weight: Math\.max\(\.\.\.weights\) \}\);/.test(dp.replace(/\s+/g, ' '))
       && /if\(occurrences\.length < 4\) return null; const last4 = occurrences\.slice\(-4\); const first = last4\[0\]\.weight; const stuck = last4\.every\(o => o\.weight <= first\); return stuck \? \{ weight: first, sessions: last4\.length \} : null;/.test(dp.replace(/\s+/g, ' ')));
-    T('1  detectPlateau is 10.38 byte for byte once D122’s one statement is put back (D122_EDITS): nothing else in it moved',
-      pinAsOf1038('detectPlateau') === '5328b907ce3432c7' && pin('detectPlateau') === '569c8a0717b0aa42' && sha(plateau1038()) === '5328b907ce3432c7', [pinAsOf1038('detectPlateau'), pin('detectPlateau')]);
+    T('1  detectPlateau is 10.38 byte for byte once D122’s one statement (and D123’s, D123_EDITS) are put back: nothing else in it moved',
+      pinAsOf1038('detectPlateau') === '5328b907ce3432c7' && pinAsOf1039('detectPlateau') === '569c8a0717b0aa42' && sha(plateau1038()) === '5328b907ce3432c7', [pinAsOf1038('detectPlateau'), pin('detectPlateau')]);
     T('1  its readers are byte-identical and still ask it: D49’s first tier, the workout card, capability',
       /const plateau = detectPlateau\(exerciseName\);/.test(fnSrc(raw, 'buildProgressionRecommendation')) && /plateau: detectPlateau\(ex\.name\)/.test(fnSrc(raw, 'findPlateauedExercises'))
       && /const plateau = detectPlateau\(name\);/.test(fnSrc(raw, 'computeExerciseCapability')) && pin('findPlateauedExercises') === 'dd8083d950bf20eb');
@@ -49623,8 +49661,9 @@ async function testPlateauEvidenceD122(){
     T('3  a load with no performed reps, and a set marked not completed, are not performances', pl('loadOnly') === null && pl('notCompleted') === null);
     T('3  a row ticked bodyweight is never plateau evidence, even carrying a stray numeric load', pl('bwRowStray') === null && tag('bwRowStray') === 'build');
     T('3  three workouts are not enough to call a stall, as before', pl('threeOnly') === null && pl('threeStall') === null);
-    T('3  a deload week inside the window counts as it always has: 185, 185, 165 (deload), 185 is a stall once its 205 warm-up stops hiding it',
-      same(pl('deload'), [185, 4]) && tag('deload') === 'plateau');
+    /* D123 restated (E44 closed): a programmed deload is no longer a plateau observation, so this history has only three ordinary workouts. */
+    T('3  a deload week is set aside (D123): 185, 185, [165 deload with a 205 warm-up], 185 is three ordinary workouts — no stall to call',
+      pl('deload') === null && tag('deload') !== 'plateau');
   });
 
   /* ---------------------------------------------------------------- */
@@ -49643,7 +49682,7 @@ async function testPlateauEvidenceD122(){
     try{ c.deloadActiveToday = () => true; held = withClockOn(c, NOW, () => c.progressionFor('Bench Press', '8-12', null)); } finally { c.deloadActiveToday = real; }
     T('4  the phase policy still turns an increase into a hold during a deload', held && held.tag === 'hold' && held.weight === 200 && /^Deload week — keep 200 lb/.test(held.why), JSON.stringify(held));
     T('4  D49, D47, the phase policy and the evidence rules are byte-identical', pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7'
-      && pin('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e'
+      && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e'
       && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('deloadActiveToday') === '700ccd9a7101c3d4' && /const PROGRESSION_EVIDENCE = \{[^}]*minSetsWithoutRx: 2,[^}]*headroomOverTarget: 1,[^}]*headroomAbsolute: 1\.5,[^}]*settleExposures: 1/.test(stripComments(raw).replace(/\s+/g, ' ')));
   });
 
@@ -49764,10 +49803,14 @@ async function testPlateauEvidenceD122(){
         if(rnd() < 0.1) log.push(W('n' + String(ids).padStart(2, '0') + 'pm', 3 + (n - 1 - i) * 7, 'PM', [E('Bench Press', work(load))]));
       }
       const c = (await boot(log)).ctx;
+      /* D123 restated: these histories hold deload weeks, which D123 sets aside. With D123's skip put back (its statement reversed,
+         D122's kept) every one must still be 10.38's exactly — what D122 alone changed in a no-E42 history: nothing. */
+      { let t = fnSrc(raw, 'detectPlateau').replace(/\s+/g, ' ').trim(); for(const [now, then] of (D123_EDITS.detectPlateau || [])) t = t.split(now).join(then);
+        c.detectPlateau = vm.runInContext('(' + t + ')', c); fresh(c); }
       out.push(JSON.stringify(surfaces(c, 'Bench Press')));
     }
     const digest = sha(JSON.stringify(out));
-    T('7  36 no-E42 histories (ramps below the work, none at all, failure/AMRAP/drop, legacy, repeated rows, same-day, deload weeks): every plateau surface is 10.38’s exactly (a digest frozen from 10.38)',
+    T('7  36 no-E42 histories (ramps below the work, none at all, failure/AMRAP/drop, legacy, repeated rows, same-day, deload weeks): with D123’s deload skip put back, every plateau surface is 10.38’s exactly (a digest frozen from 10.38)',
       digest === 'f39f4136cf6c3b92', digest);
     /* Bodyweight: D119's answers and D120's records, with warm-ups, Building / Hold / Regain. */
     const bw = [];
@@ -49836,6 +49879,610 @@ async function testPlateauEvidenceD122(){
       times.push(Number(process.hrtime.bigint() - t0) / 1e6); }
     times.sort((x, y) => x - y);
     T('9  two years, 416 workouts with warm-ups: both plateaus, a D49 answer and the Progress buckets in ' + times[3].toFixed(1) + ' ms with every cache cleared, well under 250', times[3] < 250, JSON.stringify(times));
+  });
+}
+
+/* =========================================================
+   CONTRACT 240 — DELOAD-AWARE PLATEAU EVIDENCE  (Phase D123 — closes E44)
+   ---------------------------------------------------------
+   A programmed deload is prescribed to be easy. D85 sets such a
+   workout aside from D49's evidence; detectPlateau counted it as an
+   ordinary observation, so 180 → 185 → 185 → [165 deload] → 185 read
+   "Performance has stalled for 4 sessions", and a deload inside the
+   window hid a real stall. D85's rule is now named once,
+   isDeloadWorkout(entry) — the phase stored on the workout when the
+   program's own session was saved — and both systems ask it:
+   exerciseSessionHistory (same answer) and detectPlateau, which skips
+   a deload BEFORE it can take one of the four places, so an older
+   ordinary workout fills the slot. Held here: the rule, stored and
+   never inferred; E44 as 10.39 had it (10.39's function compiled back
+   reproduces every surface, frozen as a digest) and exactly which
+   histories it moved; every case of the brief's matrix A–N, real
+   programs included (a pause, a deload written in after the fact, a
+   deload over today, a moved day, completion and deletion, and the
+   save path itself writing the phase); the readers and a real start →
+   prefill → captured prescription → save → Summary; the no-op deload
+   property and its opposite; row, order and same-day identity; no-E44
+   and bodyweight output byte-for-byte as 10.39; records, XP, volume,
+   score, mastery and recovery untouched; storage untouched.
+   ========================================================= */
+async function testDeloadPlateauEvidenceD123(){
+  section('CONTRACT 240 — deload-aware plateau evidence: a programmed deload is not a plateau observation (D123, E44)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => s.replace(/\s+/g, ' ').trim();
+  const pin = n => sha(col(fnSrc(raw, n)));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const NOW = '2026-09-30T12:00:00';
+  const D = n => { const d = new Date(2026, 8, 30, 12); d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r), rir: rir == null ? '2' : String(rir), type: type || 'working' });
+  const WU = (w, r) => S(w, r, '5', 'warmup');
+  const BW = (r, rir, type) => ({ weight: 'BW', reps: String(r), rir: rir == null ? '2' : String(rir), type: type || 'working' });
+  const L = (w, r) => ({ weight: String(w), reps: String(r), rir: '2' });
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const W = (id, n, title, exs, extra) => Object.assign({ id, date: D(n), category: 'push', title, notes: '', exercises: exs }, extra || {});
+  const work = (w, r, rir) => [S(w, r || 8, rir), S(w, r || 8, rir), S(w, r || 8, rir)];
+  /* how D85 stores a workout: the program's own session started inside a deload, a program session, a freeform one */
+  const DL = { origin: 'program', programId: 'p-qa', phase: 'deload' }, PROG = { origin: 'program', programId: 'p-qa' }, FREE = { origin: 'freeform' };
+  /* one Bench Press workout per item, oldest first, a week apart (Sundays), the last on Sep 27: a load, { sets },
+     or { d: load } / { d, sets } for a deload. Every one is titled 'Push n', deload or not. */
+  const weekly = (items, name) => items.map((it, i) => {
+    const isD = typeof it === 'object' && it !== null && 'd' in it;
+    const sets = typeof it === 'number' ? work(it) : (it.sets || work(it.d));
+    return W('w' + String(i + 1).padStart(2, '0'), 3 + (items.length - 1 - i) * 7, 'Push ' + (i + 1), [E(name || 'Bench Press', sets)], isD ? DL : null);   // a title says nothing about a deload
+  });
+  const boot = async log => {
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log || []),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) });
+    const rel = pinClock(a.ctx, NOW); try{ await H.settle(300); } finally { rel(); }
+    return a;
+  };
+  const fresh = c => { c.invalidateSortedLogCache(); c.invalidateXPTimelineCache(); if(c.invalidateCapabilityCache) c.invalidateCapabilityCache();
+    if(c.invalidateContextCache) c.invalidateContextCache(); if(c.invalidateProgramCache) c.invalidateProgramCache(); };
+  /* 10.39's detectPlateau: today's source with D123's one statement put back (a no-op on 10.39 itself) */
+  const plateau1039 = () => { let t = col(fnSrc(raw, 'detectPlateau'));
+    for(const [now, then] of (D123_EDITS.detectPlateau || [])) t = t.split(now).join(then);
+    return t; };
+  const asOf1039 = c => { c.detectPlateau = vm.runInContext('(' + plateau1039() + ')', c); fresh(c); };
+  /* A real program: Mon push / Wed pull / Fri legs from Mon Aug 3, made active. Options write a deload (the next program
+     week from the day named) and pause and resume it. */
+  const program = async (c, o) => {
+    const sched = {}; c.PROGRAM_DAY_KEYS.forEach(k => { sched[k] = { type: 'rest' }; });
+    [['mon', 'push'], ['wed', 'pull'], ['fri', 'legs']].forEach(([k, cat]) => { const tpl = (c.getTemplates(cat) || [])[0]; sched[k] = { type: 'workout', planId: 'balanced', category: cat, templateId: tpl.id }; });
+    const r = await withClockOn(c, '2026-08-03T12:00:00', () => c.createProgram({ name: 'Deload Test', durationWeeks: 16, goal: 'hypertrophy', schedule: sched, startDate: '2026-08-03' }));
+    if(!r.ok) throw new Error('createProgram: ' + (r.errors || []).join(','));
+    await withClockOn(c, '2026-08-03T12:00:00', () => c.setActiveProgram(r.program.id));
+    if(o && o.deloadFrom){ const d = await withClockOn(c, o.deloadFrom + 'T12:00:00', () => c.applyBlockAction(r.program.id, 'deload', { today: o.deloadFrom }));
+      if(!d || !d.ok) throw new Error('deload refused: ' + (d && d.error)); }
+    if(o && o.pause){ await withClockOn(c, o.pause[0] + 'T12:00:00', () => c.pauseProgram(r.program.id)); if(o.pause[1]) await withClockOn(c, o.pause[1] + 'T12:00:00', () => c.resumeProgram(r.program.id)); }
+    fresh(c);
+    return r.program;
+  };
+  /* Every surface the plateau signal reaches, read as the athlete meets it — only through functions 10.39 already had. */
+  const surfaces = (c, lift) => withClockOn(c, NOW, () => {
+    const txt = id => { const e = c.document.getElementById(id); return e ? e.textContent.replace(/\s+/g, ' ').trim() : null; };
+    const range = c.repRangeForExercise(lift);
+    const p = c.detectPlateau(lift);
+    const r = c.progressionFor(lift, range, null);
+    const pub = c.progressionRecommendationFor(lift, range, null);
+    const b = c.computeProgressionBuckets();
+    c.openExDetail(lift); const next = txt('exDetailNext'); c.closeExDetail();
+    c.renderTodayInsights(); const today = txt('todayInsights') || '';
+    const weeks = c.weeklyReviewWeeks() || [];
+    const wr = weeks.length ? c.deriveWeeklyReview(weeks[weeks.length - 1]) : null;
+    const item = wr && (wr.progressionAll || []).find(x => x.name === lift);
+    const notes = (c.computeNextTimeNotes(c.sortedLog()[0]) || []).filter(n => n.name === lift).map(n => n.tag + ': ' + n.text);
+    const card = c.templateCardHtml({ id: 'tq', name: 'Push Day', exercises: [{ name: lift, sets: 3, reps: '8-12' }] }, 'push', {});
+    const flag = (card.match(/<div class="plateau-flag">([\s\S]*?)<\/div>/) || [])[1];
+    const cap = c.computeExerciseCapability(lift);
+    return { plateau: p ? [p.weight, p.sessions] : null, d49: r ? [r.tag, r.weight, r.why] : null,
+      pub: pub ? [pub.tag, pub.mode === 'bodyweight' ? pub.reps : pub.weight] : null,
+      bucket: ['ready', 'stalled', 'building'].find(k => b[k].some(x => x.name === lift)) || '-',
+      next, today: (today.match(/(Stalled|Ready)[^]*$/) || ['-'])[0], review: item ? [item.tag, item.word, item.weight] : null, notes,
+      card: flag ? flag.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() : null, capPlateau: cap ? cap.plateauSessions : null,
+      prefill: r && r.weight != null ? r.weight : null };
+  });
+  /* What a deload must never move: records, PR XP, XP, level, rank, session and weekly volume, Session Score, Mastery, Recovery. */
+  const untouched = c => withClockOn(c, NOW, () => { fresh(c); const tl = c.computeXPTimeline(), pr = c.getCurrentProgression();
+    return JSON.stringify([c.computeAllPREvents().map(e => [e.id, e.exerciseName, e.hits.map(x => x.type + ':' + x.next)]), tl.lifetimeXP, tl.prCount, pr.level,
+      pr.rank && (pr.rank.name || pr.rank), c.workoutLog.map(e => c.sessionVolume(e)), c.computeWeeklyVolume(8).map(x => x.volume),
+      c.workoutLog.map(e => { const s = c.sessionScore(e); return s && s.available ? s.score : null; }), c.masteryPRCounts(), c.computeMuscleRecovery()]); });
+  /* A workout started and saved through the app's own path: the logger's UI is stood in for (as Contracts 160 and 217
+     do); the row carries exactly the dataset addLogExerciseRow writes from the start's own answer. */
+  const startAndSave = async (app, start, lift, sets) => {
+    const c = app.ctx, doc = c.document;
+    const keep = {}; ['addLogExerciseRow', 'openLogSheet', 'confirmOverwriteDraft', 'persistDraftNow', 'workoutStepRows', 'syncWorkoutStepper', 'goToWorkoutStep', 'renderWorkoutStep'].forEach(k => { keep[k] = c[k]; });
+    const rows = [];
+    const release = pinClock(c, NOW);
+    try{
+      Object.assign(c, { addLogExerciseRow: (...a) => rows.push(a), openLogSheet(){}, confirmOverwriteDraft: async () => true, persistDraftNow(){},
+        workoutStepRows: () => [], syncWorkoutStepper(){}, goToWorkoutStep(){}, renderWorkoutStep(){} });
+      try{ await start(c); } finally { Object.assign(c, keep); }
+      const mine = rows.find(a => a[0] === lift) || null;          // [name, effort, bodyweight, sets, restSec, rec, meta]
+      const ds = {};
+      if(mine){ const m = mine[6] || {}; if(m.targetSets) ds.targetSets = m.targetSets; if(m.targetReps) ds.targetReps = m.targetReps;
+        if(mine[5] && mine[5].weight != null && !mine[2]) ds.rxLoad = mine[5].weight; if(mine[1] !== '' && mine[1] != null) ds.rxEffort = mine[1]; }
+      const inp = v => ({ value: String(v == null ? '' : v), checked: false, disabled: false, dataset: {} });
+      const setRows = sets.map(([w, r]) => { const cls = new Set(['completed']);
+        const q = { '.set-weight-in': inp(w), '.set-reps-in': inp(r), '.set-rir-in': inp(2) };
+        return { dataset: {}, classList: { add: x => cls.add(x), remove: x => cls.delete(x), toggle(){}, contains: x => cls.has(x) }, querySelector: sel => q[sel] || null, querySelectorAll: () => [] }; });
+      const q = { '.ex-name-in': inp(lift), '.ex-bw-in': inp(''), '.ex-effort-in': inp('8') };
+      const row = { dataset: ds, querySelector: sel => q[sel] || null, querySelectorAll: sel => sel === '.set-row' ? setRows : [], closest: () => row };
+      app.dom.setRows([row]);
+      doc.getElementById('logOverlay').classList.add('open');
+      if(!doc.getElementById('logTitle').value) doc.getElementById('logTitle').value = 'Extra session';
+      const n0 = c.workoutLog.length;
+      c.saveLog(); await H.settle(300);
+      const summary = ((doc.getElementById('summaryNextTime') || {}).textContent || '').replace(/\s+/g, ' ').trim();
+      try{ c.closeSummary(); }catch(e){}
+      app.dom.setRows([]);
+      return { start: mine, saved: c.workoutLog.length === n0 + 1 ? c.workoutLog[c.workoutLog.length - 1] : null, summary };
+    } finally { release(); }
+  };
+  const benchDay = { id: 'tq-bench', name: 'Bench Day', exercises: [{ name: 'Bench Press', sets: '3', reps: '8-12', effort: '8', recommended: '185' }] };
+  const fromLibrary = c => { const k = c.getTemplates; c.getTemplates = () => [benchDay];
+    return c.startTemplateLog('push', 'tq-bench').finally(() => { c.getTemplates = k; }); };
+  const STALL = 'Performance has stalled for 4 sessions — hold the weight, or switch to a similar exercise.';
+  const FX = {
+    falseFromDeload: weekly([180, 185, 185, { d: 165 }, 185]),
+    falseFromDeloadTop: weekly([180, 185, 185, { d: 165 }, { sets: work(185, 12, 3) }]),
+    realWithDeload: weekly([185, 185, { d: 165 }, 185, 185]),
+    hiddenByDeload: weekly([185, { d: 150 }, 185, 185, 185]),
+    deloadHeavier: weekly([185, 185, { d: 205 }, 185, 185]),
+    backfill: weekly([185, 185, 185, { d: 165 }, 185]),
+    /* the oldest of five decides the window: 190, then 185 x 3 — a stall AT 190 can only come from the fifth-newest workout */
+    backfillWeight: weekly([190, 185, 185, { d: 165 }, 185]),
+    backfillClimb: weekly([175, 180, 185, 185, { d: 160 }, 185]),
+    multipleDeloads: weekly([185, { d: 165 }, 185, { d: 160 }, 185, 185]),
+    multipleDeloadsFalse: weekly([180, { d: 165 }, 185, { d: 160 }, 185, 185]),
+    deloadMostRecent: weekly([180, 185, 190, 195, { d: 160 }]),
+    deloadMostRecentFalse: weekly([180, 185, 185, 185, { d: 160 }]),
+    deloadOnly: weekly([{ d: 165 }, { d: 165 }, { d: 165 }, { d: 165 }]),
+    tooFewOrdinary: weekly([185, 185, { d: 165 }, { d: 165 }]),
+    edgeWithDeload: weekly([180, { d: 165 }, 185, 185, 185]),
+    fiveWithDeload: weekly([180, 185, { d: 165 }, 185, 185, 185]),
+    controlStall: weekly([185, 185, 185, 185]),
+    controlClimb: weekly([180, 185, 185, 185]),
+    warmupAndDeload: weekly([180, 185, 185, { d: 165, sets: [WU(205, 1)].concat(work(165)) }, 185]),
+    warmupNormal: weekly([{ sets: [WU(205, 1)].concat(work(185)) }, 185, { d: 165 }, 185, 185]),
+    loadOnlyNormal: weekly([185, 185, { d: 165 }, 185, { sets: [S(205, '')].concat(work(185)) }]),
+    failureNormal: weekly([185, 185, { d: 165 }, 185, { sets: [S(185, 8), S(185, 8), S(190, 5, 0, 'failure')] }]),
+    amrapNormal: weekly([185, 185, { d: 165 }, 185, { sets: [S(185, 8), S(185, 8), S(190, 9, '', 'amrap')] }]),
+    dropNormal: weekly([185, 185, { d: 165 }, 185, { sets: [S(185, 8), S(185, 8), S(190, 6, 0, 'drop')] }]),
+    legacyNormal: weekly([{ sets: [L(185, 8), L(185, 8)] }, 185, { d: 165 }, 185, 185]),
+    d47Deload: weekly([{ sets: work(185, 8) }, { d: 165 }, { sets: work(185, 5, '0.5') }, { sets: work(185, 5, '0.5') }]),
+    deloadRows: [W('w01', 31, 'Push 1', [E('Bench Press', work(180))]), W('w02', 24, 'Push 2', [E('Bench Press', work(185))]), W('w03', 17, 'Push 3', [E('Bench Press', work(185))]),
+      W('w04', 10, 'Deload', [E('Bench Press', [S(165, 8)]), E('Overhead Press', [S(65, 8)]), E('Bench Press', [S(165, 8), S(165, 8)])], DL),
+      W('w05', 3, 'Push 5', [E('Bench Press', work(185))])],
+    /* an ordinary workout in two rows is ONE observation: split, three ordinary workouts would read as four */
+    normalRowsWithDeload: [W('w01', 24, 'Push 1', [E('Bench Press', [S(185, 8)]), E('Overhead Press', [S(95, 8)]), E('Bench Press', [S(185, 8), S(185, 8)])]),
+      W('w02', 17, 'Deload', [E('Bench Press', work(165))], DL), W('w03', 10, 'Push 3', [E('Bench Press', work(185))]), W('w04', 3, 'Push 4', [E('Bench Press', work(185))])],
+    sameDay: [W('w01', 24, 'Push', [E('Bench Press', work(180))]), W('w02', 17, 'Push', [E('Bench Press', work(185))]),
+      W('w03-am', 10, 'Morning', [E('Bench Press', work(185))]), W('w04-pm', 10, 'Deload', [E('Bench Press', work(165))], DL), W('w05', 3, 'Push', [E('Bench Press', work(185))])],
+    /* the morning's ordinary workout is one of the four: without it there would be three */
+    sameDayCounts: [W('w01', 24, 'Push', [E('Bench Press', work(185))]), W('w02', 17, 'Push', [E('Bench Press', work(185))]),
+      W('w03-am', 10, 'Morning', [E('Bench Press', work(185))]), W('w04-pm', 10, 'Deload', [E('Bench Press', work(165))], DL), W('w05', 3, 'Push', [E('Bench Press', work(185))])],
+    /* two ordinary workouts on one date are two observations */
+    sameDayTwoNormal: [W('w01', 24, 'Push', [E('Bench Press', work(185))]), W('w02', 17, 'Push', [E('Bench Press', work(185))]),
+      W('w03-am', 10, 'Morning', [E('Bench Press', work(185))]), W('w04-pm', 10, 'Evening', [E('Bench Press', work(185))]), W('w05', 3, 'Deload', [E('Bench Press', work(165))], DL)],
+    /* D85: training the athlete chose carries no phase, even inside a deload week — ordinary evidence, light or not */
+    freeformLight: [W('w01', 31, 'Push 1', [E('Bench Press', work(180))], PROG), W('w02', 24, 'Push 2', [E('Bench Press', work(185))], PROG),
+      W('w03', 17, 'Push 3', [E('Bench Press', work(185))], PROG), W('w04', 10, 'Extra', [E('Bench Press', work(165))], FREE), W('w05', 3, 'Push 5', [E('Bench Press', work(185))], PROG)],
+    freeformBesideDeload: [W('w01', 37, 'Push 1', [E('Bench Press', work(185))], PROG), W('w02', 30, 'Push 2', [E('Bench Press', work(185))], PROG),
+      W('w03', 23, 'Push 3', [E('Bench Press', work(185))], PROG), W('w04', 16, 'Deload', [E('Bench Press', work(165))], DL), W('w05', 14, 'Extra', [E('Bench Press', work(185))], FREE)],
+    /* an ordinary workout the athlete TITLED 'Deload' is ordinary: only the stored phase says deload */
+    titledOrdinary: weekly([185, 185, 185, 185]).map((w, i) => i === 3 ? Object.assign(w, FREE, { title: 'Deload' }) : w),
+    accumulationPhase: weekly([180, 185, 185, 185]).map(w => Object.assign(w, PROG, { phase: 'accumulation' })),
+    accumulationStall: weekly([185, 185, 185, 185]).map((w, i) => Object.assign(w, PROG, { phase: i % 2 ? 'intensification' : 'accumulation' })),
+    bodyweight: weekly([{ sets: [BW(15, '5', 'warmup'), BW(10), BW(8)] }, { d: 0, sets: [BW(8), BW(8)] }, { sets: [BW(16, '5', 'warmup'), BW(10), BW(9)] }, { sets: [BW(18, '5', 'warmup'), BW(11), BW(9)] }], 'Pull-Up')
+      .map(w => Object.assign(w, { category: 'pull', exercises: w.exercises.map(x => Object.assign(x, { bodyweight: true })) }))
+  };
+  /* the histories E44 reads differently, and nothing else */
+  const E44 = ['falseFromDeload', 'falseFromDeloadTop', 'hiddenByDeload', 'deloadHeavier', 'backfillWeight', 'backfillClimb', 'multipleDeloadsFalse', 'deloadMostRecentFalse',
+    'deloadOnly', 'tooFewOrdinary', 'fiveWithDeload', 'warmupAndDeload', 'd47Deload', 'deloadRows', 'normalRowsWithDeload', 'sameDay'];
+  const liftOf = k => k === 'bodyweight' ? 'Pull-Up' : 'Bench Press';
+  const at = {};
+  for(const k of Object.keys(FX)){ const a = await boot(FX[k]); at[k] = { c: a.ctx, app: a, s: surfaces(a.ctx, liftOf(k)) }; }
+
+  /* ---------------------------------------------------------------- */
+  sub('1  one rule for a deload workout, stored when it was saved, asked by both systems');
+  await guard('rule', async () => {
+    const dp = col(fnSrc(raw, 'detectPlateau')), esh = col(fnSrc(raw, 'exerciseSessionHistory'));
+    T('1  isDeloadWorkout is D85’s rule, named once and pure: the phase stored on the workout, nothing else',
+      (raw.match(/function isDeloadWorkout\(/g) || []).length === 1 && col(fnSrc(raw, 'isDeloadWorkout')) === "function isDeloadWorkout(entry){ return !!entry && entry.phase === 'deload'; }"
+      && pin('isDeloadWorkout') === 'ad99d9e182eb1f22');
+    T('1  D49’s history and plateau detection both ask it; plateau detection skips a deload FIRST, before a row is read or a place taken',
+      /\(isDeloadWorkout\(l\) \? deloaded : sessions\)\.push\(/.test(esh) && !/'deload'/.test(esh)
+      && /sortedLog\(\)\.slice\(\)\.reverse\(\)\.forEach\(l => \{ if\(isDeloadWorkout\(l\)\) return; const rows = workoutExerciseRows\(l, key\);/.test(dp));
+    T('1  nothing in plateau detection reads a date, a program, a block, a pause or today: there is no second classifier',
+      !/'deload'|deloadActiveToday|programDeloadActiveOn|deriveBlockState|getActiveProgram|hasActiveProgram|getProgram|localDateStr|programsStore|pauses|Date\(|origin|programId/.test(dp));
+    const save = col(fnSrc(raw, 'saveLog')), start = col(fnSrc(raw, 'startTemplateLog'));
+    T('1  the phase is written once, at save, and only on the program’s own session: the start takes it from the resolution that composed the session, a draft restores it, a freeform start clears it',
+      /if\(pendingWorkoutOrigin === 'program' && pendingWorkoutPhase\) newEntry\.phase = pendingWorkoutPhase;/.test(save)
+      && /pendingWorkoutOrigin = 'freeform'; pendingWorkoutProgramId = null; pendingWorkoutPhase = null; if\(pick\.scheduled && pick\.programId\)\{ pendingWorkoutOrigin = 'program'; pendingWorkoutProgramId = pick\.programId; pendingWorkoutPhase = pick\.phase; \}/.test(start)
+      && /return \{ template: prog\.template, scheduled: true, date: day, programId, phase: prog\.phase \|\| null \};/.test(col(fnSrc(raw, 'resolveStartWorkout')))
+      && /pendingWorkoutPhase = draft\.phase \|\| null;/.test(col(fnSrc(raw, 'restoreDraftToSheet')))
+      && /pendingWorkoutOrigin = 'freeform'; pendingWorkoutProgramId = null; pendingWorkoutPhase = null;/.test(col(fnSrc(raw, 'openFreeformLog')))
+      && pin('saveLog') === '66c63714822ef5ee' && pin('resolveStartWorkout') === '47700a2badbc9e2e' && pin('restoreDraftToSheet') === '2bbd08f689e23bc0' && pin('openFreeformLog') === 'a8e86c09a6b9c51c');
+    T('1  D119’s bodyweight history keeps the very same one-line test, byte-identical, and the phase policy still reads D49’s own history: one meaning of "deload"',
+      /\(l\.phase === 'deload' \? deloaded : sessions\)\.push\(/.test(col(fnSrc(raw, 'bodyweightSessionHistory'))) && pin('bodyweightSessionHistory') === '107a63744acb4508'
+      && /const prior = exerciseSessionHistory\(exerciseName, 1\); if\(prior\.length && prior\[0\]\.phase !== 'deload' && prior\[0\]\.weight > 0\) hold = prior\[0\]\.weight;/.test(col(fnSrc(raw, 'applyPhaseProgressionPolicy'))));
+    T('1  both functions are 10.39 byte for byte once D123’s statements are put back (D123_EDITS); detectPlateau is 10.38’s once D122’s are too',
+      pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pinAsOf1039('detectPlateau') === '569c8a0717b0aa42' && pinAsOf1038('detectPlateau') === '5328b907ce3432c7'
+      && pin('detectPlateau') === '8a54bd2201dda81f' && pin('exerciseSessionHistory') === '0947083a50c4e8b7' && sha(plateau1039()) === '569c8a0717b0aa42');
+    T('1  the plateau POLICY is word for word: one occurrence per workout, four needed, the last four, stalled when none beats the first, D122’s per-set evidence',
+      /if\(occurrences\.length < 4\) return null; const last4 = occurrences\.slice\(-4\); const first = last4\[0\]\.weight; const stuck = last4\.every\(o => o\.weight <= first\); return stuck \? \{ weight: first, sessions: last4\.length \} : null;/.test(dp)
+      && /\(ex\.sets \|\| \[\]\)\.forEach\(s => \{ if\(!isPerformanceSet\(s\) \|\| performedReps\(s\.reps\) === null\) return; const w = performedLoad\(s\.weight\); if\(w !== null\) weights\.push\(w\); \}\);/.test(dp)
+      && /if\(weights\.length\) occurrences\.push\(\{ date: l\.date, weight: Math\.max\(\.\.\.weights\) \}\);/.test(dp));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('2  E44 as 10.39 had it, exactly where it was, and gone');
+  await guard('e44', async () => {
+    const back = {};
+    for(const k of Object.keys(at)){ const c = at[k].c, cur = c.detectPlateau; asOf1039(c); back[k] = surfaces(c, liftOf(k)); c.detectPlateau = cur; fresh(c); }
+    const digest = sha(JSON.stringify(E44.map(k => back[k])));
+    T('2  with 10.39’s detectPlateau compiled back in, every plateau surface of the ' + E44.length + ' E44 histories is 10.39’s, exactly (a digest frozen from 10.39)',
+      digest === '15ae6bd44b338684', digest);
+    const moved = Object.keys(at).filter(k => !same(back[k], at[k].s));
+    T('2  exactly those ' + E44.length + ' histories read differently now; the other ' + (Object.keys(at).length - E44.length) + ' — controls, real stalls through a deload, failure/AMRAP/drop, legacy, freeform, same-day, bodyweight — read exactly as 10.39 did',
+      same(moved, E44), moved);
+    T('2  and each moved because its plateau call moved: a stall appeared or disappeared', E44.every(k => !same(back[k].plateau, at[k].s.plateau)));
+    const f = back.falseFromDeload, h = back.hiddenByDeload;
+    T('2  10.39: one 165 deload made 180 → 185 → 185 → 185 a stall — D49 "stalled", the Stalled bucket, Today, Weekly Review’s Hold, Next time, a card "stuck at 185lb"',
+      same(f.plateau, [185, 4]) && same(f.d49, ['plateau', 185, STALL]) && f.bucket === 'stalled' && /^Stalled/.test(f.today) && same(f.review, ['plateau', 'Hold', 185])
+      && same(f.notes, ['plateau: ' + STALL]) && f.card === 'Bench Press stuck at 185lb for 4+ sessions — try the swap dropdown' && f.capPlateau === 4, JSON.stringify(f));
+    T('2  10.39: a 150 deload inside the window hid four ordinary workouts at 185', h.plateau === null && same(h.d49.slice(0, 2), ['build', 185]), JSON.stringify(h));
+    T('2  10.39: four deload workouts and nothing else were called a stall at 165, and a deload hid D47’s reduce behind a stall',
+      same(back.deloadOnly.plateau, [165, 4]) && back.deloadOnly.d49[0] === 'plateau' && back.d47Deload.d49[0] === 'plateau', JSON.stringify([back.deloadOnly.d49, back.d47Deload.d49]));
+    const F2 = at.falseFromDeload.s, H2 = at.hiddenByDeload.s;
+    T('2  now: the false stall is gone everywhere — no plateau, D49 builds at 185, Building, no Today state, Weekly Review "Building", Next time builds, no card',
+      F2.plateau === null && same(F2.d49, ['build', 185, 'Beat last session — aim for 9 reps at 185 lb.']) && F2.bucket === 'building' && F2.today === '-'
+      && same(F2.review, ['build', 'Building', 185]) && F2.card === null && F2.capPlateau === 0 && same(F2.notes, ['build: Beat last session — aim for 9 reps at 185 lb.'])
+      && F2.next.indexOf('Beat last session — aim for 9 reps at 185 lb.') !== -1, JSON.stringify(F2));
+    T('2  now: the hidden stall is found everywhere — plateau at 185, D49 "stalled", Stalled, Today, Weekly Review "Hold", Exercise Detail, Next time, a card "stuck at 185lb"',
+      same(H2.plateau, [185, 4]) && same(H2.d49, ['plateau', 185, STALL]) && H2.bucket === 'stalled' && /^Stalled/.test(H2.today) && same(H2.review, ['plateau', 'Hold', 185])
+      && H2.next.indexOf(STALL) !== -1 && same(H2.notes, ['plateau: ' + STALL]) && H2.card === 'Bench Press stuck at 185lb for 4+ sessions — try the swap dropdown' && H2.capPlateau === 4, JSON.stringify(H2));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('3  the matrix: a deload is skipped, never counted, never an empty place');
+  await guard('cases', async () => {
+    const pl = k => at[k].s.plateau, d = k => at[k].s.d49 || [];
+    T('3  A: one deload no longer makes 180 → 185 → 185 → 185 a stall', pl('falseFromDeload') === null && d('falseFromDeload')[0] === 'build');
+    T('3  B: a real stall with a deload between is still a stall (four ordinary 185s), and a deload, lighter or heavier, no longer hides one',
+      same(pl('realWithDeload'), [185, 4]) && same(pl('hiddenByDeload'), [185, 4]) && same(pl('deloadHeavier'), [185, 4]) && d('deloadHeavier')[0] === 'plateau');
+    T('3  a deload never takes one of the four places: the fifth-newest workout fills it — 190 then 185 x 3 is a stall AT 190 (10.39: at 185)',
+      same(pl('backfill'), [185, 4]) && same(pl('backfillWeight'), [190, 4]) && same(d('backfillWeight').slice(0, 2), ['plateau', 185]));
+    T('3  the brief’s window: 175, 180, 185, 185, [160 deload], 185 is the last four ORDINARY workouts — 180, 185, 185, 185, a climb', pl('backfillClimb') === null && d('backfillClimb')[0] === 'build');
+    T('3  C: every deload is skipped, not only the first or the last', same(pl('multipleDeloads'), [185, 4]) && pl('multipleDeloadsFalse') === null);
+    T('3  D: a deload as the newest workout creates nothing and replaces nothing — D49 still builds from the last ORDINARY workout, 195',
+      pl('deloadMostRecent') === null && pl('deloadMostRecentFalse') === null && same(d('deloadMostRecent').slice(0, 2), ['build', 195]), JSON.stringify(d('deloadMostRecent')));
+    T('3  E/K: deloads alone, or two ordinary workouts beside them, are not enough evidence — and D49 still answers from deloads only as its last resort, unchanged',
+      pl('deloadOnly') === null && same(d('deloadOnly').slice(0, 2), ['build', 165]) && pl('tooFewOrdinary') === null);
+    T('3  F: with no deload nothing moved: 185 x 4 stalls, 180 → 185 x 3 climbs', same(pl('controlStall'), [185, 4]) && d('controlStall')[0] === 'plateau' && pl('controlClimb') === null);
+    T('3  G: D122’s rule composes — a 205 warm-up in a deload or in an ordinary workout is never the load', pl('warmupAndDeload') === null && same(pl('warmupNormal'), [185, 4]));
+    T('3  D122’s performance rule still holds: a load with no performed reps is not an observation', same(pl('loadOnlyNormal'), [185, 4]));
+    T('3  H: failure, AMRAP and drop sets in an ordinary workout are performances — each carries its 190', pl('failureNormal') === null && pl('amrapNormal') === null && pl('dropNormal') === null
+      && same(d('failureNormal').slice(0, 2), ['build', 190]) && same(d('amrapNormal').slice(0, 2), ['build', 190]) && same(d('dropNormal').slice(0, 2), ['build', 190]));
+    T('3  untyped legacy sets are performances, as they always were', same(pl('legacyNormal'), [185, 4]));
+    T('3  I: a deload in several rows is one workout, set aside whole; an ordinary workout in two rows is still ONE observation',
+      pl('deloadRows') === null && pl('normalRowsWithDeload') === null && d('normalRowsWithDeload')[0] !== 'plateau');
+    T('3  J: an ordinary workout and a deload on one date are two workouts — only the deload is set aside, the morning’s 185 is one of the four',
+      pl('sameDay') === null && same(pl('sameDayCounts'), [185, 4]));
+    T('3  two ordinary workouts on one date are two observations', same(pl('sameDayTwoNormal'), [185, 4]));
+    T('3  L: a freeform workout carries no phase (D85) — ordinary training even inside a deload week, light or not, exactly as D49’s own history counts it',
+      same(pl('freeformBesideDeload'), [185, 4]) && same(pl('freeformLight'), [185, 4])
+      && withClockOn(at.freeformLight.c, NOW, () => at.freeformLight.c.exerciseSessionHistory('Bench Press', 5).some(s => s.weight === 165)));
+    T('3  a program session in an ordinary phase is ordinary evidence: a climb climbs, a stall stalls', pl('accumulationPhase') === null && same(pl('accumulationStall'), [185, 4]));
+    T('3  the stored classification decides, never a title or a load: deloads titled “Push” are skipped, an ordinary workout titled “Deload” counts, a lighter freeform workout counts, a heavier deload is skipped',
+      FX.falseFromDeload[3].title === 'Push 4' && pl('falseFromDeload') === null && same(pl('titledOrdinary'), [185, 4]) && same(pl('freeformLight'), [185, 4]) && same(pl('deloadHeavier'), [185, 4]));
+    T('3  D47: two grinding sessions below the range still reduce 185 → 180 with a deload between them (10.39 called it a stall)',
+      pl('d47Deload') === null && same(d('d47Deload').slice(0, 2), ['reduce', 180]), JSON.stringify(d('d47Deload')));
+    T('3  the window is still four: 180, [deload], 185, 185, 185 climbs; a fifth ordinary 185 makes the last four a stall', pl('edgeWithDeload') === null && same(pl('fiveWithDeload'), [185, 4]));
+    T('3  bodyweight lifts never reach plateau detection', pl('bodyweight') === null && at.bodyweight.s.capPlateau === 0);
+    /* D49's evidence and plateau detection agree on which workouts are deloads, for every history */
+    const disagree = Object.keys(FX).filter(k => k !== 'bodyweight').filter(k => { const c = at[k].c;
+      const hist = withClockOn(c, NOW, () => c.exerciseSessionHistory('Bench Press', 99));
+      const ordinary = c.workoutLog.filter(e => !c.isDeloadWorkout(e) && e.exercises.some(x => x.name.trim().toLowerCase() === 'bench press' && !x.bodyweight));
+      return ordinary.length ? !(hist.length === ordinary.length && hist.every(s => s.phase !== 'deload')) : !(hist.length > 0 && hist.every(s => s.phase === 'deload')); });
+    T('3  for every history, D49’s evidence is exactly its ordinary workouts — the same ones plateau detection reads', disagree.length === 0, disagree);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4  history is what was stored: a pause, a deload written in later, today’s deload, a moved day, a revision, an ending — none reclassifies a workout');
+  await guard('programs', async () => {
+    const ask = c => withClockOn(c, NOW, () => { fresh(c); const r = c.progressionFor('Bench Press', '8-12', null); return [c.detectPlateau('Bench Press'), r.tag, r.weight]; });
+    /* the program week a deload written on that day covers: Sep 7–13 holds each weekly history's Sep 13 workout, Sep 14–20 its Sep 20 one */
+    const HIST = { falseFromDeload: '2026-09-05', backfill: '2026-09-05', backfillWeight: '2026-09-05', realWithDeload: '2026-09-12', freeformBesideDeload: '2026-09-12', sameDayCounts: '2026-09-12' };
+    const plain = {}, runs = {};
+    for(const k of Object.keys(HIST)){
+      plain[k] = ask(at[k].c);
+      let c = (await boot(FX[k])).ctx;
+      await program(c, { pause: ['2026-09-14', '2026-09-21'] });
+      runs[k] = { paused: ask(c) };
+      c = (await boot(FX[k])).ctx;
+      const pr = await program(c, { deloadFrom: HIST[k] });
+      runs[k].written = ask(c);
+      runs[k].window = withClockOn(c, NOW, () => c.workoutLog.filter(e => c.programDeloadActiveOn(c.getProgram(pr.id), e.date)).map(e => e.id + (c.isDeloadWorkout(e) ? '(deload)' : '')));
+      c = (await boot(FX[k])).ctx;
+      const p = await program(c, { deloadFrom: '2026-09-26' });
+      runs[k].today = ask(c); runs[k].todayActive = withClockOn(c, NOW, () => c.deloadActiveToday());
+      await withClockOn(c, NOW, () => c.swapScheduledDays('mon', 'tue')); fresh(c);
+      runs[k].moved = ask(c); runs[k].revisions = (c.getProgram(p.id).revisions || []).length;
+      await withClockOn(c, '2026-10-01T12:00:00', () => c.completeProgram(p.id)); fresh(c);
+      runs[k].completed = ask(c);
+      await withClockOn(c, '2026-10-01T12:00:00', () => c.deleteProgram(p.id)); fresh(c);
+      runs[k].deleted = ask(c);
+    }
+    const ks = Object.keys(HIST);
+    T('4  K: a pause is not a deload — a program paused across the deload week classifies nothing; every history reads as with no program at all',
+      ks.every(k => same(runs[k].paused, plain[k])), JSON.stringify(runs));
+    T('4  N: a deload written into the program AFTER the workouts, over a week holding ordinary workouts (' + ks.map(k => runs[k].window.join('+')).join(' | ') + '), reclassifies none of them',
+      ks.every(k => same(runs[k].written, plain[k]) && runs[k].window.length > 0 && runs[k].window.some(x => !/deload/.test(x))), JSON.stringify(runs));
+    T('4  a deload over TODAY changes only today’s phase policy: every past deload is still skipped and every ordinary workout still counts',
+      ks.every(k => same(runs[k].today[0], plain[k][0]) && runs[k].todayActive === true), JSON.stringify(runs));
+    T('4  M/N: moving a day (a schedule revision), completing the program and deleting it reclassify no past workout',
+      ks.every(k => runs[k].revisions >= 2 && same(runs[k].moved[0], plain[k][0]) && same(runs[k].completed, plain[k]) && same(runs[k].deleted, plain[k])), JSON.stringify(runs));
+    /* M — a logged workout re-dated keeps the classification it was saved with, wherever it lands */
+    const movedLog = JSON.parse(JSON.stringify(FX.backfill));
+    movedLog[3].date = '2026-09-22';   // the deload, off its week
+    movedLog[4].date = '2026-09-29';   // an ordinary workout, INTO the program's deload week
+    const mc = (await boot(movedLog)).ctx; await program(mc, { deloadFrom: '2026-09-26' });
+    T('4  M: a deload moved off its week is still a deload; an ordinary workout moved into the program’s deload week is still ordinary (185 x 4 stalls, as unmoved)',
+      same(ask(mc)[0], plain.backfill[0]) && withClockOn(mc, NOW, () => mc.programDeloadActiveOn(mc.getActiveProgram(), '2026-09-29')) === true, JSON.stringify([ask(mc), plain.backfill]));
+    /* the current phase policy is its own layer: a deload today turns the corrected increase into a hold */
+    const c = (await boot(FX.falseFromDeloadTop)).ctx;
+    const before = withClockOn(c, NOW, () => c.progressionFor('Bench Press', '8-12', null));
+    await program(c, { deloadFrom: '2026-09-26' });
+    const during = withClockOn(c, NOW, () => c.progressionFor('Bench Press', '8-12', null));
+    T('4  the corrected answer is an increase to 190; with a deload over today the existing phase policy still holds 185 — "Deload week — keep 185 lb"',
+      before.tag === 'increase' && before.weight === 190 && during.tag === 'hold' && during.weight === 185 && /^Deload week — keep 185 lb/.test(during.why), JSON.stringify([before, during]));
+    T('4  D49, D47, the phase policy, the block state and D50B are byte-identical', pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7'
+      && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('deloadActiveToday') === '700ccd9a7101c3d4' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
+      && pin('progressionIncrement') === '3d77ad004234607e' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('programDeloadActiveOn') === '033fa2051cc83189'
+      && pin('deriveBlockState') === 'ad3f9380b5262dd7' && pin('applyBlockActionInMemory') === '2c835f57fe625bed'
+      && /const PROGRESSION_EVIDENCE = \{[^}]*minSetsWithoutRx: 2,[^}]*headroomOverTarget: 1,[^}]*headroomAbsolute: 1\.5,[^}]*settleExposures: 1/.test(col(stripComments(raw))));
+    /* the save path itself: the program's own session started inside today's deload is stored as one; a freeform workout the same day is not */
+    const app = await boot(FX.controlClimb), cc = app.ctx;
+    await program(cc, { deloadFrom: '2026-09-26' });
+    const prog = withClockOn(cc, NOW, () => cc.getProgramWorkoutForDate('2026-09-30'));
+    const p0 = ask(cc);
+    const dl = await startAndSave(app, x => x.startTemplateLog(prog.category, prog.template.id), 'Bench Press', [[165, 8], [165, 8], [165, 8]]);
+    const p1 = ask(cc);
+    const cur = cc.detectPlateau; asOf1039(cc); const was = withClockOn(cc, NOW, () => cc.detectPlateau('Bench Press')); cc.detectPlateau = cur; fresh(cc);
+    const ff = await startAndSave(app, async x => { await x.openFreeformLog(); x.chooseLogCategory('push'); }, 'Bench Press', [[185, 8], [185, 8], [185, 8]]);
+    const p2 = ask(cc);
+    T('4  the program’s own session, started on a deload day and saved, is stored as a deload (phase written at save, origin program)',
+      !!prog && prog.phase === 'deload' && !!dl.saved && dl.saved.phase === 'deload' && dl.saved.origin === 'program' && cc.isDeloadWorkout(dl.saved), JSON.stringify([prog && prog.phase, dl.saved && [dl.saved.phase, dl.saved.origin]]));
+    T('4  and plateau detection skips it — 180 → 185 x 3 is still a climb', p0[0] === null && p1[0] === null, JSON.stringify([p0, p1]));
+    T('4  where 10.39 would have counted the 165 and called it a stall', same(was, { weight: 185, sessions: 4 }), JSON.stringify(was));
+    T('4  a freeform workout saved the SAME day carries no phase, counts, and makes the last four ordinary workouts 185 x 4 — the date was never excluded',
+      !!ff.saved && ff.saved.phase === undefined && ff.saved.origin === 'freeform' && !!dl.saved && ff.saved.date === dl.saved.date && same(p2[0], { weight: 185, sessions: 4 }),
+      JSON.stringify([ff.saved && [ff.saved.phase, ff.saved.origin, ff.saved.date], p2]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('5  every reader inherits the corrected signal; a new workout starts from it; nothing else moves');
+  await guard('readers', async () => {
+    const t = at.falseFromDeloadTop.s;
+    T('5  the stall a deload invented no longer blocks an earned increase: 185 x 12 at RIR 3 → 190 on D49, Progress Ready, Today, Weekly Review "Increase", Exercise Detail and Next time',
+      t.plateau === null && same(t.d49.slice(0, 2), ['increase', 190]) && t.bucket === 'ready' && /^Ready/.test(t.today) && same(t.review, ['increase', 'Increase', 190])
+      && t.next.indexOf('190') !== -1 && t.notes.length === 1 && /^increase: /.test(t.notes[0]) && t.prefill === 190, JSON.stringify(t));
+    T('5  capability’s plateau field is the same signal (it has no other reader)', Object.keys(at).every(k => at[k].s.capPlateau === (at[k].s.plateau ? at[k].s.plateau[1] : 0)));
+    T('5  the workout card names the ordinary working load it is stuck at', Object.keys(at).every(k => !at[k].s.card || /stuck at (185|190)lb/.test(at[k].s.card)), Object.keys(at).map(k => at[k].s.card).filter(Boolean));
+    /* start → prefill → captured prescription → save → Summary, as the athlete does it, on the corrected and on 10.39's answer */
+    const nowApp = await boot(FX.falseFromDeloadTop);
+    const run = await startAndSave(nowApp, fromLibrary, 'Bench Press', [[190, 10], [190, 10], [190, 9]]);
+    const thenApp = await boot(FX.falseFromDeloadTop); asOf1039(thenApp.ctx);
+    const then = await startAndSave(thenApp, fromLibrary, 'Bench Press', [[185, 10], [185, 10], [185, 9]]);
+    T('5  a new workout starts from the corrected answer: prefilled at 190 with 190 as its prescription',
+      !!run.start && run.start[3].every(s => s.weight === 190) && run.start[5].tag === 'increase' && run.start[5].weight === 190, JSON.stringify(run.start && run.start[5]));
+    T('5  where 10.39 prefilled 185 and called it stalled', !!then.start && then.start[3].every(s => s.weight === 185) && then.start[5].tag === 'plateau', JSON.stringify(then.start && then.start[5]));
+    T('5  the saved workout carries the prescription it was started with (rx load 190), and every earlier workout is byte-identical',
+      !!run.saved && same(run.saved.exercises[0].rx, { sets: 3, reps: '8-12', load: 190, effort: 8 }) && same(nowApp.ctx.workoutLog.slice(0, FX.falseFromDeloadTop.length), FX.falseFromDeloadTop),
+      JSON.stringify(run.saved && run.saved.exercises[0].rx));
+    T('5  as 10.39’s workout saved its 185', !!then.saved && then.saved.exercises[0].rx.load === 185, JSON.stringify(then.saved && then.saved.exercises[0].rx));
+    const want = run.saved ? withClockOn(nowApp.ctx, NOW, () => (nowApp.ctx.computeNextTimeNotes(run.saved) || []).map(n => n.text)) : [];
+    T('5  the Summary’s Next time is drawn from the corrected history', run.summary.length > 0 && want.length > 0 && want.every(x => run.summary.indexOf(x) !== -1), JSON.stringify([run.summary, want]));
+    T('5  D50B is unchanged — only its input, the prescription, differs where D49’s answer did', pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('capturedPrescription') === '4b741af98b989695'
+      && pin('effectiveWorkingLoad') === 'c0d91327f6ac9f76' && /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(stripComments(raw))
+      && /if\(rec && rec\.weight != null && !bodyweight\) row\.dataset\.rxLoad = rec\.weight;/.test(col(fnSrc(raw, 'addLogExerciseRow'))));
+    T('5  the readers are byte-identical', pin('findPlateauedExercises') === 'dd8083d950bf20eb' && pin('computeProgressionBuckets') === '87e47e4a883cc140'
+      && pin('renderTodayInsights') === '92cb86beae6038eb' && pin('computeNextTimeNotes') === '16d50e35392c9180' && pin('templateCardHtml') === '43178b8aeb27a2aa'
+      && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('startTemplateLog') === '5c14f8e6f7f41f52' && pin('deriveWeeklyReview') === '54cedeb502954944');
+    const keep = E44.map(k => untouched(at[k].c));
+    T('5  records, PR XP, XP, level, rank, session and weekly volume, Session Score, Mastery and Recovery of every E44 history are 10.39’s exactly — a deload’s own records and tonnage still count (a digest frozen from 10.39)',
+      sha(JSON.stringify(keep)) === 'a5edca1bdfb54170', sha(JSON.stringify(keep)));
+    T('5  a deload still sets real records: four 165 deloads hold their own weight record, and a 205 deload is that history’s heaviest',
+      withClockOn(at.deloadOnly.c, NOW, () => at.deloadOnly.c.computeExercisePREvents('Bench Press')).length > 0
+      && withClockOn(at.deloadHeavier.c, NOW, () => at.deloadHeavier.c.computeExercisePREvents('Bench Press').some(e => e.id === 'w03' && e.hits.some(x => x.type === 'weight' && x.next === 205))));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('6  the no-op deload property, and its opposite; layout and identity');
+  await guard('properties', async () => {
+    const c = at.controlStall.c;
+    const seed = log => { c.workoutLog = JSON.parse(JSON.stringify(log)); fresh(c); };
+    const LIFTS = ['Bench Press', 'Back Squat', 'Barbell Row'];
+    const ask = () => withClockOn(c, NOW, () => LIFTS.map(n => { const r = c.progressionFor(n, '8-12', null); return [n, c.detectPlateau(n), r.tag, r.weight]; }));
+    let s = 3123;
+    const rnd = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const history = () => {
+      const log = [], loads = { 'Bench Press': 185, 'Back Squat': 225, 'Barbell Row': 135 };
+      const n = 4 + Math.floor(rnd() * 6);
+      for(let i = 0; i < n; i++){
+        const exs = [];
+        LIFTS.forEach(nm => { if(i === 0 || rnd() < 0.85){ loads[nm] += pick([0, 0, 0, 5, 5, -5, 10]); exs.push(E(nm, [S(loads[nm], pick([5, 6, 8, 10])), S(loads[nm], pick([5, 6, 8])), S(loads[nm] - pick([0, 0, 10]), pick([6, 8, 10]))])); } });
+        log.push(W('h' + String(i).padStart(2, '0'), 3 + (n - 1 - i) * 3, 'S', exs, rnd() < 0.5 ? PROG : null));
+      }
+      return log;
+    };
+    const deload = (id, n) => { const exs = LIFTS.filter(() => rnd() < 0.8).map(nm => E(nm, [S(pick([45, 95, 135, 165, 185, 225, 315, 405, 500]), pick([3, 5, 8])), S(pick([95, 135, 185]), 5)]));
+      if(rnd() < 0.3 && exs.length) exs.push(E(exs[0].name, [S(pick([135, 185, 500]), 5)]));
+      if(rnd() < 0.2 && exs.length) exs.splice(1, 0, E('Lat Pulldown', [S(100, 10)]), E(exs[0].name, [WU(pick([95, 405]), 3)]));
+      return W(id, n, 'Deload', exs.length ? exs : [E('Bench Press', work(135))], DL); };
+    let props = 0, broken = [], volumeMoved = 0, sens = 0, sensBroken = [], answers = new Set();
+    for(let h = 0; h < 160; h++){
+      const base = history();
+      seed(base); const ans = ask(); const vol = c.computeWeeklyVolume(8).map(x => x.volume).join(',');
+      const withDeloads = JSON.parse(JSON.stringify(base));
+      for(let k = 1 + Math.floor(rnd() * 3); k > 0; k--){
+        const back = 2 + Math.floor(rnd() * 3 * base.length);
+        withDeloads.push(deload('dl' + h + '-' + k, back));
+        if(rnd() < 0.3) withDeloads.push(Object.assign(deload('dl' + h + '-' + k + 'pm', back), { title: 'PM deload' }));
+      }
+      if(rnd() < 0.3){ const beside = withDeloads[Math.floor(rnd() * base.length)]; withDeloads.push(Object.assign(deload('dl' + h + 'sd', 0), { date: beside.date })); }
+      seed(withDeloads); const after = ask();
+      props++;
+      if(!same(ans, after)) broken.push(h);
+      if(c.computeWeeklyVolume(8).map(x => x.volume).join(',') !== vol) volumeMoved++;
+      /* the opposite: the stall test over the ORDINARY workouts' working loads is what detectPlateau answers */
+      LIFTS.forEach(nm => {
+        const occ = c.workoutLog.filter(e => e.phase !== 'deload').slice().sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id))
+          .map(e => { const ws = [].concat(...e.exercises.filter(x => x.name === nm).map(x => x.sets)).filter(st => st.type !== 'warmup' && parseFloat(st.reps) > 0).map(st => parseFloat(st.weight)); return ws.length ? Math.max(...ws) : null; })
+          .filter(v => v !== null);
+        const want = occ.length < 4 ? null : (occ.slice(-4).every(v => v <= occ.slice(-4)[0]) ? [occ.slice(-4)[0], 4] : null);
+        const got = withClockOn(c, NOW, () => c.detectPlateau(nm));
+        sens++; answers.add(want ? 'stall' : 'none');
+        if(!same(want, got ? [got.weight, got.sessions] : null)) sensBroken.push(h + ':' + nm);
+      });
+    }
+    T('6  no-op deload property: ' + props + ' generated ordinary histories, each given one to three deload workouts of any load (45–500 lb: lighter, equal, heavier), in one or several rows, with warm-ups, at any point in time and beside ordinary workouts on the same date — every lift’s plateau and D49 answer (tag and load) are identical',
+      props === 160 && broken.length === 0, broken.slice(0, 5));
+    T('6  while the training volume a deload adds still counts (' + volumeMoved + ' of ' + props + ' histories’ weekly volume moved)', volumeMoved > 80, volumeMoved);
+    T('6  normal-workout sensitivity: across ' + sens + ' lifts, detectPlateau is exactly the existing stall test over the ORDINARY workouts — stalls and climbs both occur, so changing an ordinary workout changes the answer',
+      sensBroken.length === 0 && answers.has('stall') && answers.has('none'), sensBroken.slice(0, 5));
+    seed(weekly([185, 185, 185, 185])); const flat = withClockOn(c, NOW, () => c.detectPlateau('Bench Press'));
+    seed(weekly([185, 190, 195, 200])); const climb = withClockOn(c, NOW, () => c.detectPlateau('Bench Press'));
+    seed(weekly([185, { d: 165 }, 185, 185, { d: 160 }, 185])); const flatD = withClockOn(c, NOW, () => c.detectPlateau('Bench Press'));
+    seed(weekly([185, { d: 165 }, 190, 195, { d: 160 }, 200])); const climbD = withClockOn(c, NOW, () => c.detectPlateau('Bench Press'));
+    T('6  185 x 4 and 185 → 190 → 195 → 200 are still told apart, with deloads between them or without',
+      same(flat, { weight: 185, sessions: 4 }) && climb === null && same(flatD, { weight: 185, sessions: 4 }) && climbD === null);
+    /* row layout and set order: every workout's Bench Press sets shuffled and split over one to three interleaved rows */
+    let layouts = 0, layoutBroken = [];
+    for(const k of Object.keys(FX).filter(x => x !== 'bodyweight')){
+      seed(FX[k]); const want = withClockOn(c, NOW, () => c.detectPlateau('Bench Press'));
+      for(let parts = 1; parts <= 3; parts++){
+        const moved = JSON.parse(JSON.stringify(FX[k]));
+        moved.forEach(e => {
+          const sets = [].concat(...e.exercises.filter(x => x.name === 'Bench Press').map(x => x.sets)).sort(() => rnd() - 0.5);
+          const others = e.exercises.filter(x => x.name !== 'Bench Press');
+          const size = Math.max(1, Math.ceil(sets.length / parts)), rows = [];
+          for(let p = 0; p * size < sets.length; p++) rows.push(E('Bench Press', sets.slice(p * size, (p + 1) * size)));
+          e.exercises = rows.concat(others, [E('Lat Pulldown', [S(100, 10)])]).sort(() => rnd() - 0.5);
+        });
+        seed(moved); layouts++;
+        if(!same(want, withClockOn(c, NOW, () => c.detectPlateau('Bench Press')))) layoutBroken.push(k + '/' + parts);
+      }
+    }
+    T('6  row layout and set order: all ' + layouts + ' re-laid histories (deloads and ordinary workouts in one, two or three interleaved rows, sets shuffled) give the same plateau', layoutBroken.length === 0, layoutBroken);
+    seed(FX.sameDayCounts.map(e => e.id === 'w03-am' ? Object.assign({}, e, { id: 'w99-am' }) : e));
+    T('6  same-day identity is by workout, not by order: the ordinary morning workout counts whichever id sorts first', same(withClockOn(c, NOW, () => c.detectPlateau('Bench Press')), { weight: 185, sessions: 4 }));
+    seed(FX.backfill.map((e, i) => i === 1 ? Object.assign({}, e, { exercises: [E('  bench press ', work(185))] }) : e));
+    T('6  case and spacing of the name do not split a lift (D96B)', same(withClockOn(c, NOW, () => c.detectPlateau('Bench Press')), { weight: 185, sessions: 4 }));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('7  nothing else moved');
+  await guard('drift', async () => {
+    let s = 7123;
+    const rnd = () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; };
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const out = [];
+    for(let h = 0; h < 30; h++){
+      const log = []; let load = 135 + Math.floor(rnd() * 10) * 5, ids = 0;
+      const n = 4 + Math.floor(rnd() * 6);
+      for(let i = 0; i < n; i++){
+        load += pick([0, 0, 5, 5, 10, -5]);
+        const ws = work(load, pick([6, 8, 10, 12]), pick(['', '1', '2', '3']));
+        if(rnd() < 0.2) ws[2] = S(load, pick([5, 7, 9]), '0', pick(['failure', 'amrap', 'drop']));
+        if(rnd() < 0.1) ws.forEach(x => { delete x.type; });
+        const warm = rnd() < 0.6 ? [WU(Math.max(45, load - 90), 10), WU(load + pick([-40, 10, 30]), pick([1, 5]))] : [];
+        const exs = rnd() < 0.2 ? [E('Bench Press', warm.concat(ws.slice(0, 1))), E('Lat Pulldown', work(100)), E('Bench Press', ws.slice(1))] : [E('Bench Press', warm.concat(ws))];
+        const e = W('n' + String(++ids).padStart(2, '0'), 3 + (n - 1 - i) * 7, 'S', exs, rnd() < 0.5 ? Object.assign({}, PROG, { phase: pick(['accumulation', 'intensification']) }) : (rnd() < 0.5 ? PROG : FREE));
+        log.push(e);
+        if(rnd() < 0.1) log.push(W('n' + String(ids).padStart(2, '0') + 'pm', 3 + (n - 1 - i) * 7, 'PM', [E('Bench Press', work(load))]));
+      }
+      const c = (await boot(log)).ctx;
+      if(h % 5 === 0) await program(c, { deloadFrom: '2026-09-26' });
+      else if(h % 5 === 1) await program(c, {});
+      out.push(JSON.stringify([surfaces(c, 'Bench Press'), untouched(c)]));
+    }
+    const digest = sha(JSON.stringify(out));
+    T('7  30 no-E44 histories (no deload workout: ordinary, accumulation and intensification sessions, freeform, warm-ups, failure/AMRAP/drop, legacy, rows, same-day; every fifth under a deload TODAY, every fifth under a program without one): every plateau surface, record, XP, volume, score, mastery and recovery figure is 10.39’s exactly (a digest frozen from 10.39)',
+      digest === 'daac28d6ed0d1655', digest);
+    const bw = [];
+    for(const lists of [[[BW(14, '5', 'warmup'), BW(8), BW(7)], [BW(16, '5', 'warmup'), BW(10), BW(9)], [BW(18, '5', 'warmup'), BW(12), BW(10)]],
+      [[BW(16, '5', 'warmup'), BW(12), BW(11)], [BW(18, '5', 'warmup'), BW(12, 0, 'failure'), BW(10)]], [[BW(14, '5', 'warmup'), BW(12), BW(11)], [BW(20, '5', 'warmup'), BW(9), BW(8)]]]){
+      const log = weekly(lists.map(sets => ({ sets })), 'Pull-Up').map(w => Object.assign(w, { category: 'pull' }));
+      log.splice(1, 0, Object.assign(W('bwdl', 12, 'Deload', [E('Pull-Up', [BW(6), BW(6)], true)], DL), { category: 'pull' }));
+      const c = (await boot(log)).ctx;
+      bw.push(withClockOn(c, NOW, () => [c.detectPlateau('Pull-Up'), c.bodyweightProgressionFor('Pull-Up'), c.computeExercisePREvents('Pull-Up').map(e => e.hits)]));
+    }
+    T('7  bodyweight lifts, deloads included: plateau never reads them, and D119’s answers and D120’s records are 10.39’s exactly (a digest frozen from 10.39)',
+      bw.every(x => x[0] === null) && sha(JSON.stringify(bw)) === 'a2672f244e87a8dd', sha(JSON.stringify(bw)));
+    T('7  D121’s records and volume, D122’s evidence rule, XP, Session Score, Mastery, Recovery, Objectives and the bodyweight model are byte-identical',
+      pin('isPerformanceSet') === 'af02c77cf98e70ef' && pin('loadedStrengthPerformance') === 'd7e06508c3b1d0b5' && pin('computeExercisePREvents') === '222267c3066ab2bf'
+      && pin('computePRs') === 'ff1f540c2ae3b46a' && pin('canonicalPRIndex') === 'b30db7e31fad5051' && pin('computeXPTimeline') === '4eb287033499d612' && pin('sessionVolume') === '4ddcaadccc1dfa80'
+      && pin('computeWeeklyVolume') === '76aa0edd7abeb6f3' && pin('calculatePRXP') === 'ba20ebe522acc1a3' && pin('calculateLevelFromXP') === '9418f2e5934245da'
+      && pin('calculateRankFromLevel') === '868fd909074da898' && pin('sessionScore') === '842e5699f8ac0835' && pin('masteryPointsFor') === '0c704c40a853d991'
+      && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79' && pin('computeMuscleRecovery') === 'd3589033bdb54c67' && pin('objectiveDailyCandidates') === '9772175df2535484'
+      && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' && pin('bodyweightSessionHistory') === '107a63744acb4508');
+    const coach = (rx, performed) => at.controlStall.c.deriveNextSetCoach({ exerciseName: 'Lat Pulldown', rx, performed, deload: false }).action;
+    const RX = { reps: '8-10', effort: '8' };
+    T('7  D50B still coaches every edge as it did',
+      same([coach(RX, [{ weight: 100, reps: 10, rir: 3 }]), coach(RX, [{ weight: 100, reps: 10, rir: 2 }]), coach(RX, [{ weight: 100, reps: 6, rir: 0.5 }]), coach(RX, [{ weight: 100, reps: 6, rir: 1 }]),
+        coach(RX, [{ weight: 100, reps: 6 }]), coach(RX, [{ weight: 100, reps: 7 }]), coach(RX, [{ weight: 100, reps: 10, rir: 3 }, { weight: 105, reps: 10, rir: 3 }]),
+        coach(Object.assign({ load: 100 }, RX), [{ weight: 105, reps: 10, rir: 3 }])], ['increase', 'hold', 'reduce', 'hold', 'reduce', 'hold', 'hold', 'hold']));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('8  protected');
+  await guard('protected', async () => {
+    const xc = (await boot([W('x1', 3, 'Push', [E('Bench Press', [WU(95, 10), WU(135, 5), S(185, 5), S(185, 5), S(185, 5)])], DL)])).ctx;
+    const line = withClockOn(xc, NOW, () => xc.computeXPTimeline().timeline[0].breakdown.find(b => /working set/.test(b.label)));
+    T('8  E43 is untouched: a deload’s two warm-ups and three working sets still read "5 working sets", +15 XP', !!line && line.label === '5 working sets' && line.xp === 15, JSON.stringify(line));
+    const chip = withClockOn(xc, NOW, () => xc.setChipHtml({ weight: 'Infinity', reps: '6', rir: '' }, false));
+    T('8  E38 is untouched: a stored non-finite weight still prints as a load on Day Detail’s chip', /Infinity lb/.test(chip), chip);
+    const l = (await boot([W('l1', 10, 'Core', [E('L-Sit', [BW(20), BW(18)], true)], { category: 'core' }), W('l2', 3, 'Core', [E('L-Sit', [BW(25), BW(20)], true)], { category: 'core' })])).ctx;
+    T('8  E39 is untouched: a custom hold the name rule misses (L-Sit) still gets a rep target', withClockOn(l, NOW, () => l.bodyweightProgressionFor('L-Sit')).reps === 26);
+    T('8  E45 is untouched: the Personal Best dots are still 12px of padding around a 6px mark',
+      /\.pbt-dot\{\s*appearance: none; background: none; border: none; padding: 12px; margin: 0;/.test(raw) && /\.pbt-dot-mark\{ width: 6px; height: 6px;/.test(raw));
+    T('8  E38’s, E39’s and E43’s functions and the trainer are byte-identical; the trainer reads no plateau and no phase', pin('setChipHtml') === '350b4e34eb582056' && pin('substitutionIsHold') === '049ba50329c76db3'
+      && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('calculateSetXP') === '625722a99a04e30f' && at.controlStall.c.TRAINER_ENGINE_VERSION === '0.1.1-shadow'
+      && !/plateau|phase|isDeloadWorkout/i.test(fnSrc(raw, 'extractPerformanceSignal') + fnSrc(raw, 'extractCapabilitySignal') + fnSrc(raw, 'computeTrainerConfidence') + fnSrc(raw, 'computeShadowRecommendation')));
+    const c2 = at.falseFromDeload.c, app = at.falseFromDeload.app;
+    const store0 = JSON.stringify(app.store), log0 = JSON.stringify(c2.workoutLog);
+    c2.workoutLog = JSON.parse(log0); fresh(c2);
+    let writes = 0; const realSet = c2.LOOPStore.set; c2.LOOPStore.set = function(){ writes++; return realSet.apply(this, arguments); };
+    try{ surfaces(c2, 'Bench Press'); withClockOn(c2, NOW, () => { c2.detectPlateau('Bench Press'); c2.exerciseSessionHistory('Bench Press', 5); c2.workoutLog.forEach(e => c2.isDeloadWorkout(e)); c2.computeProgressionBuckets(); }); }
+    finally { c2.LOOPStore.set = realSet; }
+    T('8  reading every plateau surface writes nothing: no store write, the log byte-identical, no workout re-labelled', writes === 0 && JSON.stringify(app.store) === store0 && JSON.stringify(c2.workoutLog) === log0
+      && log0 === JSON.stringify(FX.falseFromDeload));
+    T('8  no key, schema, migration or trainer change', c2.DATA_KEYS.length === 16 && c2.DATA_SCHEMA_VERSION === 1 && Object.keys(c2.MIGRATIONS || {}).length === 0
+      && !/LOOPStore|localStorage/.test(fnSrc(raw, 'detectPlateau') + fnSrc(raw, 'isDeloadWorkout')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('9  it is cheap');
+  await guard('perf', async () => {
+    const big = [];
+    for(let i = 0; i < 416; i++) big.push(W('b' + String(i).padStart(3, '0'), 730 - Math.floor(i * 1.75), i % 7 === 6 ? 'Deload' : 'S',
+      [E('Bench Press', [WU(95, 10), WU(135, 5), S(185 + (i % 20) - (i % 7 === 6 ? 30 : 0), 5), S(185 + (i % 20), 5)]), E('Back Squat', [WU(135, 5), S(225 + (i % 15), 5)])],
+      i % 7 === 6 ? DL : PROG));
+    const c = at.controlClimb.c;
+    c.workoutLog = big; fresh(c);
+    const times = [];
+    for(let i = 0; i < 7; i++){ fresh(c);
+      const t0 = process.hrtime.bigint(); withClockOn(c, NOW, () => { c.detectPlateau('Bench Press'); c.detectPlateau('Back Squat'); c.progressionFor('Bench Press', '8-12', null); c.computeProgressionBuckets(); });
+      times.push(Number(process.hrtime.bigint() - t0) / 1e6); }
+    times.sort((x, y) => x - y);
+    T('9  two years, 416 workouts, a deload every seventh: both plateaus, a D49 answer and the Progress buckets in ' + times[3].toFixed(1) + ' ms with every cache cleared, well under 250', times[3] < 250, JSON.stringify(times));
   });
 }
 
@@ -50039,6 +50686,7 @@ async function main(){
   await testBodyweightPerformanceD120();
   await testLoadedRecordEligibilityD121();
   await testPlateauEvidenceD122();
+  await testDeloadPlateauEvidenceD123();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

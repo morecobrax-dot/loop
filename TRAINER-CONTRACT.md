@@ -17419,3 +17419,251 @@ Nothing else was restated.
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
 key, no stored answer, no history rewritten. E42 closed; E44 and E45 recorded.
+
+## §162 — A DELOAD IS NOT A PLATEAU OBSERVATION (D123 · LOOP 10.40 · loop-v217)
+
+**Rule.** `isDeloadWorkout(entry)` is D85's rule, named once: a workout is a
+programmed deload when its stored `phase` is `'deload'`. Both systems that
+must agree on it now ask it:
+- `exerciseSessionHistory`, D49's evidence. Its one statement that tested
+  `l.phase === 'deload'` now calls the helper, with the same answer.
+- `detectPlateau`, D49's first tier. One new statement, the first in its
+  workout loop, skips a deload before its rows are read. A deload never takes
+  one of the four places, so an older ordinary workout fills the window.
+
+D119's `bodyweightSessionHistory` keeps its own copy of the same one-line
+test, byte-identical. The phase policy reads D49's own history. There is one
+meaning of "deload".
+
+**Historical truth is stored, never inferred.** `saveLog` writes the phase
+once, and only on the program's own session started inside a deload:
+- `startTemplateLog` takes it from the same resolution that composed the
+  session (`resolveStartWorkout`);
+- a resumed draft restores it;
+- a freeform start clears it.
+
+Nothing reads the calendar, today's program, a pause or a program edit to
+classify a past workout. So:
+- **Freeform and library workouts** in a deload week carry no phase. They are
+  ordinary training, exactly as D49's own history already counted them (D85).
+- **Sessions logged before D85** carry no phase and are ordinary.
+- **A pause, a deload written in later, a moved day, a schedule revision, a
+  completed or deleted program** reclassify nothing.
+
+No migration, inference or new key was needed.
+
+**The plateau policy did not move, word for word:**
+- one occurrence per workout, from every loaded row of the lift (D96C-3);
+  bodyweight rows are never read;
+- D122's per-set evidence (a performed working set with performed reps and a
+  real load);
+- four workouts needed;
+- the last four;
+- stalled when none beats the first;
+- `{ weight: first, sessions: 4 }`.
+
+D49's tiers, D47, the phase policy and every threshold are byte-identical.
+
+**Why E44 existed.** D85 set deload-phase workouts aside from D49's history
+in 8.6. `detectPlateau` never asked. Measured on 10.39:
+- **False stall.** 180 → 185 → 185, a 165 deload, then 185 read
+  "Performance has stalled for 4 sessions".
+- **Hidden stall.** Four ordinary 185s with a 150 or a 205 deload among them
+  read as building.
+- **Deloads alone.** Four deload workouts at 165 were a stall at 165.
+- **D47 hidden.** Two grinding sessions below the range with a deload between
+  them read "stalled", not "reduce to 180".
+- **During a deload week.** The false stall pre-empted the phase policy. The
+  lift read "stalled", not "Deload week — keep 185 lb and leave more in
+  reserve".
+
+**Readers.** All are byte-identical; each now reads the corrected signal:
+- D49's first tier, and through it every D49 reader: the Exercise Detail state
+  pill and Next session; Today's Stalled/Ready line; Progress → Strength's
+  Ready to progress list; Weekly Review's progression; the Summary's Next
+  time; the Profile's Stalling count; Objectives' progression family; a
+  started workout's prefill and its recorded prescription (rx);
+- the workout card and Train sheet flag (`findPlateauedExercises`);
+- capability's `plateauSessions` field, which nothing reads.
+
+The trainer reads no plateau field and no phase.
+
+**Not changed:**
+- D85's write path: `saveLog`, `startTemplateLog`, `resolveStartWorkout`,
+  `restoreDraftToSheet`, `openFreeformLog`;
+- the phase policy and block state: `applyPhaseProgressionPolicy`,
+  `deloadActiveToday`, `programDeloadActiveOn`, `deriveBlockState`,
+  `applyBlockActionInMemory`;
+- D50B's code and constants (its input is the started workout's
+  prescription);
+- records: a deload still sets records, and they still earn PR XP;
+- XP, levels, ranks, Session Score, Mastery, Recovery;
+- volume: a deload's tonnage still counts;
+- D119/D120 bodyweight answers and records; D121's record boundary; D122's
+  evidence rule;
+- E38, E39, E43 and E45.
+
+One comment was corrected. `saveLog`'s D85 note said the stored phase "is
+read by the progression engine's evidence and by nothing else". It now names
+its readers. Comments are outside every pin.
+
+### Measured
+
+- **E44 on 10.39, reproduced with the shipped code.** The brief's matrix A–N.
+  With 10.39's `detectPlateau` compiled back in (today's source with the one
+  statement put back), every plateau surface of the 16 E44 histories is
+  10.39's (a frozen digest). Exactly those 16 of 37 histories read
+  differently now; the other 21 read exactly as 10.39 did.
+- **Drift, frozen 10.39 vs 10.40, 40 generated histories a class:**
+  - **No E44 (10 classes, 400 histories, 1,240 lifts):** ordinary progress,
+    real plateaus, warm-up-heavy, failure/AMRAP/drop, repeated rows,
+    same-day doubles, PR-heavy climbs, untyped legacy, a deload over TODAY
+    with no deload workout in the history, and programs with no deload.
+    0 moved, on every surface compared: plateau, D49, buckets, Next session,
+    card, capability, Today, Weekly Review, Next time, Profile, Objectives,
+    records, XP, level, rank, Session Score, Mastery, Recovery, volume.
+  - **Also 0 moved:** bodyweight (40 histories with deloads, 80 lifts); both
+    owner backups (read-only, hashed; 15 lifts). Neither backup holds a
+    phase, a deload workout or a deload event.
+  - **E44 classes A–K (440 histories, 1,359 lifts):** 315 lifts moved, only
+    on the plateau side:
+    - a false stall removed: 105;
+    - a hidden stall found: 142;
+    - the stall's first-of-window weight moved: 68. D49 holds the last load
+      either way, so only the card's "stuck at" weight moved.
+
+    Every moved lift had a deload in 10.39's window. Every one equals 10.39
+    run on the same log with its deload workouts removed. Two lifts trained
+    only in deloads have no history once they are removed, and no plateau
+    either way.
+  - **D49 transitions:**
+
+    | From | To | Lifts |
+    |---|---|---|
+    | increase | plateau | 46 |
+    | plateau | increase | 39 |
+    | decline | plateau | 38 |
+    | build | plateau | 30 |
+    | plateau | build | 29 |
+    | hold | plateau | 28 |
+    | plateau | decline | 21 |
+    | plateau | hold | 16 |
+
+    No D49 answer moved without its plateau.
+- **Real headless Edge.** The brief's 17 fixtures, plus the false stall that
+  blocked an earned increase, at seven phone sizes from 320×568 to 430×932:
+  1,699 checks, all passing. Program fixtures are seeded with the store a
+  real program leaves: a deload over today; a deload written in after the
+  workouts, plus a moved day. Each confirms:
+  - the Exercise Detail state pill and Next session, heard as shown (loaded:
+    plain text; bodyweight: one spoken sentence naming the same target);
+  - Today's Stalled/Ready line and Progress → Strength's Ready to progress;
+  - the Train sheet's "stuck at" flag;
+  - the live Summary's Next time;
+  - Weekly Review's word and spoken label;
+  - a started workout's prefill and recorded prescription (190 where 10.39
+    held 185; 185 during the deload week);
+  - no overflow, clipping, small target or console error.
+
+  On frozen 10.39 the same rig fails 260 checks, all in the eight E44
+  fixtures, and passes the ten controls. E45's dots still measure 30 × 30,
+  reported apart.
+- **Performance, median of 15, 10.39 → 10.40:** cold clears every log cache.
+
+| History | detectPlateau | progressionFor | Progress buckets | Exercise Detail |
+|---|---|---|---|---|
+| 12 weeks, 36 workouts | 0.35 → 0.23 ms | 1.05 → 1.04 ms | 1.55 → 1.54 ms | 4.86 → 4.68 ms |
+| 96 workouts, a deload week in 4 | 0.59 → 0.46 ms | 2.60 → 2.48 ms | 3.96 → 3.61 ms | 11.6 → 11.5 ms |
+| Two years, 416, a deload week in 4 | 2.43 → 1.84 ms | 11.0 → 10.5 ms | 15.8 → 14.0 ms | 52.5 → 50.8 ms |
+| 100 workouts, 3 rows, deloads | 0.88 → 0.66 ms | 3.49 → 3.27 ms | 4.82 → 4.48 ms | 15.4 → 15.7 ms |
+| Bodyweight control, 200 | 0.31 → 0.49 ms | 0.29 → 0.28 ms | 0.39 → 0.36 ms | 4.89 → 4.74 ms |
+
+  Timed again in one process, warm, alternating 400 rounds:
+  - ordinary history: 135 → 136 µs;
+  - histories with deloads: 22–24% faster, because a deload's sets are never
+    read;
+  - the bodyweight control: +9 µs over 200 workouts (one property check per
+    workout).
+
+  There is no new pass, no cache and no stored answer.
+
+### Contract 240 (79 checks)
+
+It covers:
+- the rule: named once, pure, stored at save on the program's own session
+  only, asked by both systems, nothing in `detectPlateau` reading a date, a
+  program, a block, a pause or today; the reversal pins;
+- E44 reproduced (frozen digest), exactly where it was, and gone on every
+  surface;
+- the matrix: a false stall, a hidden stall (lighter and heavier deloads),
+  backfill (190 then 185 × 3 is a stall at 190 that only the fifth-newest
+  workout can supply), the brief's window, several deloads, a deload last,
+  deloads alone, D122's warm-ups and performance rule, failure/AMRAP/drop,
+  legacy sets, deload and ordinary rows, same-day pairs, freeform workouts,
+  ordinary phases, D47, the window edges, bodyweight, and D49 and plateau
+  detection agreeing on every history;
+- real programs: a pause; a deload written in after the workouts over a week
+  holding ordinary ones; a deload over today; a moved day (a schedule
+  revision); completion; deletion; re-dated workouts. None reclassify;
+- the save path itself: the program's own session, started on a deload day,
+  is saved with phase `deload` and skipped; a freeform workout saved the same
+  day carries none and counts;
+- the phase policy turning the corrected increase into "Deload week — keep
+  185 lb";
+- a real start → prefill (190, 10.39: 185) → captured prescription → save →
+  Summary;
+- records, XP, volume, score, mastery and recovery frozen from 10.39;
+- three properties:
+  - **No-op property, 160 histories.** One to three deload workouts of any
+    load (45–500 lb), rows and warm-ups, at any time, beside ordinary
+    workouts on the same date. Every plateau and D49 answer is identical,
+    while volume moves.
+  - **Normal-workout sensitivity, 480 lifts.** `detectPlateau` equals the
+    stall test over the ordinary workouts alone; stalls and climbs both
+    occur.
+  - **Layout, 108 re-laid histories.** One to three interleaved rows,
+    shuffled sets.
+- no-E44 and bodyweight digests frozen from 10.39;
+- D50B's edges, E38, E39, E43 and E45 untouched, zero writes, keys and
+  schema, cost.
+
+**Mutation: 39 mutants against Contract 240 alone, all killed.**
+- **37 by behaviour.** That is the brief's list except E45, plus:
+  - a deload forgotten once its program is gone;
+  - warm-ups admitted to records (D121);
+  - D119's history no longer setting a deload aside;
+  - the helper broadened to any phase;
+  - a deload recognised by its title, or by a light load (90% of the best);
+  - D49's own evidence no longer setting a deload aside.
+- **E45 silently fixed: killed by the CSS source check.** It is a layout
+  change the vm harness cannot measure. The browser rig measures the dots
+  and reports them apart.
+- **1 equivalent, proven.** "The skip moved after the row lookup, still before
+  a place is taken." `workoutExerciseRows` does not read the phase and takes
+  no place, so a deload still never takes one. Only §1's "skip first" source
+  check sees it.
+
+### Restated contracts
+
+D116's technique:
+- `D123_EDITS` holds D123's two statements as [now, as of 10.39];
+- `pinAsOf1039(name)` hashes a function with them put back;
+- `pinAsOf1038` now undoes D123, then D122.
+
+Restated by reversal:
+- **`exerciseSessionHistory`'s 10.39 pin.** Held by Contracts 217, 218,
+  224, 225, 226, 227, 236, 237, 238 and 239, and by Contract 235's pin map.
+- **Contract 225 (D110), single hop.** D123's statement is undone before
+  D110's lines.
+- **Contract 236 (D119), §7.** About 8% of its generated workouts are deloads. Its
+  10.35 digest of D49's 440 answers holds with D123's skip put back. The 10
+  answers that moved are attributed: every one is the plateau call, on a lift
+  with a deload in its history.
+- **Contract 239 (D122).**
+  - §1: its 10.38 reversal composes D123.
+  - §3: its deload case now expects the deload set aside, so the history has
+    three ordinary workouts and no stall to call.
+  - §7: its no-E42 digest holds with D123's skip put back.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
+key, no stored answer, no history rewritten. E44 closed. No new finding.
