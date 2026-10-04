@@ -284,8 +284,8 @@ function loadApp(initialStore){
     /* D99A — the recovery figure's three presentation bands and their words */
     'RECOVERY_TINT_BANDS','RECOVERY_BAND_LABEL','RECOVERY_CONFIG','RECOVERY_STATE_LABEL',
     'REST_RING_R','trainingTab','MUSCLE_BAND_OPACITY',
-    /* D96A — the Exercise Detail sheet's own subject; D118 — its paging state, model and constants */
-    'exDetailName','exDetailShown','exDetailAllBests','exDetailModel','EXERCISE_DETAIL','EXERCISE_REC_STATE','PR_MODE',
+    /* D96A — the Exercise Detail sheet's own subject; D118 — its paging state, model and constants; D129 — the title it wears when opened from Mastery */
+    'exDetailName','exDetailAs','exDetailShown','exDetailAllBests','exDetailModel','EXERCISE_DETAIL','EXERCISE_REC_STATE','PR_MODE',
     /* D119 — the bodyweight progression model's own config */
     'BODYWEIGHT_PROGRESSION',
     /* D96A — the finite-load rule and D91's classifier it agrees with */

@@ -7756,6 +7756,8 @@ button.ex-thumb:focus-visible{ outline: 2px solid var(--accent); outline-offset:
 .exd-hero-id h2{ margin: 0; font-size: var(--fs-title); line-height: 1.2; overflow-wrap: anywhere; text-wrap: balance; }
 .exd-meta-main{ display: block; margin-top: 6px; font-size: var(--fs-support); line-height: 1.4; color: var(--text-dim); }
 .exd-meta-also{ display: block; margin-top: 2px; font-size: var(--fs-meta); line-height: 1.4; color: var(--text-faint); }
+/* D129 (E53) - only on a page opened from a Mastery card, when the lift was logged under another name than the card's. */
+.exd-meta-as{ display: block; margin-top: 2px; font-size: var(--fs-meta); line-height: 1.4; color: var(--text-faint); overflow-wrap: anywhere; }
 .exd-facts{ display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 16px; font-size: var(--fs-meta); color: var(--text-dim); }
 .exd-fact b{ font-family: 'Space Grotesk', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
 .exd-state{
@@ -13738,7 +13740,13 @@ var EXERCISE_VISUAL_BY_NAME = {
   'weighted plank':'weighted_plank',
   'weighted russian twist':'weighted_russian_twist',
   'weighted sit-up':'weighted_situp',
-  'wide-grip lat pulldown':'lat_pulldown', 'wide-grip pulldown':'lat_pulldown'
+  'wide-grip lat pulldown':'lat_pulldown', 'wide-grip pulldown':'lat_pulldown',
+
+  /* A spelling an athlete types for a movement LOOP already draws (D129). It reaches that movement's drawing and
+     nothing else: the name stays an exercise of its own, with its own history and its own mastery. The Cable
+     Lateral Raise drawing IS the one-arm raise (one handle, the pulley low on the opposite side). A name that
+     could be done with more than one kind of equipment is not added here. */
+  'single-arm cable lateral raise':'lateral_raise_cable', 'single arm cable lateral raise':'lateral_raise_cable'
 };
 
 /* One to three cues per drawing: what to do, in the order it matters. */
@@ -18624,6 +18632,22 @@ const LOOP_UPDATES = [
     improvements: [
       'The top three on Exercise Mastery show the illustration you see in workouts, with each level beside it',
       'Longer exercise names on that podium are shown in full'
+    ],
+    bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v10-46',
+    version: 'LOOP 10.46',
+    title: 'Mastery Opens the Right Lift',
+    date: '2026-10-04',
+    swVersion: 'loop-v223',
+    summary: 'Mastery and Exercise Detail now stay in sync, and Single-Arm Cable Lateral Raise now has its own illustration.',
+    newFeatures: [],
+    improvements: [
+      'Tapping a lift in Mastery opens it under the same name and illustration as its card, with the name you logged it under shown beneath when it is different',
+      'When you have logged a lift under more than one name, Mastery opens the one you have logged most',
+      'Single-Arm Cable Lateral Raise now shows its illustration'
     ],
     bugFixes: [],
     changes: []
@@ -35345,6 +35369,9 @@ let pbtTempSet = false;        // true while the strip is "the lift the athlete 
 let pbtActiveIndex = -1;       // the slide in front, read from the strip's own scroll position
 let progSelectedWeek = null;
 let exDetailName = null;
+/* D129 (E53) - the title and drawing the page wears when it was opened from a MOVEMENT (a Mastery card) rather than from a
+   lift: the movement's own name, shown over the data of the lift it opened. null when the page is the lift's own. */
+let exDetailAs = null;
 let exDetailShown = 0;
 let exDetailAllBests = false;
 let exDetailModel = null;
@@ -39409,8 +39436,9 @@ function masteryLevelPillHtml(level, extra){
    meta line leads the bar (read the fact, then see it confirmed). D94B: one row
    for both modes; the bar and pill wear the level's tier colour (data-tier), and
    a long name wraps to a second line instead of being cut. An exercise row opens
-   Exercise Detail by the name the athlete LOGGED; a muscle has no detail of its
-   own, so its row is not a button — nothing pretends to be tappable. */
+   Exercise Detail through openMasteryExercise (D129), titled as the row is and
+   showing the lift the athlete LOGGED; a muscle has no detail of its own, so its
+   row is not a button — nothing pretends to be tappable. */
 function masteryRankRowHtml(o){
   const t = masteryTier(o.level);
   const next = o.isMax ? 'max level' : (o.percent + '% to Level ' + (o.level + 1));
@@ -39429,10 +39457,38 @@ function masteryRankRowHtml(o){
     <button type="button" class="mastery-row mastery-row-tap" onclick="${o.onclick}" data-tier="${t.level}" aria-label="${escapeAttr(spoken)}">${body}
     </button>`;
 }
+/* D129 (E53) - WHERE A MASTERY TAP GOES. A Mastery card is a MOVEMENT: LOOP's registry merges the spellings it knows (Barbell Bench
+   Press and Bench Press are one entry, Pendlay Row is a Barbell Row), and the card is named and drawn for the movement. Exercise
+   Detail is a LIFT: records, trends and D49 are read by the name logged (Contract 172, section 95), so a movement logged under
+   two names has two pages, and nothing here merges them. The tap opens the lift the athlete has logged most under the movement
+   (a tie goes to the movement's own name, then to the one logged most recently, as before), and the page is titled and drawn as
+   the card is, with the name it was logged under shown beneath. Nothing is renamed, merged, recomputed or stored. */
+function masteryExerciseTarget(exerciseId){
+  const m = getExerciseMastery(exerciseId);
+  const rec = buildMasteryIndex()[exerciseId];
+  if(!m || !rec || !rec.names.size) return null;
+  const own = loggedExerciseKey(m.displayName);
+  /* the lifts this movement's history sits under, the most recently logged first (the order buildMasteryIndex met them in) */
+  const lifts = new Map();
+  rec.names.forEach(n => { const raw = String(n), k = loggedExerciseKey(raw); if(!lifts.has(k)) lifts.set(k, raw); });
+  let best = null;
+  lifts.forEach((raw, key) => {
+    const sessions = getExerciseFullHistory(raw).length;
+    if(!best || sessions > best.sessions || (sessions === best.sessions && key === own && best.key !== own)) best = { key, raw, sessions };
+  });
+  /* shown as every list shows that lift (D96B.1): the spelling used on the most rows */
+  const rows = new Map();
+  workoutLog.forEach(l => (l.exercises || []).forEach(ex => { if(typeof ex.name === 'string' && loggedExerciseKey(ex.name) === best.key) rows.set(ex.name, (rows.get(ex.name) || 0) + 1); }));
+  return { name: rows.size ? chooseLoggedSpelling(rows) : best.raw, title: m.displayName };
+}
+function openMasteryExercise(exerciseId){
+  const t = masteryExerciseTarget(exerciseId);
+  if(t) openExDetail(t.name, { as: t.title });
+}
 function masteryRowHtml(m){
   return masteryRankRowHtml({ name: m.displayName, level: m.level, percent: m.percent, isMax: m.isMax,
     meta: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'),
-    onclick: "openExDetail('" + onclickArg(m.loggedName) + "')" });
+    onclick: "openMasteryExercise('" + onclickArg(m.exerciseId) + "')" });
 }
 /* Exercise count, not sessions — buildMuscleMastery tallies sessions from an
    exercise's PRIMARY movers only, so a muscle that only ever appears as a
@@ -39530,7 +39586,7 @@ function masteryPodiumCardHtml(m, place){
     name: m.displayName, level: m.level, percent: m.percent, isMax: m.isMax,
     metaLine: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'),
     metaSpoken: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'),
-    onclick: "openExDetail('" + onclickArg(m.loggedName) + "')",
+    onclick: "openMasteryExercise('" + onclickArg(m.exerciseId) + "')",
     hero: 'exercise', art: masteryExerciseArtHtml(m)
   });
 }
@@ -39734,8 +39790,10 @@ const EXERCISE_DETAIL = { recent: 5, step: 20, bests: 3 };
 const EXERCISE_REC_STATE = { increase: 'Ready to progress', build: 'Building', reduce: 'Reduce',
   plateau: 'Hold', hold: 'Hold', decline: 'Hold', insufficient: 'Hold', regain: 'Regain' };
 
-function openExDetail(name){
+function openExDetail(name, opts){
   exDetailName = name;
+  /* D129 (E53) - only when the movement's title is not the lift's own name, to the letter: a lift opened under its own name wears it as it always did. */
+  exDetailAs = opts && typeof opts.as === 'string' && opts.as.trim() && opts.as !== String(name) ? opts.as : null;
   exDetailShown = EXERCISE_DETAIL.recent;
   exDetailAllBests = false;
   renderExDetail();
@@ -40048,15 +40106,19 @@ function exDetailHistoryHtml(d){
 function renderExDetail(){
   if(!exDetailName) return;
   const name = exDetailName;
+  /* D129 (E53) - what the page is called and drawn as; its data is always the lift's (name). */
+  const shown = exDetailAs || name;
   const d = deriveExerciseDetail(name);
   exDetailModel = d;
-  document.getElementById('exDetailName').textContent = name;
-  const art = exerciseThumbHtml(name, { static: true });
+  document.getElementById('exDetailName').textContent = shown;
+  const art = exerciseThumbHtml(shown, { static: true });
   document.getElementById('exDetailArt').innerHTML = art
-    ? '<button type="button" class="exd-art" data-ex="' + escapeAttr(name) + '" onclick="openHowTo(this.dataset.ex)" aria-label="'
-      + escapeAttr('How to do ' + name.trim()) + '">' + art + '<span>How to</span></button>'
+    ? '<button type="button" class="exd-art" data-ex="' + escapeAttr(shown) + '" onclick="openHowTo(this.dataset.ex)" aria-label="'
+      + escapeAttr('How to do ' + shown.trim()) + '">' + art + '<span>How to</span></button>'
     : '';
-  document.getElementById('exDetailMeta').innerHTML = exDetailMetaHtml(d);
+  /* the line under the title says which name the lift was logged under, but only when it IS another name, not another case */
+  const loggedAs = exDetailAs && loggedExerciseKey(exDetailAs) !== loggedExerciseKey(String(name)) ? '<span class="exd-meta-as">Logged as ' + escapeHtml(String(name).trim()) + '</span>' : '';
+  document.getElementById('exDetailMeta').innerHTML = loggedAs + exDetailMetaHtml(d);
   document.getElementById('exDetailFacts').innerHTML = exDetailFactsHtml(d);
   const next = document.getElementById('exDetailNext');
   next.innerHTML = exDetailNextHtml(d);

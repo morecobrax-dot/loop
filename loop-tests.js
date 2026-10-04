@@ -467,14 +467,61 @@ const D128_EDITS = {
     "function masteryExerciseArtHtml(m){ return exerciseThumbHtml(m.displayName, { static: true, cls: 'mpod-art' }); }",
     ""]]
 };
-function asOf1044(name){
+/* D129 - Mastery's two taps and Exercise Detail's header changed ON PURPOSE (E53), and two spellings of the one-arm cable raise
+   joined the art table (E52). A Mastery card and row now open Exercise Detail through openMasteryExercise, and the page opened
+   from a card wears the card's title and drawing (exDetailAs); a lift opened any other way is exactly what it was. Every older
+   pin or check that held one of these functions now reads it with that statement put back (giving 10.45); any other change to
+   it still fails them. The pairs are [now, as of 10.45]; Contract 246 proves what they do. */
+const D129_EDITS = {
+  masteryRowHtml: [[
+    "return masteryRankRowHtml({ name: m.displayName, level: m.level, percent: m.percent, isMax: m.isMax, meta: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'), onclick: \"openMasteryExercise('\" + onclickArg(m.exerciseId) + \"')\" });",
+    "return masteryRankRowHtml({ name: m.displayName, level: m.level, percent: m.percent, isMax: m.isMax, meta: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'), onclick: \"openExDetail('\" + onclickArg(m.loggedName) + \"')\" });"]],
+  masteryPodiumCardHtml: [[
+    "return masteryLeaderCardHtml({ cls: 'mpod-card', placeCls: 'mpod-p' + place, place, name: m.displayName, level: m.level, percent: m.percent, isMax: m.isMax, metaLine: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'), metaSpoken: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'), onclick: \"openMasteryExercise('\" + onclickArg(m.exerciseId) + \"')\", hero: 'exercise', art: masteryExerciseArtHtml(m) });",
+    "return masteryLeaderCardHtml({ cls: 'mpod-card', placeCls: 'mpod-p' + place, place, name: m.displayName, level: m.level, percent: m.percent, isMax: m.isMax, metaLine: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'), metaSpoken: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'), onclick: \"openExDetail('\" + onclickArg(m.loggedName) + \"')\", hero: 'exercise', art: masteryExerciseArtHtml(m) });"]],
+  openExDetail: [[
+    "function openExDetail(name, opts){ exDetailName = name; exDetailAs = opts && typeof opts.as === 'string' && opts.as.trim() && opts.as !== String(name) ? opts.as : null; exDetailShown = EXERCISE_DETAIL.recent;",
+    "function openExDetail(name){ exDetailName = name; exDetailShown = EXERCISE_DETAIL.recent;"]],
+  renderExDetail: [[
+    "const name = exDetailName; const shown = exDetailAs || name; const d = deriveExerciseDetail(name); exDetailModel = d; document.getElementById('exDetailName').textContent = shown; const art = exerciseThumbHtml(shown, { static: true }); document.getElementById('exDetailArt').innerHTML = art ? '<button type=\"button\" class=\"exd-art\" data-ex=\"' + escapeAttr(shown) + '\" onclick=\"openHowTo(this.dataset.ex)\" aria-label=\"' + escapeAttr('How to do ' + shown.trim()) + '\">' + art + '<span>How to</span></button>' : ''; const loggedAs = exDetailAs && loggedExerciseKey(exDetailAs) !== loggedExerciseKey(String(name)) ? '<span class=\"exd-meta-as\">Logged as ' + escapeHtml(String(name).trim()) + '</span>' : ''; document.getElementById('exDetailMeta').innerHTML = loggedAs + exDetailMetaHtml(d);",
+    "const name = exDetailName; const d = deriveExerciseDetail(name); exDetailModel = d; document.getElementById('exDetailName').textContent = name; const art = exerciseThumbHtml(name, { static: true }); document.getElementById('exDetailArt').innerHTML = art ? '<button type=\"button\" class=\"exd-art\" data-ex=\"' + escapeAttr(name) + '\" onclick=\"openHowTo(this.dataset.ex)\" aria-label=\"' + escapeAttr('How to do ' + name.trim()) + '\">' + art + '<span>How to</span></button>' : ''; document.getElementById('exDetailMeta').innerHTML = exDetailMetaHtml(d);"]],
+  masteryExerciseTarget: [[
+    "function masteryExerciseTarget(exerciseId){ const m = getExerciseMastery(exerciseId); const rec = buildMasteryIndex()[exerciseId]; if(!m || !rec || !rec.names.size) return null; const own = loggedExerciseKey(m.displayName); const lifts = new Map(); rec.names.forEach(n => { const raw = String(n), k = loggedExerciseKey(raw); if(!lifts.has(k)) lifts.set(k, raw); }); let best = null; lifts.forEach((raw, key) => { const sessions = getExerciseFullHistory(raw).length; if(!best || sessions > best.sessions || (sessions === best.sessions && key === own && best.key !== own)) best = { key, raw, sessions }; }); const rows = new Map(); workoutLog.forEach(l => (l.exercises || []).forEach(ex => { if(typeof ex.name === 'string' && loggedExerciseKey(ex.name) === best.key) rows.set(ex.name, (rows.get(ex.name) || 0) + 1); })); return { name: rows.size ? chooseLoggedSpelling(rows) : best.raw, title: m.displayName }; }",
+    ""]],
+  openMasteryExercise: [[
+    "function openMasteryExercise(exerciseId){ const t = masteryExerciseTarget(exerciseId); if(t) openExDetail(t.name, { as: t.title }); }",
+    ""]]
+};
+/* the art table's D129 addition, [now, as of 10.45], on the newline-normalised art source */
+const D129_NEW_NAMES = ['single-arm cable lateral raise', 'single arm cable lateral raise'];
+const D129_ART = [
+  "  'wide-grip lat pulldown':'lat_pulldown', 'wide-grip pulldown':'lat_pulldown',\n\n  /* A spelling an athlete types for a movement LOOP already draws (D129). It reaches that movement's drawing and\n     nothing else: the name stays an exercise of its own, with its own history and its own mastery. The Cable\n     Lateral Raise drawing IS the one-arm raise (one handle, the pulley low on the opposite side). A name that\n     could be done with more than one kind of equipment is not added here. */\n  'single-arm cable lateral raise':'lateral_raise_cable', 'single arm cable lateral raise':'lateral_raise_cable'\n};\n",
+  "  'wide-grip lat pulldown':'lat_pulldown', 'wide-grip pulldown':'lat_pulldown'\n};\n"];
+function asOf1045Art(text){
+  const s = String(text).split('\r\n').join('\n');
+  return s.split(D129_ART[0]).length === 2 ? s.split(D129_ART[0]).join(D129_ART[1]) : null;   // null: the D129 block itself moved
+}
+function asOfChain(name, tables){
   if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
-  for(const [now, then] of (D128_EDITS[name] || [])){
-    if(t.split(now).length !== 2) return null;           // a D128 statement itself moved
+  for(const table of tables) for(const [now, then] of (table[name] || [])){
+    if(t.split(now).length !== 2) return null;           // a statement of that phase itself moved
     t = t.split(now).join(then);
   }
   return t;
+}
+function asOf1045(name){ return asOfChain(name, [D129_EDITS]); }
+function pinAsOf1045(name){
+  const t = asOf1045(name);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+/* 10.44 is 10.45 with D128 put back too: the D129 statements come out first, then D128's */
+function asOf1044(name){ return asOfChain(name, [D129_EDITS, D128_EDITS]); }
+/* the named functions as 10.45 had them, installed in a loaded app for one call (a name 10.45 did not have is left undefined) */
+function withAsOf1045(c, names, fn){
+  const vm = require('vm'), keep = names.map(n => c[n]);
+  names.forEach(n => { const s = asOf1045(n); c[n] = s === null ? undefined : (s === '' ? undefined : vm.runInContext('(' + s + ')', c)); });
+  try{ return fn(); } finally { names.forEach((n, i) => { c[n] = keep[i]; }); }
 }
 function pinAsOf1044(name){
   const t = asOf1044(name);
@@ -22834,7 +22881,8 @@ async function testExerciseVisuals(){
   T('the swap sheet', /exerciseThumbHtml\(name, \{ static: true \}\)/.test(fnSrc(src, 'substitutionOptionHtml')));
   T('Program Studio', /exerciseThumbHtml\(name, \{ static: true \}\)/.test(fnSrc(src, 'pbExerciseRowHtml')));
   T('the exercise picker', /exerciseThumbHtml\(name, \{ static: true \}\)/.test(fnSrc(src, 'exPickerRowHtml')));
-  T('exercise detail', /exerciseThumbHtml\(name, \{ static: true \}\)/.test(fnSrc(src, 'renderExDetail')));
+  /* D129 restated: the page draws the name it is TITLED with - the lift's own, or the movement's when opened from a Mastery card. */
+  T('exercise detail', /exerciseThumbHtml\((name|shown), \{ static: true \}\)/.test(fnSrc(src, 'renderExDetail')));
   T('and no screen repeats the picture it already shows',
     /\.stepper-on \.ex-log-name-row \.ex-thumb\{ display: none; \}/.test(src));
   T('the picture follows the name on the row, so a swap swaps it',
@@ -26509,7 +26557,9 @@ async function testTrainLauncher(){
      D67 redrew the Russian twist; D68 redrew the weighted Russian twist and removed vSit, its
      now-dead helper — nothing else, which Contracts 175 and 176 hold drawing by drawing. */
   T('no drawing changed but on purpose: the art source and its vendored copy are D68\'s',
-    fs.existsSync(artFile) && sha(norm(fs.readFileSync(artFile, 'utf8'))) === '78be015988bc102d' && a > 0 && b > a && sha(norm(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b))) === '78be015988bc102d');
+    /* D129 restated, by reversal: D68's art source with D129's one addition (two spellings that reach a drawing LOOP already makes)
+       put back out; any other change to a drawing, a cue or a name still fails. */
+    fs.existsSync(artFile) && sha(norm(asOf1045Art(fs.readFileSync(artFile, 'utf8')) || '')) === '78be015988bc102d' && a > 0 && b > a && sha(norm(asOf1045Art(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b)) || '')) === '78be015988bc102d');
   /* D71 redrew bodyDiagramSvg on purpose — ellipses and a rounded-rect torso
      standing in for anatomy, replaced by one continuous silhouette per view
      with real muscle-region paths. D72 replaced THAT drawing on purpose too —
@@ -26978,7 +27028,9 @@ async function testRussianTwistArt(){
     const lib = norm(src.slice(a + 'LOOP-EXERCISE-ART-BEGIN */'.length, b));
     const renderer = lib.slice(lib.indexOf('var ExerciseArt = (function(){'), lib.indexOf('var EXERCISE_ART = (function(){'));
     T('the renderer is untouched: no new option, no new rule', renderer.length > 40000 && sha(renderer) === '6f4ebcaeb25afe0c');
-    T('the names that reach drawings are as they were', sha(JSON.stringify(ctx.EXERCISE_ART.byName)) === '25a5e81ed07285c4');
+    /* D129 restated, by reversal: the table as D68 left it, with D129's two spellings of the one-arm cable raise taken back out */
+    const names1045 = Object.assign({}, ctx.EXERCISE_ART.byName); D129_NEW_NAMES.forEach(k => { delete names1045[k]; });
+    T('the names that reach drawings are as they were', sha(JSON.stringify(names1045)) === '25a5e81ed07285c4' && D129_NEW_NAMES.every(k => ctx.EXERCISE_ART.byName[k] === 'lateral_raise_cable'));
     T('this drawing\'s own cues are unchanged; the weighted twist\'s are D68\'s, checked by Contract 176',
       JSON.stringify(ctx.EXERCISE_ART.howTo.russian_twist) === '["Lean back, feet off the floor","Rotate the hands side to side","Turn from the ribs"]');
     T('the thumbnail budget holds', Object.keys(defs).reduce((s, k) => s + (XA.render(defs[k], { size:'thumb' }).match(/<(path|circle|rect)/g) || []).length, 0) < 3200);
@@ -32255,12 +32307,13 @@ async function testMasteryPodium(){
     // other still being correct.
     const podiumHtml = html.slice(html.indexOf('class="mpod'), html.indexOf('mst-list-head'));
     const rowsHtml = html.slice(html.indexOf('mst-list-head'));
-    T('the podium opens Exercise Detail with the logged spelling',
-      new RegExp("openExDetail\\('" + m.loggedName + "'\\)").test(podiumHtml) &&
-      podiumHtml.indexOf("openExDetail('" + m.displayName + "')") === -1);
+    /* D129 restated: the tap goes through openMasteryExercise, by the movement's id, and what it opens is still the lift AS LOGGED -
+       never the canonical spelling, whose history is empty (the bug D86 found). Contract 246 holds the rest. */
+    T('the podium opens Exercise Detail on the lift as it was logged (through openMasteryExercise)',
+      new RegExp("openMasteryExercise\\('" + m.exerciseId + "'\\)").test(podiumHtml) && podiumHtml.indexOf("openExDetail(") === -1 &&
+      (tg => !!tg && tg.name === m.loggedName && tg.name !== m.displayName && ctx.getExerciseFullHistory(tg.name).length > 0)(ctx.masteryExerciseTarget(m.exerciseId)));
     T('so does the exercise-mastery row for the same movement',
-      new RegExp("mastery-row-tap\" onclick=\"openExDetail\\('" + m.loggedName + "'\\)").test(rowsHtml) &&
-      rowsHtml.indexOf("openExDetail('" + m.displayName + "')") === -1);
+      new RegExp("mastery-row-tap\" onclick=\"openMasteryExercise\\('" + m.exerciseId + "'\\)").test(rowsHtml) && rowsHtml.indexOf("openExDetail(") === -1);
   });
   await guard('the tap actually opens the existing detail sheet — no second system', () => {
     seed([session(D(0), 'Bench Press', 185, 8)]);
@@ -32586,8 +32639,8 @@ async function testStabilization(){
          sites are held separately below. */
       T(fn + ' is addressed with onclickArg at all ' + n + ' of its handler sites',
         (src.match(re) || []).length === n);
-      if(fn === 'openExDetail') T('and the Mastery leader card and exercise-mastery row are the other two, through the same helper',
-        ['masteryPodiumCardHtml', 'masteryRowHtml'].every(n => /onclick: "openExDetail\('" \+ onclickArg\(m\.loggedName\) \+ "'\)"/.test(fnSrc(src, n))));
+      if(fn === 'openExDetail') T('and the Mastery leader card and exercise-mastery row reach it through openMasteryExercise, the id escaped by the same helper (D129)',
+        ['masteryPodiumCardHtml', 'masteryRowHtml'].every(n => /onclick: "openMasteryExercise\('" \+ onclickArg\(m\.exerciseId\) \+ "'\)"/.test(fnSrc(src, n))));
     });
     T('no handler still passes a name through escapeAttr alone',
       !/onclick="openExDetail\('\$\{escapeAttr\(/.test(src));
@@ -35604,7 +35657,8 @@ async function testMasteryView(){
       T('card ' + (i + 1) + ': the whole card says it in words, for a screen reader — place, name, level, sessions, progress',
         new RegExp('aria-label="' + ['1st', '2nd', '3rd'][i] + ' — ' + m.displayName + ', Level ' + m.level + ', ' + m.sessions + ' session').test(c));
     });
-    T('a card opens Exercise Detail by the LOGGED name, through onclickArg', /onclick="openExDetail\('Bench Press'\)"/.test(ex));
+    /* D129 restated: a card opens its lift through openMasteryExercise (the id, escaped by onclickArg), and the lift is the one logged */
+    T('a card opens Exercise Detail on the lift as logged, through onclickArg', /onclick="openMasteryExercise\('bench_press_barbell'\)"/.test(ex) && (tg => !!tg && tg.name === 'Bench Press')(ctx.masteryExerciseTarget('bench_press_barbell')));
     T('the full exercise list still follows the leaders, unchanged', ex.indexOf('mst-list-head') > ex.indexOf('mpod-card') && /class="mastery-row mastery-row-tap"/.test(ex));
     /* D106 restated: one podium — both modes render the .mpod namespace through masteryLeadersHtml (Contract 221). */
     T('leaders sit in a labelled list, in rank order, in one grid', /class="mpod mpod-n3" role="list" data-mode="exercise" aria-label="Exercise mastery leaders"/.test(ex));
@@ -35616,9 +35670,9 @@ async function testMasteryView(){
     T('the top level says Max level, and its bar is full', (h => /Max level/.test(h) && !/% to L/.test(h) && /style="width:100%"/.test(h))(ctx.masteryPodiumCardHtml(fake({ level: 10, isMax: true, percent: 40 }), 2)));
     T('level 1 wears the first badge; 0 percent is an empty bar, not a missing one',
       (h => /mastery-badge-1\.png/.test(h) && /style="width:0%"/.test(h))(ctx.masteryPodiumCardHtml(fake({ level: 1, percent: 0 }), 3)));
-    const evil = ctx.masteryPodiumCardHtml(fake({ displayName: '<img src=x onerror=alert(1)>', loggedName: "O'Brien \"Press\"" }), 1);
+    const evil = ctx.masteryPodiumCardHtml(fake({ displayName: '<img src=x onerror=alert(1)>', loggedName: "O'Brien \"Press\"", exerciseId: "unmapped:o'brien \"press\"" }), 1);
     T('a name is escaped for the page, never trusted as markup', evil.indexOf('<img src=x') === -1 && evil.indexOf('&lt;img src=x') !== -1);
-    T('and a logged name with quotes reaches the handler escaped for the JS string', /openExDetail\('O\\'Brien /.test(evil) && !/openExDetail\('O'Brien/.test(evil));
+    T('and an id with quotes reaches the handler escaped for the JS string (D129)', /openMasteryExercise\('unmapped:o\\'brien /.test(evil) && !/openMasteryExercise\('unmapped:o'brien/.test(evil));
     T('the badge is decorative: the card already says everything the image would', !/<img[^>]*alt="[^"]+"/.test(evil) && /alt=""/.test(evil));
     T('the entrance is a class, never inline: a card carries only its rank as a style', /style="--i:1"/.test(evil) && !/animation/.test(evil));
   });
@@ -36092,7 +36146,8 @@ async function testMasteryOneSystem(){
     const rows = ex.split('class="mastery-row mastery-row-tap" onclick="').slice(1);
     const dec = s => s.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
       .replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    const called = rows.map(r => { let got = null; try{ new Function('openExDetail', dec(r.slice(0, r.indexOf('"'))))(n => { got = n; }); }catch(e){ got = 'threw'; } return got; });
+    /* D129 restated: the handler is run with openMasteryExercise stubbed; the id that arrives opens the lift as logged */
+    const called = rows.map(r => { let got = null; try{ new Function('openMasteryExercise', dec(r.slice(0, r.indexOf('"'))))(n => { got = n; }); }catch(e){ got = 'threw'; } return got === 'threw' ? got : ((ctx.masteryExerciseTarget(got) || {}).name || null); });
     T('a name is shown as text in its row, never as markup', rows.length === 2 && !/<img src=x/.test(ex) &&
       rows.some(r => r.indexOf('<span class="mastery-row-name">&lt;img src=x onerror=globalThis.__d94b=1&gt; Press</span>') !== -1));
     T('and a tap opens exactly the name that was logged — an apostrophe cannot end the string', called.indexOf(apos) !== -1 && called.indexOf(evil) !== -1, called);
@@ -43785,7 +43840,7 @@ async function testMasteryTourD106(){
       && !/\.mmc|mmc-/.test(cssNC) && !/mmc-card|mmc-p\d|"mmc /.test(code));
     T('only data differs: an exercise card opens its detail (a button), a muscle card opens nothing (a list item)',
       (ex.match(/<button type="button" class="mpod-card /g) || []).length === 3 && (mu.match(/<div class="mpod-card [^"]*" role="listitem"/g) || []).length === 3
-      && !/<button/.test(mu) && /openExDetail\(/.test(ex));
+      && !/<button/.test(mu) && /openMasteryExercise\(/.test(ex));
     T('2 — 1st sits in the centre, 2nd left, 3rd right, in both (visual order only; the DOM keeps rank order)',
       /\.mpod-p1\{ order: 2; \}/.test(css) && /\.mpod-p2\{ order: 1; \}/.test(css) && /\.mpod-p3\{ order: 3; \}/.test(css) && /\.mpod\{ align-items: end; \}/.test(css)
       && ex.indexOf('mpod-p1') < ex.indexOf('mpod-p2') && ex.indexOf('mpod-p2') < ex.indexOf('mpod-p3'));
@@ -48315,7 +48370,9 @@ async function testExerciseDetailD118(){
     const names = [viaHtml(html(c, 'progReady'), 'Bench Press'), viaHtml(html(c, 'progExercises'), 'Bench Press')];
     names.push(viaHtml(at(c, () => c.weeklyReviewBodyHtml(c.deriveWeeklyReview(null))), 'Bench Press'));
     const m = c.getExerciseMasteryByName('Bench Press');
-    names.push(viaHtml(c.masteryRowHtml(m), 'Bench Press'), viaHtml(c.masteryPodiumCardHtml(m, 1), 'Bench Press'));
+    /* D129 restated: Mastery's row and podium ask for their movement by id (openMasteryExercise); the lift that opens is the one logged */
+    const viaId = h => { const q = h.match(/onclick="openMasteryExercise\('([^"]*)'\)"/); return q ? ((c.masteryExerciseTarget(q[1].replace(/&#39;/g, "'")) || {}).name || null) : null; };
+    names.push(viaId(c.masteryRowHtml(m)), viaId(c.masteryPodiumCardHtml(m, 1)));
     c.document.getElementById('exHistorySelect').value = 'Bench Press';
     at(c, () => c.renderExerciseHistoryList());
     names.push(viaHtml(html(c, 'exHistoryList'), 'Exercise detail'));
@@ -48331,10 +48388,13 @@ async function testExerciseDetailD118(){
         /onclick="openExDetail\('\$\{onclickArg\(name\)\}'\)"/.test(fnSrc(raw, 'renderExerciseHistoryList')));
     }
     const code = stripComments(raw);
-    const DOORS = { renderProgStrength: 2, weeklyReviewBodyHtml: 1, masteryRowHtml: 1, masteryPodiumCardHtml: 1, renderExerciseHistoryList: 1 };
-    T('14  those six doors, in five renderers, are the only places that open the detail — no variant opener anywhere',
+    /* D129 restated: Mastery's row and podium no longer call openExDetail themselves - each calls openMasteryExercise, the one place that does,
+       with the movement's title - so the doors are Strength (twice), Weekly Review, History and openMasteryExercise */
+    const DOORS = { renderProgStrength: 2, weeklyReviewBodyHtml: 1, openMasteryExercise: 1, masteryRowHtml: 0, masteryPodiumCardHtml: 0, renderExerciseHistoryList: 1 };
+    T('14  those doors - Strength twice, Weekly Review, History, and Mastery’s row and podium through openMasteryExercise - are the only places that open the detail, no variant opener anywhere',
       Object.keys(DOORS).every(n => (fnSrc(raw, n).match(/openExDetail\(/g) || []).length === DOORS[n]) &&
-      (code.match(/openExDetail\(/g) || []).length === 6 + 1, (code.match(/openExDetail\(/g) || []).length);
+      ['masteryRowHtml', 'masteryPodiumCardHtml'].every(n => (fnSrc(raw, n).match(/openMasteryExercise\(/g) || []).length === 1) &&
+      (code.match(/openExDetail\(/g) || []).length === 5 + 1, (code.match(/openExDetail\(/g) || []).length);
     open(c, 'Bench Press');
     const before = text(c, 'exDetailFacts');
     c.workoutLog = c.workoutLog.filter(l => l.id !== 'i2'); c.invalidateSortedLogCache();
@@ -52461,7 +52521,7 @@ async function testExerciseMasteryArtD128(){
   const as1044 = fn => { if(!OK1044) return null; const names = ['masteryLeaderCardHtml', 'masteryPodiumCardHtml'], keep = names.map(n => c[n]);
     names.forEach(n => { c[n] = vm.runInContext('(' + asOf1044(n) + ')', c); });
     try{ return fn(); } finally { names.forEach((n, i) => { c[n] = keep[i]; }); } };
-  const FK = (name, level, percent, o) => Object.assign({ displayName: name, loggedName: name, level, percent, isMax: false, sessions: 12 }, o || {});
+  const FK = (name, level, percent, o) => Object.assign({ displayName: name, loggedName: name, exerciseId: 'fake_' + String(name).toLowerCase().replace(/[^a-z0-9]+/g, '_'), level, percent, isMax: false, sessions: 12 }, o || {});
   const ART3 = [FK('Pec Deck', 4, 27), FK('Machine Chest Press', 4, 27), FK('Incline Dumbbell Press', 4, 16)];
   const artOf = name => c.exerciseThumbHtml(name, { static: true, cls: 'mpod-art' });
   const keyOf = name => c.exerciseVisualKey(name);
@@ -52501,7 +52561,7 @@ async function testExerciseMasteryArtD128(){
     /* the same tile, drawn as every other surface draws it */
     T('10  it is the same picture the other surfaces show for the same name: the picker’s, the swap sheet’s and Exercise Detail’s call (static: true) gives this tile with only its extra class removed',
       ART3.every(m => c.exerciseThumbHtml(m.displayName, { static: true }).replace('class="ex-thumb"', 'class="ex-thumb mpod-art"') === artOf(m.displayName))
-      && ['exPickerRowHtml', 'substitutionOptionHtml', 'renderExDetail'].every(n => /exerciseThumbHtml\((name|m\.displayName), \{ static: true/.test(col(fnSrc(raw, n)))));
+      && ['exPickerRowHtml', 'substitutionOptionHtml', 'renderExDetail'].every(n => /exerciseThumbHtml\((name|shown|m\.displayName), \{ static: true/.test(col(fnSrc(raw, n)))));
     const own = col(stripComments(fnSrc(raw, 'masteryExerciseArtHtml')));
     T('11  masteryExerciseArtHtml finds, names and draws nothing of its own: it hands the card’s name to exerciseThumbHtml and returns what it returns',
       own === "function masteryExerciseArtHtml(m){ return exerciseThumbHtml(m.displayName, { static: true, cls: 'mpod-art' }); }"
@@ -52518,21 +52578,23 @@ async function testExerciseMasteryArtD128(){
     const al = atNow(() => c.getExerciseMasteryByName('Barbell Bench Press')), alHtml = atNow(() => c.masteryPodiumCardHtml(al, 1));
     T('13  an alias the athlete typed (Barbell Bench Press is Bench Press): the card is named Bench Press, shows Bench Press’s drawing — the one the logged spelling reaches too — and still opens the exercise as it was logged',
       al.displayName === 'Bench Press' && al.loggedName === 'Barbell Bench Press' && drew(alHtml, 'Bench Press') && keyOf('Barbell Bench Press') === keyOf('Bench Press')
-      && /openExDetail\('Barbell Bench Press'\)/.test(decode(attr(alHtml, 'onclick'))));
+      && /openMasteryExercise\('bench_press_barbell'\)/.test(decode(attr(alHtml, 'onclick'))) && (tg => !!tg && tg.name === 'Barbell Bench Press')(atNow(() => c.masteryExerciseTarget('bench_press_barbell'))));
     /* five spellings share a canonical id with another exercise yet are drawn as themselves (Pendlay Row ...): the card is
        the canonical exercise, so its picture is the canonical name's drawing, whichever spelling was logged first */
     const pr = atNow(() => c.getExerciseMasteryByName('Pendlay Row')), prHtml = atNow(() => c.masteryPodiumCardHtml(pr, 2));
     T('14  a spelling that shares an id with another drawn exercise (Pendlay Row, whose canonical card is Barbell Row) shows the drawing of the NAME ON THE CARD (Barbell Row), not whichever spelling was logged first',
       pr.displayName === 'Barbell Row' && pr.loggedName === 'Pendlay Row' && drew(prHtml, 'Barbell Row') && !drew(prHtml, 'Pendlay Row') && keyOf('Pendlay Row') !== keyOf('Barbell Row'));
     /* uncatalogued names */
-    const miss = ['Rear Delt Cable Fly', 'Single-Arm Cable Lateral Raise', 'My Garage Press'];
-    T('15  names LOOP has no drawing for — the brief’s own Rear Delt Cable Fly and Single-Arm Cable Lateral Raise, and a made-up one — return nothing, exactly as on every other surface (no generic figure, no placeholder)',
+    /* D129 restated: Single-Arm Cable Lateral Raise now reaches the Cable Lateral Raise drawing (Contract 246); the names that stay
+       undrawn are held there too - the bare Chest Press and Shoulder Press (more than one kind of equipment), Rear Delt Cable Fly (no cable drawing) */
+    const miss = ['Rear Delt Cable Fly', 'Chest Press', 'Shoulder Press', 'My Garage Press'];
+    T('15  names LOOP has no drawing for — Rear Delt Cable Fly, the bare Chest Press and Shoulder Press, and a made-up one — return nothing, exactly as on every other surface (no generic figure, no placeholder)',
       miss.every(n => artOf(n) === '' && c.exerciseThumbHtml(n, { static: true }) === '' && keyOf(n) === null));
     const evil = atNow(() => c.masteryPodiumCardHtml(FK('<img src=x onerror=alert(1)>', 2, 10, { loggedName: "O'Brien \"Press\"" }), 1));
     T('16  a name that tries to be markup is escaped and reaches no drawing', artOf('<img src=x onerror=alert(1)>') === '' && !/<img src=x/.test(evil) && /&lt;img src=x onerror=alert\(1\)&gt;/.test(evil));
     const exMast = atNow(() => c.getTopExerciseMastery());
-    T('17  in the rich history the lifts split as the audit found: the drawn ones return a drawing under the card’s name, the two uncatalogued ones do not',
-      exMast.filter(m => artOf(m.displayName) === '').map(m => m.displayName).sort().join() === 'Rear Delt Cable Fly,Single-Arm Cable Lateral Raise' && exMast.length === 14);
+    T('17  in the rich history the lifts split as the audit found: the drawn ones return a drawing under the card’s name, the uncatalogued one that stays undrawn does not (the one-arm cable raise draws since D129)',
+      exMast.filter(m => artOf(m.displayName) === '').map(m => m.displayName).sort().join() === 'Rear Delt Cable Fly' && exMast.length === 14);
   });
 
   /* ---------------------------------------------------------------- */
@@ -52570,7 +52632,7 @@ async function testExerciseMasteryArtD128(){
       nc[1].querySelectorAll('.ex-thumb').length === 0 && nc[1].querySelectorAll('.mpod-hero .mbadge').length === 1 && /width="72"/.test(nc[1].querySelector('.mpod-hero').innerHTML) && nc[1].querySelectorAll('.mpod-mark').length === 0
       && nc[0].querySelectorAll('.mpod-hero .ex-thumb').length === 1 && nc[2].querySelectorAll('.mpod-hero .ex-thumb').length === 1);
     const all3 = atNow(() => c.masteryPodiumHtml(miss3())), n3 = cardsOf(all3);
-    function miss3(){ return [FK('Single-Arm Cable Lateral Raise', 4, 27), FK('Rear Delt Cable Fly', 4, 20), FK('My Garage Press', 3, 10)]; }
+    function miss3(){ return [FK('Chest Press', 4, 27), FK('Rear Delt Cable Fly', 4, 20), FK('My Garage Press', 3, 10)]; }
     T('26  every leader without a drawing: three badge heroes, three level pills, no tile anywhere, the podium unbroken',
       n3.length === 3 && n3.every(x => x.querySelectorAll('.ex-thumb').length === 0 && x.querySelectorAll('.mpod-hero .mbadge').length === 1 && x.querySelectorAll('.mastery-lvl-chip').length === 1 && x.querySelectorAll('.mcb').length === 1 && x.querySelectorAll('.mpod-step').length === 1));
     T('27  nothing broken is drawn: no "undefined", "null", "NaN" or "[object", no empty picture slot, no image without a source, in any of the cases',
@@ -52609,12 +52671,13 @@ async function testExerciseMasteryArtD128(){
     T('34  the audit: the rows had no picture of any kind — no badge, no thumbnail — so there was no generic image in their identity slot to replace, and none was added',
       rows.length === 14 && rows.every(r => r.querySelectorAll('img').length === 0 && r.querySelectorAll('.ex-thumb').length === 0 && r.querySelectorAll('.mbadge').length === 0 && r.tagName === 'BUTTON'));
     T('35  their builders are byte-identical to 10.44: the row, the list, the muscle row, the pill, the bar, the badge helper',
-      pin('masteryRankRowHtml') === 'ab85b6b7047615aa' && pin('masteryRowHtml') === '0c5044a40f79be78' && pin('muscleMasteryRowHtml') === 'de6e069ff0909c2f' && pin('masteryListHtml') === '058ea74eaf729ee2'
+      pin('masteryRankRowHtml') === 'ab85b6b7047615aa' && pinAsOf1045('masteryRowHtml') === '0c5044a40f79be78' && pin('muscleMasteryRowHtml') === 'de6e069ff0909c2f' && pin('masteryListHtml') === '058ea74eaf729ee2'
       && pin('exerciseMasteryListHtml') === '39be1a56affbcbf8' && pin('masteryLevelPillHtml') === '5a84d2dfd1e2d419' && pin('masteryBarHtml') === '8ff159ded75a682e' && pin('masteryBadgeHtml') === '3ec676f4777b644b');
-    const rowDigest = atNow(() => sha([c.exerciseMasteryListHtml(5), c.muscleMasteryListHtml(5), c.masteryRowHtml(FK('Pec Deck', 4, 27)), c.masteryRankRowHtml({ name: 'X', level: 2, percent: 10, isMax: false, meta: 'm', onclick: "f('x')" })].join('\n')));
+    /* D129 restated, by reversal: the row as 10.45 built it (its tap was openExDetail by the logged name) */
+    const rowDigest = atNow(() => withAsOf1045(c, ['masteryRowHtml'], () => sha([c.exerciseMasteryListHtml(5), c.muscleMasteryListHtml(5), c.masteryRowHtml(FK('Pec Deck', 4, 27)), c.masteryRankRowHtml({ name: 'X', level: 2, percent: 10, isMax: false, meta: 'm', onclick: "f('x')" })].join('\n'))));
     T('36  their output is 10.44’s: the exercise list, the muscle list and the row for a fake exercise hash to the digest frozen from 10.44', rowDigest === '0c7203d595c8a222', rowDigest);
-    T('37  the ranked list keeps its order, its "View all N" disclosure and its taps: the rows are the top lifts in the app’s order, each opening Exercise Detail by the logged name',
-      same(rows.map(r => r.querySelector('.mastery-row-name').textContent), exMast14()) && /View all 14/.test(exPanel) && rows.every(r => /^openExDetail\('/.test(r.getAttribute('onclick'))));
+    T('37  the ranked list keeps its order, its "View all N" disclosure and its taps: the rows are the top lifts in the app’s order, each opening its lift through openMasteryExercise (D129)',
+      same(rows.map(r => r.querySelector('.mastery-row-name').textContent), exMast14()) && /View all 14/.test(exPanel) && rows.every(r => /^openMasteryExercise\('/.test(r.getAttribute('onclick'))));
     function exMast14(){ return atNow(() => c.getTopExerciseMastery().filter(m => m.hasHistory).map(m => m.displayName)); }
     T('38  the list below the podium is where it was: the podium is ranked from the same list (getMasteryProgress().podium is its first three)',
       same(atNow(() => c.getMasteryProgress().podium.map(m => m.displayName)), exMast14().slice(0, 3)) && same(cardsOf(exPanel).map(x => x.querySelector('.mpod-name').textContent), exMast14().slice(0, 3)));
@@ -52649,13 +52712,15 @@ async function testExerciseMasteryArtD128(){
   /* ---------------------------------------------------------------- */
   sub('44–49  navigation, accessibility and touch: as they were');
   await guard('nav', async () => {
-    const FAKES = [FK('Pec Deck', 4, 27, { loggedName: 'Pec Deck' }), FK('Bench Press', 3, 60, { loggedName: 'Barbell Bench Press' }), FK('<img src=x onerror=alert(1)>', 2, 10, { loggedName: "O'Brien \"Press\"" })];
+    const FAKES = [FK('Pec Deck', 4, 27, { loggedName: 'Pec Deck', exerciseId: 'pec_deck' }), FK('Bench Press', 3, 60, { loggedName: 'Barbell Bench Press', exerciseId: 'bench_press_barbell' }), FK('<img src=x onerror=alert(1)>', 2, 10, { loggedName: "O'Brien \"Press\"", exerciseId: "unmapped:o'brien \"press\"" })];
     const now = atNow(() => FAKES.map((m, i) => c.masteryPodiumCardHtml(m, i + 1))), was = OK1044 ? atNow(() => as1044(() => FAKES.map((m, i) => c.masteryPodiumCardHtml(m, i + 1)))) : [];
-    T('44  navigation is unchanged: each card’s handler is exactly 10.44’s (openExDetail by the LOGGED name, escaped), for a plain name, an alias and a name with quotes and markup',
-      was.length === 3 && now.every((h, i) => attr(h, 'onclick') === attr(was[i], 'onclick')) && /openExDetail\('Pec Deck'\)/.test(decode(attr(now[0], 'onclick'))) && /openExDetail\('Barbell Bench Press'\)/.test(decode(attr(now[1], 'onclick'))));
+    /* D129 restated: 10.44's handler was openExDetail by the LOGGED name (compiled back); it is now openMasteryExercise by the movement's id */
+    T('44  navigation, as restated by D129: each card is a button whose handler was openExDetail by the LOGGED name in 10.44 and is now openMasteryExercise by the movement’s id, escaped - for a plain name, an alias and a name with quotes and markup',
+      was.length === 3 && /openExDetail\('Pec Deck'\)/.test(decode(attr(was[0], 'onclick'))) && /openExDetail\('Barbell Bench Press'\)/.test(decode(attr(was[1], 'onclick')))
+      && now.every(h => /^<button type="button" class="mpod-card/.test(h)) && /^openMasteryExercise\('pec_deck'\)$/.test(decode(attr(now[0], 'onclick'))) && /^openMasteryExercise\('bench_press_barbell'\)$/.test(decode(attr(now[1], 'onclick'))));
     const opened = [];
-    now.forEach(h => { try{ new Function('openExDetail', decode(attr(h, 'onclick')))(n => opened.push(n)); }catch(e){ opened.push('threw ' + e.message); } });
-    T('45  and run, the handler opens the right exercise: the logged name arrives intact, even one with an apostrophe, quotes and markup', same(opened, ['Pec Deck', 'Barbell Bench Press', "O'Brien \"Press\""]), opened);
+    now.forEach(h => { try{ new Function('openMasteryExercise', decode(attr(h, 'onclick')))(n => opened.push(n)); }catch(e){ opened.push('threw ' + e.message); } });
+    T('45  and run, the handler asks for the right movement: its id arrives intact, even one with an apostrophe, quotes and markup (Contract 246 holds the lift it opens)', same(opened, ['pec_deck', 'bench_press_barbell', "unmapped:o'brien \"press\""]), opened);
     T('46  the accessible names are unchanged: each card’s label is 10.44’s, word for word (place, name, level, sessions, progress)',
       was.length === 3 && now.every((h, i) => attr(h, 'aria-label') === attr(was[i], 'aria-label')) && /^1st — Pec Deck, Level 4, 12 sessions, 27% to Level 5\.$/.test(decode(attr(now[0], 'aria-label'))));
     const imgs = now.join('').match(/<img [^>]*>/g) || [], toolSpans = now.join('').match(/<span class="ex-thumb[^>]*>/g) || [];
@@ -52706,10 +52771,10 @@ async function testExerciseMasteryArtD128(){
       && pin('captureActiveDraft') === '42dabe95ca8963a0' && pin('restoreDraftToSheet') === '1b1ae98544966e44' && pin('swapLogExercise') === '7206131885de9128' && pin('toggleSetComplete') === 'ed4187ee4b7b5e61');
     T('58  the exercise illustrations themselves, and the picture helpers every surface shares, are byte-identical: the lookup, the sprite, the tile, How To, and the vendored drawings',
       pin('exerciseVisualKey') === 'eeeaad5194ff7779' && pin('exerciseArtSvg') === 'b25e593b5b75b19f' && pin('exerciseArtUse') === 'cd513498f55c104b' && pin('exerciseThumbHtml') === 'fe3dc90ec306b794' && pin('openHowTo') === '35733ce07b9c2bb8'
-      && sha(raw.slice(raw.indexOf('LOOP-EXERCISE-ART-BEGIN */'), raw.indexOf('/* LOOP-EXERCISE-ART-END */'))) === 'b5256aca5a4fa09b'
+      && sha(asOf1045Art(raw.slice(raw.indexOf('LOOP-EXERCISE-ART-BEGIN */'), raw.indexOf('/* LOOP-EXERCISE-ART-END */'))) || '') === 'b5256aca5a4fa09b'
       && /\.ex-thumb\{\s*flex-shrink: 0; width: 44px; height: 44px; padding: 2px;/.test(cssNC));
     T('59  Exercise Detail is untouched: its mastery block, its hero art and its header still build as they did',
-      pin('exerciseMasteryHtml') === '260962f41258c62d' && pin('renderExDetail') === 'eb7694712d47a723' && pin('openExDetail') === '22fe8c8539f20564');
+      pin('exerciseMasteryHtml') === '260962f41258c62d' && pinAsOf1045('renderExDetail') === 'eb7694712d47a723' && pinAsOf1045('openExDetail') === '22fe8c8539f20564');
     const app2 = await boot([]), c2 = app2.ctx; const held = (log, fn) => { c2.workoutLog = JSON.parse(JSON.stringify(log)); fresh(c2); return withClockOn(c2, NOW, () => fn(c2)); };
     const W = (id, date, ex) => ({ id, date, category: 'push', title: 'Push', notes: '', exercises: [E('Bench Press', ex)] });
     const e48 = held([], x => { const p = x.deriveWorkingSetPlan('Bench Press', '8-12', 3, { tag: 'increase', weight: 210 }, {}); return p.source + ' ' + p.reps.join('/'); });
@@ -52721,6 +52786,360 @@ async function testExerciseMasteryArtD128(){
       pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50' && /working set/.test(raw) && pin('setChipHtml') === '350b4e34eb582056' && pin('substitutionIsHold') === '049ba50329c76db3');
     T('62  storage: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow — no key, no migration, no history rewritten',
       (() => { const a = H.loadApp(); return a.ctx.DATA_KEYS.length === 16 && a.ctx.DATA_SCHEMA_VERSION === 1 && a.ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow'; })() && pin('saveLog') === '66c63714822ef5ee' && pin('capturedPrescription') === '4b741af98b989695');
+  });
+}
+
+/* =========================================================
+   CONTRACT 246 — EXERCISE IDENTITY COHERENCE  (Phase D129)
+   ---------------------------------------------------------
+   D128 made an exercise's drawing the identity of its Mastery card and
+   exposed two disagreements. E52: spellings an athlete types had no
+   drawing although LOOP draws the movement (Chest Press, Shoulder Press,
+   Single-Arm Cable Lateral Raise, Rear Delt Cable Fly). E53: a card is a
+   MOVEMENT (LOOP's registry merges the spellings it knows) but Exercise
+   Detail is a LIFT (records, trends and D49 are read by the name logged,
+   Contract 172 section 95), and the tap opened the lift under its own
+   name, so a card could say Barbell Row, draw a Barbell Row and open
+   "Pendlay Row" with the Pendlay drawing.
+
+   What D129 does, and what it declines to do, is held here.
+   E52 - each spelling was audited, not guessed. The one-arm cable lateral
+   raise IS the drawing LOOP already makes for the Cable Lateral Raise (one
+   handle, the pulley low on the opposite side), so its two exact spellings
+   reach it, as names that reach a drawing and NOTHING else (the art table's
+   own precedent: single-arm db row, wide-grip lat pulldown): no exercise
+   identity, no mastery, no record changes. Chest Press and Shoulder Press
+   name a FAMILY the registry itself splits by equipment, and Rear Delt
+   Cable Fly has no cable drawing to reach: all three stay as they were.
+   E53 - a Mastery tap opens the lift the athlete logged most under the
+   movement, and the page is titled and drawn as the card is, over that
+   lift's own data. Nothing is renamed, merged, recomputed or stored.
+
+   The baseline is shown on 10.45's own functions, compiled back from
+   D129_EDITS. Frozen values are taken from 10.45 itself. Geometry and real
+   touch are the browser rig's (d129/qa129.js).
+   ========================================================= */
+async function testExerciseIdentityD129(){
+  section('CONTRACT 246 — exercise identity coherence (D129)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const css = raw.slice(raw.indexOf('<style>'), raw.indexOf('</style>'));
+  const cssNC = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const code = stripComments(raw);
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const pin = n => sha(col(fnSrc(raw, n)));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const NOW = '2026-10-04T12:00:00';
+  const decode = s => String(s).replace(/&quot;/g, '"').replace(/&#39;|&#x27;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  const attr = (html, a) => (new RegExp(' ' + a + '="([^"]*)"').exec(html) || [])[1];
+  const lk = n => String(n).trim().toLowerCase();                       // loggedExerciseKey, written out so a mutant of it cannot hide here
+
+  /* ---- histories: one workout per session, one lift per workout; ids are the spec's prefix and the session number */
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working' });
+  const day = n => { const d = new Date(2026, 9, 4, 12); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const SPEC = (p, name, n, o) => Object.assign({ p, name, n }, o || {});
+  const mk = specs => { const out = []; specs.forEach((sp, si) => { for(let k = 0; k < sp.n; k++) out.push({ id: sp.p + k, date: day((sp.off != null ? sp.off : 1 + (si % 5)) + (sp.n - 1 - k) * (sp.gap || 7)), category: 'push', title: 'Training', notes: '',
+    exercises: [{ name: sp.name, effort: '', bodyweight: false, sets: [0, 1, 2].map(() => S((sp.load || 100) + k, 10)) }] }); }); return out; };
+  const boot = async log => {
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log || []),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) });
+    const rel = pinClock(a.ctx, NOW); try{ await H.settle(300); for(let t = 0; t < 60 && a.ctx.workoutLog.length !== (log || []).length; t++) await H.settle(100); } finally { rel(); }
+    return a;
+  };
+  const fresh = c => ['invalidateSortedLogCache', 'invalidateWorkoutGroups', 'invalidatePRCaches', 'invalidatePRSetCache', 'invalidateXPTimelineCache', 'invalidateRepRangeCache', 'invalidateRecoveryCache',
+    'invalidateCapabilityCache', 'invalidateContextCache', 'invalidateAllMasteryCaches', 'invalidateProgramCache', 'invalidateConsistencyCache', 'invalidateExerciseIdCache'].forEach(k => { if(typeof c[k] === 'function') try{ c[k](); }catch(e){} });
+  const Dm = miniDomD125();
+  const host = html => { const e = Dm.el('div'); e.innerHTML = html; return e; };
+  const artKeyIn = (c, html) => { if(!html) return null; const m = /href="#exart-([a-z0-9_]+)"/.exec(html); if(m) return m[1];
+    for(const k of Object.keys(c.EXERCISE_ART.definitions())){ const s = c.exerciseArtSvg(k, 'thumb'); if(s && html.indexOf(s) !== -1) return k; } return null; };
+
+  /* ================================================================ */
+  sub('1–5  BEFORE: 10.45 itself - the art table without D129’s two names, the Mastery tap and Exercise Detail as 10.45 built them (compiled back from D129_EDITS)');
+  await guard('before', async () => {
+    const a0 = await boot([]), c0 = a0.ctx;
+    const asArt1045 = fn => { const keep = D129_NEW_NAMES.map(k => c0.EXERCISE_ART.byName[k]); D129_NEW_NAMES.forEach(k => { delete c0.EXERCISE_ART.byName[k]; });
+      try{ return fn(); } finally { D129_NEW_NAMES.forEach((k, i) => { c0.EXERCISE_ART.byName[k] = keep[i]; }); } };
+    const FOUR = ['Chest Press', 'Shoulder Press', 'Single-Arm Cable Lateral Raise', 'Rear Delt Cable Fly', 'Single Arm Cable Lateral Raise'];
+    T('1  E52 on 10.45: the four spellings of the brief (and the one-arm raise without its hyphen) reach no drawing, so a card for any of them keeps the tier badge',
+      asArt1045(() => FOUR.every(n => c0.exerciseVisualKey(n) === null && c0.exerciseThumbHtml(n, { static: true }) === '')) && D129_NEW_NAMES.every(k => c0.EXERCISE_ART.byName[k] === 'lateral_raise_cable'));
+    /* E53 on 10.45: a card and the page its tap opens, for a Pendlay-only lift, a plain alias, a T-bar row and two spellings of one movement */
+    const E53 = [
+      ['Pendlay Row alone', [SPEC('pen', 'Pendlay Row', 14)], { card: 'Barbell Row', cardArt: 'row_barbell', page: 'Pendlay Row', pageArt: 'pendlay_row' }],
+      ['T-Bar Row alone', [SPEC('tb', 'T-Bar Row', 14)], { card: 'Machine Row', cardArt: 'row_machine', page: 'T-Bar Row', pageArt: 'tbar_row' }],
+      ['DB Shoulder Press alone', [SPEC('db', 'DB Shoulder Press', 14)], { card: 'Dumbbell Shoulder Press', cardArt: 'shoulder_press_db', page: 'DB Shoulder Press', pageArt: 'shoulder_press_db' }],
+      ['Barbell Bench Press (10, older) and Bench Press (2, newer)', [SPEC('bb', 'Barbell Bench Press', 10, { off: 60, gap: 3 }), SPEC('bp', 'Bench Press', 2, { off: 1, gap: 3 })], { card: 'Bench Press', cardArt: 'bench_press_barbell', page: 'Bench Press', pageArt: 'bench_press_barbell', pageSessions: 2, movementSessions: 12 }]];
+    const seen = [];
+    for(const [label, specs, want] of E53){
+      const app = await boot(mk(specs.concat([SPEC('pd', 'Pec Deck', 12), SPEC('mc', 'Machine Chest Press', 10)]))), c = app.ctx;
+      const r = withClockOn(c, NOW, () => { fresh(c); return withAsOf1045(c, ['masteryPodiumCardHtml', 'openExDetail', 'renderExDetail'], () => {
+        const m = c.getTopExerciseMastery().find(x => x.displayName === want.card), cardHtml = c.masteryPodiumCardHtml(m, 1);
+        let opened = null; new Function('openExDetail', decode(attr(cardHtml, 'onclick')))(x => { opened = x; });
+        c.openExDetail(opened);
+        return { cardTitle: host(cardHtml).querySelector('.mpod-name').textContent, cardArt: artKeyIn(c, cardHtml), handler: decode(attr(cardHtml, 'onclick')), opened,
+          page: c.document.getElementById('exDetailName').textContent, pageArt: artKeyIn(c, c.document.getElementById('exDetailArt').innerHTML), sessions: c.exDetailModel.sessionCount, movement: m.sessions };
+      }); });
+      seen.push([label, r, want]);
+    }
+    T('2  E53 on 10.45: a Pendlay-only lift - the card says Barbell Row and draws the Barbell Row, its tap opens "Pendlay Row" drawn as the Pendlay Row',
+      (([, r, w]) => r.cardTitle === w.card && r.cardArt === w.cardArt && r.page === w.page && r.pageArt === w.pageArt && r.handler === "openExDetail('Pendlay Row')")(seen[0]), seen[0][1]);
+    T('3  E53 on 10.45: a T-bar row alone - the card says Machine Row, the page says T-Bar Row, and the two are drawn differently',
+      (([, r, w]) => r.cardTitle === w.card && r.cardArt === w.cardArt && r.page === w.page && r.pageArt === w.pageArt)(seen[1]), seen[1][1]);
+    T('4  E53 on 10.45: the plan’s own spelling - the card says Dumbbell Shoulder Press, the page says DB Shoulder Press (the drawing is the same; the identity read differently)',
+      (([, r, w]) => r.cardTitle === w.card && r.cardArt === w.cardArt && r.page === w.page && r.pageArt === w.pageArt)(seen[2]), seen[2][1]);
+    T('5  E53 on 10.45: the tap opened the lift LOGGED MOST RECENTLY, however little of the movement it was (2 sessions of the movement’s 12)',
+      (([, r, w]) => r.opened === 'Bench Press' && r.sessions === w.pageSessions && r.movement === w.movementSessions)(seen[3]), seen[3][1]);
+  });
+
+  /* ================================================================ */
+  sub('6–16  E52: every spelling audited - what ships, what is held, and why');
+  await guard('audit', async () => {
+    const a0 = await boot([]), c0 = a0.ctx;
+    const list = Array.isArray(c0.CANONICAL_EXERCISES) ? c0.CANONICAL_EXERCISES : Object.values(c0.CANONICAL_EXERCISES);
+    const defs = c0.EXERCISE_ART.definitions(), keyOf = n => c0.exerciseVisualKey(n), idOf = n => c0.resolveExerciseId(n);
+    const ONE_ARM = ['Single-Arm Cable Lateral Raise', 'Single Arm Cable Lateral Raise'];
+    const cableRaise = list.find(e => e.displayName === 'Cable Lateral Raise');
+    T('6  the one-arm cable lateral raise: both exact spellings reach the drawing the Cable Lateral Raise has - the same movement, the same equipment, the same one arm',
+      ONE_ARM.every(n => keyOf(n) === 'lateral_raise_cable') && keyOf('Cable Lateral Raise') === 'lateral_raise_cable' && !!cableRaise && cableRaise.equipment === 'Cable' && cableRaise.id === 'lateral_raise_cable');
+    const def = defs.lateral_raise_cable, cues = (c0.EXERCISE_ART.howTo.lateral_raise_cable || []).join(' ');
+    T('7  and the evidence is in the drawing itself, not in the English: one handle (a single cable, tracked on one wrist), the pulley low on the opposite side',
+      !!def && Array.isArray(def.gear) && def.gear.length === 1 && def.gear[0][0] === 'cable' && def.track === 'rW' && /opposite side/.test(cues));
+    T('8  but it reaches the DRAWING and nothing else: the two spellings stay exercises of their own - not in the registry, not Cable Lateral Raise’s id, no metadata, no muscles of their own in Muscle Mastery',
+      ONE_ARM.every(n => !c0.isCanonicalId(idOf(n)) && idOf(n) !== 'lateral_raise_cable' && c0.getExerciseMetadata(n).mapped === false) && idOf(ONE_ARM[0]) !== idOf(ONE_ARM[1]));
+    const idx9 = c0.buildAliasIndex(), flat9 = sha(JSON.stringify(Object.keys(idx9).sort().map(k => [k, idx9[k]])));
+    const reg9 = sha(JSON.stringify(list.map(e => [e.id, e.displayName, e.aliases, e.equipment, e.pattern, e.primary, e.secondary, e.supports1RM])));
+    const coll9 = vm.runInContext('(buildAliasIndex(), _aliasCollisions.length)', c0);
+    T('9  the registry took no alias: the alias index and the registry hash to the digests frozen from 10.45, and no alias collides',
+      flat9 === 'fe60c59ed696eee8' && reg9 === '4e233f762b8e2119' && coll9 === 0 && list.length === 97 && Object.keys(idx9).length === 414, [flat9, reg9, coll9, list.length, Object.keys(idx9).length]);
+    /* Chest Press and Shoulder Press: the registry's own words split each by equipment */
+    const fam = phrase => list.filter(e => (e.displayName.toLowerCase() + ' | ' + e.aliases.join(' | ')).indexOf(phrase) !== -1);
+    const eqs = xs => Array.from(new Set(xs.map(e => e.equipment))).sort();
+    const chest = fam('chest press'), shoulder = fam('shoulder press');
+    T('10  Chest Press is a FAMILY, not an exercise: registry movements named "chest press" span ' + eqs(chest).join(' and ') + ' (and the art table has a band one) - held, no drawing',
+      eqs(chest).length >= 2 && chest.every(e => e.aliases.indexOf('chest press') === -1) && Object.keys(c0.EXERCISE_ART.byName).some(k => /chest press/.test(k))
+      && ['Chest Press', 'chest press', 'CHEST PRESS', '  Chest Press  '].every(n => keyOf(n) === null && !c0.isCanonicalId(idOf(n)) && c0.exerciseThumbHtml(n, { static: true }) === ''));
+    T('11  Shoulder Press is a FAMILY: registry movements named "shoulder press" span ' + eqs(shoulder).join(', ') + ' - held, no drawing',
+      eqs(shoulder).length >= 3 && shoulder.every(e => e.aliases.indexOf('shoulder press') === -1)
+      && ['Shoulder Press', 'shoulder press', 'SHOULDER PRESS', '  Shoulder Press  '].every(n => keyOf(n) === null && !c0.isCanonicalId(idOf(n)) && c0.exerciseThumbHtml(n, { static: true }) === ''));
+    T('12  the equipment catalog’s "Chest Press" and "Shoulder Press" are MACHINE names (so is its "Lateral Raise", which is the dumbbell exercise in the registry): they are not evidence of an exercise',
+      (() => { const eqList = vm.runInContext('GYM_EQUIPMENT', c0); const nm = id => (eqList.find(g => g.id === id) || {}).displayName;
+        return nm('chest_press_machine') === 'Chest Press' && nm('shoulder_press_machine') === 'Shoulder Press' && nm('lateral_raise_machine') === 'Lateral Raise'
+          && list.find(e => e.id === 'lateral_raise').equipment === 'Dumbbell' && list.find(e => e.id === 'lateral_raise_machine').equipment === 'Machine'; })());
+    const rear = list.filter(e => /rear delt|reverse (pec|fly)/i.test(e.displayName + ' ' + e.aliases.join(' ')));
+    const rearDrawings = Object.keys(defs).filter(k => /rear|reverse_pec|reverse_fly/.test(k));
+    T('13  Rear Delt Cable Fly (and Cable Rear Delt Fly) has nothing to reach: the registry’s rear-delt movements are ' + eqs(rear).join(' and ') + ', and no rear-delt drawing has a cable in it - held, no drawing',
+      rear.length >= 2 && rear.every(e => e.equipment !== 'Cable') && rearDrawings.length >= 2 && rearDrawings.every(k => !(defs[k].gear || []).some(g => g[0] === 'cable'))
+      && ['Rear Delt Cable Fly', 'Cable Rear Delt Fly', 'rear delt cable fly'].every(n => keyOf(n) === null && !c0.isCanonicalId(idOf(n))));
+    const res14 = ['normalizeExerciseName', 'resolveExerciseId', 'buildAliasIndex', 'isCanonicalId', 'getCanonicalExercise', 'getExerciseMetadata', 'loggedExerciseKey', 'chooseLoggedSpelling', 'oneNamePerLoggedExercise', 'exerciseVisualKey', 'exerciseArtSvg', 'exerciseArtUse', 'exerciseThumbHtml', 'howToCues', 'openHowTo']
+      .map(pin).join();
+    T('14  case and spacing follow the existing normaliser and nothing else: a different case, stray spaces or doubled spaces reach the same drawing - and the normaliser, the resolver and the lookup are byte-identical to 10.45',
+      ['single-arm cable lateral raise', 'SINGLE-ARM CABLE LATERAL RAISE', '  Single-Arm Cable Lateral Raise  ', 'Single-Arm  Cable Lateral Raise', 'SINGLE ARM CABLE LATERAL RAISE'].every(n => keyOf(n) === 'lateral_raise_cable')
+      && res14 === '5c4bafdefad4e7cd,9e5b02b08362d402,f7e51420337c367c,7930496288603b3e,bc011bd0d47cdc59,50bb2262862f9baa,6b82060295b52da0,4cb23f35089d6ea3,838e94735310d855,eeeaad5194ff7779,b25e593b5b75b19f,cd513498f55c104b,fe3dc90ec306b794,f4dd3bc276ec1bf2,35733ce07b9c2bb8', res14);
+    /* nothing fuzzy: near names - a typo, a dropped or added word, a plural, another equipment - reach nothing */
+    const known = new Set(); list.forEach(e => { known.add(c0.normalizeExerciseName(e.displayName)); e.aliases.forEach(a => known.add(c0.normalizeExerciseName(a))); });
+    Object.keys(c0.EXERCISE_ART.byName).forEach(k => known.add(c0.normalizeExerciseName(k)));
+    const variants = s => { const out = new Set(), words = s.split(/[\s-]+/);
+      for(let i = 0; i < s.length; i++){ out.add(s.slice(0, i) + s.slice(i + 1)); out.add(s.slice(0, i) + 'x' + s.slice(i)); }
+      for(let i = 0; i < words.length; i++) out.add(words.filter((_, j) => j !== i).join(' '));
+      ['s', ' Machine', ' Cable', ' Single Arm', ' Seated'].forEach(x => out.add(s + x)); ['Seated ', 'Dumbbell ', 'Barbell ', 'Double-Arm ', 'One-Arm ', 'Incline ', 'Standing '].forEach(x => out.add(x + s));
+      out.add(s.replace(/Raise/, 'Raises')); out.add(s.replace(/Lateral/, 'Front')); out.add(s.replace(/Cable/, 'Dumbbell')); out.add(s.replace(/Fly/, 'Flye')); return Array.from(out); };
+    const SEEDS = ['Single-Arm Cable Lateral Raise', 'Single Arm Cable Lateral Raise', 'Chest Press', 'Shoulder Press', 'Rear Delt Cable Fly', 'Cable Rear Delt Fly'];
+    const battery = Array.from(new Set([].concat.apply([], SEEDS.map(variants)))).filter(v => v.trim() && !known.has(c0.normalizeExerciseName(v)) && SEEDS.map(c0.normalizeExerciseName).indexOf(c0.normalizeExerciseName(v)) === -1);
+    const leaked = battery.filter(v => keyOf(v) !== null || c0.isCanonicalId(idOf(v)));
+    T('15  nothing fuzzy, nothing by substring: ' + battery.length + ' near names (a typo, a dropped word, an added one, a plural, another kit) - none reaches a drawing, none becomes an exercise of the registry',
+      battery.length > 250 && leaked.length === 0, leaked.slice(0, 8));
+    const names16 = Object.keys(c0.EXERCISE_ART.byName).filter(k => D129_NEW_NAMES.indexOf(k) === -1).sort(), by16 = sha(JSON.stringify(names16.map(n => [n, keyOf(n), idOf(n)])));
+    T('16  the pairs of names the art table already holds are as they were: the same ' + names16.length + ' names reach the same drawings and the same (mostly unmapped) identities, with D129’s two added',
+      names16.length === 99 && by16 === '48af4e832af357fa', by16);
+  });
+
+  /* ================================================================ */
+  sub('17–31  E53: a Mastery tap opens the lift logged most under the movement, and the page is titled and drawn as the card is');
+  const PD = [SPEC('pd', 'Pec Deck', 12), SPEC('mc', 'Machine Chest Press', 10)];
+  const CASES = [
+    { id: 'Pendlay Row alone', specs: [SPEC('pen', 'Pendlay Row', 14)].concat(PD), dest: { 'Barbell Row': 'Pendlay Row' }, art: { 'Barbell Row': 'row_barbell' }, sessions: { 'Barbell Row': 14 }, logged: { 'Barbell Row': 'Pendlay Row' } },
+    { id: 'T-Bar Row alone', specs: [SPEC('tb', 'T-Bar Row', 14)].concat(PD), dest: { 'Machine Row': 'T-Bar Row' }, art: { 'Machine Row': 'row_machine' }, sessions: { 'Machine Row': 14 }, logged: { 'Machine Row': 'T-Bar Row' } },
+    { id: 'DB Shoulder Press alone (the plan’s spelling)', specs: [SPEC('db', 'DB Shoulder Press', 14)].concat(PD), dest: { 'Dumbbell Shoulder Press': 'DB Shoulder Press' }, art: { 'Dumbbell Shoulder Press': 'shoulder_press_db' }, sessions: { 'Dumbbell Shoulder Press': 14 }, logged: { 'Dumbbell Shoulder Press': 'DB Shoulder Press' } },
+    { id: 'Barbell Bench Press (8, older) and Bench Press (6, newer)', specs: [SPEC('bb', 'Barbell Bench Press', 8, { off: 60, gap: 3 }), SPEC('bp', 'Bench Press', 6, { off: 1, gap: 3 })].concat(PD), dest: { 'Bench Press': 'Barbell Bench Press' }, art: { 'Bench Press': 'bench_press_barbell' }, sessions: { 'Bench Press': 8 }, logged: { 'Bench Press': 'Barbell Bench Press' } },
+    { id: 'Bench Press (8, older) and Barbell Bench Press (6, newer)', specs: [SPEC('bp', 'Bench Press', 8, { off: 60, gap: 3 }), SPEC('bb', 'Barbell Bench Press', 6, { off: 1, gap: 3 })].concat(PD), dest: { 'Bench Press': 'Bench Press' }, art: { 'Bench Press': 'bench_press_barbell' }, sessions: { 'Bench Press': 8 }, logged: { 'Bench Press': null } },
+    { id: 'the alias is the lift most logged (10) beside the movement’s own name (2, newer)', specs: [SPEC('bb', 'Barbell Bench Press', 10, { off: 60, gap: 3 }), SPEC('bp', 'Bench Press', 2, { off: 1, gap: 3 })].concat(PD), dest: { 'Bench Press': 'Barbell Bench Press' }, art: { 'Bench Press': 'bench_press_barbell' }, sessions: { 'Bench Press': 10 }, logged: { 'Bench Press': 'Barbell Bench Press' } },
+    { id: 'a tie goes to the movement’s own name', specs: [SPEC('bp', 'Bench Press', 7, { off: 60, gap: 3 }), SPEC('bb', 'Barbell Bench Press', 7, { off: 1, gap: 3 })].concat(PD), dest: { 'Bench Press': 'Bench Press' }, art: { 'Bench Press': 'bench_press_barbell' }, sessions: { 'Bench Press': 7 }, logged: { 'Bench Press': null } },
+    { id: 'a tie with neither the movement’s own name goes to the lift logged most recently', specs: [SPEC('bb', 'Barbell Bench Press', 7, { off: 60, gap: 3 }), SPEC('bq', 'BB Bench Press', 7, { off: 1, gap: 3 })].concat(PD), dest: { 'Bench Press': 'BB Bench Press' }, art: { 'Bench Press': 'bench_press_barbell' }, sessions: { 'Bench Press': 7 }, logged: { 'Bench Press': 'BB Bench Press' } },
+    { id: 'the movement’s name in another case', specs: [SPEC('lc', 'bench press', 10)].concat(PD), dest: { 'Bench Press': 'bench press' }, art: { 'Bench Press': 'bench_press_barbell' }, sessions: { 'Bench Press': 10 }, logged: { 'Bench Press': null } },
+    { id: 'the canonical spelling alone (nothing to reconcile)', specs: [SPEC('bp', 'Bench Press', 14)].concat(PD), dest: { 'Bench Press': 'Bench Press' }, art: { 'Bench Press': 'bench_press_barbell' }, sessions: { 'Bench Press': 14 }, logged: { 'Bench Press': null } },
+    { id: 'a name LOOP has no drawing for (the held Chest Press): the badge, and the page under the same name', specs: [SPEC('cp', 'Chest Press', 14)].concat(PD), dest: { 'Chest Press': 'Chest Press' }, art: { 'Chest Press': null }, sessions: { 'Chest Press': 14 }, logged: { 'Chest Press': null } },
+    { id: 'two spellings of an UNMAPPED name (a trailing period: one registry key, two lifts)', specs: [SPEC('c1', 'Chest Press', 8, { off: 60, gap: 3 }), SPEC('c2', 'chest press.', 6, { off: 1, gap: 3 })].concat(PD), dest: { 'chest press.': 'Chest Press' }, art: { 'chest press.': null }, sessions: { 'chest press.': 8 }, logged: { 'chest press.': 'Chest Press' } },
+    { id: 'the one-arm cable raise beside the Cable Lateral Raise: two exercises, two cards, two pages', specs: [SPEC('sa', 'Single-Arm Cable Lateral Raise', 14), SPEC('cl', 'Cable Lateral Raise', 6)].concat(PD), dest: { 'Single-Arm Cable Lateral Raise': 'Single-Arm Cable Lateral Raise', 'Cable Lateral Raise': 'Cable Lateral Raise' }, art: { 'Single-Arm Cable Lateral Raise': 'lateral_raise_cable', 'Cable Lateral Raise': 'lateral_raise_cable' }, sessions: { 'Single-Arm Cable Lateral Raise': 14, 'Cable Lateral Raise': 6 }, logged: { 'Single-Arm Cable Lateral Raise': null, 'Cable Lateral Raise': null } },
+    { id: 'Rear Delt Cable Fly (held): the badge, and the page under the same name', specs: [SPEC('rd', 'Rear Delt Cable Fly', 14)].concat(PD), dest: { 'Rear Delt Cable Fly': 'Rear Delt Cable Fly' }, art: { 'Rear Delt Cable Fly': null }, sessions: { 'Rear Delt Cable Fly': 14 }, logged: { 'Rear Delt Cable Fly': null } },
+    { id: 'Pendlay Row (6) beside Barbell Row (4)', specs: [SPEC('pen', 'Pendlay Row', 6, { off: 60, gap: 3 }), SPEC('br', 'Barbell Row', 4, { off: 1, gap: 3 })].concat(PD), dest: { 'Barbell Row': 'Pendlay Row' }, art: { 'Barbell Row': 'row_barbell' }, sessions: { 'Barbell Row': 6 }, logged: { 'Barbell Row': 'Pendlay Row' } }
+  ];
+  const results = [];
+  await guard('navigation', async () => {
+    for(const cs of CASES){
+      const log = mk(cs.specs), app = await boot(log), c = app.ctx, doc = c.document;
+      const atNow = fn => withClockOn(c, NOW, () => { fresh(c); return fn(); });
+      const items = atNow(() => c.getTopExerciseMastery().filter(m => m.hasHistory));
+      const logBefore = JSON.stringify(c.workoutLog), storeBefore = JSON.stringify(app.store);
+      const podiumBefore = atNow(() => c.masteryPodiumHtml(c.getMasteryProgress().podium)), listBefore = atNow(() => c.exerciseMasteryListHtml(50));
+      const tap = html => {
+        let id = null; try{ new Function('openMasteryExercise', decode(attr(html, 'onclick')))(x => { id = x; }); }catch(e){ id = 'threw'; }
+        atNow(() => c.openMasteryExercise(id));
+        const page = { name: c.exDetailName, as: c.exDetailAs, title: doc.getElementById('exDetailName').textContent, artHtml: doc.getElementById('exDetailArt').innerHTML, meta: doc.getElementById('exDetailMeta').innerHTML,
+          sessions: c.exDetailModel.sessionCount, ids: c.exDetailModel.sessions.map(s => s.id).sort() };
+        page.art = artKeyIn(c, page.artHtml); c.closeExDetail(); return { id, page };
+      };
+      const rows = items.map(m => {
+        const cardHtml = atNow(() => c.masteryPodiumCardHtml(m, 1)), rowHtml = atNow(() => c.masteryRowHtml(m));
+        const r = { m, cardTitle: host(cardHtml).querySelector('.mpod-name').textContent, rowTitle: host(rowHtml).querySelector('.mastery-row-name').textContent, cardArt: artKeyIn(c, cardHtml), cardAria: decode(attr(cardHtml, 'aria-label')), rowAria: decode(attr(rowHtml, 'aria-label')), viaCard: tap(cardHtml), viaRow: tap(rowHtml) };
+        const dest = r.viaCard.page.name;
+        r.expectIds = log.filter(w => w.exercises.some(e => lk(e.name) === lk(dest))).map(w => w.id).sort();
+        r.history = c.getExerciseFullHistory(dest).length;
+        return r;
+      });
+      /* a plain open afterwards wears nothing of the last card, and the logged name is not touched by any of it */
+      c.openExDetail(cs.specs[0].name); const plain = { as: c.exDetailAs, title: doc.getElementById('exDetailName').textContent }; c.closeExDetail();
+      const podiumAfter = atNow(() => c.masteryPodiumHtml(c.getMasteryProgress().podium)), listAfter = atNow(() => c.exerciseMasteryListHtml(50));
+      results.push({ cs, c, rows, plain, logSame: JSON.stringify(c.workoutLog) === logBefore, storeSame: JSON.stringify(app.store) === storeBefore, redrawSame: podiumBefore === podiumAfter && listBefore === listAfter });
+    }
+  });
+  const flat = [].concat.apply([], results.map(R => R.rows.map(r => Object.assign({ case: R.cs.id }, r))));
+  const bad = f => flat.filter(r => !f(r)).map(r => r.case + ' / ' + r.cardTitle).slice(0, 6);
+  const cmp = f => { const b = bad(f); return [b.length === 0 && flat.length >= 40, b.concat(['(' + flat.length + ' ranked items in ' + CASES.length + ' histories)'])]; };
+  T('17  every ranked item - a podium card and its row alike - is titled on its page as it is on the card (' + flat.length + ' items in ' + CASES.length + ' histories)', ...cmp(r => r.rowTitle === r.cardTitle && r.viaCard.page.title === r.cardTitle && r.viaRow.page.title === r.cardTitle));
+  T('18  and drawn as the card is: the page’s drawing is the card’s drawing - the Barbell Row’s for a Pendlay-only lift, the Machine Row’s for a T-bar row, none where the card keeps the tier badge', ...cmp(r => r.viaCard.page.art === r.cardArt && r.viaRow.page.art === r.cardArt));
+  T('19  the card’s drawing is the one the lookup gives its TITLE, never the lift’s own spelling: a Pendlay-only card draws Barbell Row, not Pendlay Row',
+    flat.filter(r => r.cardTitle === 'Barbell Row').every(r => r.cardArt === 'row_barbell') && flat.some(r => r.cardTitle === 'Barbell Row' && r.viaCard.page.name === 'Pendlay Row' && r.viaCard.page.art === 'row_barbell'));
+  const byCase = id => results.find(R => R.cs.id === id) || { rows: [], cs: { specs: [] }, c: null };
+  const expectRows = [];
+  results.forEach(R => Object.keys(R.cs.dest).forEach(title => { const r = R.rows.find(x => x.cardTitle === title); expectRows.push([R.cs.id, title, r, R.cs.dest[title], R.cs.sessions[title], R.cs.logged[title], R.cs.art[title]]); }));
+  T('20  the tap opens the lift logged MOST under the movement (a tie: the movement’s own name, then the lift logged most recently) - judged against the histories written above, not against the app',
+    expectRows.length >= 15 && expectRows.every(([, , r, dest]) => !!r && r.viaCard.page.name === dest && r.viaRow.page.name === dest), expectRows.filter(([, , r, dest]) => !r || r.viaCard.page.name !== dest).map(x => x[0] + ' → ' + (x[2] && x[2].viaCard.page.name)));
+  T('21  and the history it shows is that lift’s WHOLE history: every one of its workouts, once each, none of the other spelling’s',
+    expectRows.length >= 15 && expectRows.every(([, , r, , n]) => !!r && r.viaCard.page.sessions === n && r.viaCard.page.sessions > 0 && same(r.viaCard.page.ids, r.expectIds) && new Set(r.viaCard.page.ids).size === r.viaCard.page.ids.length && r.history === n && same(r.viaRow.page.ids, r.expectIds)));
+  T('22  every ranked item opens a page with history in it: more than none, exactly the lift’s workouts, counted once (the sheet never opens empty, as it would for a canonical spelling nobody typed)',
+    ...cmp(r => r.viaCard.page.sessions > 0 && same(r.viaCard.page.ids, r.expectIds) && new Set(r.viaCard.page.ids).size === r.expectIds.length));
+  T('23  the line under the title names the lift only when it IS another name: "Logged as Pendlay Row" for a Pendlay-only lift, nothing for a lift opened under the card’s own name (a different case is the same name)',
+    expectRows.length >= 15 && expectRows.every(([, , r, , , logged]) => !!r && (logged ? new RegExp('Logged as ' + logged.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '<').test(r.viaCard.page.meta) : !/Logged as/.test(r.viaCard.page.meta)))
+    && flat.every(r => /Logged as/.test(r.viaCard.page.meta) === (lk(r.viaCard.page.name) !== lk(r.cardTitle))));
+  T('24  the page wears the card’s title ONLY from a card: opened plainly afterwards, a lift is titled as the name it was opened with and wears nothing of the last card (exDetailAs is cleared)',
+    results.length === CASES.length && results.every(R => R.plain.as === null && R.plain.title === R.cs.specs[0].name));
+  T('25  the movement’s own mastery is untouched by the tap and by the page: the same podium and the same list, byte for byte, before the first tap and after the last',
+    results.length === CASES.length && results.every(R => R.redrawSame));
+  T('26  no history is rewritten and nothing is stored: every workout in the log is byte-identical after the taps, and the store is unchanged',
+    results.length === CASES.length && results.every(R => R.logSame && R.storeSame));
+  T('27  the one-arm cable raise and the Cable Lateral Raise are TWO exercises, each with its own card, its own points and its own page - drawn alike, merged nowhere',
+    (R => { const a = R.rows.find(r => r.cardTitle === 'Single-Arm Cable Lateral Raise'), b = R.rows.find(r => r.cardTitle === 'Cable Lateral Raise');
+      return !!a && !!b && a.m.exerciseId !== b.m.exerciseId && a.m.sessions === 14 && b.m.sessions === 6 && a.cardArt === 'lateral_raise_cable' && b.cardArt === 'lateral_raise_cable' && a.viaCard.page.name !== b.viaCard.page.name && a.viaCard.page.sessions === 14 && b.viaCard.page.sessions === 6; })(byCase('the one-arm cable raise beside the Cable Lateral Raise: two exercises, two cards, two pages')));
+  T('28  the held names stay as they were - the badge on the card, the same name on the page: Chest Press and Rear Delt Cable Fly (no drawing, no "Logged as")',
+    ['a name LOOP has no drawing for (the held Chest Press): the badge, and the page under the same name', 'Rear Delt Cable Fly (held): the badge, and the page under the same name'].every(id => byCase(id).rows.filter(r => r.cardArt === null).every(r => r.viaCard.page.art === null && r.viaCard.page.title === r.cardTitle && !/Logged as/.test(r.viaCard.page.meta)) && byCase(id).rows.some(r => r.cardArt === null)));
+  T('29  two spellings of an unmapped name (one registry key, two lifts) behave the same way: the card is named as 10.45 names it, the page opens the larger lift under that name and says which it was',
+    (R => { const r = R.rows.find(x => x.cardTitle === 'chest press.'); return !!r && r.viaCard.page.name === 'Chest Press' && r.viaCard.page.title === 'chest press.' && r.viaCard.page.sessions === 8 && /Logged as Chest Press</.test(r.viaCard.page.meta) && r.m.sessions === 14; })(byCase('two spellings of an UNMAPPED name (a trailing period: one registry key, two lifts)')));
+  T('30  the movement’s count and the page’s count may differ, and the page says so in the words it already had: "Mastery counts 14 sessions" over the 8 of the lift (the note is the sheet’s own, unchanged)',
+    (R => { const c = R.c; const r = R.rows.find(x => x.cardTitle === 'Bench Press'); if(!c || !r) return false; c.openMasteryExercise(r.m.exerciseId); const stats = c.document.getElementById('exDetailStats').innerHTML; c.closeExDetail();
+      return /Mastery counts 14 sessions/.test(stats) && r.viaCard.page.sessions === 8; })(byCase('Barbell Bench Press (8, older) and Bench Press (6, newer)')));
+  T('31  the lift’s own data is exactly what Exercise Detail always derived for that name - the opening changed the title and the drawing and nothing it computes (deriveExerciseDetail is byte-identical to 10.45, and the page model for the destination equals a plain open of it)',
+    pin('deriveExerciseDetail') === '2e7f87f1c8567b0a' && results.every(R => R.rows.every(r => { const c = R.c, dest = r.viaCard.page.name;
+      return withClockOn(c, NOW, () => { fresh(c); const a = c.deriveExerciseDetail(dest); c.openMasteryExercise(r.m.exerciseId); const b = c.exDetailModel; c.closeExDetail();
+        const sig = x => JSON.stringify([x.name, x.key, x.sessionCount, x.lastDate, x.prMode, x.best && [x.best.w, x.best.r, x.best.date], x.rec && [x.rec.tag, x.rec.weight, x.rec.reps], x.trend, x.points.length, x.bests.milestones.length, x.mastery && [x.mastery.points, x.mastery.level]]); return sig(a) === sig(b); }); })), pin('deriveExerciseDetail'));
+
+  /* ================================================================ */
+  sub('32–37  D128 is untouched: the same cards, the same rows, the same styles - only the tap differs');
+  await guard('d128', async () => {
+    const rich = (() => { const L = [['Pec Deck', 14, 110, 2], ['Machine Chest Press', 12, 120, 3], ['Incline Dumbbell Press', 10, 60, 1], ['Barbell Bench Press', 9, 185, 5], ['Pendlay Row', 6, 135, 5], ['Rear Delt Cable Fly', 5, 30, 0], ['Single-Arm Cable Lateral Raise', 4, 15, 0], ['Pull-Up', 7, 'BW', 0, true], ['Plank', 4, 'BW', 0, true], ['Lat Pulldown', 8, 120, 3], ['Leg Press', 5, 300, 10], ['Back Squat', 9, 225, 5], ['Triceps Pushdown', 6, 50, 0], ['Cable Fly', 3, 40, 0]];
+      const out = []; let id = 0; L.forEach(([name, n, load, step, bw], si) => { for(let k = 0; k < n; k++) out.push({ id: 'w' + (id++), date: day(1 + (si % 5) + (n - 1 - k) * 7), category: 'push', title: 'Training', notes: '', exercises: [{ name, effort: '', bodyweight: !!bw, sets: [0, 1, 2].map(() => S(bw ? 'BW' : load + k * step, 10)) }] }); }); return out; })();
+    const app = await boot(rich), c = app.ctx; const atNow = fn => withClockOn(c, NOW, () => { fresh(c); return fn(); });
+    const strip = h => h.replace(/ onclick="(openMasteryExercise|openExDetail)\('[^"]*'\)"/g, '');
+    const items = atNow(() => c.getTopExerciseMastery().filter(m => m.hasHistory));
+    const nowCards = atNow(() => items.slice(0, 3).map((m, i) => c.masteryPodiumCardHtml(m, i + 1))), nowRows = atNow(() => items.map(m => c.masteryRowHtml(m)));
+    const was = atNow(() => withAsOf1045(c, ['masteryPodiumCardHtml', 'masteryRowHtml'], () => ({ cards: items.slice(0, 3).map((m, i) => c.masteryPodiumCardHtml(m, i + 1)), rows: items.map(m => c.masteryRowHtml(m)) })));
+    T('32  a podium card is 10.45’s to the byte - the drawing, the mark, the name, the pill, the bar, the facts, the label - in everything but its handler', was.cards.length === 3 && nowCards.every((h, i) => strip(h) === strip(was.cards[i]) && h !== was.cards[i]));
+    T('33  a ranked row is 10.45’s to the byte in everything but its handler (text only, as D128 audited them)', was.rows.length === 14 && nowRows.every((h, i) => strip(h) === strip(was.rows[i]) && h !== was.rows[i]));
+    const view = atNow(() => c.masteryViewHtml(c.getMasteryProgress())), viewWas = atNow(() => withAsOf1045(c, ['masteryPodiumCardHtml', 'masteryRowHtml'], () => c.masteryViewHtml(c.getMasteryProgress())));
+    T('34  so the whole Mastery view - both modes, the toggle, the podium, the list, the muscle side - is 10.45’s, byte for byte, apart from the handlers of its exercise cards and rows', strip(view) === strip(viewWas) && view.length > 5000 && view !== viewWas);
+    const styles = cssNC.replace(/\.exd-meta-as\{[^}]*\}\s*/, ''), css35 = sha(col(styles));
+    T('35  the stylesheet is 10.45’s with ONE rule added - the line under the title on a page opened from a card - and no Mastery rule moved',
+      /\.exd-meta-as\{ display: block;/.test(cssNC) && css35 === '52906371971e29a1' && /\.mpod-ex \.mpod-head\{/.test(cssNC), css35);
+    const pins36 = ['masteryMuscleCardHtml', 'muscleMasteryRowHtml', 'masteryMusclePodiumHtml', 'masteryLeadersHtml', 'masteryRankRowHtml', 'masteryListHtml', 'exerciseMasteryListHtml', 'masteryLeaderCardHtml', 'masteryExerciseArtHtml', 'masteryLevelPillHtml', 'masteryBarHtml', 'masteryBadgeHtml'].map(pin).join();
+    T('36  Muscle Mastery is exactly what it was: its cards and rows are built by functions byte-identical to 10.45, and nothing of its markup carries a handler or a picture',
+      pins36 === '42964283ac42eb13,de6e069ff0909c2f,6b99bd085e59e77a,682d97311fa7861f,ab85b6b7047615aa,058ea74eaf729ee2,39be1a56affbcbf8,a437b9e4eaeb99f2,25ac09af9a636bf9,5a84d2dfd1e2d419,8ff159ded75a682e,3ec676f4777b644b' && !/openMasteryExercise|openExDetail/.test(atNow(() => c.masteryMusclePodiumHtml(c.getTopMuscleMastery().filter(m => m.hasHistory).slice(0, 3)) + c.muscleMasteryListHtml(50))), pins36);
+    const mDigest = atNow(() => sha(JSON.stringify([c.getTopMuscleMastery().map(x => [x.muscleId, x.label, x.points, x.level, x.percent, x.exercises, x.sessions, x.hasHistory])])));
+    T('37  the muscle ranking is 10.45’s: its leaders, points, levels, percentages and counts hash to the digest frozen from 10.45', mDigest === '13436ae655fec669', mDigest);
+  });
+
+  /* ================================================================ */
+  sub('38–46  zero drift: identity, mastery, records, D49 - and every training system');
+  await guard('drift', async () => {
+    const L = [['Pec Deck', 14, 110, 2], ['Machine Chest Press', 12, 120, 3], ['Incline Dumbbell Press', 10, 60, 1], ['Barbell Bench Press', 9, 185, 5], ['Pendlay Row', 6, 135, 5], ['Rear Delt Cable Fly', 5, 30, 0], ['Single-Arm Cable Lateral Raise', 4, 15, 0], ['Pull-Up', 7, 'BW', 0, true], ['Plank', 4, 'BW', 0, true], ['Lat Pulldown', 8, 120, 3], ['Leg Press', 5, 300, 10], ['Back Squat', 9, 225, 5], ['Triceps Pushdown', 6, 50, 0], ['Cable Fly', 3, 40, 0]];
+    const hist = (() => { const out = []; let id = 0; L.forEach(([name, n, load, step, bw], si) => { for(let k = 0; k < n; k++) out.push({ id: 'w' + (id++), date: day(1 + (si % 5) + (n - 1 - k) * 7), category: 'push', title: 'Training', notes: '', exercises: [{ name, effort: '', bodyweight: !!bw, sets: [0, 1, 2].map(() => S(bw ? 'BW' : load + k * step, 10)) }] }); }); return out; })();
+    const app = await boot(hist), c = app.ctx; const atNow = fn => withClockOn(c, NOW, () => { fresh(c); return fn(); });
+    const mas = atNow(() => sha(JSON.stringify(c.getTopExerciseMastery().map(m => [m.exerciseId, m.displayName, m.loggedName, m.points, m.level, m.percent, m.sessions, m.prs, m.weeks, m.months, m.hasHistory, m.firstDate, m.lastDate]))));
+    T('38  Mastery is 10.45’s on the same history: every exercise’s id, name, points, level, percentage, sessions, records, weeks, months and dates, in the same order, hash to the digest frozen from 10.45', mas === '85e981d1066a55a2', mas);
+    const lifts = Array.from(new Set(hist.map(w => w.exercises[0].name)));
+    const exd = atNow(() => sha(JSON.stringify(lifts.map(n => { const x = c.deriveExerciseDetail(n); return [x.name, x.key, x.sessionCount, x.lastDate, x.prMode, x.best && [x.best.w, x.best.r, x.best.date], x.rec && [x.rec.tag, x.rec.weight, x.rec.reps, x.rec.why], x.last && [x.last.date, x.last.weight, x.last.topReps], x.trend, x.points, x.bests.milestones.map(m => [m.value, m.date]), x.mastery && [x.mastery.points, x.mastery.level, x.mastery.sessions]]; }))));
+    T('39  every lift’s Exercise Detail - its sessions, best ever, Next session (D49), trend, personal bests and mastery block - is 10.45’s on the same history (a digest frozen from 10.45)', exd === '64e36d44a5002337', exd);
+    const un = atNow(() => { const tl = c.computeXPTimeline(), pr = c.getCurrentProgression();
+      return sha(JSON.stringify([c.computeAllPREvents().map(e => [e.id, e.exerciseName, e.hits.map(x => x.type + ':' + x.next)]), tl.lifetimeXP, tl.prCount, pr.level, pr.rank && (pr.rank.name || pr.rank),
+        c.workoutLog.map(e => c.sessionVolume(e)), c.workoutLog.map(e => { const s = c.sessionScore(e); return s && s.available ? s.score : null; }), c.computePRs().map(p => [p.name, p.weight, p.reps, !!p.isBW]), c.computeMuscleRecovery(),
+        ['Pec Deck', 'Back Squat', 'Lat Pulldown'].map(n => { const r = c.progressionFor(n, '8-12', null); return r ? [r.tag, r.weight] : null; }), ['Pec Deck', 'Back Squat'].map(n => { const p = c.detectPlateau(n); return p ? [p.weight, p.sessions] : null; })])); });
+    T('40  PRs, PR XP, XP, level, rank, volume, Session Score, Recovery, D49 and the plateau are 10.45’s on the same history (the digest Contract 245 holds, frozen from 10.44 and unmoved)', un === 'e745be4ce2fc7e23', un);
+    const pins41 = ['buildMasteryIndex', 'masteryPointsFor', 'masteryPRCounts', 'getExerciseMastery', 'getTopExerciseMastery', 'getExerciseMasteryByName', 'getMasteryProgress', 'getExerciseFullHistory', 'getAllLoggedExerciseNames', 'compute1RMTrend', 'computePersonalBestTimeline',
+        'exerciseBestSet', 'computeAllPREvents', 'computeExercisePREvents', 'prModeOf', 'progressionFor', 'progressionRecommendationFor', 'buildProgressionRecommendation', 'detectPlateau', 'deriveExerciseDetail', 'exDetailMetaHtml', 'exDetailFactsHtml', 'exDetailNextHtml', 'exDetailTrendHtml',
+        'exDetailRecordsHtml', 'exDetailHistoryHtml', 'exerciseMasteryHtml', 'exDetailSessionRowHtml', 'deriveWorkingSetPlan', 'applyCoachToFutureSets', 'coachMayWriteSet'].map(pin).join();
+    T('41  the engines that decide identity, history and records are byte-identical to 10.45: the Mastery index and its scoring, the PR engines, the history readers, the trend, the personal bests, D49, the plateau, and the Exercise Detail derivation and zones', pins41 === 'f6c1b50e7bd04b79,0c704c40a853d991,f77664c53b2ea14a,5b22dba43d65ca1f,0a12248b469490da,f6d29e745f362ec4,77aca2558d11f3d5,bafaa82dea8653a3,91e7cc45f1748b8c,5350b7aa13581ec8,e41926dcb1cfa844,db21dab40f5e0763,94af217dbcf1f9ed,222267c3066ab2bf,a0ac7f761228372f,a992f11698e3e9e7,4be672abd167121a,e0cc59cfd773d37b,cb642b7c61b1aec9,2e7f87f1c8567b0a,a6bc9b1f5a83b191,bbdc5e76a8996081,f1359d06aaa683f8,ce453c479ded8baf,e84f1a3b39b50701,df3c55ec06b3f597,260962f41258c62d,4a91227367ff979b,b5c00dac1e00d09b,10add8e901495f2d,0de96792fab27ca4', pins41);
+    const pins42 = ['renderProgStrength', 'weeklyReviewBodyHtml', 'renderExerciseHistoryList', 'closeExDetail', 'exDetailShowMore', 'exDetailShowAllBests'].map(pin).join();
+    T('42  the places that open Exercise Detail from anywhere else - Strength (twice), Weekly Review, Log → Browse by exercise - are byte-identical to 10.45, so they open a lift under its own name exactly as before', pins42 === 'd442d15c036246a1,5ee1e161258baa6d,e88231b45dda1e26,e5fed334a339cdb9,ccfbd0443f6f53e7,3b59d1aa4a24c333', pins42);
+    const readers43 = (code.match(/exerciseVisualKey\(/g) || []).length + ',' + (code.match(/EXERCISE_ART\.byName/g) || []).length;
+    T('43  the cross-surface drawings are one lookup: the logger row, the stepper, the picker, the swap sheet, Program Studio, Exercise Detail and the Mastery card all draw through exerciseThumbHtml - and D129 added no second lookup (the same number of exerciseVisualKey and byName readers as 10.45)',
+      ['addLogExerciseRow', 'renderWorkoutStep', 'exPickerRowHtml', 'substitutionOptionHtml', 'pbExerciseRowHtml', 'renderExDetail', 'masteryExerciseArtHtml'].every(n => /exerciseThumbHtml\(/.test(col(fnSrc(raw, n))))
+      && readers43 === '5,1', readers43);
+    T('44  and the new spellings reach the same drawing on every one of them: the default thumbnail, the large one, the static one and the How To sheet’s key',
+      (n => ['', 'lg', 'static'].every(k => c.exerciseThumbHtml(n, k === 'lg' ? { size: 'lg' } : k === 'static' ? { static: true } : {}).indexOf('lateral_raise_cable') !== -1) && c.howToCues(n).join() === c.howToCues('Cable Lateral Raise').join() && c.howToCues(n).length === 3)('Single-Arm Cable Lateral Raise'));
+    T('45  DATA_KEYS, the schema and the trainer are what they were - no new key, no migration, nothing stored for any of this; the Mastery tap, the page title and the line under it are never persisted',
+      c.DATA_KEYS.length === 16 && c.DATA_SCHEMA_VERSION === 1 && Object.keys(c.MIGRATIONS || {}).length === 0 && c.TRAINER_ENGINE_VERSION === '0.1.1-shadow'
+      && !/LOOPStore|localStorage|sessionStorage|indexedDB|persist/.test(code.slice(code.indexOf('function masteryExerciseTarget('), code.indexOf('function masteryRowHtml('))) && !/exDetailAs/.test(c.DATA_KEYS.join()));
+    const pins46 = ['setChipHtml', 'detectPlateau', 'deriveWorkingSetPlan', 'applyCoachToFutureSets', 'seedWorkingTarget', 'toggleSetType', 'addSetRow'].map(pin).join();
+    T('46  the held findings are untouched: E43, E38 and E39 by the pins Contract 245 holds, E48, E49 and E50 by the behaviour it holds - and this change touches none of the functions they live in', pins46 === '350b4e34eb582056,cb642b7c61b1aec9,b5c00dac1e00d09b,10add8e901495f2d,8c90172bdd9f25a8,4f62b7d1782bc899,095f10f06e006dd3', pins46);
+    const pins54 = ['exPickerRowHtml', 'substitutionOptionHtml', 'swapLogExercise', 'addLogExerciseRow', 'renderWorkoutStep', 'pbExerciseRowHtml'].map(pin).join();
+    T('54  Add Exercises, the logger row, the stepper, the swap and Program Studio are byte-identical to 10.45: each finds and draws an exercise by the name on its row, through the same lookup, exactly as before', pins54 === 'b3ae9299377e78b9,36c7820f98b0491b,7206131885de9128,81931805d69abc1d,f92999bce55ec36b,80ef42767f0ec30d', pins54);
+  });
+
+  /* ================================================================ */
+  sub('47–52  the properties: canonical identity, visual identity, navigation coherence, historical truth, no fuzziness');
+  await guard('properties', async () => {
+    const a0 = await boot([]), c0 = a0.ctx;
+    const list = Array.isArray(c0.CANONICAL_EXERCISES) ? c0.CANONICAL_EXERCISES : Object.values(c0.CANONICAL_EXERCISES);
+    const norm = c0.normalizeExerciseName;
+    /* canonical identity: an alias resolves to the exercise that lists it, and so does the exercise’s own name */
+    const badId = []; list.forEach(e => { if(c0.resolveExerciseId(e.displayName) !== e.id) badId.push(e.displayName); e.aliases.forEach(a => { if(c0.resolveExerciseId(a) !== e.id) badId.push(a); }); });
+    T('47  CANONICAL IDENTITY: all ' + list.length + ' exercises and ' + list.reduce((n, e) => n + e.aliases.length, 0) + ' aliases resolve to the exercise that lists them, and the exercise’s display name resolves to the same id as every one of its aliases', badId.length === 0, badId.slice(0, 5));
+    const badVis = []; Object.keys(c0.EXERCISE_ART.byName).forEach(k => { if(c0.exerciseVisualKey(k) !== c0.EXERCISE_ART.byName[k]) badVis.push(k); });
+    list.forEach(e => e.aliases.forEach(a => { const k = c0.exerciseVisualKey(a), listed = c0.EXERCISE_ART.byName[norm(a)]; if(k !== (listed || e.id)) badVis.push(a); }));
+    T('48  VISUAL IDENTITY: every name in the art table reaches exactly the drawing it lists (D129’s two included), and every registry alias reaches its exercise’s drawing unless the table draws it as what it is', badVis.length === 0, badVis.slice(0, 5));
+    const asIs = Object.keys(c0.EXERCISE_ART.byName).filter(k => c0.isCanonicalId(c0.resolveExerciseId(k)));
+    T('49  a drawing-only name never makes an identity: the art table’s names that ARE registry aliases are the five D68 documented (Pendlay Row, the T-bar row in two spellings, the Walking Lunge, the Kettlebell Goblet Squat) - D129’s two are not among them',
+      same(asIs.sort(), ['kettlebell goblet squat', 'pendlay row', 't bar row', 't-bar row', 'walking lunge']) && D129_NEW_NAMES.every(k => asIs.indexOf(k) === -1));
+    T('50  NAVIGATION COHERENCE: over ' + flat.length + ' ranked items in ' + CASES.length + ' histories, the title, the drawing and the page after the tap are one identity - and a lift is never opened empty',
+      flat.length >= 40 && flat.every(r => r.viaCard.page.title === r.cardTitle && r.viaCard.page.art === r.cardArt && r.viaRow.page.title === r.rowTitle && r.viaRow.page.art === r.cardArt && r.viaCard.page.sessions > 0));
+    T('51  HISTORICAL TRUTH: every raw workout string - each name as the athlete typed it, case and spaces and all - is byte-identical after rendering, navigating and looking identities up, in every history above', results.length === CASES.length && results.every(R => R.logSame));
+    T('52  ACCESSIBLE NAMES AGREE WITH WHAT IS SEEN: a card’s label speaks its visible title once, the page’s heading is that title, the How To button names it, and the drawing is decorative',
+      flat.every(r => r.cardAria.indexOf(r.cardTitle) !== -1 && r.rowAria.indexOf(r.rowTitle) !== -1 && r.viaCard.page.title === r.cardTitle
+        && (r.viaCard.page.artHtml === '' || (r.viaCard.page.artHtml.indexOf('aria-label="How to do ' + r.cardTitle.replace(/"/g, '&quot;').replace(/&/g, '&amp;').trim() + '"') !== -1 && /class="ex-thumb[^"]*" aria-hidden="true"/.test(r.viaCard.page.artHtml)))));
+    /* a lift named like markup is shown as TEXT on the line under the title, never as markup */
+    const evil = '<img src=x onerror=alert(1)> Press';
+    c0.openExDetail(evil, { as: 'Pec Deck' });
+    const metaEvil = c0.document.getElementById('exDetailMeta').innerHTML, nameEvil = c0.document.getElementById('exDetailName').textContent; c0.closeExDetail();
+    T('53  a lift named like markup is text on the "Logged as" line, never an image: it is escaped, and the page is still titled as the card is', metaEvil.indexOf('<img src=x') === -1 && metaEvil.indexOf('&lt;img src=x onerror=alert(1)&gt; Press') !== -1 && nameEvil === 'Pec Deck', metaEvil);
+    /* every surface that draws an exercise draws the lookup's answer for the name on its row: the Add Exercises picker, the swap sheet, the thumbnail
+       every row uses, and Exercise Detail opened plainly - for the registry's names and aliases, the art table's names, the held names and a made-up one */
+    const surf = new Set(); list.forEach(e => { surf.add(e.displayName); e.aliases.forEach(x => surf.add(x)); }); Object.keys(c0.EXERCISE_ART.byName).forEach(k => surf.add(k));
+    ['Chest Press', 'Shoulder Press', 'Rear Delt Cable Fly', 'Single-Arm Cable Lateral Raise', 'My Garage Press'].forEach(x => surf.add(x));
+    const off55 = [];
+    surf.forEach(name => { const want = c0.exerciseVisualKey(name);
+      const got = [artKeyIn(c0, c0.exerciseThumbHtml(name, { static: true })), artKeyIn(c0, c0.exPickerRowHtml(name, 'm', '')), artKeyIn(c0, c0.substitutionOptionHtml(name, '', 'f', name))];
+      c0.openExDetail(name); got.push(artKeyIn(c0, c0.document.getElementById('exDetailArt').innerHTML)); c0.closeExDetail();
+      if(got.some(k => k !== want)) off55.push(name + ' -> ' + JSON.stringify(got) + ' not ' + want); });
+    T('55  CROSS-SURFACE: the Add Exercises picker, the swap sheet, the thumbnail and Exercise Detail draw exactly what the lookup says, for every one of ' + surf.size + ' names (registry names and aliases, art-table names, the held ones, a made-up one)', surf.size > 600 && off55.length === 0, off55.slice(0, 5));
   });
 }
 
@@ -52930,6 +53349,7 @@ async function main(){
   await testRepAwarePlateauD126();
   await testWarmupWriteBoundaryD127();
   await testExerciseMasteryArtD128();
+  await testExerciseIdentityD129();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

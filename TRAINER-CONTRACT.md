@@ -18625,3 +18625,142 @@ In FINDINGS-D88.md:
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
 key, no history rewritten. Mastery's scoring and ranking are untouched.
+
+## §168 — A MASTERY CARD AND ITS PAGE AGREE (D129 · LOOP 10.46 · loop-v223)
+
+**Rule.** A Mastery card is a MOVEMENT and Exercise Detail is a LIFT. A tap on a
+card opens the lift the athlete has logged most under the movement, and the page
+wears the card's title and drawing. A spelling an athlete types reaches a drawing
+only where that drawing IS the movement. Nothing is renamed, merged, recomputed
+or stored, and records, trends and D49 are still read by the name logged.
+
+**Before (10.45).** The card was named and drawn for the movement (Barbell Row,
+Machine Row, Dumbbell Shoulder Press) and its tap opened `openExDetail(loggedName)`,
+where `loggedName` is the spelling met first in newest-first order, so the lift
+logged most RECENTLY, however little of the movement it was. The page was titled
+and drawn as that lift: "Pendlay Row" with the Pendlay drawing under a Barbell Row
+card, "T-Bar Row" under Machine Row, "DB Shoulder Press" (the Balanced plan's own
+spelling) under Dumbbell Shoulder Press, and two sessions of a movement's twelve.
+Four spellings had no drawing at all (E52).
+
+**After (10.46).** The same card; the tap goes through `openMasteryExercise(id)`:
+`masteryExerciseTarget` picks the lift, `openExDetail(name, { as: title })` opens
+it, and the page's title, drawing and How To are the card's. When the lift is
+another name the line under the title says so: "Logged as Pendlay Row". A lift
+opened from Strength, Weekly Review or Log is exactly what it was (`exDetailAs` is
+cleared by every plain open).
+
+### The identity layers, as read from the code
+
+| layer | read by | keyed by |
+|---|---|---|
+| the name as typed | `workoutLog` rows | itself, case and spaces and all |
+| the lift: records, trend, D49, Exercise Detail's data | `loggedExerciseKey` | `name.trim().toLowerCase()` (Contract 172 §95; no aliases) |
+| the movement: Mastery, muscles | `resolveExerciseId` | an exact normalised registry alias, else `unmapped:<name>` |
+| the drawing | `exerciseVisualKey` | the art table's name first, then the registry id |
+| the card's title | `getExerciseMastery().displayName` | the canonical name; for an unmapped name the newest spelling |
+| the page's title | `renderExDetail` | the card's title when opened from a card, else the name it was opened with |
+
+The registry has 97 exercises and 414 aliases (none colliding), and every
+canonical name has a drawing. The art table holds 99 names before D129: 94 reach a
+drawing and nothing else, and five are registry aliases drawn as what they are
+(Pendlay Row, the T-bar row in two spellings, the Walking Lunge, the Kettlebell
+Goblet Squat). Those five are the only names whose drawing differs from their
+exercise's.
+
+### E52 — the audit, spelling by spelling
+
+| spelling | in the registry? | same movement / equipment | grouping impact | decision |
+|---|---|---|---|---|
+| Single-Arm Cable Lateral Raise (and without the hyphen) | no | the Cable Lateral Raise drawing IS one arm, one handle, the pulley low on the opposite side: same movement, same equipment, same one arm | as a NAME that reaches a drawing: none. As an identity alias it would merge two Mastery entries and put the exercise's muscles into Muscle Mastery, while records stay per name | **drawing-only name, shipped** (the art table's own pattern: single-arm db row, wide-grip lat pulldown) |
+| Chest Press | no | a family: Dumbbell (Dumbbell Bench Press by "dumbbell chest press"), Machine (Machine Chest Press, Incline Machine Press), and a band one in the art table | n/a | **held**. The equipment catalog names the MACHINE "Chest Press" but also a machine "Lateral Raise", which is the dumbbell exercise: equipment names are not exercise identity |
+| Shoulder Press | no | a family: Barbell (Overhead Press by "shoulder press barbell"), Dumbbell, Machine, Smith | n/a | **held** |
+| Rear Delt Cable Fly (and Cable Rear Delt Fly) | no | the registry's rear-delt movements are Dumbbell and Machine; no rear-delt drawing has a cable | n/a | **held**: either drawing would show equipment the athlete did not use; a cable drawing is new art |
+
+No fuzzy, substring or first-partial matching exists or was added: a battery of
+331 near names (a typo, a dropped word, an added one, a plural, another kit)
+reaches nothing (Contract 246 §15). Case and spacing follow the existing
+normaliser and nothing else.
+
+### E53 — the decision and what was rejected
+
+- **Open the canonical name.** Rejected: Exercise Detail reads a lift by the name
+  logged, so a canonical spelling nobody typed opens an EMPTY page (the bug D86
+  found).
+- **One page for both spellings.** Rejected: it merges records, D49 and the trend
+  across spellings, a change to PR identity.
+- **Rename the card for the lift.** Rejected: it changes `displayName`, the
+  ranking's tie-break and the rows.
+- **Chosen:** open the lift logged most under the movement (a tie: the movement's
+  own name, then the lift logged most recently), titled and drawn as the card is.
+
+### Measured
+
+**Browser rig** (real headless Edge, real touch): 20 fixtures (Chest Press, Shoulder Press, Single-Arm Cable Lateral Raise in both spellings, Rear Delt Cable Fly; a known canonical exercise; the plan's own spelling DB Shoulder Press; Pendlay Row alone, a T-bar row alone, two spellings of one movement in both orders, the movement's name in another case; a custom name; near names that must stay undrawn; three fully illustrated leaders; one valid fallback badge; a long name; an unmapped name with two lifts; the one-arm raise beside the Cable Lateral Raise; and the Muscle control) x 320x568, 360x640, 375x667, 390x844, 393x852, 414x896, 430x932 and 768x1024, 1024x768, 1280x800, with real touch on the phones: **4,760 / 4,760** checks (476 a size). Each cell reads every podium card (a real button of at least 44 x 44 whose picture is the drawing the app's own lookup gives its title, or the tier badge), taps every card for real and reads the page it opens: titled and drawn as the card is; the lift it opened and its WHOLE history (the session count, the workouts listed, each once); the line under the title (only for another name; visible, inside the header, not cut); Best Ever and Next session present; nothing overflowing; no console error; and Back returns to the same Mastery. The first ranked row is tapped too. The Muscle control (a real tap on its tab) has no handler and no drawing. Frozen 10.45, as the negative control: 4,500 / 4,760, every failure an E52 or E53 check. Geometry over 200 cells, 10.45 against 10.46: 570 of 570 podium cards identical (card, drawing, name box; the other 30 are the one-arm raise gaining its drawing) and every ranked row identical, 200 of 200; the page agrees with its card on title and drawing 510 of 570 times on 10.45 and 570 of 570 on 10.46.
+
+**The owner's backups** (read-only, hashes unchanged): mastery, every lift's Exercise Detail data and the PRs hash identically on 10.45 and 10.46 for both (699a55d7cf7683d2 / 564c4b8495bf3db2; 07729062774c6b84 / db48cf05a49b3f54; a380654ac9d2a7a0 / 7106b47eec0c2387). 2026-08-29: Chest Press (its #1) and Shoulder Press stay undrawn, by decision. Its card "Seated Cable Row" opened a page titled "Seated Row" on 10.45 (the spelling logged) and opens it, titled and drawn as the card, with "Logged as Seated Row" on 10.46: a real E53 case in the owner's own history. 2026-08-30: all nine cards already agreed, and still do.
+
+**Contract 246 (55 checks).** It holds:
+- **BEFORE, on 10.45's own functions** (compiled back from `D129_EDITS`): the four
+  spellings have no drawing; a Pendlay-only card says Barbell Row and opens Pendlay
+  Row with its own drawing; a T-bar row opens under a Machine Row card; the plan's own
+  spelling differs from its card; the tap opens the lift logged most recently;
+- **E52:** every spelling above is audited by what the registry and the drawing say;
+  the one-arm raise reaches the drawing and stays an exercise of its own; the held
+  names stay unreachable; the alias index and registry hash to the digests frozen
+  from 10.45; the resolvers are byte-identical; nothing near reaches a drawing;
+- **E53:** over 15 histories (46 ranked items, podium and rows) the page is titled and
+  drawn as the card is; the tap opens the lift logged most, judged against the
+  histories written in the test; that lift's whole history, once each; the line under
+  the title appears only for another name; a plain open wears nothing of the last
+  card; the markup of a lift's name is escaped; nothing is stored and no raw name is
+  rewritten;
+- **D128 is untouched:** a card, a row and the whole view are 10.45's to the byte
+  apart from the handler; the stylesheet gained ONE rule; Muscle Mastery's builders
+  are byte-identical and carry no handler;
+- **zero drift:** Mastery, every lift's Exercise Detail data, records, XP, rank,
+  Session Score, Recovery, D49 and the plateau hash to digests frozen from 10.45;
+  the engines and the other doors by pin;
+- **properties:** canonical identity (all 414 aliases), visual identity, navigation
+  coherence, historical truth, accessible names.
+
+Run against frozen 10.45 it fails 24 of the 48 checks that run there (7 more are cut short where a section meets a function 10.45 does not have): every check that asks for the drawing, the title or the history of a card's page, and the audit of the one-arm raise. The 24 that pass are the audit, zero-drift and property checks that hold on both builds.
+
+**Mutation.** 48 mutants, each run against 16 standalone contracts (246, 245 and fourteen older ones the change could reach) and, for the one that changes how the page looks, the browser rig (320x568 and 390x844). **48 / 48 killed**: 45 by a behavioural check of the contracts, 1 in real Edge (the "Logged as" line hidden by the stylesheet; also a CSS source check), and 2 by pin by design (E38 and E39 silently fixed: other features' code, held in check 61 of Contract 245 and check 46 here). The mutants: fuzzy matching added to the drawing lookup; substring matching and first-partial-match added to the resolver; the one-arm raise given the dumbbell drawing; Chest Press and Shoulder Press mapped to the machine drawings; the one-arm raise collapsed into the registry as an alias; the incline variant collapsed into the flat bench (a colliding alias); a cable rear delt fly given the machine drawing; art creating identity; a name with no drawing given a generic figure; the card and the row opening the raw name again; Exercise Detail opening the canonical name (and losing the history); the history doubled; the lift logged first, or least, instead of most; a tie no longer going to the movement's own name; the page ignoring the card's title, or drawing the lift's own spelling; the "Logged as" line always, never, or unescaped; a case-only difference ignored; the title staying after the next plain open; the id unescaped in the handler; raw workout names rewritten; the tap writing to storage; Mastery merging unmapped exercises; PRs, D49 and every history merged by the registry; D128's mark removed; Muscle Mastery given a tap; D49, D50B, D125, D126, D127, mastery scoring, XP and PR logic changed; E43, E48, E49, E50, E51 silently fixed. Strengthened during the work: a check over "every history" must demand the histories it ranges over (an empty list is vacuously true when a navigation throws), and a sweep that predated checks 54 and 55 was run again on the final contract.
+
+**Performance.** In the vm, on the real code (medians of 25, on 6, 50 and 416 workouts): exerciseVisualKey and resolveExerciseId cost 0.001 ms warm for a canonical name, an alias, a drawing-only name, the one-arm raise, a name with no drawing and an unknown name, on both builds (the first call builds the 177 drawings once: 24-31 ms on both); the Mastery view 0.31-0.46 ms warm on both. The new tap-time work, picking the lift, costs 0.015 ms (6 workouts), 0.05 ms (50) and 0.33 ms (416); the whole tap (pick, open, close) is 0.82 / 1.5 / 3.6-3.7 ms against 10.45's 0.78-0.84 / 1.45 / 3.2. In real Edge on 416 workouts (medians of 3 loads, both build orders) a tap on a card opens Exercise Detail in 4.1-4.5 ms on both builds at full speed, 24-25 ms at 4x slowdown and 41-45 ms at 6x (equal within noise), and a row in 4.6-5.0 / 26-31 / 46-48 ms. No full-history scan was added to any render: the new work runs at tap time, over the log once.
+
+### Restated contracts
+
+By reversal: `D129_EDITS` holds the six changed functions' statements as
+[now, as of 10.45], `D129_ART` the art table's added block, and `asOf1045` /
+`pinAsOf1045` / `asOf1045Art` put them back; `asOf1044` is now a chain (D129's
+statements out, then D128's). Restated, each keeping what it proved:
+- Contract 161 (exercise art): Exercise Detail draws the name it is titled with;
+- Contract 173 (Train launcher): the art source digest, as D68 left it;
+- Contract 175 (Russian twist): the art name table, as D68 left it;
+- Contract 188 (Mastery podium): the podium and the row ask for the movement by id,
+  and what opens is still the lift AS LOGGED (never the canonical spelling);
+- Contract 189 (stabilization): the handler sites and the escaping of the id;
+- Contracts 196 and 197 (Mastery view, one system): the card's handler, an id with
+  quotes, and a typed name in a row, run with openMasteryExercise stubbed;
+- Contract 221 (D106): "only data differs" and, through the chain, its skeleton and pins;
+- Contract 235 (D118): the doors - Strength twice, Weekly Review, Log and
+  openMasteryExercise - are the only openers;
+- Contract 245 (D128): its fakes carry an id; checks 13, 44 and 45 (the taps), 15, 17
+  and 26 (undrawn names are now Chest Press and Rear Delt Cable Fly), 35 to 37 (row
+  pins, digest and taps) and 58 and 59 (the art and Exercise Detail pins).
+The harness exposes `exDetailAs`.
+
+### Found, not fixed
+
+In FINDINGS-D88.md:
+- **E52 (narrowed).** One spelling drawn; Chest Press, Shoulder Press and Rear Delt
+  Cable Fly held, each with its evidence.
+- **E54 (P4).** A movement logged under two names has two Exercise Detail pages;
+  Mastery opens the larger, and the other is reachable only from Strength or Log.
+- **E55 (P4).** An unmapped movement's card is titled with its most recently logged
+  spelling.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new key,
+no history rewritten. Mastery's scoring, ranking and the registry are untouched.

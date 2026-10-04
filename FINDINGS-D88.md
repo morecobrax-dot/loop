@@ -1796,7 +1796,7 @@ which D127 had to leave alone, and the swap's reset is Phase B's. Proposing a
 warm-up load, for example from the Suggested Warm-up ramp, is a design decision
 for its own phase.
 
-## E52 — Common spellings of lifts the registry does not know have no drawing · P4 · PROVEN · OPEN
+## E52 — Common spellings of lifts the registry does not know have no drawing · P4 · PROVEN · OPEN (narrowed in D129: one spelling drawn, three held)
 
 Found by D128's audit of the owner's backups. Recorded, not fixed.
 
@@ -1819,9 +1819,39 @@ card keeps its tier badge in the picture's place.
 identity (aliases, fuzzy matching), which D91 / D96B own and D128 was told not
 to touch. It is the same gap in the workout, the picker and Exercise Detail.
 
-## E53 — A Mastery card for a merged spelling is drawn as the canonical exercise but opens the page under the spelling first logged · P4 · PROVEN · OPEN
+**D129's audit, spelling by spelling (LOOP 10.46).** Each was checked against
+the registry, the art table and the drawings themselves, not against the English.
+- **Single-Arm Cable Lateral Raise: DRAWN (two exact spellings).** The registry's
+  Cable Lateral Raise is a Cable exercise, and its drawing is the one-arm raise
+  (a single handle on one wrist, the pulley low on the opposite side: its own
+  cue). Same movement, same equipment, same one arm. The art table already holds
+  the pattern (single-arm db row, wide-grip lat pulldown): a name that reaches a
+  drawing and nothing else. The hyphenated and the unhyphenated spelling were
+  added, each by name. It is NOT an identity alias: that would merge two Mastery
+  entries and put the exercise's muscles into Muscle Mastery while records stay
+  per name.
+- **Chest Press: HELD.** The registry's movements named "chest press" span
+  Dumbbell (Dumbbell Bench Press, by "dumbbell chest press") and Machine (Machine
+  Chest Press, Incline Machine Press), and the art table has a band one: a family,
+  not an exercise. The equipment catalog names the MACHINE "Chest Press", but it
+  also names a machine "Lateral Raise", which is the DUMBBELL exercise in the
+  registry: equipment names are not exercise identity.
+- **Shoulder Press: HELD.** Barbell (Overhead Press, by "shoulder press barbell"),
+  Dumbbell, Machine and Smith share the name: a family.
+- **Rear Delt Cable Fly (and Cable Rear Delt Fly): HELD.** The registry's rear-delt
+  movements are Dumbbell (Rear Delt Fly) and Machine (Reverse Pec Deck), and no
+  rear-delt drawing has a cable in it. Either drawing would show equipment the
+  athlete did not use. A cable drawing is new art, which D129 may not make.
 
-Found by D128's audit of the exercise-art lookup. Recorded, not fixed.
+**Still open: the three held spellings.** The owner's own data cannot decide
+them (the 2026-08-29 backup has Chest Press at #1 and Shoulder Press). If Chest
+Press always means the machine in this gym, a one-line drawing-only name is the
+safe way to say so; an exercise alias would merge Mastery with Machine Chest
+Press and is a separate decision.
+
+## E53 — A Mastery card for a merged spelling is drawn as the canonical exercise but opens the page under the spelling first logged · P4 · PROVEN · CLOSED in D129 (LOOP 10.46)
+
+Found by D128's audit of the exercise-art lookup. Closed by D129.
 
 **What happens.** Four exercises are logged under a spelling that shares a
 canonical id with another exercise yet has its own drawing: Pendlay Row (Barbell
@@ -1839,6 +1869,52 @@ with the card's name, not with the page's.
 **Why it was not fixed in D128.** Which name an exercise should carry when two
 spellings share one id is an identity decision, and navigation was not to
 change.
+
+**It was wider than recorded, and the record's "first logged" was wrong.** The
+whole class is any spelling that is not the card's own name: DB Shoulder Press
+(the Balanced plan's own name for Dumbbell Shoulder Press) opened a page titled
+DB Shoulder Press under a card named Dumbbell Shoulder Press; a T-Bar Row opened
+under a card named Machine Row. And loggedName is the spelling met FIRST in
+newest-first order, i.e. the one logged most RECENTLY, however little of the
+movement it was: Barbell Bench Press 10 sessions and Bench Press 2 newer opened
+Bench Press with 2 of the movement's 12.
+
+**What D129 did.** A card is a movement; Exercise Detail is a lift (records,
+trends and D49 are read by the name logged, Contract 172 section 95), and no
+phase may merge those. So the tap now goes through openMasteryExercise: it opens
+the lift the athlete logged MOST under the movement (a tie: the movement's own
+name, then the lift logged most recently), and the page wears the card's title
+and drawing, with "Logged as <name>" under the title when the lift is another
+name. Nothing is renamed, merged, recomputed or stored. A lift opened from
+Strength, Weekly Review or Log is exactly what it was.
+
+## E54 — A movement logged under two names has two Exercise Detail pages · P4 · PROVEN · OPEN
+
+Found by D129's navigation audit. Recorded, not fixed.
+
+**What happens.** LOOP's registry merges the spellings it knows into one movement
+for Mastery (and for muscles); records, Strength, the trend, D49 and Exercise
+Detail read a lift by the name logged (D96B, Contract 172 section 95). An athlete
+who has logged Bench Press and Barbell Bench Press has one Mastery card and two
+lifts. After D129 the card opens the larger lift, titled as the card is; the other
+lift's page is reachable only from Strength or Log, and the page's own "Mastery
+counts 14 sessions" note is the only sign of it.
+
+**Why it was not fixed.** Showing one page for both means merging records, D49 and
+the trend across spellings: a change to PR identity, which D129 was told not to
+make. It is a product decision.
+
+## E55 — An unmapped movement's Mastery card is titled with the spelling logged most recently · P4 · PROVEN · OPEN
+
+Found by D129's navigation audit. Recorded, not fixed.
+
+**What happens.** For a name the registry does not know, getExerciseMastery's
+displayName is the first spelling met in newest-first order. An athlete who logged
+Chest Press 8 times and, most recently, "chest press." 6 times sees a card titled
+"chest press."; the page opened from it (the larger lift, Chest Press) wears that
+title and says "Logged as Chest Press". Choosing the most-used spelling instead
+would change displayName, which is the ranking's tie-break, so it is Mastery's
+own phase.
 
 ## Not findings — checked and clean
 

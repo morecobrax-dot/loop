@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.45",
+  "version": "10.46",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: Progress, Mastery, Exercise Mastery shows each top-three lift with its own illustration and level; long names show in full; Muscle Mastery unchanged.",
+  "nextAction": "Owner iPhone check: tap each top-three lift in Exercise Mastery; its page opens with the same name and illustration, and \"Logged as\" shows when your name differs.",
   "blocker": null,
-  "updatedAt": "2026-10-04T06:33:42Z"
+  "updatedAt": "2026-10-04T13:16:54Z"
 }

@@ -2575,7 +2575,13 @@ var EXERCISE_VISUAL_BY_NAME = {
   'weighted plank':'weighted_plank',
   'weighted russian twist':'weighted_russian_twist',
   'weighted sit-up':'weighted_situp',
-  'wide-grip lat pulldown':'lat_pulldown', 'wide-grip pulldown':'lat_pulldown'
+  'wide-grip lat pulldown':'lat_pulldown', 'wide-grip pulldown':'lat_pulldown',
+
+  /* A spelling an athlete types for a movement LOOP already draws (D129). It reaches that movement's drawing and
+     nothing else: the name stays an exercise of its own, with its own history and its own mastery. The Cable
+     Lateral Raise drawing IS the one-arm raise (one handle, the pulley low on the opposite side). A name that
+     could be done with more than one kind of equipment is not added here. */
+  'single-arm cable lateral raise':'lateral_raise_cable', 'single arm cable lateral raise':'lateral_raise_cable'
 };
 
 /* One to three cues per drawing: what to do, in the order it matters. */
