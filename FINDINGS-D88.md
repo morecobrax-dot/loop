@@ -1583,7 +1583,7 @@ Measured on frozen 10.40 vs 10.41, in real headless Edge:
 
 Contract 241, §163.
 
-## E46 — The coach writes its load into an untouched warm-up row · P4 · PROVEN · OPEN
+## E46 — The coach writes its load into an untouched warm-up row · P4 · PROVEN · **CLOSED in D127 (LOOP 10.44)**
 
 Found by D125 while making warm-up rows local. Recorded, not fixed.
 
@@ -1603,6 +1603,48 @@ they own.
 **Why it was not fixed in D125.** D50B is protected and unchanged. The likely
 fix is one condition in `applyCoachToFutureSets` (skip a warm-up), in a phase
 that may touch D50B.
+
+**Closed in D127 (LOOP 10.44).** It was wider than recorded: the writer runs
+after every working set is ticked or re-opened, and after a swap, and it wrote
+whatever load the coach held, so an untouched warm-up moved on a hold and an
+increase too, wherever it sat.
+
+Which sets the coach may write is now one named rule, `coachMayWriteSet`:
+- a set still to do (not ticked);
+- whose load the athlete has not set, and which can be set;
+- whose ROLE is work.
+
+"Work" is the `isWorkingSet` line the coach's own evidence (`liveSetEvidence`)
+already drew, so drop, failure, AMRAP and untyped sets are written exactly as
+before, and a typed warm-up never is. The coach's policy, constants, evidence,
+card and timing are byte-identical.
+
+A warm-up turned back into a working set after work has begun used to "keep"
+the load E46 had written into it. It now asks the coach at the change
+(`coachLoadNow`: the same reading of the rows, nothing painted or written), so
+it still joins the work at the work's load, now without the write.
+
+Measured on frozen 10.43 vs 10.44:
+- **10.43, real headless Edge, untouched W 135 × 5:**
+  - after a reduce it became 200;
+  - after a hold, or Set 1 ticked off again, it became 205;
+  - after an increase, 210;
+  - after a swap, the replacement's 60.
+  - It moved the same before, between and after the working sets. Typed,
+    stepped and ticked warm-ups were already safe.
+- **10.44:** the same taps leave every warm-up as it was. The working sets take
+  the same loads with the same reps, and the strip, the coach's card and its
+  announcement are unchanged.
+- **Drift** (354 generated workouts on the real logger, both builds):
+  - the 258 in which 10.43 never moved a warm-up are identical end to end
+    (rows, coach, draft, resume, save, and everything read from history);
+  - the 96 in which it did differ only in those warm-ups (186 rows, plus 10
+    where the old write was still showing), in the 77 saved workouts that held
+    one, and in what volume reads from them, including 10 volume records that
+    existed only because of the write;
+  - 0 unexplained.
+
+Contract 244, §166.
 
 ## E47 — Reps rising at a held load read as "Performance has stalled" · P3 · PROVEN · **CLOSED in D126 (LOOP 10.43)**
 
@@ -1727,6 +1769,32 @@ and rebuild". It was the same in 10.42 for every same-load window.
 documented policy (§161, §162), and falling loads have always read the same
 way. Letting a decline pass to D47 changes what plateau means and moves
 falling-load histories too. It is a product decision for its own phase.
+
+## E51 — A warm-up row's opening load is never a warm-up load · P4 · PROVEN · OPEN
+
+Found by D127 while closing E46. Recorded, not fixed.
+
+**What happens.** Since D127 the coach never writes into a warm-up, which is
+right. Nothing else gives a warm-up row a warm-up load either. It keeps
+whatever it opened with until the athlete changes it:
+- **A set added and then tapped to a warm-up** opens at the working load. Add
+  Set fills a new set from the last working set (D125), and turning a set into
+  a warm-up changes no value (D125).
+- **After a swap, a warm-up row opens blank.** The swap clears every load still
+  to do (Phase B), and the coach no longer fills a warm-up. Until 10.43 it wrote
+  the replacement's full working load there, which was E46.
+
+A row left as it opened is saved as it shows, and warm-up volume counts.
+
+**Measured, 10.44, real headless Edge.**
+- After a reduce to 200, Add Set then tap: W 200 × 5.
+- Swapped to Dumbbell Bench Press through `swapLogExercise`, the primitive the
+  Swap sheet calls: W — × 5, with the Suggested Warm-up showing 25 / 35 / 50.
+
+**Why it was not fixed in D127.** Add Set and the type change are D125's,
+which D127 had to leave alone, and the swap's reset is Phase B's. Proposing a
+warm-up load, for example from the Suggested Warm-up ramp, is a design decision
+for its own phase.
 
 ## Not findings — checked and clean
 

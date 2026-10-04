@@ -423,6 +423,33 @@ function pinAsOf1042(name){
    hold it with D126's statement put back, beside a count of what D126 moved. */
 function plateau1042In(ctx){ return require('vm').runInContext('(' + asOf1042('detectPlateau') + ')', ctx); }
 
+/* D127 (E46) — two functions changed ON PURPOSE. The coach's writer asks one named rule (coachMayWriteSet) which sets
+   it may write, and the rule turns a typed warm-up away; a warm-up turned back into a working set after work has begun
+   asks the coach for its load at the change (coachLoadNow) instead of relying on the coach having already written that
+   load into the warm-up. Every older pin of either function now reads it with its statement put back (giving 10.43);
+   any other change to it still fails them. The pairs are [now, as of 10.43]; Contract 244 proves what they do. */
+const D127_EDITS = {
+  applyCoachToFutureSets: [[
+    "exRow.querySelectorAll('.set-row').forEach(sr => { if(!coachMayWriteSet(sr)) return; const w = sr.querySelector('.set-weight-in');",
+    "exRow.querySelectorAll('.set-row').forEach(sr => { if(sr.classList.contains('completed')) return; const w = sr.querySelector('.set-weight-in'); if(!w || w.disabled || w.dataset.userSet) return;"]],
+  seedWorkingTarget: [[
+    "if(w && !w.disabled && !w.dataset.userSet && !started && rowWorkingLoad(exRow) !== null) w.value = String(exRow.dataset.rxLoad); if(w && !w.disabled && !w.dataset.userSet && started){ const load = coachLoadNow(exRow); if(load !== null) w.value = String(load); }",
+    "if(w && !w.disabled && !w.dataset.userSet && !started && rowWorkingLoad(exRow) !== null) w.value = String(exRow.dataset.rxLoad);"]]
+};
+function asOf1043(name){
+  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
+  for(const [now, then] of (D127_EDITS[name] || [])){
+    if(t.split(now).length !== 2) return null;           // a D127 statement itself moved
+    t = t.split(now).join(then);
+  }
+  return t;
+}
+function pinAsOf1043(name){
+  const t = asOf1043(name);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+
 /* A CSS rule's body, bounded by its own closing brace rather than by a
    character count that a new declaration pushes a property out of. */
 function cssRule(css, selector){
@@ -18066,10 +18093,14 @@ async function testLiveSetCoach(){
   sub('the athlete stays in control');
   {
     T('a user-edited input is marked as theirs', /function markUserSet/.test(src));
+    /* D127 (E46) — restated: which sets the coach may write is now one named rule, coachMayWriteSet, which the writer
+       asks for every set. The ownership and completion tests these two held in the writer's own body moved into it,
+       beside the role test; 10.43's writer, put back from D127_EDITS, still reads exactly as they were written.
+       Contract 244 proves all three by behaviour. */
     T('the coach writes only to inputs nobody has touched', (() => {
-      const i = src.indexOf('function applyCoachToFutureSets');
-      const body = src.slice(i, src.indexOf('function refreshSetCoach', i));
-      return /dataset\.userSet/.test(body) && /classList\.contains\('completed'\)/.test(body);
+      const rule = stripComments(fnSrc(src, 'coachMayWriteSet')), writer = stripComments(fnSrc(src, 'applyCoachToFutureSets')), was = asOf1043('applyCoachToFutureSets') || '';
+      return /if\(!coachMayWriteSet\(sr\)\) return;/.test(writer) && /dataset\.userSet/.test(rule) && /classList\.contains\('completed'\)/.test(rule)
+        && /dataset\.userSet/.test(was) && /classList\.contains\('completed'\)/.test(was);
     })());
     T('and forward propagation respects the same ownership', (() => {
       const i = src.indexOf('function propagateSetValueForward');
@@ -18077,9 +18108,9 @@ async function testLiveSetCoach(){
       return /dataset\.userSet/.test(body);
     })());
     T('completed sets are never rewritten', (() => {
-      const i = src.indexOf('function applyCoachToFutureSets');
-      const body = src.slice(i, src.indexOf('function refreshSetCoach', i));
-      return /if\(sr\.classList\.contains\('completed'\)\) return;/.test(body);
+      const rule = fnSrc(src, 'coachMayWriteSet').replace(/\s+/g, ' ');
+      return /if\(!sr \|\| sr\.classList\.contains\('completed'\)\) return false;/.test(rule) && /if\(!coachMayWriteSet\(sr\)\) return;/.test(fnSrc(src, 'applyCoachToFutureSets'))
+        && /if\(sr\.classList\.contains\('completed'\)\) return;/.test(asOf1043('applyCoachToFutureSets') || '');
     })());
   }
 
@@ -51426,8 +51457,10 @@ async function testWorkingSetPlanD125(){
   /* ---------------------------------------------------------------- */
   sub('35–36  D50B: unchanged, and its adaptation is never overwritten');
   await guard('d50b', async () => {
+    /* D127 (E46) — restated by reversal: the writer is held as of 10.43 (its eligibility statement put back from
+       D127_EDITS); D127 changed exactly that statement, Contract 244. */
     T('35  D50B is byte-identical: the coach, its constants, its evidence, its writer, its card and the ownership mark',
-      pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('liveSetEvidence') === 'f7ff87b1e49c93df' && pin('markUserSet') === '557fba41fff1a079' && pin('applyCoachToFutureSets') === '3983abe34667dc86' && pin('setCoachHtml') === '0aa5d1e22c4ab928'
+      pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('liveSetEvidence') === 'f7ff87b1e49c93df' && pin('markUserSet') === '557fba41fff1a079' && pinAsOf1043('applyCoachToFutureSets') === '3983abe34667dc86' && pin('setCoachHtml') === '0aa5d1e22c4ab928'
       && /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(stripComments(raw)));
     const L = await live(OWNER), c2 = L.c, ex = L.ex();
     type(c2, repsIn(rowsOf(ex)[0]), 4); tap(c2, rowsOf(ex)[0].querySelectorAll('.rir-opt')[0]); tap(c2, rowsOf(ex)[0].querySelector('.set-complete-btn'));
@@ -51760,21 +51793,26 @@ async function testRepAwarePlateauD126(){
   });
 
   /* ---------------------------------------------------------------- */
-  sub('30–34  D125 and D50B are byte-identical; E46 is still open');
+  sub('30–34  D125 and D50B are byte-identical as of 10.43; E46 as D126 left it (closed in D127)');
   await guard('d125', async () => {
+    /* D127 (E46) — restated by reversal: D125's Warm-up → Working seeding and D50B's writer are held as of 10.43, their
+       D127 statements put back from D127_EDITS (Contract 244 holds the change). */
     T('30  D125’s policy is byte-identical: the plan, its sequence reader, BUILD’s one rep, the seed, the Warm-up → Working seeding, its constants',
       pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('workingSetSequenceOf') === '653c9a9c0b1227af'
-      && pin('programRepSeed') === '7636574536a06e86' && pin('seedWorkingTarget') === '3b78cb0da8752502' && /const WORKING_SET_PLAN = \{\s*window: 5,\s*buildStep: 1\s*\};/.test(stripComments(raw)));
+      && pin('programRepSeed') === '7636574536a06e86' && pinAsOf1043('seedWorkingTarget') === '3b78cb0da8752502' && /const WORKING_SET_PLAN = \{\s*window: 5,\s*buildStep: 1\s*\};/.test(stripComments(raw)));
     T('33  D50B is byte-identical: the coach, its constants, its evidence, its writer, its card, the ownership mark',
-      pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('liveSetEvidence') === 'f7ff87b1e49c93df' && pin('applyCoachToFutureSets') === '3983abe34667dc86'
+      pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('liveSetEvidence') === 'f7ff87b1e49c93df' && pinAsOf1043('applyCoachToFutureSets') === '3983abe34667dc86'
       && pin('setCoachHtml') === '0aa5d1e22c4ab928' && pin('markUserSet') === '557fba41fff1a079'
       && /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(stripComments(raw)));
-    /* E46, still open: the coach's writer still reaches an untouched warm-up row */
+    /* E46 — open when D126 shipped, closed by D127. Restated by reversal: 10.43's writer, put back from D127_EDITS, still
+       writes its 200 into the untouched warm-up row; the writer now leaves it, and still reaches the working row. */
     const D = miniDomD125(), host = D.el('div');
-    host.innerHTML = '<div class="ex-log-row"><input type="checkbox" class="ex-bw-in"><div class="sets-list"><div class="set-row" data-set-type="warmup"><input class="set-weight-in" value="205"></div><div class="set-row"><input class="set-weight-in" value="205"></div></div></div>';
-    const exRow = host.querySelector('.ex-log-row');
-    c.applyCoachToFutureSets(exRow, { load: 200 });
-    T('34  E46 is untouched: the coach still writes its 200 into an untouched warm-up row (recorded, not fixed)', exRow.querySelectorAll('.set-weight-in').map(i => i.value).join() === '200,200');
+    const mk = () => { host.innerHTML = '<div class="ex-log-row"><input type="checkbox" class="ex-bw-in"><div class="sets-list"><div class="set-row" data-set-type="warmup"><input class="set-weight-in" value="205"></div><div class="set-row"><input class="set-weight-in" value="205"></div></div></div>'; return host.querySelector('.ex-log-row'); };
+    const t1043 = asOf1043('applyCoachToFutureSets'), w1043 = t1043 ? vm.runInContext('(' + t1043 + ')', c) : null;
+    const exWas = mk(); if(w1043) w1043(exWas, { load: 200 }); const was = exWas.querySelectorAll('.set-weight-in').map(i => i.value).join();
+    const exNow = mk(); c.applyCoachToFutureSets(exNow, { load: 200 }); const now = exNow.querySelectorAll('.set-weight-in').map(i => i.value).join();
+    T('34  E46 as D126 left it: 10.43’s writer (put back from D127_EDITS) still writes its 200 into an untouched warm-up row; closed in D127, the warm-up keeps its 205 and the working row still takes 200 (Contract 244)',
+      was === '200,200' && now === '205,200', [was, now]);
   });
 
   /* ---------------------------------------------------------------- */
@@ -51795,6 +51833,516 @@ async function testRepAwarePlateauD126(){
     T('45  reading the plateau writes nothing: the store is byte-identical after every surface was drawn, and detectPlateau names no storage',
       JSON.stringify(app.store) === before && !/LOOPStore|localStorage|persist/.test(fnSrc(raw, 'detectPlateau')));
     T('46  storage: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow', (() => { const a = H.loadApp(); return a.ctx.DATA_KEYS.length === 16 && a.ctx.DATA_SCHEMA_VERSION === 1 && a.ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow'; })());
+  });
+}
+
+/* =========================================================
+   CONTRACT 244 — D50B WARM-UP ISOLATION  (Phase D127 — closes E46)
+   ---------------------------------------------------------
+   D125 made a warm-up local: nothing typed, stepped or ticked on
+   one reaches a working set. D50B's writer still reached the other
+   way. After every working set it put its load into every set
+   still to do that the athlete had not set, and it never asked a
+   set's role, so an untouched warm-up took the working load: on a
+   reduce (135 → 200), and on a hold, an increase, a re-opened set
+   and a swap too. Now one named rule, coachMayWriteSet, says which
+   sets the coach may write: still to do, not the athlete's, and
+   work — isWorkingSet, the line its own evidence already drew. A
+   warm-up is never written, wherever it sits, touched or not,
+   ticked or not. The coach's policy, constants, evidence, card and
+   timing are untouched, and every working set it reached it still
+   reaches. A warm-up turned back into a working set after work has
+   begun used to "keep" the load E46 had written into it; it now
+   asks the coach at the change (coachLoadNow) and joins the work
+   at the work's load. Held here: E46 on 10.43's own functions,
+   compiled back from D127_EDITS; every position and state; the
+   adaptation still reaching work; ownership, completion, the
+   one-change cap, D125's reps and the strip; Add Set; the role
+   changes; the draft; swap; the rest timer; the properties;
+   protected engines; storage. Geometry and real touch are the
+   browser rig's (d127/qa127.js).
+   ========================================================= */
+async function testWarmupWriteBoundaryD127(){
+  section('CONTRACT 244 — D50B warm-up isolation: the coach never writes into a warm-up (D127, E46)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const pin = n => sha(col(fnSrc(raw, n)));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const NOW = '2026-10-03T12:00:00';
+  const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r), rir: rir == null ? '' : String(rir), type: type || 'working' });
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const W = (id, date, exs) => ({ id, date, category: 'push', title: 'Push', notes: '', exercises: exs });
+  /* a true stall at 205: D49 holds 205, D125 lays out 8 / 6 / 5 (the brief's plan) and the strip is 80 / 125 / 165 */
+  const STALL = ['2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29'].map((d, i) => W('h' + i, d, [E('Bench Press', [S(205, 8, 1), S(205, 6, 1), S(205, 5, 0)])]));
+  const DBH = ['2026-09-20', '2026-09-27'].map((d, i) => W('d' + i, d, [E('Dumbbell Bench Press', [S(60, 10, 2), S(60, 9, 1), S(60, 8, 1)])]));
+  const STRIP = ['80 lb × 5', '125 lb × 3', '165 lb × 2'];
+  /* 10.43's writer and Warm-up → Working seeding, put back from D127_EDITS. A statement that moved cannot be put back:
+     that fails check 1 alone, and every comparison with 10.43 below is skipped rather than failed for it. */
+  const OK1043 = Object.keys(D127_EDITS).every(n => asOf1043(n) !== null);
+  const boot = async log => {
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log || []),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) });
+    const rel = pinClock(a.ctx, NOW); try{ await H.settle(300); for(let t = 0; t < 60 && a.ctx.workoutLog.length !== (log || []).length; t++) await H.settle(100); } finally { rel(); }
+    return a;
+  };
+  /* the app's own logger on miniDomD125; the stepper's drawing (renderWorkoutStep, onWorkoutRowAdded) is stood in for */
+  const mount = async (log, o) => {
+    o = o || {};
+    const app = await boot(log); const c = app.ctx;
+    const D = miniDomD125(), body = D.el('body');
+    body.innerHTML = '<div id="logOverlay"><div class="sheet-scroll"><div id="logExercises"></div></div></div><div id="coachLive"></div><div id="setTypeOverlay"></div><div id="setTypeBody"></div>';
+    const byId = id => body.querySelector('#' + id), stub = c.document.getElementById.bind(c.document);
+    Object.assign(c.document, { getElementById: id => byId(id) || stub(id), createElement: tag => D.el(tag), querySelectorAll: sel => body.querySelectorAll(sel), querySelector: sel => body.querySelector(sel) });
+    Object.assign(c, { openLogSheet(){ byId('logOverlay').classList.add('open'); }, onWorkoutRowAdded(){}, renderWorkoutStep(){} });
+    const keep = {};
+    if(o.at1043 && OK1043) (o.only || Object.keys(D127_EDITS)).forEach(n => { keep[n] = c[n]; c[n] = vm.runInContext('(' + asOf1043(n) + ')', c); });
+    const rel = pinClock(c, NOW);
+    return { app, c, body, ex: i => body.querySelectorAll('#logExercises .ex-log-row')[i || 0], release: () => { rel(); Object.keys(keep).forEach(n => { c[n] = keep[n]; }); } };
+  };
+  const R = (w, r, type, extra) => Object.assign({ weight: String(w), reps: String(r), rir: '', completed: false }, type ? { type } : {}, extra || {});
+  const DRAFT = sets => ({ version: 1, id: 'draft_d127', category: 'push', categoryChosen: true, title: 'QA Push', date: '2026-10-03', notes: '', showCategoryPicker: false,
+    startedAt: '2026-10-03T11:30:00.000Z', origin: 'freeform', warmupDone: true,
+    exercises: [{ name: 'Bench Press', skipped: false, effort: '8', bodyweight: false, sets, restSec: 120, restRemaining: null,
+      meta: { targetSets: '3', targetReps: '8-12', recommended: '185', slotName: 'Bench Press', slotKey: 'sd127', slotRecommended: '', rxPlan: '8,6,5' } }] });
+  /* a workout resumed through the app's own restore, holding exactly these rows (a set's `own` only where given) */
+  const resumed = async (log, sets, o) => { const L = await mount(log, o); L.c.restoreDraftToSheet(DRAFT(sets)); return L; };
+  /* a workout started from the template: D125's plan, prefilled working rows */
+  const started = async (log, o) => { const L = await mount(log, o), c = L.c;
+    const like = c.DEFAULT_PLANS.balanced.templates.push[0].exercises[0];
+    const tpl = { id: 'qa-d127', name: 'QA Push', exercises: [Object.assign({}, like, { name: 'Bench Press', sets: 3, reps: '8-12', recommended: '185', effort: '8' })] };
+    const getT = c.getTemplates; c.getTemplates = cat => cat === 'push' ? (getT(cat) || []).concat([tpl]) : getT(cat);
+    await c.clearActiveDraft(); await c.startTemplateLog('push', 'qa-d127'); return L; };
+  const FIX = () => [R(135, 5, 'warmup'), R(205, 8), R(205, 6), R(205, 5)];        // the brief's fixture: W 135 × 5 untouched, then 205 × 8 / 6 / 5
+  const rowsOf = ex => ex.querySelectorAll('.set-row');
+  const wIn = r => r.querySelector('.set-weight-in'), repsIn = r => r.querySelector('.set-reps-in');
+  const own = r => (wIn(r).dataset.userSet ? 'w' : '') + (repsIn(r).dataset.userSet ? 'r' : '');
+  const idOf = r => r.dataset.setType === 'warmup' ? 'W' : (r.dataset.setType && r.dataset.setType !== 'working' ? r.dataset.setType[0].toUpperCase() : 'S') + col(r.querySelector('.set-idx').textContent).replace(/^Set\s*/, '');
+  const read = ex => ({ rows: rowsOf(ex).map(r => idOf(r) + ' ' + wIn(r).value + 'x' + repsIn(r).value + (r.classList.contains('completed') ? '+' : '') + (own(r) ? '/' + own(r) : '')),
+    strip: ex.querySelectorAll('.warmup-wrap .warmup-chip').map(x => col(x.textContent)),
+    coach: (() => { const k = ex.querySelector('.recommend-wrap .coach'); return k ? (k.className.match(/coach-(\w+)/) || [])[1] + ' ' + col((k.querySelector('.coach-load') || {}).textContent || '') : null; })() });
+  /* everything a row is: role, load, reps, RIR, ticked, and who set the load and the reps */
+  const state = r => JSON.stringify([r.dataset.setType || '', wIn(r).value, repsIn(r).value, r.querySelector('.set-rir-in').value, r.classList.contains('completed'), !!wIn(r).dataset.userSet, !!repsIn(r).dataset.userSet]);
+  const call = (c, el, attr) => vm.runInContext('(function(){ ' + el.getAttribute(attr) + ' })', c).call(el);
+  const type = (c, input, v) => { input.value = String(v); call(c, input, 'oninput'); };
+  const tap = (c, el) => call(c, el, 'onclick');
+  const step = (c, row, field, plus) => tap(c, row.querySelectorAll('.stepper')[field === 'w' ? 0 : 1].querySelectorAll('button')[plus ? 1 : 0]);
+  const done = (c, row) => tap(c, row.querySelector('.set-complete-btn'));
+  /* one set performed: its reps typed, its RIR chosen, ticked — as the athlete does it */
+  const perform = (c, row, reps, rir) => { if(reps != null) type(c, repsIn(row), reps); if(rir != null) tap(c, row.querySelectorAll('.rir-opt')[rir]); done(c, row); };
+  const label = (c, row) => tap(c, row.querySelector('.set-idx'));
+  const coachNow = (c, ex) => { const k = c.deriveNextSetCoach(c.liveSetEvidence(ex)); return k ? k.load : null; };
+
+  /* ---------------------------------------------------------------- */
+  sub('1–3  E46 on 10.43’s own writer (compiled back from D127_EDITS), and closed');
+  await guard('e46', async () => {
+    T('1  10.43 compiles back: its writer and its Warm-up → Working seeding are put back byte for byte from D127_EDITS',
+      OK1043 && pinAsOf1043('applyCoachToFutureSets') === '3983abe34667dc86' && pinAsOf1043('seedWorkingTarget') === '3b78cb0da8752502');
+    const was = await resumed(STALL, FIX(), { at1043: true }), wc = was.c, wx = was.ex();
+    const w0 = read(wx);
+    perform(wc, rowsOf(wx)[1], 6, 0);
+    const w1 = read(wx);
+    T('1  the brief’s fixture: W 135 × 5 untouched, then 205 × 8 / 6 / 5, the Suggested Warm-up drawn from 205',
+      same(w0.rows, ['W 135x5', 'S1 205x8', 'S2 205x6', 'S3 205x5']) && same(w0.strip, STRIP) && wx.dataset.rxLoad === '205', JSON.stringify(w0));
+    T('2  E46 on 10.43: Set 1 at 205 × 6 with nothing in reserve, the coach takes the work to 200 — and the untouched warm-up with it, 135 → 200',
+      !OK1043 || (same(w1.rows, ['W 200x5', 'S1 205x6+/r', 'S2 200x6', 'S3 200x5']) && w1.coach === 'reduce 200 lb'), JSON.stringify(w1));
+    was.release();
+    const now = await resumed(STALL, FIX()), nc = now.c, nx = now.ex();
+    perform(nc, rowsOf(nx)[1], 6, 0);
+    const n1 = read(nx);
+    T('3  now: the same set, the same decision, the same 200 on Sets 2 and 3 with their own reps — and the warm-up stays 135 × 5',
+      same(n1.rows, ['W 135x5', 'S1 205x6+/r', 'S2 200x6', 'S3 200x5']) && n1.coach === 'reduce 200 lb' && same(n1.strip, STRIP), JSON.stringify(n1));
+    now.release();
+    /* every coach run reached the warm-up on 10.43, not only a reduce: a hold, an increase, a re-opened set */
+    const runs = [['a hold (Set 1 8 at 2 in reserve)', L => perform(L.c, rowsOf(L.ex())[1], 8, 2), '205', ['S1 205x8+/r', 'S2 205x6', 'S3 205x5']],
+      ['an increase (Set 1 12 at 5 in reserve)', L => perform(L.c, rowsOf(L.ex())[1], 12, 5), '210', ['S1 205x12+/r', 'S2 210x6', 'S3 210x5']],
+      ['a re-opened set (Set 1 ticked off again after the reduce)', L => { perform(L.c, rowsOf(L.ex())[1], 6, 0); done(L.c, rowsOf(L.ex())[1]); }, '205', ['S1 205x6/r', 'S2 205x6', 'S3 205x5']]];
+    for(const [lab, act, w1043, work] of runs){
+      const A = await resumed(STALL, FIX(), { at1043: true }); act(A); const a = read(A.ex()); A.release();
+      const B = await resumed(STALL, FIX()); act(B); const b = read(B.ex()); B.release();
+      T('2–3  ' + lab + ': 10.43 wrote ' + w1043 + ' into the untouched warm-up; now it stays 135, and the working sets are the same in both',
+        (!OK1043 || (a.rows[0] === 'W ' + w1043 + 'x5' && same(a.rows.slice(1), work))) && b.rows[0] === 'W 135x5' && same(b.rows.slice(1), work), JSON.stringify([a.rows, b.rows]));
+    }
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4–11  position is not role: before, between, after; one or two; untouched, typed, stepped, ticked');
+  await guard('positions', async () => {
+    const cases = [
+      ['4  before the work', FIX(), 1, ['W 135x5', 'S1 205x6+/r', 'S2 200x6', 'S3 200x5']],
+      ['5  between working sets', [R(205, 8), R(135, 5, 'warmup'), R(205, 6), R(205, 5)], 0, ['S1 205x6+/r', 'W 135x5', 'S2 200x6', 'S3 200x5']],
+      ['6  after the work', [R(205, 8), R(205, 6), R(205, 5), R(135, 5, 'warmup')], 0, ['S1 205x6+/r', 'S2 200x6', 'S3 200x5', 'W 135x5']],
+      ['7  two warm-ups before the work', [R(95, 5, 'warmup'), R(135, 3, 'warmup'), R(205, 8), R(205, 6), R(205, 5)], 2, ['W 95x5', 'W 135x3', 'S1 205x6+/r', 'S2 200x6', 'S3 200x5']],
+      ['7  warm-ups between the work, 1 W 2 W 3', [R(205, 8), R(95, 5, 'warmup'), R(205, 6), R(135, 3, 'warmup'), R(205, 5)], 0, ['S1 205x6+/r', 'W 95x5', 'S2 200x6', 'W 135x3', 'S3 200x5']]
+    ];
+    for(const [lab, rows, at, want] of cases){
+      const L = await resumed(STALL, rows), c = L.c, ex = L.ex();
+      perform(c, rowsOf(ex)[at], 6, 0);
+      const was = OK1043 ? await (async () => { const A = await resumed(STALL, rows, { at1043: true }); perform(A.c, rowsOf(A.ex())[at], 6, 0); const x = read(A.ex()).rows; A.release(); return x; })() : null;
+      T(lab + ': every warm-up keeps its load and reps; the working sets take the coach’s 200 (10.43: ' + (was ? was.filter(x => x[0] === 'W').join(', ') : 'n/a') + ')',
+        same(read(ex).rows, want) && (!was || (was.filter(x => x[0] === 'W').every(x => /^W 200x/.test(x)) && same(was.filter(x => x[0] !== 'W'), want.filter(x => x[0] !== 'W')))), JSON.stringify([read(ex).rows, was]));
+      L.release();
+    }
+    /* the Add Set → Warm-up row the E46 finding measured: it opens at the working load, untouched */
+    for(const at1043 of [false, true]){
+      if(at1043 && !OK1043) continue;
+      const L = await started(STALL, { at1043 }), c = L.c, ex = L.ex();
+      tap(c, ex.querySelector('.add-set-btn')); label(c, rowsOf(ex)[3]);
+      const s0 = read(ex).rows;
+      perform(c, rowsOf(ex)[0], 6, 0);
+      const s1 = read(ex).rows;
+      T('6  ' + (at1043 ? '10.43' : 'now') + ': a set added and tapped to a warm-up, left as it opened (W 205 × 5), after the work: ' + (at1043 ? 'the coach took it to 200 (the finding’s witness)' : 'it stays 205 × 5'),
+        same(s0, ['S1 205x8', 'S2 205x6', 'S3 205x5', 'W 205x5']) && same(s1, ['S1 205x6+/r', 'S2 200x6', 'S3 200x5', at1043 ? 'W 200x5' : 'W 205x5']), JSON.stringify([s0, s1]));
+      L.release();
+    }
+    /* the athlete's own warm-ups: typed, stepped, ticked — protected on 10.43 already, and still */
+    const states = [['8  typed (125)', (c, ex) => type(c, wIn(rowsOf(ex)[0]), 125), 'W 125x5/w'],
+      ['9  stepped (− −)', (c, ex) => { step(c, rowsOf(ex)[0], 'w', false); step(c, rowsOf(ex)[0], 'w', false); }, 'W 125x5/w'],
+      ['10  ticked', (c, ex) => done(c, rowsOf(ex)[0]), 'W 135x5+'],
+      ['11  ticked and typed', (c, ex) => { type(c, wIn(rowsOf(ex)[0]), 115); done(c, rowsOf(ex)[0]); }, 'W 115x5+/w']];
+    for(const [lab, prep, want] of states){
+      for(const at1043 of [false, true]){
+        if(at1043 && !OK1043) continue;
+        const L = await resumed(STALL, FIX(), { at1043 }), c = L.c, ex = L.ex();
+        prep(c, ex); const before = state(rowsOf(ex)[0]);
+        perform(c, rowsOf(ex)[1], 6, 0);
+        T(lab + ' warm-up, ' + (at1043 ? '10.43' : 'now') + ': untouched by the coach (' + want + ')', read(ex).rows[0] === want && state(rowsOf(ex)[0]) === before && same(read(ex).rows.slice(2), ['S2 200x6', 'S3 200x5']), JSON.stringify(read(ex).rows));
+        L.release();
+      }
+    }
+    T('11  the rule in the source: the writer asks one named rule for every set, and the rule turns a warm-up away by its ROLE, with the same isWorkingSet test the coach’s evidence uses',
+      /exRow\.querySelectorAll\('\.set-row'\)\.forEach\(sr => \{ if\(!coachMayWriteSet\(sr\)\) return;/.test(col(stripComments(fnSrc(raw, 'applyCoachToFutureSets'))))
+      && /if\(sr\.dataset\.setType && isWorkingSet\(\{ type: sr\.dataset\.setType \}\) === false\) return false;/.test(col(fnSrc(raw, 'coachMayWriteSet')))
+      && /if\(sr\.dataset\.setType && isWorkingSet\(\{ type: sr\.dataset\.setType \}\) === false\) return;/.test(col(fnSrc(raw, 'liveSetEvidence')))
+      && !/SET_TYPES\.WARMUP|'warmup'|indexOf|parentNode|children/.test(stripComments(fnSrc(raw, 'coachMayWriteSet'))));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('12–17  the coach still reaches every working set it reached: its decisions, its cap, ownership, completion, D125’s reps, the strip');
+  await guard('work', async () => {
+    const outcomes = [['12  reduce', 6, 0, 'reduce 200 lb', ['S2 200x6', 'S3 200x5']], ['12  increase', 12, 5, 'increase 210 lb', ['S2 210x6', 'S3 210x5']],
+      ['12  hold', 8, 2, 'hold 205 lb', ['S2 205x6', 'S3 205x5']], ['12  reps alone (5, no effort logged)', 5, null, 'reduce 200 lb', ['S2 200x6', 'S3 200x5']]];
+    for(const [lab, reps, rir, coach, work] of outcomes){
+      const L = await resumed(STALL, FIX()), c = L.c, ex = L.ex();
+      perform(c, rowsOf(ex)[1], reps, rir);
+      const s = read(ex);
+      T(lab + ': ' + coach + ' — the working sets still to do take it, each keeping D125’s reps (16), the strip stays (17), the warm-up stays',
+        s.coach === coach && same(s.rows.slice(2), work) && s.rows[0] === 'W 135x5' && same(s.strip, STRIP), JSON.stringify(s));
+      L.release();
+    }
+    let L = await resumed(STALL, FIX()), c = L.c, ex = L.ex();
+    perform(c, rowsOf(ex)[1], 6, 0);
+    T('12  the change is announced once, as before: "Next set updated: 200 lb, 8 to 12 reps"', c.document.getElementById('coachLive').textContent === 'Next set updated: 200 lb, 8 to 12 reps', c.document.getElementById('coachLive').textContent);
+    perform(c, rowsOf(ex)[2], 4, 0);
+    T('13  one change per exercise: Set 2 grinds too, the coach holds 200 ("Load already adjusted") and Set 3 stays 200 × 5',
+      same(read(ex).rows, ['W 135x5', 'S1 205x6+/r', 'S2 200x4+/r', 'S3 200x5']) && read(ex).coach === 'hold 200 lb' && /Load already adjusted/.test(ex.querySelector('.recommend-wrap').innerHTML), JSON.stringify(read(ex)));
+    L.release();
+    L = await resumed(STALL, [R(135, 5, 'warmup'), R(205, 8), R(205, 6), R(205, 5, null, { completed: true })]); c = L.c; ex = L.ex();
+    perform(c, rowsOf(ex)[1], 6, 0);
+    T('14  a ticked working set is history: Set 3 done at 205 stays 205 while Set 2 takes 200', same(read(ex).rows, ['W 135x5', 'S1 205x6+/r', 'S2 200x6', 'S3 205x5+']), JSON.stringify(read(ex).rows));
+    L.release();
+    L = await resumed(STALL, FIX()); c = L.c; ex = L.ex();
+    type(c, wIn(rowsOf(ex)[2]), 195);
+    perform(c, rowsOf(ex)[1], 6, 0);
+    T('15  a working load the athlete set is theirs: Set 2 typed 195 stays 195; Set 3, which only followed it, takes 200', same(read(ex).rows, ['W 135x5', 'S1 205x6+/r', 'S2 195x6/w', 'S3 200x5']), JSON.stringify(read(ex).rows));
+    L.release();
+    /* drop, failure, AMRAP and untyped sets are work, as they were: an untouched one still takes the coach's load */
+    const typed = [R(135, 5, 'warmup'), R(205, 8), R(205, 6, 'drop'), R(205, 5, 'failure'), R(205, 5, 'amrap'), R(205, 5, 'working'), R(205, 5)];
+    L = await resumed(STALL, typed); c = L.c; ex = L.ex();
+    perform(c, rowsOf(ex)[1], 6, 0);
+    const now = read(ex).rows;
+    const then = OK1043 ? await (async () => { const A = await resumed(STALL, typed, { at1043: true }); perform(A.c, rowsOf(A.ex())[1], 6, 0); const x = read(A.ex()).rows; A.release(); return x; })() : null;
+    T('12  drop, failure, AMRAP, typed Working and untyped sets are work, as they always were: each takes 200 exactly as on 10.43; only the warm-up is turned away',
+      same(now, ['W 135x5', 'S1 205x6+/r', 'D2 200x6', 'F3 200x5', 'A4 200x5', 'S5 200x5', 'S6 200x5']) && (!then || (same(then.slice(1), now.slice(1)) && then[0] === 'W 200x5')), JSON.stringify([now, then]));
+    L.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('18–19  ticking a warm-up never runs the coach; ticking a working set does; the rest timer runs for both');
+  await guard('tick', async () => {
+    const L = await resumed(STALL, FIX()), c = L.c, ex = L.ex(), panel = ex.querySelector('.rest-panel');
+    /* a running rest is what startRestPanel leaves: shown (flex), an end time, a ticking interval */
+    const resting = () => panel.style.display === 'flex' && !!panel.dataset.endsAt && !!panel._interval;
+    const idle = !resting();
+    done(c, rowsOf(ex)[0]);
+    T('18  the warm-up ticked: no coach card, no working value moved, and the rest timer runs', idle && ex.querySelector('.recommend-wrap').innerHTML === '' && same(read(ex).rows, ['W 135x5+', 'S1 205x8', 'S2 205x6', 'S3 205x5']) && resting(), JSON.stringify([idle, read(ex).rows, panel.style.display, panel.dataset.endsAt]));
+    done(c, rowsOf(ex)[0]);
+    T('18  ...and un-ticked: still no coach, and the rest stops', ex.querySelector('.recommend-wrap').innerHTML === '' && !panel._interval);
+    perform(c, rowsOf(ex)[1], 6, 0);
+    T('19  a working set ticked: the coach runs and speaks, and the rest timer runs', read(ex).coach === 'reduce 200 lb' && resting(), JSON.stringify([read(ex).coach, panel.style.display]));
+    done(c, rowsOf(ex)[1]);
+    T('19  ...after the rest timer has started, as D50B placed it', (b => b.indexOf('startRestPanel') !== -1 && b.indexOf('startRestPanel') < b.indexOf('refreshSetCoach'))(fnSrc(raw, 'toggleSetComplete')));
+    T('29  the completion path and the rest timer are byte-identical (D125’s warm-up guard included)', pin('toggleSetComplete') === 'ed4187ee4b7b5e61' && pinAsOf1041('toggleSetComplete') === '46059f0d3306793b');
+    L.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('20–24  Add Set and the role changes after the coach acted');
+  await guard('roles', async () => {
+    let L = await resumed(STALL, FIX()), c = L.c, ex = L.ex();
+    perform(c, rowsOf(ex)[1], 6, 0);
+    tap(c, ex.querySelector('.add-set-btn'));
+    T('20  Add Set after the coach acted: the new working set takes its 200 from the last working set (and, past the plan, that set’s 5), as D125 made it',
+      read(ex).rows[4] === 'S4 200x5' && read(ex).rows[0] === 'W 135x5', JSON.stringify(read(ex).rows));
+    label(c, rowsOf(ex)[4]);
+    T('21  that set tapped to a warm-up keeps what it opened with (D125: Working → Warm-up changes no value): W 200 × 5', read(ex).rows[4] === 'W 200x5', JSON.stringify(read(ex).rows));
+    done(c, rowsOf(ex)[1]);
+    T('21–22  from then on the coach never writes into it: Set 1 re-opened, the coach goes back to the prescribed 205 for the working sets — both warm-ups keep their own loads',
+      same(read(ex).rows, ['W 135x5', 'S1 205x6/r', 'S2 205x6', 'S3 205x5', 'W 200x5']) && read(ex).coach === 'prescribed 205 lb', JSON.stringify(read(ex)));
+    L.release();
+    if(OK1043){
+      L = await resumed(STALL, FIX(), { at1043: true }); c = L.c; ex = L.ex();
+      perform(c, rowsOf(ex)[1], 6, 0); tap(c, ex.querySelector('.add-set-btn')); label(c, rowsOf(ex)[4]); done(c, rowsOf(ex)[1]);
+      T('21–22  on 10.43 the same taps moved both warm-ups to the coach’s 205', same(read(ex).rows, ['W 205x5', 'S1 205x6/r', 'S2 205x6', 'S3 205x5', 'W 205x5']), JSON.stringify(read(ex).rows));
+      L.release();
+    }
+    /* a set made a warm-up never takes the coach's load, even when what it opened with is not the coach's */
+    L = await resumed(STALL, FIX()); c = L.c; ex = L.ex();
+    perform(c, rowsOf(ex)[1], 6, 0); type(c, wIn(rowsOf(ex)[3]), 195); tap(c, ex.querySelector('.add-set-btn'));
+    const opened = read(ex).rows[4];
+    label(c, rowsOf(ex)[4]);
+    T('21  after Set 3 was set to 195, Add Set opens at 195 and, made a warm-up, it stays 195: never the coach’s 200',
+      opened === 'S4 195x5' && read(ex).rows[4] === 'W 195x5' && coachNow(c, ex) === 200, JSON.stringify([opened, read(ex).rows]));
+    L.release();
+    /* Working → Warm-up after the coach acted: protected at once */
+    L = await resumed(STALL, FIX()); c = L.c; ex = L.ex();
+    perform(c, rowsOf(ex)[1], 6, 0); label(c, rowsOf(ex)[3]);
+    const before = state(rowsOf(ex)[3]);
+    done(c, rowsOf(ex)[1]); perform(c, rowsOf(ex)[1], 12, 5);
+    T('22  Set 3 (200, the coach’s) turned into a warm-up keeps its values, and no later coach run touches it: not the re-open (205), not the increase after it (Set 2 takes 210)',
+      state(rowsOf(ex)[3]) === before && read(ex).rows[3] === 'W 200x5' && /^S2 210x/.test(read(ex).rows[2]), JSON.stringify(read(ex)));
+    L.release();
+    /* Warm-up → Working after the coach acted: the row joins the work at the coach's load, asked at the change */
+    L = await resumed(STALL, FIX()); c = L.c; ex = L.ex();
+    perform(c, rowsOf(ex)[1], 6, 0);
+    const held = read(ex).rows[0];
+    label(c, rowsOf(ex)[0]);
+    T('23  the untouched warm-up turned Working after the coach acted joins the work: the coach’s 200 and the plan’s 8 for its place (it held 135 until the change, so nothing was written into it before)',
+      held === 'W 135x5' && same(read(ex).rows, ['S1 200x8', 'S2 205x6+/r', 'S3 200x6', 'S4 200x5']) && coachNow(c, ex) === 200, JSON.stringify([held, read(ex).rows]));
+    L.release();
+    L = await resumed(STALL, FIX()); c = L.c; ex = L.ex();
+    perform(c, rowsOf(ex)[1], 6, 0); c.setTypePickerRow = rowsOf(ex)[0]; c.chooseSetType('working');
+    T('23  the same through the set-type picker', same(read(ex).rows, ['S1 200x8', 'S2 205x6+/r', 'S3 200x6', 'S4 200x5']), JSON.stringify(read(ex).rows));
+    L.release();
+    L = await resumed(STALL, FIX()); c = L.c; ex = L.ex();
+    perform(c, rowsOf(ex)[1], 6, 0); type(c, wIn(rowsOf(ex)[2]), 195);
+    const card = ex.querySelector('.recommend-wrap').innerHTML, live = c.document.getElementById('coachLive').textContent;
+    label(c, rowsOf(ex)[0]);
+    T('23  a role change runs no coach: Set 3 still shows the 195 it followed from Set 2, the card and the announcement are as they were, and only the changed row moved',
+      same(read(ex).rows, ['S1 200x8', 'S2 205x6+/r', 'S3 195x6/w', 'S4 195x5']) && ex.querySelector('.recommend-wrap').innerHTML === card && c.document.getElementById('coachLive').textContent === live, JSON.stringify(read(ex).rows));
+    L.release();
+    L = await resumed(STALL, FIX()); c = L.c; ex = L.ex();
+    type(c, wIn(rowsOf(ex)[0]), 125); perform(c, rowsOf(ex)[1], 6, 0); label(c, rowsOf(ex)[0]);
+    T('23  a warm-up load the athlete typed stays theirs when the row turns Working (125), as D125 said', read(ex).rows[0] === 'S1 125x8/w', JSON.stringify(read(ex).rows));
+    L.release();
+    L = await resumed(STALL, FIX()); c = L.c; ex = L.ex();
+    perform(c, rowsOf(ex)[1], 12, 5); label(c, rowsOf(ex)[0]);
+    T('23  after an increase it joins at the coach’s 210', read(ex).rows[0] === 'S1 210x8', JSON.stringify(read(ex).rows));
+    L.release();
+    L = await resumed(STALL, FIX()); c = L.c; ex = L.ex();
+    label(c, rowsOf(ex)[0]);
+    T('23  before any work it is D125’s seeding, unchanged: the prescribed 205 and the plan’s 8', same(read(ex).rows, ['S1 205x8', 'S2 205x8', 'S3 205x6', 'S4 205x5']), JSON.stringify(read(ex).rows));
+    L.release();
+    if(OK1043){
+      L = await resumed(STALL, FIX(), { at1043: true, only: ['seedWorkingTarget'] }); c = L.c; ex = L.ex();
+      perform(c, rowsOf(ex)[1], 6, 0); label(c, rowsOf(ex)[0]);
+      T('24  the role change does not lean on the old write: with D127’s writer but 10.43’s seeding the row would join the work at 135 — the seeding had to ask the coach',
+        read(ex).rows[0] === 'S1 135x8', JSON.stringify(read(ex).rows));
+      L.release();
+    }
+    T('24  in the source: after the first working set the seeding asks coachLoadNow, which reads the rows (liveSetEvidence) and the policy (deriveNextSetCoach) and writes nothing',
+      /if\(w && !w\.disabled && !w\.dataset\.userSet && started\)\{ const load = coachLoadNow\(exRow\); if\(load !== null\) w\.value = String\(load\); \}/.test(col(fnSrc(raw, 'seedWorkingTarget')))
+      && /const ev = liveSetEvidence\(exRow\); if\(ev\.bodyweight\) return null; const coach = deriveNextSetCoach\(ev\);/.test(col(fnSrc(raw, 'coachLoadNow')))
+      && !/\.value\s*=|innerHTML|refreshSetCoach|applyCoachToFutureSets|persist|LOOPStore/.test(stripComments(fnSrc(raw, 'coachLoadNow'))));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('25–28  the draft, resuming, and swap');
+  await guard('draft', async () => {
+    {
+      const K = await resumed(STALL, FIX()), kc = K.c, kx = K.ex();
+      const others = () => JSON.stringify(Object.keys(K.app.store).filter(k => k !== 'activeWorkoutDraft').sort().map(k => [k, K.app.store[k]]));
+      const store0 = others();
+      perform(kc, rowsOf(kx)[1], 6, 0); label(kc, rowsOf(kx)[0]); label(kc, rowsOf(kx)[3]); done(kc, rowsOf(kx)[1]); done(kc, rowsOf(kx)[1]);
+      await H.settle(50);
+      T('50  the coach, the rule and the role changes write nothing but the active draft: every other stored key is byte-identical after a reduce, two role changes and a set re-opened and re-done', others() === store0);
+      K.release();
+    }
+    const L = await resumed(STALL, FIX()), c = L.c, ex = L.ex();
+    perform(c, rowsOf(ex)[1], 6, 0);
+    const before = read(ex), draft = JSON.parse(JSON.stringify(c.captureActiveDraft()));
+    T('25  the draft holds the corrected rows: the warm-up 135 × 5 as a warm-up with no ownership, Set 1 done with its reps the athlete’s, the coach’s 200s unowned',
+      same(draft.exercises[0].sets.map(s => (s.type || '-') + ' ' + s.weight + 'x' + s.reps + (s.completed ? '+' : '') + (s.own ? '/' + s.own : '')), ['warmup 135x5', '- 205x6+/r', '- 200x6', '- 200x5']), JSON.stringify(draft.exercises[0].sets));
+    const L2 = await mount(STALL), c2 = L2.c;
+    c2.restoreDraftToSheet(draft);
+    const ex2 = L2.ex(), after = read(ex2);
+    T('26  resumed in a fresh app: the same rows, roles, loads, reps and ownership', same(after.rows, before.rows) && same(after.strip, STRIP), JSON.stringify([before.rows, after.rows]));
+    T('27  resuming does not run the coach (no card until the next working set), so nothing is written into the warm-up', ex2.querySelector('.recommend-wrap').innerHTML === '' && after.rows[0] === 'W 135x5');
+    T('27  ...the restore path names neither the coach nor its writer', !/refreshSetCoach|applyCoachToFutureSets|coachLoadNow/.test(stripComments(fnSrc(raw, 'restoreDraftToSheet'))));
+    perform(c2, rowsOf(ex2)[2], 6, 2);
+    T('27  the next working set after resuming: the coach runs on the restored evidence (one change already made → hold 200) and the warm-up stays 135',
+      same(read(ex2).rows, ['W 135x5', 'S1 205x6+/r', 'S2 200x6+/r', 'S3 200x5']) && read(ex2).coach === 'hold 200 lb', JSON.stringify(read(ex2)));
+    L.release(); L2.release();
+    /* swap: the replacement gets its own prescription; the warm-up is left as the swap leaves it */
+    for(const after1 of [false, true]){
+      const was = OK1043 ? await (async () => { const A = await resumed(STALL.concat(DBH), FIX(), { at1043: true }); if(after1) perform(A.c, rowsOf(A.ex())[1], 6, 0);
+        A.c.swapLogExercise(A.ex(), 'Dumbbell Bench Press'); const x = read(A.ex(after1 ? 1 : 0)).rows; A.release(); return x; })() : null;
+      const S2 = await resumed(STALL.concat(DBH), FIX()), sc = S2.c;
+      if(after1) perform(sc, rowsOf(S2.ex())[1], 6, 0);
+      sc.swapLogExercise(S2.ex(), 'Dumbbell Bench Press');
+      const sx = S2.ex(after1 ? 1 : 0), s = read(sx);
+      const want = after1 ? ['W x5', 'S1 60x6', 'S2 60x5'] : ['W x5', 'S1 60x8', 'S2 60x6', 'S3 60x5'];
+      T('28  swap ' + (after1 ? 'after the coach acted (the row splits)' : 'before any work') + ': the working sets take the replacement’s own 60, nothing of the 200 leaks; the warm-up is left as the swap clears it (10.43: the coach wrote 60 into it)',
+        same(s.rows, want) && sx.dataset.rxLoad === '60' && (!was || (was[0] === 'W 60x5' && same(was.slice(1), want.slice(1)))), JSON.stringify([s.rows, was]));
+      S2.release();
+    }
+    T('28  the swap itself is byte-identical (what it keeps, clears and asks the coach for)', pin('swapLogExercise') === '7206131885de9128' && pin('splitRowForSwap') === '96c7c574e0215a93' && pin('undoExerciseSwap') === '5fd3b207b120e5bf');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('P  properties over generated workouts: warm-up immutability, working-set sensitivity, ownership, role changes, and zero drift on work against 10.43');
+  await guard('properties', async () => {
+    let seed = 1271; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+    const pick = a => a[Math.floor(rnd() * a.length)];
+    const NOWAPP = await mount(STALL), WAS = OK1043 ? await mount(STALL, { at1043: true }) : null;
+    let cases = 0, events = 0, warmKept = 0, warmSeen = 0, stripKept = 0, written = 0, eligible = 0, eligibleOk = 0, ownedSeen = 0, ownedKept = 0;
+    let workSame = 0, workCmp = 0, warmMoved1043 = 0, w2wSeen = 0, w2wOk = 0, toWarmSeen = 0, toWarmOk = 0, noWarmCases = 0, noWarmSame = 0;
+    const OUT = [['hard', 5, 0], ['grind', 6, 0], ['hold', 8, 2], ['easy', 12, 5], ['miss', 5, null]];
+    for(let k = 0; k < 60; k++){
+      const nWork = 3 + Math.floor(rnd() * 3), nWarm = k % 6 === 5 ? 0 : 1 + Math.floor(rnd() * 3);
+      const rows = [];
+      for(let i = 0; i < nWork; i++){ const r = R(205, [8, 6, 5, 5, 5][i]);
+        const roll = rnd(); if(roll < 0.12) Object.assign(r, { weight: '195', own: 'w' }); else if(roll < 0.2) Object.assign(r, { completed: true, rir: '1' }); rows.push(r); }
+      for(let j = 0; j < nWarm; j++){ const r = R(pick([45, 95, 115, 135, 155, 185]), pick([3, 5, 8]), 'warmup');
+        const roll = rnd(); if(roll < 0.2) r.own = 'w'; else if(roll < 0.35) r.completed = true; rows.splice(Math.floor(rnd() * (rows.length + 1)), 0, r); }
+      const plan = []; for(let e = 0, n = 1 + Math.floor(rnd() * 3); e < n; e++) plan.push(rnd() < 0.25 ? ['reopen'] : pick(OUT));
+      const runs = [[NOWAPP, true]].concat(WAS ? [[WAS, false]] : []);
+      const traces = [];
+      for(const [A, isNow] of runs){
+        const c = A.c; c.restoreDraftToSheet(DRAFT(JSON.parse(JSON.stringify(rows)))); const ex = A.ex();
+        const strip0 = same(read(ex).strip, STRIP) ? JSON.stringify(read(ex).strip) : JSON.stringify(read(ex).strip);
+        const trace = [];
+        for(const ev of plan){
+          const all = rowsOf(ex);
+          const before = all.map(state);
+          if(ev[0] === 'reopen'){ const doneRows = all.filter(r => r.classList.contains('completed') && r.dataset.setType !== 'warmup'); if(!doneRows.length) continue; done(c, doneRows[doneRows.length - 1]); }
+          else { const next = all.find(r => !r.classList.contains('completed') && r.dataset.setType !== 'warmup'); if(!next) continue; perform(c, next, ev[1], ev[2]); }
+          const after = rowsOf(ex).map(state), load = coachNow(c, ex);
+          trace.push(after.map((s, i) => [rowsOf(ex)[i].dataset.setType === 'warmup', s]));
+          if(isNow){
+            events++;
+            rowsOf(ex).forEach((r, i) => {
+              if(r.dataset.setType === 'warmup'){ warmSeen++; if(after[i] === before[i]) warmKept++; return; }
+              if(wIn(r).dataset.userSet){ ownedSeen++; if(JSON.parse(after[i])[1] === JSON.parse(before[i])[1]) ownedKept++; return; }
+              if(!r.classList.contains('completed') && load != null){ eligible++; if(wIn(r).value === String(load)) eligibleOk++; if(JSON.parse(after[i])[1] !== JSON.parse(before[i])[1]) written++; }
+            });
+            if(JSON.stringify(read(ex).strip) === strip0) stripKept++;
+          }
+        }
+        traces.push(trace);
+        if(isNow){
+          /* the role changes: an untouched warm-up turned Working joins at the coach's load; a working set turned warm-up is then left alone */
+          const startedWork = rowsOf(ex).some(r => r.classList.contains('completed') && r.dataset.setType !== 'warmup');
+          const wu = rowsOf(ex).find(r => r.dataset.setType === 'warmup' && !r.classList.contains('completed') && !wIn(r).dataset.userSet);
+          if(wu && startedWork){ const want = coachNow(c, ex); w2wSeen++; label(c, wu); if(want == null || wIn(wu).value === String(want)) w2wOk++; }
+          const wk = rowsOf(ex).find(r => r.dataset.setType !== 'warmup' && !r.classList.contains('completed'));
+          const nxt = rowsOf(ex).filter(r => r.dataset.setType !== 'warmup' && !r.classList.contains('completed') && r !== wk)[0];
+          if(wk && nxt){ label(c, wk); const b = state(wk); perform(c, nxt, 5, 0); const doneRows = rowsOf(ex).filter(r => r.classList.contains('completed') && r.dataset.setType !== 'warmup'); if(doneRows.length) done(c, doneRows[0]);
+            toWarmSeen++; if(state(wk) === b) toWarmOk++; }
+        }
+      }
+      cases++;
+      if(traces.length === 2){
+        const [tn, tw] = traces;
+        for(let e = 0; e < Math.min(tn.length, tw.length); e++){
+          tn[e].forEach(([warm, s], i) => { if(warm){ if(tw[e][i][1] !== s) warmMoved1043++; return; } workCmp++; if(tw[e][i][1] === s) workSame++; });
+        }
+        if(nWarm === 0){ noWarmCases++; if(JSON.stringify(tn) === JSON.stringify(tw)) noWarmSame++; }
+      }
+    }
+    NOWAPP.release(); if(WAS) WAS.release();
+    T('P  warm-up immutability: across ' + cases + ' generated workouts and ' + events + ' coach runs, every warm-up kept its role, load, reps, RIR, tick and ownership (' + warmKept + ' of ' + warmSeen + ' row checks), and the strip never moved (' + stripKept + ' of ' + events + ')',
+      warmSeen > 100 && warmKept === warmSeen && stripKept === events, [warmKept, warmSeen, stripKept, events]);
+    T('P  working-set sensitivity: every set still to do that the athlete had not set holds the coach’s load after each run (' + eligibleOk + ' of ' + eligible + '), and ' + written + ' of them were actually moved by it',
+      eligible > 60 && eligibleOk === eligible && written > 20, [eligibleOk, eligible, written]);
+    T('P  ownership: a working load the athlete set never moved (' + ownedKept + ' of ' + ownedSeen + ')', ownedSeen > 10 && ownedKept === ownedSeen, [ownedKept, ownedSeen]);
+    T('P  role changes: an untouched warm-up turned Working after work began joined at the coach’s load (' + w2wOk + ' of ' + w2wSeen + '); a working set turned warm-up was never touched again (' + toWarmOk + ' of ' + toWarmSeen + ')',
+      w2wSeen > 10 && w2wOk === w2wSeen && toWarmSeen > 20 && toWarmOk === toWarmSeen, [w2wOk, w2wSeen, toWarmOk, toWarmSeen]);
+    T('P  zero drift on work against 10.43 (compiled back): every non-warm-up row is identical after every run (' + workSame + ' of ' + workCmp + '), workouts with no warm-up are identical end to end (' + noWarmSame + ' of ' + noWarmCases + '), and 10.43 moved ' + warmMoved1043 + ' warm-up rows the coach now leaves',
+      !OK1043 || (workCmp > 300 && workSame === workCmp && noWarmCases >= 8 && noWarmSame === noWarmCases && warmMoved1043 > 20), [workSame, workCmp, noWarmSame, noWarmCases, warmMoved1043]);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('30–37  D50B’s policy, D125, D126, D49 and D119–D123 are byte-identical');
+  await guard('pins', async () => {
+    T('30–32  D50B is byte-identical: the coach, its constants, its evidence, its card, its refresh and the ownership mark; its writer differs from 10.43 by the one eligibility statement (D127_EDITS)',
+      pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('liveSetEvidence') === 'f7ff87b1e49c93df' && pin('setCoachHtml') === '0aa5d1e22c4ab928' && pin('markUserSet') === '557fba41fff1a079'
+      && pinAsOf1043('applyCoachToFutureSets') === '3983abe34667dc86'
+      && /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(stripComments(raw)));
+    T('33  D125 is byte-identical: the plan, its reader, BUILD’s rep, the seed, the row helpers, Add Set, the type toggle and picker, propagation, the stepper, the strip, renumbering, the draft; its Warm-up → Working seeding differs from 10.43 by the one after-work statement',
+      pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('workingSetSequenceOf') === '653c9a9c0b1227af' && pin('programRepSeed') === '7636574536a06e86'
+      && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pinAsOf1043('seedWorkingTarget') === '3b78cb0da8752502'
+      && pin('addSetRow') === '095f10f06e006dd3' && pin('toggleSetType') === '4f62b7d1782bc899' && pin('chooseSetType') === 'f81cad3ec750ee4d' && pin('applySetTypeToRow') === '9fab51981238989b'
+      && pin('propagateSetValueForward') === '60f12adf15eda793' && pin('stepValue') === '8e79af408daacf1d' && pin('appendSetRow') === '61f2b7e061afde48' && pin('renumberSets') === '6a65d511509ef489'
+      && pin('maybeRefreshWarmup') === '42a4003edd84d57f' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('computeWarmupRamp') === 'b826d1445f153d77'
+      && pin('captureActiveDraft') === '42dabe95ca8963a0' && pin('restoreDraftToSheet') === '1b1ae98544966e44'
+      && /const WORKING_SET_PLAN = \{\s*window: 5,\s*buildStep: 1\s*\};/.test(stripComments(raw)));
+    T('34–37  D126’s plateau, D49, the phase policy, D119 / D120 and D121–D123’s evidence are byte-identical',
+      pin('detectPlateau') === 'cb642b7c61b1aec9' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97'
+      && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' && pin('progressionRecommendationFor') === '4be672abd167121a' && pin('isPerformanceSet') === 'af02c77cf98e70ef'
+      && pin('performedReps') === '0436ff32a1b6eaf1' && pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('isDeloadWorkout') === 'ad99d9e182eb1f22');
+    T('36  bodyweight: the writer still writes nothing to a bodyweight exercise, and the role change asks nothing of one', /const bw = exRow\.querySelector\('\.ex-bw-in'\); if\(bw && bw\.checked\) return 0;/.test(col(fnSrc(raw, 'applyCoachToFutureSets'))) && /if\(ev\.bodyweight\) return null;/.test(col(fnSrc(raw, 'coachLoadNow'))));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('38–50  what is saved, records, XP, volume, the held findings, storage');
+  await guard('saved', async () => {
+    /* the same session saved on 10.43 and now: the warm-up left untouched and never ticked, the work done */
+    const saveRun = async (at1043, rows) => { const L = await resumed(STALL, rows, { at1043 }), c = L.c, ex = L.ex(); const at = rows[0].type === 'warmup' ? 1 : 0;
+      perform(c, rowsOf(ex)[at], 6, 0); perform(c, rowsOf(ex)[at + 1], 6, 2); perform(c, rowsOf(ex)[at + 2], 5, 1);
+      await c.saveLog(); const ent = c.workoutLog.find(w => !/^h\d$/.test(w.id));
+      const out = withClockOn(c, NOW, () => { ['invalidateSortedLogCache', 'invalidateWorkoutGroups', 'invalidatePRCaches', 'invalidatePRSetCache', 'invalidateXPTimelineCache', 'invalidateRecoveryCache', 'invalidateCapabilityCache', 'invalidateContextCache', 'invalidateAllMasteryCaches']
+        .forEach(k => { if(typeof c[k] === 'function') try{ c[k](); }catch(e){} });
+        const tl = c.computeXPTimeline(), pr = c.getCurrentProgression();
+        const evs = c.computeAllPREvents();
+        return { sets: ent ? ent.exercises[0].sets.map(s => (s.type || '-') + ' ' + s.weight + 'x' + s.reps) : null, vol: ent ? c.sessionVolume(ent) : null,
+          volRec: evs.filter(e => ent && e.id === ent.id).map(e => e.hits.filter(x => x.type === 'volume').map(x => x.next)).join(),
+          rest: JSON.stringify([evs.map(e => [e.id === (ent && ent.id) ? 'new' : e.id, e.exerciseName, e.hits.filter(x => x.type !== 'volume').map(x => x.type + ':' + x.next), e.hits.length]), tl.lifetimeXP, tl.prCount, pr.level, pr.rank && (pr.rank.name || pr.rank),
+            ent ? (s => s && s.available ? s.score : null)(c.sessionScore(ent)) : null, c.masteryPRCounts(), c.computePRs().map(p => [p.name, p.weight, p.reps, !!p.isBW]),
+            (() => { const p = c.progressionFor('Bench Press', '8-12', null); return [p.tag, p.weight]; })()]),
+          rec: JSON.stringify(c.computeMuscleRecovery()) }; });
+      L.release(); return out; };
+    const now = await saveRun(false, FIX());
+    T('38  saved now: the warm-up as the athlete left it (135 × 5), the work as done', same(now.sets, ['warmup 135x5', '- 205x6', '- 200x6', '- 200x5']), JSON.stringify(now.sets));
+    if(OK1043){
+      const was = await saveRun(true, FIX());
+      T('38  saved on 10.43: the warm-up was recorded at the coach’s 200 × 5 it had never been asked to be — the only set that differs', same(was.sets, ['warmup 200x5', '- 205x6', '- 200x6', '- 200x5']), JSON.stringify(was.sets));
+      T('39–42  strength records, which records the session holds, PR XP, XP, level, rank, Session Score, Mastery and the next prescription: identical (a warm-up is no performance)', was.rest === now.rest, [was.rest, now.rest].join(' | '));
+      T('43  volume counts warm-ups (as LOOP always has, and D121’s volume record with it), so the saved session’s volume and its volume record moved by exactly that warm-up: 135 × 5 instead of 200 × 5, −325 lb',
+        was.vol - now.vol === 325 && was.volRec !== '' && now.volRec !== '' && +was.volRec - +now.volRec === 325, [was.vol, now.vol, was.volRec, now.volRec]);
+      T('41  recovery is identical', was.rec === now.rec, [was.rec, now.rec].join(' | ').slice(0, 600));
+      const cleanRows = () => [R(205, 8), R(205, 6), R(205, 5)];
+      const a = await saveRun(true, cleanRows()), b = await saveRun(false, cleanRows());
+      T('38–43  with no warm-up in the session the saved workout and everything read from it are 10.43’s exactly', same(a.sets, b.sets) && a.vol === b.vol && a.rest === b.rest && a.rec === b.rec, JSON.stringify([a.sets, b.sets]));
+    }
+    T('38–43  their engines are byte-identical', pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50'
+      && pin('calculateRankFromLevel') === '868fd909074da898' && pin('getCurrentProgression') === 'bf3a7572296c620c' && pin('sessionVolume') === '4ddcaadccc1dfa80');
+    /* the held findings, by behaviour as well as by pin */
+    const held = async (log, fn) => { const a = await boot(log); return withClockOn(a.ctx, NOW, () => fn(a.ctx)); };
+    const wk = (items, setsOf) => items.map((x, i) => W('e' + i, ['2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'][i], [E('Bench Press', setsOf(x))]));
+    const e48 = await held(STALL, hc => { const p = hc.deriveWorkingSetPlan('Bench Press', '8-12', 3, { tag: 'increase', weight: 210 }, {}); return p.source + ' ' + p.reps.join('/'); });
+    const e49a = await held(wk([[8, 6, 4], [8, 7, 5], [8, 8, 6], [8, 8, 7]], s => s.map(r => S(205, r))), hc => { const p = hc.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
+    const e49b = await held(wk([0, 1, 2, 3], r => [S(205, 8, r), S(205, 8, r)]), hc => { const p = hc.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
+    const e50 = await held(wk([9, 8, 7, 6], x => [S(205, x, 0), S(205, x - 1, 0)]), hc => { const r = hc.progressionFor('Bench Press', '8-12', null); return r ? r.tag : null; });
+    T('44–46  E48, E49 and E50 are still open, by behaviour: a new load (210) still gets the program’s seed 8 / 8 / 8; the same top set with better back-offs, and the same reps with more in reserve, still read as a stall at 205; a pure decline at 0 in reserve is still a plateau ahead of D47',
+      e48 === 'program 8/8/8' && same(e49a, [205, 4]) && same(e49b, [205, 4]) && e50 === 'plateau', JSON.stringify([e48, e49a, e49b, e50]));
+    T('44–48  E48 (D125’s new-load seed), E49 / E50 (plateau), E43 (working-set XP copy), E38 and E39 are untouched', pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('detectPlateau') === 'cb642b7c61b1aec9'
+      && pin('setChipHtml') === '350b4e34eb582056' && pin('substitutionIsHold') === '049ba50329c76db3' && /working set/.test(raw));
+    T('49  history is never rewritten: the save path and the captured prescription are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pin('capturedPrescription') === '4b741af98b989695');
+    T('50  storage: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow; the new rule and the role change name no storage', (() => { const a = H.loadApp(); return a.ctx.DATA_KEYS.length === 16 && a.ctx.DATA_SCHEMA_VERSION === 1 && a.ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow'; })()
+      && !/LOOPStore|localStorage|persist/.test(stripComments(fnSrc(raw, 'coachMayWriteSet') + fnSrc(raw, 'coachLoadNow') + fnSrc(raw, 'applyCoachToFutureSets') + fnSrc(raw, 'seedWorkingTarget'))));
   });
 }
 
@@ -52002,6 +52550,7 @@ async function main(){
   await testPbtTouchTargetsD124();
   await testWorkingSetPlanD125();
   await testRepAwarePlateauD126();
+  await testWarmupWriteBoundaryD127();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

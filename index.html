@@ -18569,6 +18569,20 @@ const LOOP_UPDATES = [
     changes: [
       'When your reps are climbing, Next session asks for one more rep instead of telling you to hold or switch exercises'
     ]
+  },
+  {
+    id: 'v10-44',
+    version: 'LOOP 10.44',
+    title: 'Warm-ups Stay Put',
+    date: '2026-10-03',
+    swVersion: 'loop-v221',
+    summary: 'LOOP Coach now adjusts only your working sets, so warm-ups stay exactly where you set them.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'When LOOP Coach changed the weight for your next sets, it could also change a warm-up you hadn’t edited. Warm-ups now keep their own weight'
+    ],
+    changes: []
   }
 ];
 
@@ -23436,18 +23450,34 @@ function toggleCoachDetail(btn){
    needed. */
 function markUserSet(input){ if(input) input.dataset.userSet = '1'; }
 
+/* D127 (E46) — THE ONE RULE for which sets the coach may write its load into:
+   a set still to do (not ticked), whose load field can be set and is not the
+   athlete's, and whose ROLE is work. A typed warm-up is preparation, never the
+   coach's to rewrite: before the working sets, between them or after them,
+   untouched or edited, ticked or not. Position is not role. "Work" is the
+   line liveSetEvidence already draws for the coach's own evidence, from the
+   same registry (isWorkingSet), so drop, failure, AMRAP and untyped sets are
+   work, as they always were. Ownership still protects every set, but it is
+   not what protects a warm-up: an untouched warm-up is not the coach's either. */
+function coachMayWriteSet(sr){
+  if(!sr || sr.classList.contains('completed')) return false;
+  if(sr.dataset.setType && isWorkingSet({ type: sr.dataset.setType }) === false) return false;
+  const w = sr.querySelector('.set-weight-in');
+  return !!w && !w.disabled && !w.dataset.userSet;
+}
+
 /* Writes the coach’s load into the sets still to come. Completed sets are
    history and are never touched; user-owned inputs are left exactly as the
-   athlete left them. */
+   athlete left them. D127 — and a warm-up is never touched: which sets may be
+   written is coachMayWriteSet's to say, and nowhere else's. */
 function applyCoachToFutureSets(exRow, coach){
   if(!exRow || !coach || coach.load == null) return 0;
   const bw = exRow.querySelector('.ex-bw-in');
   if(bw && bw.checked) return 0;
   let changed = 0;
   exRow.querySelectorAll('.set-row').forEach(sr => {
-    if(sr.classList.contains('completed')) return;
+    if(!coachMayWriteSet(sr)) return;
     const w = sr.querySelector('.set-weight-in');
-    if(!w || w.disabled || w.dataset.userSet) return;
     const next = String(coach.load);
     if(w.value === next) return;
     w.value = next;
@@ -55676,12 +55706,29 @@ function toggleSetType(el){
   persistDraftNow();
 }
 
+/* D127 (E46) — the load the coach holds for the sets still to do, asked now:
+   the same reading of the rows (liveSetEvidence) and the same policy
+   (deriveNextSetCoach) that refreshSetCoach runs after a set, with nothing
+   painted and nothing written. Null where it holds no load (no prescription,
+   no range, bodyweight), which is exactly where its writer writes nothing. */
+function coachLoadNow(exRow){
+  try{
+    const ev = liveSetEvidence(exRow);
+    if(ev.bodyweight) return null;
+    const coach = deriveNextSetCoach(ev);
+    return coach && coach.load != null ? coach.load : null;
+  }catch(e){ return null; }
+}
+
 /* D125 — a warm-up turned into a working set takes the target for its place:
    the reps the plan holds for that working set and, before any working set is
-   done, today's working load (after one, the load is D50B's, which it has
-   already written into this row if nobody else did). A value the athlete typed
-   or stepped stays theirs, a completed set stays as logged, and no other row
-   changes. Turning a working set into a warm-up changes no value at all. */
+   done, today's working load. D127 (E46) — after one, the load the coach holds
+   for the sets still to do, asked at the moment of the change (coachLoadNow).
+   This used to be left to the coach having already written its load into the
+   warm-up, which it no longer may, so the row joins the work at the work's
+   load without that write. A value the athlete typed or stepped stays theirs,
+   a completed set stays as logged, and no other row changes. Turning a working
+   set into a warm-up changes no value at all. */
 function seedWorkingTarget(row){
   if(!row || !row.closest || row.classList.contains('completed')) return;
   const exRow = row.closest('.ex-log-row');
@@ -55693,6 +55740,7 @@ function seedWorkingTarget(row){
   const started = rows.some(r => r.classList.contains('completed') && r.dataset.setType !== SET_TYPES.WARMUP);
   const w = row.querySelector('.set-weight-in');
   if(w && !w.disabled && !w.dataset.userSet && !started && rowWorkingLoad(exRow) !== null) w.value = String(exRow.dataset.rxLoad);
+  if(w && !w.disabled && !w.dataset.userSet && started){ const load = coachLoadNow(exRow); if(load !== null) w.value = String(load); }
   const r = row.querySelector('.set-reps-in');
   const target = plannedRepsFor(exRow, ordinal);
   if(r && !r.dataset.userSet && target !== null){ r.value = target; r.dataset.v = target; }

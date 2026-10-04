@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.43",
+  "version": "10.44",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: a lift where reps rose at the same weight reads Building (not Stalled) on Progress, Today and its page; start it and Set 1 asks for one more rep.",
+  "nextAction": "Owner iPhone check: an untouched warm-up keeps its weight when LOOP Coach changes the next sets; Sets 2-3 still change and keep their reps.",
   "blocker": null,
-  "updatedAt": "2026-10-04T00:12:30Z"
+  "updatedAt": "2026-10-04T03:22:23Z"
 }

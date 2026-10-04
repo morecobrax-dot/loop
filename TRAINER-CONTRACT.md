@@ -18280,3 +18280,212 @@ All three are in FINDINGS-D88.md.
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
 key, no history rewritten. E47 is closed.
+
+## §166 — THE COACH WRITES ONLY WHAT IS WORK (D127 · LOOP 10.44 · loop-v221)
+
+**Rule.** A typed warm-up is preparation, and the live coach (D50B) never
+writes into one. That holds wherever it sits (before, between or after the
+working sets), and whether it is untouched, typed, stepped, ticked or not.
+
+Which sets the coach may write is one named rule, `coachMayWriteSet`:
+- a set still to do (not ticked);
+- whose load field can be set and has not been set by the athlete;
+- whose ROLE is work: `isWorkingSet` is not false. That is the line
+  `liveSetEvidence` already draws for the coach's own evidence.
+
+Drop, failure, AMRAP and untyped sets are work, as the set-type registry has
+always said, and the coach writes them as before. Ownership still protects
+every set, but it is not what protects a warm-up: an untouched warm-up is not
+the coach's either. Position is never read.
+
+`applyCoachToFutureSets` asks the rule for every set; nothing else in it
+changed. Byte-identical: `deriveNextSetCoach`, `SET_COACH`, `liveSetEvidence`,
+`refreshSetCoach`, `setCoachHtml`, `markUserSet`, and when the coach runs.
+
+**Why E46 existed.** The writer predates D125's warm-up isolation. It wrote
+whatever load the coach held into every unticked set nobody had touched:
+- after every working set ticked or re-opened, and after a swap;
+- on a reduce, but equally on a hold or an increase.
+
+D125 stopped every other path reaching a warm-up and was told not to change
+D50B, so it recorded this one.
+
+**The role change.**
+- **Before.** D125's Warm-up → Working (`seedWorkingTarget`) gave the row the
+  prescribed load before any working set was done. After one, it left the load
+  to D50B, "which has already written it into this row if nobody else did".
+  That was E46.
+- **Now, after work has begun,** the row asks the coach at the moment of the
+  change (`coachLoadNow`). That is `liveSetEvidence` + `deriveNextSetCoach`,
+  the reading `refreshSetCoach` runs, with nothing painted and nothing written.
+  The row takes that load unless the athlete set it, and its reps are the
+  plan's for its place, as before.
+- **Before any work** it is D125's seeding, unchanged.
+- **Working → Warm-up** changes no value (D125), and the row is protected from
+  that moment.
+
+### The interaction matrix (permanent)
+
+| What happens | What it reaches |
+|---|---|
+| warm-up typed or stepped | that warm-up only |
+| warm-up ticked or un-ticked | nothing else; the coach is not run (D125); the rest timer runs |
+| working set ticked or re-opened | the coach runs, after the rest timer has started |
+| the coach's load | sets still to do that are work and not the athlete's; never a warm-up, never a ticked set |
+| the coach's reps | none: D125's plan and the athlete's own reps stand |
+| D125's plan | each working set's reps, laid out once at the start |
+| Suggested Warm-up | the session's prescribed load (rxLoad); the coach never redraws it |
+| a value the athlete set | theirs |
+| Add Set | a working set, from the last working set's load (D125, unchanged) |
+| Warm-up → Working | before work, the prescribed load; after, the coach's load at the change; the plan's reps for its place; owned values stay |
+| Working → Warm-up | no value changes; never written again |
+| resume | the rows as left; the coach is not run |
+| swap | the replacement's own prescription for the work; a warm-up is left as the swap clears it |
+
+### Measured
+
+**E46, frozen 10.43 vs 10.44** (real headless Edge, real taps). The brief's
+fixture: Bench Press, an untouched W 135 × 5, then 205 × 8 / 6 / 5 (D125's
+plan), with the Suggested Warm-up at 80 / 125 / 165.
+
+| After | 10.43 | 10.44 |
+|---|---|---|
+| Set 1 205 × 6 at 0 RIR (reduce to 200) | W 200 × 5 | W 135 × 5 |
+| Set 1 205 × 8 at 2 RIR (hold) | W 205 × 5 | W 135 × 5 |
+| Set 1 205 × 12 at 5 RIR (increase to 210) | W 210 × 5 | W 135 × 5 |
+| Set 1 re-opened after the reduce | W 205 × 5 | W 135 × 5 |
+| swapped to Dumbbell Bench Press (history at 60) | W 60 × 5 | W — × 5 |
+
+In every row the following are the same on both builds:
+- the working sets (200 × 6 / 200 × 5 after the reduce);
+- the coach's decision, card and announcement;
+- the strip;
+- the captured prescription (205).
+
+Typed, stepped and ticked warm-ups were already safe on 10.43, and still are.
+
+- **Positions.** Untouched warm-ups between the working sets, after them, two
+  of them, or 1 W 2 W 3: all moved on 10.43, none now.
+- **Warm-up → Working after the reduce.** 200 × 8 on both builds: on 10.43
+  because E46 had written 200 into the warm-up first, on 10.44 because the row
+  asks the coach at the change. With 10.44's writer and 10.43's seeding, the
+  row would have joined at 135. The seeding change is what keeps the outcome.
+- **Draft.** Captured and resumed, the warm-up is 135; 10.43 carried the
+  written 200. Resuming runs no coach.
+- **Saved.** A warm-up left untouched is saved as the athlete left it (135 × 5,
+  not 200 × 5).
+  - Identical: strength records, PR XP, XP, level, rank, Session Score,
+    Mastery, Recovery and the next prescription.
+  - Volume counts warm-ups, and D121's volume record with it, so both move by
+    exactly that warm-up: −325 lb in Contract 244's fixture.
+
+**Drift.** 354 generated workouts on the real logger, frozen 10.43 and 10.44
+each in its own process, with the same seeded events. Compared: rows, the
+coach's answer, the draft, a resume, a real save, and every reader of the
+saved history.
+- **258 E46-free workouts, identical end to end (258 of 258).** Families:
+  - no warm-up at all; warm-ups the coach never ran for; every warm-up owned
+    or ticked;
+  - working-only adaptation; owned and ticked future sets; Add Set;
+  - failure, AMRAP and drop sets;
+  - D125 BUILD, INCREASE, HOLD and REDUCE starts; never trained; type round
+    trips before any work.
+- **96 E46 workouts** (the brief's classes A–L, and swap):
+  - 196 row cells differ: 186 where the coach wrote into a warm-up on 10.43,
+    and 10 where that write was still showing later.
+  - 77 saved workouts differ, only in a warm-up's weight; volume follows
+    exactly.
+  - 10 sessions held a volume record on 10.43 only because of the written
+    warm-up. In one more, the volume hit left an event that keeps its strength
+    records.
+  - 0 unexplained.
+
+**The owner's backups** (read-only, hashes unchanged) hold no typed warm-up.
+Every reader of saved history gives a byte-identical digest on both builds:
+D49, the D125 plan, plateau, records, XP, volume, Session Score, Mastery and
+Recovery.
+
+**Browser QA.** Real headless Edge, real touch: the brief's 18 fixtures at 320x568, 360x640, 375x667, 390x844, 393x852, 414x896 and 430x932. Each run checks every row's role, label, load and reps and who owns the load; the Suggested Warm-up; the coach's card, its accessible name and its announcement; the rest timer; Add Set and the role changes; resuming; what assistive tech is given for each warm-up ("Warm-up", and its load field's own value); no horizontal overflow, no clipped value or coach card, the last set reachable, no console error. **1,099 / 1,099.** On frozen 10.43 at 390 the same rig gives 143 / 157: its 14 failures are exactly the fixtures where an untouched warm-up moved.
+
+**Performance** (vm, the real logger, medians of 25, both build orders):
+- Ticking a working set (coach, card and writer): 0.6–0.9 ms for 3–6 sets and
+  1.3 ms for a 10-row stress layout, on both builds (within run-order noise).
+- The writer alone: 0.05–0.20 ms on both.
+- A warm-up turned Working after work began now runs one coach reading of the
+  rows on screen: 0.30 / 0.60 ms against 0.20 / 0.35 ms (6 / 10 rows).
+- Draft restore: unchanged.
+- No history scan, no cache, no storage.
+
+### Contract 244 (80 checks)
+
+It holds:
+- **E46 on 10.43,** compiled back from D127_EDITS: the reduce, hold, increase
+  and re-open runs, each against now;
+- **every position and state:** before, between and after; one or two
+  warm-ups; untouched, typed, stepped, ticked; the Add Set → Warm-up row the
+  finding measured;
+- **the work still reached:** reduce, increase, hold, reps alone; the
+  one-change cap; a ticked set; an owned load; D125's reps; the strip; the
+  announcement; drop, failure, AMRAP, typed Working and untyped sets written
+  exactly as on 10.43;
+- **completion:** ticking a warm-up runs no coach, and the rest timer runs for
+  both kinds of set;
+- **Add Set and the role changes,** including the role change running no
+  coach;
+- **the draft, resuming and swap;**
+- **the properties,** over 60 generated workouts and 91 coach runs:
+  - every warm-up is untouched (164 of 164 row checks) and the strip never
+    moves;
+  - every eligible set holds the coach's load (225 of 225);
+  - owned loads never move (34 of 34);
+  - the role changes resolve correctly (34 of 34, 57 of 57);
+  - non-warm-up rows are identical to 10.43 (386 of 386);
+- **what is saved,** and what volume, records and XP read from it;
+- **E48, E49 and E50 by behaviour;**
+- **the protected engines by pin, and storage.**
+
+Run against frozen 10.43 it fails 36 of the 68 checks that run there, every one that asks for the corrected behaviour. The other 12 compare with 10.43 compiled back and cannot run on 10.43 itself.
+
+**Mutation.** 38 mutants, each run against Contracts 244, 242 and 243 together. All 38 are killed.
+- **36 by behaviour:**
+  - the role test removed; warm-ups protected only before the first working set, only after it, only when edited, only when ticked; the first row skipped instead of the warm-up;
+  - every working set skipped; the adaptation off; an owned load or a ticked set overwritten; reps rewritten; the strip redrawn;
+  - ticking a warm-up runs the coach; the coach's evidence admits warm-ups; the rest timer skipped for a warm-up;
+  - the role change: its after-work load removed, taken from the prescription, overriding the athlete, or running the coach; warm-ups protected by ownership when built; a set made a warm-up given the coach's load; Add Set given the prescription; resuming writes into warm-ups;
+  - only Working writable (drop, failure and AMRAP turned away);
+  - the one-change cap, the coach's reduce step, D125's BUILD, D126's plateau, PR, XP and volume changed; E43, E48, E49 and E50 silently fixed; a storage write.
+- **2 by pin, by design:** E38 and E39 silently fixed (other features' code).
+- **The contract was strengthened before the final run:**
+  - E48, E49 and E50 are now held by behaviour (an E49 mutant had been pin-only against Contract 243);
+  - the rest timer is read from what startRestPanel sets (the vm's mini DOM does not parse an inline style, so "not none" could never fail);
+  - a role change runs no coach;
+  - a set made a warm-up keeps an opening load that is not the coach's.
+
+### Restated contracts
+
+Each was restated by reversal. `D127_EDITS` holds the two statements as
+[now, as of 10.43]; `asOf1043` and `pinAsOf1043` put them back. Six checks:
+- **Contract 149 (D50B).** "Writes only to inputs nobody has touched" and
+  "completed sets are never rewritten" read the named rule, and the writer's
+  call to it. 10.43's writer, put back, still reads exactly as they were
+  written.
+- **Contract 242 §35 (D50B byte-identical).** The writer is held as of 10.43.
+- **Contract 243 §30 and §33.** `seedWorkingTarget` and the writer are held as
+  of 10.43.
+- **Contract 243 §34 ("E46 is untouched").** 10.43's writer, compiled back,
+  still writes its 200 into the untouched warm-up. The writer now leaves it at
+  205 and still reaches the working row.
+
+### Found, not fixed
+
+In FINDINGS-D88.md:
+- **E51 (P4).** A warm-up row's opening load is never a warm-up load:
+  - a set added and tapped to a warm-up opens at the working load (D125's Add
+    Set);
+  - after a swap a warm-up opens blank (the swap's reset).
+
+  The coach no longer corrects either way, which is right. Proposing a warm-up
+  load is its own phase.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
+key, no history rewritten. E46 is closed.
