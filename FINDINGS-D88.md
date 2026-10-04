@@ -1604,7 +1604,7 @@ they own.
 fix is one condition in `applyCoachToFutureSets` (skip a warm-up), in a phase
 that may touch D50B.
 
-## E47 — Reps rising at a held load read as "Performance has stalled" · P3 · PROVEN · OPEN
+## E47 — Reps rising at a held load read as "Performance has stalled" · P3 · PROVEN · **CLOSED in D126 (LOOP 10.43)**
 
 Found by D125's replay study, where D49 answered "plateau" for most sessions.
 Recorded, not fixed.
@@ -1628,6 +1628,105 @@ rarer than D49's own BUILD rule would make it.
 already restated it), and changing it moves D49's answers, Progress and the
 workout cards. That is its own phase, measured with the same drift study D122
 and D123 used.
+
+**Closed in D126 (LOOP 10.43).** The plateau policy is still "stalled when
+none beats the first" over the last four ordinary workouts (§161, §162). What
+counts as beating the first changed:
+- each workout's observation now carries the reps it was lifted for: the most
+  performed reps AT its heaviest performed load (D109's pairing, never one
+  set's load with another's reps);
+- a workout beats the first with a heavier load, or with the same load for
+  more reps.
+
+Loads that differ compare exactly as before: a heavier load always beats the
+first, a lighter one never does. Reps are compared only at the same load, so
+there is no conversion and no score. The change can only lift a plateau, never
+add one. Nothing else moved: the window, the four workouts, D122's evidence,
+D123's deload skip, D49's tiers, D47 and the phase policy.
+
+Measured on frozen 10.42 vs 10.43, Bench Press 205 for 6, 7, 8 and 9 reps
+(three working sets each):
+- **10.42:** a four-session plateau. D49, Exercise Detail and the Summary said
+  "Performance has stalled for 4 sessions"; Progress said Stalled; Today
+  listed it; Weekly Review said Hold; the card said "stuck at 205lb"; the
+  Profile counted it as stalling; D125 added no rep.
+- **10.43:** BUILD, "Beat last session — aim for 10 reps at 205 lb.", on every
+  one of those surfaces; no flag; D125's plan is 10 / 8 / 7.
+- **Zero drift:** 300 generated histories with no E47 window (910 lifts) moved
+  nothing anywhere. A digest of every plateau surface, record, XP, volume,
+  score, Mastery and Recovery is 10.42's exactly.
+- **Attribution:** of 156 lifts in the brief's classes, 106 moved. Every one
+  was a plateau lifted where a workout matched the first's load with more
+  reps. 94 became BUILD; 12, under an active deload, became the phase policy's
+  "Deload week — keep 205 lb". Where a gain was followed by grinding, D47's
+  "drop to 200" now reaches the athlete.
+
+Contract 243, §165.
+
+## E48 — After D126, D125 falls back to its program seed far more often · P4 · PROVEN · OPEN
+
+Found by D126's calibration replay (the D125 study re-run unchanged against
+the corrected D49). Recorded, not fixed.
+
+**What happens.** With E47 closed, D49 says INCREASE where it used to say
+plateau. D125 deliberately reads no evidence at a load the athlete has not
+trained in the last five sessions, so every such session starts from the
+program's seed (the range's first number in every set). That seed is the least
+accurate part of D125's plan.
+
+**Measured** (120 generated athletes x 26 sessions per cohort, D49 choosing
+every load; D125's rule unchanged):
+
+| Cohort | Sessions on the seed | D125 error (reps) | Severe overshoot |
+|---|---|---|---|
+| standard | 4.2% → 6.2% | 0.70 → 0.76 | 2.4% → 3.6% |
+| faster-gaining | 4.2% → 18.0% | 0.51 → 0.82 | 1.7% → 4.4% |
+
+- INCREASE sessions alone: error 2.1 reps.
+- Safety held: the plan never asked for more reps after a 0-in-reserve or
+  failure set (0 both before and after).
+
+**Why it was not fixed in D126.** D125's new-load fallback is its own policy
+("INCREASE must not copy lower-load reps"); D126 was told not to retune D125.
+A better first plan at a new load needs its own rule and its own study.
+
+## E49 — D49 reads one set per workout, so back-off and reserve gains read as a stall · P4 · PROVEN · OPEN
+
+Found by D126's matrix. Recorded, not fixed.
+
+**What happens.** A workout's performance in D49, for plateau, BUILD's "aim for
+one more" and decline alike, is its top set: the heaviest load and the most
+reps at it. Progress that leaves that set unchanged is invisible.
+
+**Measured, 10.43.** Both read a four-session plateau, "Performance has stalled
+for 4 sessions":
+- the same top set with better back-offs, 205: 8/6/4, 8/7/5, 8/8/6, 8/8/7;
+- the same reps with more in reserve, 205 x 8 at 0, 1, 2 and 3 RIR.
+
+**Why it was not fixed in D126.** E47 was the top set's reps. Reading back-off
+sets or RIR would change what a "session's performance" means for every D49
+tier, not just plateau. That is a decision for its own phase.
+
+## E50 — A decline from the window's first workout still reads as a stall, ahead of D47 · P4 · PROVEN · OPEN
+
+Found by D126 while proving D47 works again. Recorded, not fixed.
+
+**What happens.** Plateau is D49's first tier, and its rule is "stalled when
+none beats the first". A run at one load that only falls (9, 8, 7, 6 reps)
+never beats its first workout, so it is a plateau ("hold the weight, or switch
+to a similar exercise"). That pre-empts D47 even when the athlete is grinding
+under the range with nothing in reserve, where D47 would say "drop the load
+and rebuild". It was the same in 10.42 for every same-load window.
+
+**Measured, 10.43.**
+- 205: 8/7/6, 7/6/5, 6/5/5, 5/5/4, all at 0 in reserve, range 8–12: plateau.
+- D47 fires once any workout in the window beat the first: 5 → 9@1 → 7@0 →
+  6@0 reads "drop to 200", where 10.42 said "stalled".
+
+**Why it was not fixed in D126.** "Stalled when none beats the first" is the
+documented policy (§161, §162), and falling loads have always read the same
+way. Letting a decline pass to D47 changes what plateau means and moves
+falling-load histories too. It is a product decision for its own phase.
 
 ## Not findings — checked and clean
 

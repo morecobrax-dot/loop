@@ -18553,6 +18553,22 @@ const LOOP_UPDATES = [
     changes: [
       'Warm-ups are marked W and your working sets are numbered 1, 2, 3 after them'
     ]
+  },
+  {
+    id: 'v10-43',
+    version: 'LOOP 10.43',
+    title: 'Rep Progress Counts',
+    date: '2026-10-03',
+    swVersion: 'loop-v220',
+    summary: 'LOOP now recognizes rep progress at the same weight, so adding reps no longer looks like a stall.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'Adding reps at the same weight no longer shows as stalled on Today, the exercise page or the workout card'
+    ],
+    changes: [
+      'When your reps are climbing, Next session asks for one more rep instead of telling you to hold or switch exercises'
+    ]
   }
 ];
 
@@ -23643,22 +23659,31 @@ function detectPlateau(exerciseName){
        it. Per row, one workout could fill most of the four-session window. */
     const rows = workoutExerciseRows(l, key);
     if(!rows) return;
-    const weights = [];
+    const perf = [];
     rows.forEach(ex => {
       if(ex.bodyweight) return;
       /* D122 (E42) - a workout's plateau load is its heaviest PERFORMED working set, read exactly as D49's own
          evidence reads it (exerciseSessionHistory): a typed warm-up, a set marked not completed and a load with no
          performed reps are not performance, so none of them can invent a stall or hide one. The window and the
          test below are the plateau policy, and they are untouched. */
-      (ex.sets || []).forEach(s => { if(!isPerformanceSet(s) || performedReps(s.reps) === null) return; const w = performedLoad(s.weight); if(w !== null) weights.push(w); });   // D96A
+      (ex.sets || []).forEach(s => { if(!isPerformanceSet(s)) return; const r = performedReps(s.reps); if(r === null) return; const w = performedLoad(s.weight); if(w !== null) perf.push({ w, r }); });   // D96A
     });
-    if(weights.length) occurrences.push({ date: l.date, weight: Math.max(...weights) });
+    /* D126 (E47) - and the reps it was lifted for: the most performed reps AT that heaviest load, the pairing D109
+       gave D49's own evidence. Load and reps come from the same sets, never one set's load with another's reps. */
+    if(perf.length){
+      const top = Math.max(...perf.map(x => x.w));
+      occurrences.push({ date: l.date, weight: top, reps: Math.max(...perf.filter(x => x.w === top).map(x => x.r)) });
+    }
   });
   if(occurrences.length < 4) return null;
   const last4 = occurrences.slice(-4);
-  const first = last4[0].weight;
-  const stuck = last4.every(o => o.weight <= first);
-  return stuck ? { weight: first, sessions: last4.length } : null;
+  const first = last4[0];
+  /* D126 (E47) - "stalled when none beats the first", and a workout beats the first by lifting more, or the same load
+     for more reps. A heavier load still beats it and a lighter one never does, exactly as before: reps are compared
+     only at the same load, so no conversion between loads is made. 205 for 6, 7, 8 and 9 reps is not a stall;
+     8, 8, 8 and 8 still is, and so is a run that never gets back above where the window began. */
+  const stuck = last4.every(o => o.weight < first.weight || (o.weight === first.weight && o.reps <= first.reps));
+  return stuck ? { weight: first.weight, sessions: last4.length } : null;
 }
 function findPlateauedExercises(t){
   return t.exercises.map(ex => ({ name: ex.name, plateau: detectPlateau(ex.name) })).filter(x => x.plateau);

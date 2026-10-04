@@ -18067,3 +18067,216 @@ Both are in FINDINGS-D88.md.
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
 key. The plan and ownership live only in the active draft. No history is
 rewritten.
+
+## §165 — A REP GAINED AT THE SAME LOAD BEATS THE FIRST (D126 · LOOP 10.43 · loop-v220)
+
+**Rule.** Plateau is still "stalled when none beats the first", over the last
+four ordinary workouts that hold a performed loaded working set of the lift
+(§161, §162). What beats the first changed:
+- Each workout's observation is a real pair: its heaviest performed working
+  load, and the most performed reps AT that load. That is D109's pairing, the
+  one D49's own evidence reads a session by. It is never one set's load with
+  another set's reps.
+- A workout beats the first by a heavier load, or by the same load for more
+  reps.
+
+`detectPlateau` is the only function that changed. The window, the four
+workouts, D122's per-set evidence, D123's deload skip, D96C-3 grouping, the
+returned `{ weight, sessions }`, D49's tiers, D47 and the phase policy are
+byte-identical.
+
+**The comparison.**
+- 205 × 6 → 205 × 7 (same load, more reps): beats the first.
+- 205 × 8 → 205 × 8: does not.
+- 205 × 8 → 205 × 7: does not.
+- 200 × 10 → 205 × 8 (heavier, fewer reps): beats, as it always did.
+- 205 × 8 → 200 × 10 (lighter, more reps): does not, as it never did.
+- No e1RM, volume, load × reps or coefficient is used.
+
+**Why it stops there.**
+- **It only lifts a plateau, never adds one.** The new test is the old one
+  with a same-load rep clause.
+- **Zero drift elsewhere, by construction.** A window moves only if one of its
+  workouts matched the first's load with more reps and none was heavier.
+- **Falling reps are still a stall,** as falling loads always were: no workout
+  beat the first (E50).
+- **RIR was never part of plateau** and still is not (E49).
+- **D49 still reads one set per workout,** so better back-offs behind an
+  unchanged top set still read as a stall (E49).
+
+**Why E47 existed.** The rule came with the first upload (70b3897), as the
+workout card's "stuck at X lb … try the swap dropdown". D49 later reused it
+"for consistency", and D49's own copy says "Performance has stalled". D122 and
+D123 corrected which workouts and sets are evidence, but "beats" still meant
+"heavier".
+
+### Measured
+
+**E47, frozen 10.42 vs 10.43** (Bench Press at 205, three working sets each
+time, top set 6 → 7 → 8 → 9):
+
+| Surface | 10.42 | 10.43 |
+|---|---|---|
+| detectPlateau | 4-session plateau at 205 | none |
+| D49 | plateau: "Performance has stalled for 4 sessions — hold the weight, or switch to a similar exercise." | build: "Beat last session — aim for 10 reps at 205 lb." |
+| Progress buckets / Profile | stalled / counted as stalling | building / not stalling |
+| Today | "Stalled · Bench Press — progress has flattened" | no line |
+| Exercise Detail | Hold, the stall message | Building, "aim for 10 reps" |
+| Weekly Review | Hold | Building |
+| Summary Next time | the stall message | the BUILD note |
+| workout card | "stuck at 205lb for 4+ sessions — try the swap dropdown" | no flag |
+| capability plateauSessions | 4 | 0 |
+| D125 plan | 9 / 8 / 7 | 10 / 8 / 7 |
+
+**The brief's matrix, 10.43** (every case read on 10.42 as a plateau, except
+the load climb):
+- **Read as progress:** rising reps (single or multi-set), mixed reps with any
+  workout above the first, multi-set gains, failure/AMRAP top sets, heavy
+  warm-ups around rising work, a deload between rising workouts, legacy
+  untyped sets, repeated rows, same-day pairs, and the D122 + D123
+  composition.
+- **Still a plateau:** 8 / 8 / 8 / 8; falling reps (E50); the same top set
+  with better back-offs (E49); the same reps with more reserve (E49);
+  invalid or unfinished sets.
+- **Unchanged:** load progression and bodyweight.
+- **Rising at 0 RIR:** D49 builds and D125 adds no rep after a 0-RIR set.
+- **D47 works again:** 5 → 9@1 → 7@0 → 6@0 now reaches D47's "drop to 200".
+- **The phase policy works again:** reps climbing to 12 with reserve during a
+  deload week now read "Deload week — keep 205 lb".
+
+**Zero drift.** 300 generated histories with no E47 window anywhere (910
+lifts) moved nothing on any surface. They covered true stalls, load climbs,
+falling reps, falling loads and a load step every second workout, with
+warm-ups, deloads, failure/AMRAP, drops, split rows, legacy, RIR and junk
+sets. Records, XP, rank, volume, Session Score, Mastery and Recovery were
+identical in all 300.
+
+**Attribution.** 156 lifts across the brief's classes A–M; 106 moved. Every
+move was a plateau lifted where a workout matched the first's load with more
+reps, and every such window moved. 94 became BUILD, and 12 became the phase
+policy's hold.
+
+**D125 calibration replay.** D125's rule unchanged; the D125 study re-run
+against the corrected D49 (120 generated athletes × 26 sessions per cohort,
+D49 choosing every load):
+
+| | standard 10.42 → 10.43 | faster-gaining 10.42 → 10.43 |
+|---|---|---|
+| D49 plateau | 84.6% → 36.2% | 84.5% → 24.9% |
+| D49 BUILD | 10.3% → 39.2% | 9.8% → 27.2% |
+| D49 INCREASE / hold | 1 / 29 → 63 / 503 | 2 / 54 → 437 / 927 |
+| D125 MAE (reps) | 0.70 → 0.76 | 0.51 → 0.82 |
+| exact / ±1 | 51.3% / 84.8% → 48.3% / 82.7% | 63.5% / 90.0% → 51.9% / 80.3% |
+| severe over / under | 2.4% / 1.8% → 3.6% / 1.9% | 1.7% / 1.7% → 4.4% / 5.3% |
+| more reps after 0 RIR | 0 → 0 | 0 → 0 |
+| same-load plan change | 47.4% → 49.9% | 29.8% → 39.1% |
+| seed fallback | 4.2% → 6.2% | 4.2% → 18.0% |
+| BUILD sessions: MAE / over | 0.76 / 32% → 0.80 / 34% | 0.86 / 23% → 0.84 / 21% |
+
+D125's error rose because D49 now says INCREASE where it used to stall. Every
+increase starts from D125's program seed at the new load: error 2.1 reps on
+those sessions. Safety held. Recorded as E48; D125 not retuned.
+
+**The owner's backups** (read-only, hashes unchanged): no loaded lift has a
+four-session same-load window, so nothing moved.
+
+**Browser QA** (real headless Edge, real taps). 18 fixtures at 320×568,
+360×640, 375×667, 390×844, 393×852, 414×896 and 430×932, reading:
+- Exercise Detail's state pill and Next session;
+- Today, Weekly Review and the live Summary's Next time;
+- the workout picker's card;
+- for the D125 fixtures, a started workout's rows;
+- no overflow, no clipped pill, no console error.
+
+**840 / 840.** On frozen 10.42 at 390 the same rig gives 82 / 120. Its 38
+failures are all in the 11 E47-class fixtures; every control and every layout
+check passes on both builds.
+
+**Performance** (vm, medians of 15, both build orders):
+- detectPlateau for six lifts over two years is 7.6–8.0 ms on 10.42 and
+  7.7–8.5 ms on 10.43.
+- D49, Progress buckets, Exercise Detail and a D125 start are within the same
+  few percent.
+- No new pass over the log, no cache, no storage.
+
+### Contract 243 (53 checks)
+
+It holds:
+- **E47 on 10.42,** compiled back from D126_EDITS, across every surface;
+- **the comparison table and the canonical pair** (no independent maxima, the
+  window still four, the minimum still four);
+- **eligibility composed with D122 and D123:** warm-ups at the top load with
+  more reps, deloads with more reps, invalid and unfinished sets,
+  failure/AMRAP, drops, legacy, repeated rows, two workouts on one date,
+  bodyweight;
+- **D49 byte-identical,** with D47 ("drop to 200") and the phase policy
+  ("Deload week — keep 205 lb") reaching the athlete where the false stall hid
+  them, and INCREASE earned at the top of the range;
+- **zero drift on E47-free histories** (a digest frozen from 10.42, bodyweight
+  included);
+- **the properties:** rep progress never stalls, true stalls do, falling reps
+  are never progress, and row layout and set order don't matter;
+- **D125 and D50B byte-identical,** with D125 handed BUILD (10 / 8 / 7), and
+  E46 still open;
+- **records, XP, rank, volume, Session Score, Mastery and Recovery identical;**
+  storage untouched.
+
+Run against frozen 10.42 it fails 20 of its 53 checks: every one that asks for the corrected answer.
+
+**Mutation.** 32 mutants, all killed, each run against Contracts 243 and 242 together.
+- **30 by behaviour:** the load-only test back; reps never recorded; only the
+  latest two or the first and last compared; reps from another set or from
+  the first set; warm-ups, deloads, invalid reps, invalid loads or unfinished
+  sets admitted; repeated rows split; same-day workouts merged; equal reps
+  counted as a gain; any rep change counted as a gain; the window three or
+  five; the minimum three; D47 loosened; the phase policy removed; D125
+  retuned or +1 on every set; D50B retuned; E46 silently fixed; PR, XP,
+  volume and bodyweight changes; E43 silently fixed; a storage write.
+- **2 by pin, by design:** E38 and E39 silently fixed (other features' code).
+- **The contract was strengthened before the final run:**
+  - invalid values moved after the window's first workout, where admitting
+    them would fake a gain;
+  - warm-up reps made to rise;
+  - a D47 fixture at exactly 1 in reserve;
+  - one explicit check that 10.42 compiles back, so a moved statement fails
+    there and not as fake behaviour.
+
+### Restated contracts
+
+Each is restated by reversal: `D126_EDITS` holds detectPlateau's statement as
+[now, as of 10.42]. `asOf1042` and `pinAsOf1042` put it back, and the older
+chains put it back first:
+- `pinAsOf1038` and `pinAsOf1039`;
+- the 10.38 and 10.39 builders in Contracts 236, 239 and 240.
+
+So every older pin still holds the function byte for byte. Seven checks were
+restated with attribution:
+- **Contract 236 (D119's D49 drift).** It now splits three ways, today vs
+  10.42 vs 10.39: 27 answers moved, 10 by D123 (deload lifts) and 17 by D126
+  (plateaus lifted), and nothing else.
+- **Contracts 237 and 238 (the D120 and D121 digests that fold D49 in).** They
+  are held with 10.42's detectPlateau compiled back. Beside them, D126 moved
+  12 and 14 D49 answers, every one a plateau lifted.
+- **Contracts 239 and 240 ("detectPlateau is exactly the existing stall test").**
+  Their reference stall test is now D126's, still over working and ordinary
+  workouts only.
+- **Contracts 239 and 240 (the word-for-word policy quotes).** They read
+  10.42's text.
+- **Contract 240 §7 (no-E44 histories).** It is held with 10.42's
+  detectPlateau compiled back; D126 moved 5 of 30 histories, every one a
+  plateau lifted.
+- **Contracts 240 and 241 (the direct 10.42 pins).** They are now
+  `pinAsOf1042`.
+
+### Found, not fixed
+
+All three are in FINDINGS-D88.md.
+- **E48 (P4).** D125 falls back to its program seed far more often once D49
+  says INCREASE.
+- **E49 (P4).** D49 reads one set per workout, so back-off progress and reserve
+  gained at the same top set read as a stall.
+- **E50 (P4).** A run that only falls from the window's first workout is still
+  a plateau, ahead of D47.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
+key, no history rewritten. E47 is closed.

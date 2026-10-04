@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.42",
+  "version": "10.43",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: on Bench, thumb the warm-up load and reps, tick it, reach Set 1. Sets 2 and 3 keep their own reps and the suggested warm-up stays put; then D50B after Set 1.",
+  "nextAction": "Owner iPhone check: a lift where reps rose at the same weight reads Building (not Stalled) on Progress, Today and its page; start it and Set 1 asks for one more rep.",
   "blocker": null,
-  "updatedAt": "2026-10-03T22:44:24Z"
+  "updatedAt": "2026-10-04T00:12:30Z"
 }
