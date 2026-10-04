@@ -450,6 +450,37 @@ function pinAsOf1043(name){
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
 }
 
+/* D128 — Exercise Mastery's leader cards changed ON PURPOSE, in one builder and the one function that feeds it: an exercise
+   card is given its picture (masteryExerciseArtHtml, the drawing LOOP makes for it everywhere else) and puts it where the
+   tier badge was, keeping the badge as a small mark; a muscle card is given nothing and is built exactly as it was. Every
+   older pin or check that held masteryLeaderCardHtml or masteryPodiumCardHtml now reads it with that statement put back
+   (giving 10.44); any other change to either still fails them. The pairs are [now, as of 10.44]; Contract 245 proves
+   what they do. */
+const D128_EDITS = {
+  masteryLeaderCardHtml: [[
+    "const pct = o.isMax ? 100 : o.percent; const lead = o.hero === 'exercise'; const top = lead ? `<span class=\"mpod-head mst-rise\" aria-hidden=\"true\"><span class=\"mpod-place\">${MASTERY_PLACE_WORD[o.place]}</span>${o.art ? `<span class=\"mpod-mark\">${masteryBadgeHtml(o.level, MASTERY_MARK_PX)}</span>` : ''}</span> <span class=\"mpod-hero mst-rise\">${o.art || masteryBadgeHtml(o.level, 72)}</span>` : `<span class=\"mpod-place mst-rise\" aria-hidden=\"true\">${MASTERY_PLACE_WORD[o.place]}</span> <span class=\"mst-rise mst-badgewrap\">${masteryBadgeHtml(o.level, 72)}</span>`; const inner = ` ${top} <span class=\"mpod-name mst-rise\">${escapeHtml(o.name)}</span> ${masteryLevelPillHtml(o.level, 'mst-rise')} <span class=\"mcb\" aria-hidden=\"true\"><span class=\"mcb-fill\" style=\"width:${pct}%\"></span></span> <span class=\"mpod-meta mst-rise\"><span>${escapeHtml(o.metaLine)}</span><span>${escapeHtml(nextShort)}</span></span> <span class=\"mpod-step\" aria-hidden=\"true\"></span> `; const cls = o.cls + (lead ? ' mpod-ex' : ''); return o.onclick ? `<button type=\"button\" class=\"${cls} ${o.placeCls}\" style=\"--i:${o.place}\" data-tier=\"${t.level}\" onclick=\"${o.onclick}\" aria-label=\"${escapeAttr(spoken)}\">${inner}</button>` : `<div class=\"${cls}",
+    "const pct = o.isMax ? 100 : o.percent; const inner = ` <span class=\"mpod-place mst-rise\" aria-hidden=\"true\">${MASTERY_PLACE_WORD[o.place]}</span> <span class=\"mst-rise mst-badgewrap\">${masteryBadgeHtml(o.level, 72)}</span> <span class=\"mpod-name mst-rise\">${escapeHtml(o.name)}</span> ${masteryLevelPillHtml(o.level, 'mst-rise')} <span class=\"mcb\" aria-hidden=\"true\"><span class=\"mcb-fill\" style=\"width:${pct}%\"></span></span> <span class=\"mpod-meta mst-rise\"><span>${escapeHtml(o.metaLine)}</span><span>${escapeHtml(nextShort)}</span></span> <span class=\"mpod-step\" aria-hidden=\"true\"></span> `; return o.onclick ? `<button type=\"button\" class=\"${o.cls} ${o.placeCls}\" style=\"--i:${o.place}\" data-tier=\"${t.level}\" onclick=\"${o.onclick}\" aria-label=\"${escapeAttr(spoken)}\">${inner}</button>` : `<div class=\"${o.cls}"]],
+  masteryPodiumCardHtml: [[
+    "return masteryLeaderCardHtml({ cls: 'mpod-card', placeCls: 'mpod-p' + place, place, name: m.displayName, level: m.level, percent: m.percent, isMax: m.isMax, metaLine: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'), metaSpoken: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'), onclick: \"openExDetail('\" + onclickArg(m.loggedName) + \"')\", hero: 'exercise', art: masteryExerciseArtHtml(m) });",
+    "return masteryLeaderCardHtml({ cls: 'mpod-card', placeCls: 'mpod-p' + place, place, name: m.displayName, level: m.level, percent: m.percent, isMax: m.isMax, metaLine: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'), metaSpoken: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'), onclick: \"openExDetail('\" + onclickArg(m.loggedName) + \"')\" });"]],
+  masteryExerciseArtHtml: [[
+    "function masteryExerciseArtHtml(m){ return exerciseThumbHtml(m.displayName, { static: true, cls: 'mpod-art' }); }",
+    ""]]
+};
+function asOf1044(name){
+  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
+  for(const [now, then] of (D128_EDITS[name] || [])){
+    if(t.split(now).length !== 2) return null;           // a D128 statement itself moved
+    t = t.split(now).join(then);
+  }
+  return t;
+}
+function pinAsOf1044(name){
+  const t = asOf1044(name);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+
 /* A CSS rule's body, bounded by its own closing brace rather than by a
    character count that a new declaration pushes a property out of. */
 function cssRule(css, selector){
@@ -43733,8 +43764,22 @@ async function testMasteryTourD106(){
     T('1 — both modes go through one shell, masteryLeadersHtml, which alone decides the grid, the place classes, the empty state and the list',
       /return masteryLeadersHtml\('exercise', podium\);/.test(fnSrc(src, 'masteryPodiumHtml')) && /return masteryLeadersHtml\('muscle', list\);/.test(fnSrc(src, 'masteryMusclePodiumHtml'))
       && /class="mpod mpod-n\$\{items\.length\}" role="list"/.test(fnSrc(src, 'masteryLeadersHtml')));
-    T('with the same levels, the two podiums have the SAME element skeleton — tags, classes, order, badge, pill, bar, pedestal',
-      skeleton(ex) === skeleton(mu) && /mpod-step/.test(skeleton(ex)) && /mpill|mastery-lvl-chip/.test(skeleton(ex)), [skeleton(ex).slice(0, 300), skeleton(mu).slice(0, 300)]);
+    /* D128 restated, by reversal. Exercise Mastery's cards now lead with the exercise's own picture (Contract 245), so the
+       two podiums no longer share a skeleton in the picture slot — by design. What D106 proved is proved here on 10.44's
+       own two builders, compiled back from D128_EDITS; and what still holds NOW is that past the picture slot every
+       piece is the same: name, pill, bar, facts and pedestal. */
+    const vm221 = require('vm'), asNow = ['masteryLeaderCardHtml', 'masteryPodiumCardHtml'].map(n => ctx[n]);
+    const OLD221 = ['masteryLeaderCardHtml', 'masteryPodiumCardHtml'].map(n => asOf1044(n));
+    let exOld = null;
+    if(OLD221.every(Boolean)){
+      ctx.masteryLeaderCardHtml = vm221.runInContext('(' + OLD221[0] + ')', ctx); ctx.masteryPodiumCardHtml = vm221.runInContext('(' + OLD221[1] + ')', ctx);
+      try{ exOld = ctx.masteryPodiumHtml(LV.map(([l, p], i) => EX(i + 1, l, p))); } finally { ctx.masteryLeaderCardHtml = asNow[0]; ctx.masteryPodiumCardHtml = asNow[1]; }
+    }
+    T('with the same levels, the two podiums have the SAME element skeleton — tags, classes, order, badge, pill, bar, pedestal (10.44’s builders, compiled back from D128_EDITS)',
+      exOld !== null && skeleton(exOld) === skeleton(mu) && /mpod-step/.test(skeleton(exOld)) && /mpill|mastery-lvl-chip/.test(skeleton(exOld)), [exOld && skeleton(exOld).slice(0, 300), skeleton(mu).slice(0, 300)]);
+    const tailOf = s => s.split(/<span class="mpod-name[^>]*>/).slice(1).map(x => x.slice(0, x.indexOf('</el>'))).join('|');
+    T('and now, past the picture slot, every piece of an exercise card is a muscle card’s: name, pill, bar, facts, pedestal (the picture slot alone differs: a head and a hero beside a place and a badge)',
+      tailOf(skeleton(ex)).length > 100 && tailOf(skeleton(ex)) === tailOf(skeleton(mu)) && /mpod-head/.test(skeleton(ex)) && /mpod-hero/.test(skeleton(ex)) && !/mpod-head|mpod-hero/.test(skeleton(mu)), [tailOf(skeleton(ex)).slice(0, 200), tailOf(skeleton(mu)).slice(0, 200)]);
     T('both wear the one class system (.mpod, .mpod-card, .mpod-pN); the .mmc namespace is gone from the markup and the stylesheet',
       /class="mpod mpod-n3"/.test(ex) && /class="mpod mpod-n3"/.test(mu) && (mu.match(/class="mpod-card mpod-p\d"/g) || []).length === 3
       && !/\.mmc|mmc-/.test(cssNC) && !/mmc-card|mmc-p\d|"mmc /.test(code));
@@ -43758,9 +43803,11 @@ async function testMasteryTourD106(){
     T('8 — one responsive rule for both, and a press state only on a card that presses',
       /@media \(max-width: 359px\)\{\s*\.mpod\{ gap: 6px; \}\s*\.mpod-card\{ padding-left: 3px; padding-right: 3px; \}/.test(css)
       && /button\.mpod-card\{ cursor: pointer;/.test(css) && /button\.mpod-card:active\{/.test(css) && !/(^|[\s,}])\.mpod-card\{ cursor/.test(css) && !/(^|[\s,}])\.mpod-card:active/.test(css));
+    /* D128 restated, by reversal: the two card builders are held as of 10.44 (their D128 statements put back from
+       D128_EDITS); the rankings, the index and the tiers are held as they were. Contract 245 holds what D128 changed. */
     T('9 — the rankings themselves are untouched: the mastery index, the leaders, the tiers and the shared card are byte-identical',
       pin('getMasteryProgress') === '77aca2558d11f3d5' && pin('getTopMuscleMastery') === 'c4dce29d533ae04a' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
-      && pin('masteryTier') === '832957c9e6eb7eb0' && pin('masteryLeaderCardHtml') === 'dcbeb8d56e3daf33' && pin('masteryPodiumCardHtml') === '95b83d9571fa9fd9');
+      && pin('masteryTier') === '832957c9e6eb7eb0' && pinAsOf1044('masteryLeaderCardHtml') === 'dcbeb8d56e3daf33' && pinAsOf1044('masteryPodiumCardHtml') === '95b83d9571fa9fd9');
     const n = (mode, k) => mode === 'exercise' ? ctx.masteryPodiumHtml(LV.slice(0, k).map(([l, p], i) => EX(i + 1, l, p))) : ctx.masteryMusclePodiumHtml(LV.slice(0, k).map(([l, p], i) => MU(i + 1, l, p)));
     T('10 — 0, 1, 2 and 3 leaders read truthfully in both modes: an empty state in its own words, then one, two and three cards',
       ['exercise', 'muscle'].every(m => /mpod-empty/.test(n(m, 0)) && !/mpod-card/.test(n(m, 0))
@@ -52346,6 +52393,337 @@ async function testWarmupWriteBoundaryD127(){
   });
 }
 
+/* =========================================================
+   CONTRACT 245 — EXERCISE MASTERY LEADS WITH THE EXERCISE  (Phase D128)
+   ---------------------------------------------------------
+   Progress → Mastery → Exercise Mastery put three copies of a tier badge
+   at the top: every leader of the same level wore the same gold V, and
+   the exercise was a name in small type beneath it. The owner asked for
+   the picture LOOP already makes for each exercise — the one the workout,
+   the picker and Exercise Detail show — to be the identity, and the
+   level to be secondary. Now an exercise's leader card shows that
+   drawing (masteryExerciseArtHtml: the same exerciseThumbHtml, the same
+   lookup, the same sprite; nothing of its own) where the badge was; the
+   level reads from the pill and the bar, and the tier badge is a small
+   mark in the card's corner. A movement LOOP has no drawing for keeps
+   the tier badge in that place, as before. A name is never cut. Muscle
+   Mastery, the ranked rows beneath the podium (text only, with no
+   picture of any kind to replace), the ranking, the scoring and every
+   training system are exactly what they were.
+
+   The baseline is shown on 10.44's own two builders, compiled back from
+   D128_EDITS. Frozen digests are taken from 10.44 itself. Geometry and
+   real touch are the browser rig's (d128/qa128.js).
+   ========================================================= */
+async function testExerciseMasteryArtD128(){
+  section('CONTRACT 245 — Exercise Mastery leads with the exercise (D128)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const css = raw.slice(raw.indexOf('<style>'), raw.indexOf('</style>'));
+  const cssNC = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const pin = n => sha(col(fnSrc(raw, n)));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const NOW = '2026-10-04T12:00:00';
+  const OK1044 = ['masteryLeaderCardHtml', 'masteryPodiumCardHtml'].every(n => asOf1044(n) !== null);
+
+  /* a rich history: a podium's worth of drawn lifts, an alias the athlete typed, one that shares a canonical id with a
+     differently drawn name, two with no drawing, bodyweight work, and enough lifts for a list */
+  const S = (w, r) => ({ weight: String(w), reps: String(r), rir: '2', type: 'working' });
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const day = n => { const d = new Date(2026, 9, 4, 12); d.setDate(d.getDate() - n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const LIFTS = [['Pec Deck', 14, 110, 2], ['Machine Chest Press', 12, 120, 3], ['Incline Dumbbell Press', 10, 60, 1], ['Barbell Bench Press', 9, 185, 5], ['Pendlay Row', 6, 135, 5],
+    ['Rear Delt Cable Fly', 5, 30, 0], ['Single-Arm Cable Lateral Raise', 4, 15, 0], ['Pull-Up', 7, 'BW', 0, true], ['Plank', 4, 'BW', 0, true], ['Lat Pulldown', 8, 120, 3],
+    ['Leg Press', 5, 300, 10], ['Back Squat', 9, 225, 5], ['Triceps Pushdown', 6, 50, 0], ['Cable Fly', 3, 40, 0]];
+  const HIST = (() => { const out = []; let id = 0;
+    LIFTS.forEach(([name, n, load, step, bw], si) => { for(let k = 0; k < n; k++) out.push({ id: 'w' + (id++), date: day(1 + (si % 5) + (n - 1 - k) * 7), category: 'push', title: 'Training', notes: '',
+      exercises: [E(name, [0, 1, 2].map(() => S(bw ? 'BW' : load + k * step, 10)), bw)] }); });
+    return out; })();
+  const boot = async log => {
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log || []),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) });
+    const rel = pinClock(a.ctx, NOW); try{ await H.settle(300); for(let t = 0; t < 60 && a.ctx.workoutLog.length !== (log || []).length; t++) await H.settle(100); } finally { rel(); }
+    return a;
+  };
+  const fresh = c => ['invalidateSortedLogCache', 'invalidateWorkoutGroups', 'invalidatePRCaches', 'invalidatePRSetCache', 'invalidateXPTimelineCache', 'invalidateRepRangeCache', 'invalidateRecoveryCache',
+    'invalidateCapabilityCache', 'invalidateContextCache', 'invalidateAllMasteryCaches', 'invalidateProgramCache', 'invalidateConsistencyCache'].forEach(k => { if(typeof c[k] === 'function') try{ c[k](); }catch(e){} });
+  const app = await boot(HIST), c = app.ctx;
+  const atNow = fn => withClockOn(c, NOW, () => { fresh(c); return fn(); });
+  const Dm = miniDomD125();
+  const host = html => { const e = Dm.el('div'); e.innerHTML = html; return e; };
+  const cardsOf = html => host(html).querySelectorAll('.mpod-card');
+  const rawCards = html => html.split(/(?=<button type="button" class="mpod-card|<div class="mpod-card)/).slice(1);
+  /* 10.44's two card builders, put back from D128_EDITS */
+  /* a reversal that cannot be made (a D128 statement moved) is reported by check 1 alone and installs nothing, so no
+     later check is fooled — or hidden — by a null function */
+  const as1044 = fn => { if(!OK1044) return null; const names = ['masteryLeaderCardHtml', 'masteryPodiumCardHtml'], keep = names.map(n => c[n]);
+    names.forEach(n => { c[n] = vm.runInContext('(' + asOf1044(n) + ')', c); });
+    try{ return fn(); } finally { names.forEach((n, i) => { c[n] = keep[i]; }); } };
+  const FK = (name, level, percent, o) => Object.assign({ displayName: name, loggedName: name, level, percent, isMax: false, sessions: 12 }, o || {});
+  const ART3 = [FK('Pec Deck', 4, 27), FK('Machine Chest Press', 4, 27), FK('Incline Dumbbell Press', 4, 16)];
+  const artOf = name => c.exerciseThumbHtml(name, { static: true, cls: 'mpod-art' });
+  const keyOf = name => c.exerciseVisualKey(name);
+  const svgOf = name => c.exerciseArtSvg(keyOf(name), 'thumb');
+  /* a card draws an exercise when it holds that exercise's own drawing: the shared sprite's reference to its key, or the whole svg inline */
+  const drew = (html, name) => keyOf(name) !== null && (html.indexOf('href="#exart-' + keyOf(name) + '"') !== -1 || (svgOf(name).length > 500 && html.indexOf(svgOf(name)) !== -1));
+  const decode = s => s.replace(/&quot;/g, '"').replace(/&#39;|&#x27;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  const attr = (html, a) => (new RegExp(' ' + a + '="([^"]*)"').exec(html) || [])[1];
+
+  /* ---------------------------------------------------------------- */
+  sub('1–3  BEFORE: 10.44’s own builders (compiled back from D128_EDITS) — the badge is the picture');
+  await guard('before', async () => {
+    T('1  10.44 compiles back: the two builders are put back byte for byte from D128_EDITS (their pins as of 10.44)',
+      OK1044 && pinAsOf1044('masteryLeaderCardHtml') === 'dcbeb8d56e3daf33' && pinAsOf1044('masteryPodiumCardHtml') === '95b83d9571fa9fd9');
+    const before = atNow(() => as1044(() => c.masteryPodiumHtml(ART3))), bc = OK1044 ? cardsOf(before) : [];
+    T('2  BEFORE: three exercises that each HAVE a drawing, all Level 4, show the same picture three times — the tier badge — and no exercise drawing at all',
+      bc.length === 3 && bc.every(x => x.querySelectorAll('.ex-thumb').length === 0 && !!x.querySelector('.mst-badgewrap .mbadge')) && new Set(bc.map(x => x.querySelector('.mpod-medal').getAttribute('src'))).size === 1
+      && bc[0].querySelector('.mpod-medal').getAttribute('src') === 'mastery-badge-4.png', before.slice(0, 400));
+    T('3  BEFORE: the badge was the largest picture on the card (72 px) and a name was cut after two lines (the stylesheet’s own .mpod-name still says so for a muscle)',
+      bc.length === 3 && bc.every(x => /width="72"/.test(x.querySelector('.mst-badgewrap').innerHTML)) && /\.mpod-name\{[^}]*-webkit-line-clamp: 2;[^}]*min-height: 2\.5em;/.test(cssNC));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4–11  AFTER: the picture is the drawing LOOP already makes for the exercise');
+  await guard('after', async () => {
+    const html = atNow(() => c.masteryPodiumHtml(ART3)), raws = rawCards(html), nc = cardsOf(html);
+    T('4  each card’s picture slot holds exactly what the canonical helper returns for the name on the card — the same tile (.ex-thumb, aria-hidden) the picker, the swap sheet and Exercise Detail use',
+      raws.length === 3 && ART3.every((m, i) => artOf(m.displayName) !== '' && raws[i].indexOf('<span class="mpod-hero mst-rise">' + artOf(m.displayName) + '</span>') !== -1)
+      && nc.every(x => x.querySelectorAll('.mpod-hero .ex-thumb').length === 1 && x.querySelector('.ex-thumb').getAttribute('aria-hidden') === 'true'), html.slice(0, 300));
+    T('5  independently of the card builder: each card contains the very drawing the app’s own lookup (exerciseVisualKey → exerciseArtSvg) gives that name — pec_deck, chest_press_machine, incline_press_db',
+      ART3.every((m, i) => drew(raws[i], m.displayName) && svgOf(m.displayName).length > 500) && same(ART3.map(m => keyOf(m.displayName)), ['pec_deck', 'chest_press_machine', 'incline_press_db']));
+    T('6  1st: its picture belongs to 1st — and to neither of the others', drew(raws[0], 'Pec Deck') && !drew(raws[0], 'Machine Chest Press') && !drew(raws[0], 'Incline Dumbbell Press'));
+    T('7  2nd: its picture belongs to 2nd — and to neither of the others', drew(raws[1], 'Machine Chest Press') && !drew(raws[1], 'Pec Deck') && !drew(raws[1], 'Incline Dumbbell Press'));
+    T('8  3rd: its picture belongs to 3rd — and to neither of the others', drew(raws[2], 'Incline Dumbbell Press') && !drew(raws[2], 'Pec Deck') && !drew(raws[2], 'Machine Chest Press'));
+    T('9  the three leaders are told apart by their pictures: three different drawings where 10.44 showed one badge three times',
+      new Set(raws.map((r, i) => svgOf(ART3[i].displayName))).size === 3);
+    /* the same tile, drawn as every other surface draws it */
+    T('10  it is the same picture the other surfaces show for the same name: the picker’s, the swap sheet’s and Exercise Detail’s call (static: true) gives this tile with only its extra class removed',
+      ART3.every(m => c.exerciseThumbHtml(m.displayName, { static: true }).replace('class="ex-thumb"', 'class="ex-thumb mpod-art"') === artOf(m.displayName))
+      && ['exPickerRowHtml', 'substitutionOptionHtml', 'renderExDetail'].every(n => /exerciseThumbHtml\((name|m\.displayName), \{ static: true/.test(col(fnSrc(raw, n)))));
+    const own = col(stripComments(fnSrc(raw, 'masteryExerciseArtHtml')));
+    T('11  masteryExerciseArtHtml finds, names and draws nothing of its own: it hands the card’s name to exerciseThumbHtml and returns what it returns',
+      own === "function masteryExerciseArtHtml(m){ return exerciseThumbHtml(m.displayName, { static: true, cls: 'mpod-art' }); }"
+      && !/exerciseArtSvg|exerciseVisualKey|exerciseArtUse|resolveExerciseId|getCanonicalExercise|EXERCISE_ART|<svg|loggedName|exerciseId/.test(own));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('12–17  identity: every catalogued exercise has a drawing; the picture follows the name written on the card');
+  await guard('identity', async () => {
+    const list = Array.isArray(c.CANONICAL_EXERCISES) ? c.CANONICAL_EXERCISES : Object.values(c.CANONICAL_EXERCISES);
+    T('12  every catalogued exercise (' + list.length + ') has a drawing under the name its card shows, so a card falls back only for a name LOOP has no drawing for',
+      list.length === 97 && list.every(e => artOf(e.displayName) !== '' && keyOf(e.displayName) === e.id), list.filter(e => artOf(e.displayName) === '').map(e => e.displayName));
+    /* an alias the athlete typed: the card shows the canonical name and the canonical drawing; a tap still opens what was logged */
+    const al = atNow(() => c.getExerciseMasteryByName('Barbell Bench Press')), alHtml = atNow(() => c.masteryPodiumCardHtml(al, 1));
+    T('13  an alias the athlete typed (Barbell Bench Press is Bench Press): the card is named Bench Press, shows Bench Press’s drawing — the one the logged spelling reaches too — and still opens the exercise as it was logged',
+      al.displayName === 'Bench Press' && al.loggedName === 'Barbell Bench Press' && drew(alHtml, 'Bench Press') && keyOf('Barbell Bench Press') === keyOf('Bench Press')
+      && /openExDetail\('Barbell Bench Press'\)/.test(decode(attr(alHtml, 'onclick'))));
+    /* five spellings share a canonical id with another exercise yet are drawn as themselves (Pendlay Row ...): the card is
+       the canonical exercise, so its picture is the canonical name's drawing, whichever spelling was logged first */
+    const pr = atNow(() => c.getExerciseMasteryByName('Pendlay Row')), prHtml = atNow(() => c.masteryPodiumCardHtml(pr, 2));
+    T('14  a spelling that shares an id with another drawn exercise (Pendlay Row, whose canonical card is Barbell Row) shows the drawing of the NAME ON THE CARD (Barbell Row), not whichever spelling was logged first',
+      pr.displayName === 'Barbell Row' && pr.loggedName === 'Pendlay Row' && drew(prHtml, 'Barbell Row') && !drew(prHtml, 'Pendlay Row') && keyOf('Pendlay Row') !== keyOf('Barbell Row'));
+    /* uncatalogued names */
+    const miss = ['Rear Delt Cable Fly', 'Single-Arm Cable Lateral Raise', 'My Garage Press'];
+    T('15  names LOOP has no drawing for — the brief’s own Rear Delt Cable Fly and Single-Arm Cable Lateral Raise, and a made-up one — return nothing, exactly as on every other surface (no generic figure, no placeholder)',
+      miss.every(n => artOf(n) === '' && c.exerciseThumbHtml(n, { static: true }) === '' && keyOf(n) === null));
+    const evil = atNow(() => c.masteryPodiumCardHtml(FK('<img src=x onerror=alert(1)>', 2, 10, { loggedName: "O'Brien \"Press\"" }), 1));
+    T('16  a name that tries to be markup is escaped and reaches no drawing', artOf('<img src=x onerror=alert(1)>') === '' && !/<img src=x/.test(evil) && /&lt;img src=x onerror=alert\(1\)&gt;/.test(evil));
+    const exMast = atNow(() => c.getTopExerciseMastery());
+    T('17  in the rich history the lifts split as the audit found: the drawn ones return a drawing under the card’s name, the two uncatalogued ones do not',
+      exMast.filter(m => artOf(m.displayName) === '').map(m => m.displayName).sort().join() === 'Rear Delt Cable Fly,Single-Arm Cable Lateral Raise' && exMast.length === 14);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('18–24  the new hierarchy: the exercise first; rank, name, level and progress still all there, in text');
+  await guard('hierarchy', async () => {
+    const html = atNow(() => c.masteryPodiumHtml(ART3)), nc = cardsOf(html), raws = rawCards(html);
+    T('18  rank: each card still says 1st / 2nd / 3rd in its head (aria-hidden, as before: the card’s own label speaks it), and the podium keeps rank order in the markup',
+      same(nc.map(x => x.querySelector('.mpod-place').textContent), ['1st', '2nd', '3rd']) && nc.every(x => x.querySelector('.mpod-head').getAttribute('aria-hidden') === 'true')
+      && raws.length === 3 && raws.every((r, i) => attr(r, 'aria-label').indexOf(['1st', '2nd', '3rd'][i]) === 0) && same(nc.map(x => x.className.match(/mpod-p\d/)[0]), ['mpod-p1', 'mpod-p2', 'mpod-p3']));
+    T('19  status: the level pill ("Level 4"), the progress bar at its percentage, and the facts line (sessions, % to the next level) are all there, unchanged',
+      nc.every((x, i) => x.querySelector('.mastery-lvl-chip').textContent === 'Level 4' && /^mastery-lvl-chip ml4 mpill mpt4 mst-rise$/.test(x.querySelector('.mastery-lvl-chip').className)
+        && new RegExp('class="mcb-fill" style="width:' + ART3[i].percent + '%"').test(raws[i]) && x.querySelectorAll('.mpod-meta span').length === 2)
+      && /<span>12 sessions<\/span><span>27% to L5<\/span>/.test(raws[0]) && /<span>12 sessions<\/span><span>16% to L5<\/span>/.test(raws[2]));
+    const maxHtml = atNow(() => c.masteryPodiumCardHtml(FK('Bench Press', 10, 40, { isMax: true }), 1));
+    T('20  a mastered exercise reads Max level with a full bar (and keeps its drawing)', /Max level/.test(maxHtml) && !/% to L/.test(maxHtml) && /style="width:100%"/.test(maxHtml) && drew(maxHtml, 'Bench Press'));
+    T('21  the tier is a SMALL mark in the corner: one badge image per card, the tier’s own file, at MASTERY_MARK_PX (22), inside the head — and it is the only badge on the card',
+      nc.every(x => x.querySelectorAll('img').length === 1 && x.querySelectorAll('.mpod-head .mpod-mark img').length === 1 && x.querySelector('.mpod-mark img').getAttribute('src') === 'mastery-badge-4.png' && x.querySelector('.mpod-mark img').getAttribute('width') === '22')
+      && /const MASTERY_MARK_PX = 22;/.test(stripComments(raw)) && !/mst-badgewrap/.test(html));
+    const m = (re, s) => { const r = re.exec(s); return r ? +r[1] : null; };
+    const tileMin = m(/\.mpod-ex \.mpod-hero\{ --mh: clamp\((\d+)px,/, cssNC), tile1Min = m(/\.mpod-ex\.mpod-p1 \.mpod-hero\{ --mh: clamp\((\d+)px,/, cssNC), markPx = m(/\.mpod-ex \.mpod-mark \.mbadge\{ width: (\d+)px; \}/, cssNC);
+    const tileMax = m(/\.mpod-ex \.mpod-hero\{ --mh: clamp\(\d+px, [\d.]+vw, (\d+)px\)/, cssNC), tile1Max = m(/\.mpod-ex\.mpod-p1 \.mpod-hero\{ --mh: clamp\(\d+px, [\d.]+vw, (\d+)px\)/, cssNC);
+    T('22  the exercise is the primary picture: its tile is at least ' + tileMin + ' px (1st at least ' + tile1Min + ' px) beside a ' + markPx + ' px mark — more than twice as big at every width, and 1st stands slightly larger, as before',
+      tileMin >= 60 && tile1Min > tileMin && tileMax >= 76 && tile1Max > tileMax && markPx === 22 && tileMin >= 2.4 * markPx && /@media \(max-width: 359px\)\{[^@]*\.mpod-ex \.mpod-mark \.mbadge\{ width: 20px; \}/.test(cssNC), [tileMin, tile1Min, tileMax, tile1Max, markPx]);
+    T('23  the picture grows no further than it does on a phone (it is capped in px, never given the width of a tablet), and its drawing keeps its own proportions: a square tile, the svg filling it, nothing stretched or cropped',
+      tileMax <= 80 && tile1Max <= 88 && /\.mpod-ex \.mpod-hero \.mpod-art\{ width: var\(--mh\); height: var\(--mh\);/.test(cssNC) && /\.ex-thumb svg\{ display: block; width: 100%; height: 100%; \}/.test(cssNC));
+    T('24  one slot height for the whole podium: the picture’s slot (and a badge centred in it) is --mh tall, so cards with and without a drawing stand level',
+      /\.mpod-ex \.mpod-hero\{[^}]*display: flex; align-items: center; justify-content: center; width: 100%; height: var\(--mh\);/.test(cssNC));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('25–29  no drawing: the card keeps the tier badge in that place — nothing is faked, nothing is broken');
+  await guard('fallback', async () => {
+    const one = atNow(() => c.masteryPodiumHtml([FK('Pec Deck', 4, 27), FK('Rear Delt Cable Fly', 4, 27), FK('Incline Dumbbell Press', 3, 16)])), raws = rawCards(one), nc = cardsOf(one);
+    T('25  a leader with no drawing: no tile, the tier badge (72 px) centred in the picture slot, no corner mark — and its neighbours keep their drawings',
+      nc[1].querySelectorAll('.ex-thumb').length === 0 && nc[1].querySelectorAll('.mpod-hero .mbadge').length === 1 && /width="72"/.test(nc[1].querySelector('.mpod-hero').innerHTML) && nc[1].querySelectorAll('.mpod-mark').length === 0
+      && nc[0].querySelectorAll('.mpod-hero .ex-thumb').length === 1 && nc[2].querySelectorAll('.mpod-hero .ex-thumb').length === 1);
+    const all3 = atNow(() => c.masteryPodiumHtml(miss3())), n3 = cardsOf(all3);
+    function miss3(){ return [FK('Single-Arm Cable Lateral Raise', 4, 27), FK('Rear Delt Cable Fly', 4, 20), FK('My Garage Press', 3, 10)]; }
+    T('26  every leader without a drawing: three badge heroes, three level pills, no tile anywhere, the podium unbroken',
+      n3.length === 3 && n3.every(x => x.querySelectorAll('.ex-thumb').length === 0 && x.querySelectorAll('.mpod-hero .mbadge').length === 1 && x.querySelectorAll('.mastery-lvl-chip').length === 1 && x.querySelectorAll('.mcb').length === 1 && x.querySelectorAll('.mpod-step').length === 1));
+    T('27  nothing broken is drawn: no "undefined", "null", "NaN" or "[object", no empty picture slot, no image without a source, in any of the cases',
+      [one, all3].every(h => !/undefined|\bnull\b|NaN|\[object/.test(h)) && [...cardsOf(one), ...n3].every(x => x.querySelector('.mpod-hero').innerHTML.length > 100 && x.querySelectorAll('img').every(i => !!i.getAttribute('src'))));
+    /* the two level-4 cards, one with a drawing and one without: everything from the name on is the same pieces in the same order */
+    const tailSk = x => { const h = x.innerHTML; return h.slice(h.indexOf('<span class="mpod-name')).replace(/>[^<]*</g, '><'); };
+    T('28  a card with a drawing and a card without are one structure past the picture slot: name, pill, bar, facts and pedestal are the same pieces in the same order',
+      tailSk(nc[0]).length > 150 && tailSk(nc[0]) === tailSk(nc[1]) && tailSk(nc[0]) !== tailSk(nc[2]) /* the Level 3 card wears its own tier classes */ && /mpod-step/.test(tailSk(nc[0])));
+    T('29  the fallback is the one the product already has: the badge helper masteryBadgeHtml(level, 72), the same call the card made before; and the head of a card with no mark is the place alone',
+      /o\.art \|\| masteryBadgeHtml\(o\.level, 72\)/.test(col(fnSrc(raw, 'masteryLeaderCardHtml'))) && nc[1].querySelectorAll('.mpod-head > *').length === 1 && nc[0].querySelectorAll('.mpod-head > *').length === 2);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('30–33  a name is never cut');
+  await guard('names', async () => {
+    const NAMES = ['Incline Dumbbell Bench Press', 'Single-Arm Cable Lateral Raise', 'Machine Chest Press', 'Rear Delt Cable Fly', 'Smith Machine Shoulder Press', 'Seated Single-Arm Cable Reverse Fly'];
+    const html = atNow(() => c.masteryPodiumHtml(NAMES.slice(0, 3).map((n, i) => FK(n, 4 - i, 20)))), html2 = atNow(() => c.masteryPodiumHtml(NAMES.slice(3).map((n, i) => FK(n, 3 - i, 30))));
+    T('30  the whole name is in the card, escaped, with no ellipsis character and no truncation in the markup — the brief’s four long names and two more',
+      NAMES.slice(0, 3).every(n => html.indexOf('>' + n + '</span>') !== -1) && NAMES.slice(3).every(n => html2.indexOf('>' + n + '</span>') !== -1) && !/…|&hellip;|&#8230;/.test(html + html2));
+    const block = rule => (new RegExp(rule.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\{([^}]*)\\}').exec(cssNC) || [])[1] || '';
+    const nameRule = block('.mpod-ex .mpod-name');
+    T('31  the exercise card’s name is not clamped: no line-clamp, nothing hidden, wrapping to what it needs (balanced, breaking an over-long word rather than overflowing); three lines held on a phone, two where the cards are wide',
+      nameRule.length > 40 && !/line-clamp|-webkit-box/.test(nameRule) && /overflow: visible/.test(nameRule) && /min-height: 3\.75em/.test(nameRule) && /overflow-wrap: break-word/.test(nameRule) && /text-wrap: balance/.test(nameRule)
+      && /@media \(min-width: 560px\)\{ \.mpod-ex \.mpod-name\{ min-height: 2\.5em; \} \}/.test(cssNC));
+    T('32  the name still reads second: the same type as before (12.5 px, 600, the existing line height), centred in its held lines so the level pill and the bar line up across the cards',
+      /\.mpod-name\{[^}]*font-size: 12\.5px; font-weight: 600;[^}]*line-height: 1\.25;/.test(cssNC) && /align-items: center; justify-content: center/.test(nameRule));
+    T('33  a muscle’s name is exactly as it was: clamped to two lines, two held (the rule is the stylesheet’s own and the exercise rule is scoped to .mpod-ex)',
+      /\.mpod-name\{[^}]*-webkit-line-clamp: 2;[^}]*overflow: hidden; min-height: 2\.5em;/.test(cssNC) && /(^|\})\s*\.mpod-ex \.mpod-name\{/.test(cssNC) && !/(^|[}\s])\.mpod-name\{[^}]*mpod-ex/.test(cssNC));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('34–38  the ranked rows beneath the podium: text only, nothing to replace, nothing changed');
+  await guard('rows', async () => {
+    const view = atNow(() => c.masteryViewHtml(c.getMasteryProgress()));
+    const exPanel = view.slice(view.indexOf('id="mstPanel-exercise"'), view.indexOf('id="mstPanel-muscle"')), rows = host(exPanel).querySelectorAll('.mastery-row');
+    T('34  the audit: the rows had no picture of any kind — no badge, no thumbnail — so there was no generic image in their identity slot to replace, and none was added',
+      rows.length === 14 && rows.every(r => r.querySelectorAll('img').length === 0 && r.querySelectorAll('.ex-thumb').length === 0 && r.querySelectorAll('.mbadge').length === 0 && r.tagName === 'BUTTON'));
+    T('35  their builders are byte-identical to 10.44: the row, the list, the muscle row, the pill, the bar, the badge helper',
+      pin('masteryRankRowHtml') === 'ab85b6b7047615aa' && pin('masteryRowHtml') === '0c5044a40f79be78' && pin('muscleMasteryRowHtml') === 'de6e069ff0909c2f' && pin('masteryListHtml') === '058ea74eaf729ee2'
+      && pin('exerciseMasteryListHtml') === '39be1a56affbcbf8' && pin('masteryLevelPillHtml') === '5a84d2dfd1e2d419' && pin('masteryBarHtml') === '8ff159ded75a682e' && pin('masteryBadgeHtml') === '3ec676f4777b644b');
+    const rowDigest = atNow(() => sha([c.exerciseMasteryListHtml(5), c.muscleMasteryListHtml(5), c.masteryRowHtml(FK('Pec Deck', 4, 27)), c.masteryRankRowHtml({ name: 'X', level: 2, percent: 10, isMax: false, meta: 'm', onclick: "f('x')" })].join('\n')));
+    T('36  their output is 10.44’s: the exercise list, the muscle list and the row for a fake exercise hash to the digest frozen from 10.44', rowDigest === '0c7203d595c8a222', rowDigest);
+    T('37  the ranked list keeps its order, its "View all N" disclosure and its taps: the rows are the top lifts in the app’s order, each opening Exercise Detail by the logged name',
+      same(rows.map(r => r.querySelector('.mastery-row-name').textContent), exMast14()) && /View all 14/.test(exPanel) && rows.every(r => /^openExDetail\('/.test(r.getAttribute('onclick'))));
+    function exMast14(){ return atNow(() => c.getTopExerciseMastery().filter(m => m.hasHistory).map(m => m.displayName)); }
+    T('38  the list below the podium is where it was: the podium is ranked from the same list (getMasteryProgress().podium is its first three)',
+      same(atNow(() => c.getMasteryProgress().podium.map(m => m.displayName)), exMast14().slice(0, 3)) && same(cardsOf(exPanel).map(x => x.querySelector('.mpod-name').textContent), exMast14().slice(0, 3)));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('39–43  Muscle Mastery is exactly what it was');
+  await guard('muscle', async () => {
+    const LV = [[3, 40], [2, 90], [2, 10]], MU = (i, l, p) => ({ label: 'Muscle ' + i, level: l, percent: p, isMax: false, exercises: 3 });
+    const mus = k => atNow(() => c.masteryMusclePodiumHtml(LV.slice(0, k).map(([l, p], i) => MU(i + 1, l, p))));
+    const digest = sha([0, 1, 2, 3].map(mus).join('\n'));
+    T('39  the muscle podium (0, 1, 2 and 3 leaders) is byte-for-byte 10.44’s: its markup hashes to the digest frozen from 10.44', digest === 'ea22c48dd8f699c8', digest);
+    const m3 = mus(3), mc = cardsOf(m3);
+    T('40  no exercise styling leaks into it: no .mpod-ex, no head, no hero, no tile, no corner mark — the old place and the 72 px badge — and its cards open nothing',
+      mc.length === 3 && !/mpod-ex|mpod-head|mpod-hero|ex-thumb|mpod-mark|mpod-art/.test(m3) && mc.every(x => x.querySelectorAll('.mst-badgewrap .mbadge').length === 1 && x.tagName === 'DIV' && x.getAttribute('role') === 'listitem') && !/<button/.test(m3));
+    T('41  the muscle card is built by the same builder with no hero: masteryMuscleCardHtml names no art and passes no hero (and is byte-identical to 10.44)',
+      !/hero|art/.test(col(stripComments(fnSrc(raw, 'masteryMuscleCardHtml')))) && pin('masteryMuscleCardHtml') === '42964283ac42eb13' && pin('masteryLeadersHtml') === '682d97311fa7861f' && pin('masteryMusclePodiumHtml') === '6b99bd085e59e77a');
+    const d128start = cssNC.indexOf('.mpod-ex .mpod-head{'), d128end = cssNC.indexOf('@media (max-width: 359px){', d128start);
+    const d128css = cssNC.slice(d128start, d128end);
+    const rules = d128css.split('}').map(s => s.trim()).filter(Boolean).map(s => s.replace(/^@media[^{]*\{\s*/, ''));
+    T('42  every D128 style rule is scoped to .mpod-ex (' + rules.length + ' of them): none can reach a muscle card, a row, the toggle or any other surface',
+      d128start > 0 && d128end > d128start && rules.length >= 9 && rules.every(r => /^\.mpod-ex[ .{]/.test(r)), rules.filter(r => !/^\.mpod-ex[ .{]/.test(r)));
+    /* and nothing that was already there moved: the podium's own stylesheet (the grid, the cards, the metal, the pedestals, the
+       badge, the name, the bar) is exactly 10.44's, and the narrow-phone block differs by the one scoped rule */
+    const podCss = col(cssNC.slice(cssNC.indexOf('.mpod{ display: grid; grid-template-columns'), d128start)), narrow = col(cssNC.slice(d128end, cssNC.indexOf('\n}', d128end) + 2));
+    T('42  the podium stylesheet that was already there is byte-identical to 10.44’s (a digest frozen from 10.44), and the narrow-phone block is 10.44’s plus one scoped rule',
+      sha(podCss) === '94e5933227172042' && narrow.replace(' .mpod-ex .mpod-mark .mbadge{ width: 20px; }', '') === '@media (max-width: 359px){ .mpod{ gap: 6px; } .mpod-card{ padding-left: 3px; padding-right: 3px; } }', [sha(podCss), narrow]);
+    const mDigest = atNow(() => sha(JSON.stringify([c.getTopMuscleMastery().map(x => [x.muscleId, x.label, x.points, x.level, x.percent, x.exercises, x.sessions, x.hasHistory])])));
+    T('43  the muscle ranking is 10.44’s: its leaders, points, levels, percentages and counts hash to the digest frozen from 10.44', mDigest === '13436ae655fec669', mDigest);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('44–49  navigation, accessibility and touch: as they were');
+  await guard('nav', async () => {
+    const FAKES = [FK('Pec Deck', 4, 27, { loggedName: 'Pec Deck' }), FK('Bench Press', 3, 60, { loggedName: 'Barbell Bench Press' }), FK('<img src=x onerror=alert(1)>', 2, 10, { loggedName: "O'Brien \"Press\"" })];
+    const now = atNow(() => FAKES.map((m, i) => c.masteryPodiumCardHtml(m, i + 1))), was = OK1044 ? atNow(() => as1044(() => FAKES.map((m, i) => c.masteryPodiumCardHtml(m, i + 1)))) : [];
+    T('44  navigation is unchanged: each card’s handler is exactly 10.44’s (openExDetail by the LOGGED name, escaped), for a plain name, an alias and a name with quotes and markup',
+      was.length === 3 && now.every((h, i) => attr(h, 'onclick') === attr(was[i], 'onclick')) && /openExDetail\('Pec Deck'\)/.test(decode(attr(now[0], 'onclick'))) && /openExDetail\('Barbell Bench Press'\)/.test(decode(attr(now[1], 'onclick'))));
+    const opened = [];
+    now.forEach(h => { try{ new Function('openExDetail', decode(attr(h, 'onclick')))(n => opened.push(n)); }catch(e){ opened.push('threw ' + e.message); } });
+    T('45  and run, the handler opens the right exercise: the logged name arrives intact, even one with an apostrophe, quotes and markup', same(opened, ['Pec Deck', 'Barbell Bench Press', "O'Brien \"Press\""]), opened);
+    T('46  the accessible names are unchanged: each card’s label is 10.44’s, word for word (place, name, level, sessions, progress)',
+      was.length === 3 && now.every((h, i) => attr(h, 'aria-label') === attr(was[i], 'aria-label')) && /^1st — Pec Deck, Level 4, 12 sessions, 27% to Level 5\.$/.test(decode(attr(now[0], 'aria-label'))));
+    const imgs = now.join('').match(/<img [^>]*>/g) || [], toolSpans = now.join('').match(/<span class="ex-thumb[^>]*>/g) || [];
+    T('47  decorative images make no duplicate speech: every image has an empty alt, the drawing is aria-hidden, the head (place and mark) is aria-hidden — the name is spoken once, from the card’s own label',
+      imgs.length >= 2 && imgs.every(i => / alt=""/.test(i)) && toolSpans.length >= 2 && toolSpans.every(s => /aria-hidden="true"/.test(s)) && now.every(h => /<span class="mpod-head mst-rise" aria-hidden="true">/.test(h)));
+    T('48  touch targets: a card is still one real button at least 44 px tall (the drawing is never a control of its own), and D124’s 44 px page dots are as they were',
+      now.every(h => /^<button type="button" class="mpod-card/.test(h)) && /\.mpod-card\{[^}]*min-height: 44px;/.test(cssNC) && /\.pbt-dot\{[^}]*width: 44px;/.test(cssNC) && !/button class="ex-thumb|<button[^>]*class="ex-thumb/.test(now.join('')));
+    T('49  the tap press state and the entrance are as they were: only a button presses; the rise plays once on the head, the picture, the name, the pill and the facts (all .mst-rise), and Reduce Motion still removes it',
+      /button\.mpod-card:active\{ background: var\(--surface-3\); transform: scale\(0\.98\); \}/.test(cssNC) && /mpod-head mst-rise/.test(now[0]) && /mpod-hero mst-rise/.test(now[0]) && /\.mst-panel\.is-anim \.mst-rise, \.mst-panel\.is-anim \.mcb-fill, \.mst-panel\.is-anim \.msheen::before\{ animation: none; \}/.test(cssNC));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('50–55  the ranking, the scoring and the levels are untouched');
+  await guard('data', async () => {
+    const digest = atNow(() => sha(JSON.stringify([c.getTopExerciseMastery().map(m => [m.exerciseId, m.displayName, m.loggedName, m.points, m.level, m.percent, m.isMax, m.pointsIntoLevel, m.pointsForNext, m.sessions, m.prs, m.weeks, m.months, m.hasHistory, m.firstDate, m.lastDate]),
+      c.getMasteryProgress().podium.map(m => m.displayName), c.getMasteryProgress().exercisesTracked, c.masteryPRCounts()])));
+    T('50  the ordered Exercise Mastery list — every exercise’s id, name, points, level, tier percentage, sessions, records, weeks, months and dates — is 10.44’s: it hashes to the digest frozen from 10.44', digest === '1f24387ed04d3202', digest);
+    const top = atNow(() => c.getTopExerciseMastery().map(m => m.displayName)), podium = atNow(() => c.getMasteryProgress().podium.map(m => m.displayName));
+    T('51  the order is the score’s (points descending, name ascending) and nothing else: not image availability, not the registry, not recency — the two uncatalogued lifts rank where their points put them',
+      top.indexOf('Rear Delt Cable Fly') > top.indexOf('Pec Deck') && same(podium, top.slice(0, 3)) && atNow(() => c.getTopExerciseMastery().every((m, i, a) => i === 0 || a[i - 1].points > m.points || (a[i - 1].points === m.points && a[i - 1].displayName.localeCompare(m.displayName) <= 0))));
+    T('52  mastery’s engines are byte-identical: the index, the points, the standing, the level curve, the exercise and muscle rankings, the tier table, the view, the mode switch',
+      ['buildMasteryIndex', 'masteryPointsFor', 'masteryStanding', 'masteryLevelFromPoints', 'masteryPointsForLevel', 'getExerciseMastery', 'getExerciseMasteryByName', 'getTopExerciseMastery', 'buildMuscleMastery', 'getTopMuscleMastery', 'getMasteryProgress', 'masteryTier', 'masteryViewHtml', 'setMasteryMode', 'masteryApply', 'masteryPRCounts']
+        .map(n => pin(n)).join() === 'f6c1b50e7bd04b79,0c704c40a853d991,d5529f4b32fbc7ef,db964acd320d471f,6e704ad58b163063,5b22dba43d65ca1f,f6d29e745f362ec4,0a12248b469490da,3fa1298c1d706461,c4dce29d533ae04a,77aca2558d11f3d5,832957c9e6eb7eb0,cfeb04f7ef9796a6,ad34aa6225e8bfcd,d0061a9da62e98ec,f77664c53b2ea14a');
+    const consts = sha(col(stripComments(raw.slice(raw.indexOf('const MASTERY_CONFIG = {'), raw.indexOf('/* Cumulative points needed')))) + col(stripComments(raw.slice(raw.indexOf('const MASTERY_UI_CONFIG = {'), raw.indexOf('const MASTERY_SWITCH_MS')))) + col(stripComments(raw.slice(raw.indexOf('const MASTERY_BADGE_TIERS = ['), raw.indexOf('const MASTERY_ICONS')))));
+    T('53  the scoring constants are 10.44’s: MASTERY_CONFIG and MASTERY_UI_CONFIG (podium of three, five rows before "View all"), and the six badge tiers', consts === 'ad6dfcf842e653ec', consts);
+    const un = atNow(() => { const tl = c.computeXPTimeline(), pr = c.getCurrentProgression();
+      return sha(JSON.stringify([c.computeAllPREvents().map(e => [e.id, e.exerciseName, e.hits.map(x => x.type + ':' + x.next)]), tl.lifetimeXP, tl.prCount, pr.level, pr.rank && (pr.rank.name || pr.rank),
+        c.workoutLog.map(e => c.sessionVolume(e)), c.workoutLog.map(e => { const s = c.sessionScore(e); return s && s.available ? s.score : null; }), c.computePRs().map(p => [p.name, p.weight, p.reps, !!p.isBW]), c.computeMuscleRecovery(),
+        ['Pec Deck', 'Back Squat', 'Lat Pulldown'].map(n => { const r = c.progressionFor(n, '8-12', null); return r ? [r.tag, r.weight] : null; }), ['Pec Deck', 'Back Squat'].map(n => { const p = c.detectPlateau(n); return p ? [p.weight, p.sessions] : null; })])); });
+    T('54  PRs, PR XP, XP, level, rank, volume, Session Score, Recovery, D49 and the plateau are 10.44’s on the same history (a digest frozen from 10.44)', un === 'e745be4ce2fc7e23', un);
+    const before = JSON.stringify(app.store);
+    atNow(() => { c.masteryViewHtml(c.getMasteryProgress()); c.masteryPodiumHtml(ART3); c.masteryMusclePodiumHtml([]); });
+    await H.settle(50);
+    T('55  nothing is stored: rendering the whole view, both podiums, writes nothing — the store is byte-identical — and the new code names no storage',
+      JSON.stringify(app.store) === before && !/LOOPStore|localStorage|persist|sessionStorage/.test(stripComments(fnSrc(raw, 'masteryLeaderCardHtml') + fnSrc(raw, 'masteryExerciseArtHtml') + fnSrc(raw, 'masteryPodiumCardHtml'))));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('56–62  the training systems and the held findings, untouched');
+  await guard('protected', async () => {
+    T('56  D49, D50B, D119–D123, D125, D126 and D127 are byte-identical: the progression engine and its evidence, the live coach and its write rule, the plateau, the working-set plan, the warm-up seeding',
+      pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5'
+      && pin('liveSetEvidence') === 'f7ff87b1e49c93df' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('coachMayWriteSet') === '0de96792fab27ca4' && pin('coachLoadNow') === '38299e411614887d' && pin('applyCoachToFutureSets') === '10add8e901495f2d'
+      && pin('seedWorkingTarget') === '8c90172bdd9f25a8' && pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('detectPlateau') === 'cb642b7c61b1aec9'
+      && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' && pin('progressionRecommendationFor') === '4be672abd167121a' && pin('isPerformanceSet') === 'af02c77cf98e70ef' && pin('isDeloadWorkout') === 'ad99d9e182eb1f22');
+    T('57  the logger is untouched: Add Set, the type toggle and picker, the stepper, the draft, the swap, the completion path',
+      pin('addSetRow') === '095f10f06e006dd3' && pin('toggleSetType') === '4f62b7d1782bc899' && pin('chooseSetType') === 'f81cad3ec750ee4d' && pin('appendSetRow') === '61f2b7e061afde48' && pin('stepValue') === '8e79af408daacf1d'
+      && pin('captureActiveDraft') === '42dabe95ca8963a0' && pin('restoreDraftToSheet') === '1b1ae98544966e44' && pin('swapLogExercise') === '7206131885de9128' && pin('toggleSetComplete') === 'ed4187ee4b7b5e61');
+    T('58  the exercise illustrations themselves, and the picture helpers every surface shares, are byte-identical: the lookup, the sprite, the tile, How To, and the vendored drawings',
+      pin('exerciseVisualKey') === 'eeeaad5194ff7779' && pin('exerciseArtSvg') === 'b25e593b5b75b19f' && pin('exerciseArtUse') === 'cd513498f55c104b' && pin('exerciseThumbHtml') === 'fe3dc90ec306b794' && pin('openHowTo') === '35733ce07b9c2bb8'
+      && sha(raw.slice(raw.indexOf('LOOP-EXERCISE-ART-BEGIN */'), raw.indexOf('/* LOOP-EXERCISE-ART-END */'))) === 'b5256aca5a4fa09b'
+      && /\.ex-thumb\{\s*flex-shrink: 0; width: 44px; height: 44px; padding: 2px;/.test(cssNC));
+    T('59  Exercise Detail is untouched: its mastery block, its hero art and its header still build as they did',
+      pin('exerciseMasteryHtml') === '260962f41258c62d' && pin('renderExDetail') === 'eb7694712d47a723' && pin('openExDetail') === '22fe8c8539f20564');
+    const app2 = await boot([]), c2 = app2.ctx; const held = (log, fn) => { c2.workoutLog = JSON.parse(JSON.stringify(log)); fresh(c2); return withClockOn(c2, NOW, () => fn(c2)); };
+    const W = (id, date, ex) => ({ id, date, category: 'push', title: 'Push', notes: '', exercises: [E('Bench Press', ex)] });
+    const e48 = held([], x => { const p = x.deriveWorkingSetPlan('Bench Press', '8-12', 3, { tag: 'increase', weight: 210 }, {}); return p.source + ' ' + p.reps.join('/'); });
+    const e49 = held(['2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'].map((d, i) => W('e' + i, d, [[8, 6, 4], [8, 7, 5], [8, 8, 6], [8, 8, 7]][i].map(r => S(205, r)))), x => { const p = x.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
+    const e50 = held(['2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'].map((d, i) => W('f' + i, d, [9, 8, 7, 6].slice(i, i + 1).concat([Math.max(1, [9, 8, 7, 6][i] - 1)]).map(r => Object.assign(S(205, r), { rir: '0' })))), x => { const r = x.progressionFor('Bench Press', '8-12', null); return r ? r.tag : null; });
+    T('60  E48, E49 and E50 are still open, by behaviour: a new load still gets the program’s seed; better back-offs behind the same top set still read as a stall; a pure decline at 0 in reserve is still a plateau ahead of D47',
+      e48 === 'program 8/8/8' && same(e49, [205, 4]) && e50 === 'plateau', [e48, e49, e50]);
+    T('61  E43, E38, E39 and E51 are untouched: the "working sets" XP count and copy, the history chip, the hold rule, and the warm-up row that opens at the working load (Add Set and the type change are unchanged)',
+      pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50' && /working set/.test(raw) && pin('setChipHtml') === '350b4e34eb582056' && pin('substitutionIsHold') === '049ba50329c76db3');
+    T('62  storage: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow — no key, no migration, no history rewritten',
+      (() => { const a = H.loadApp(); return a.ctx.DATA_KEYS.length === 16 && a.ctx.DATA_SCHEMA_VERSION === 1 && a.ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow'; })() && pin('saveLog') === '66c63714822ef5ee' && pin('capturedPrescription') === '4b741af98b989695');
+  });
+}
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -52551,6 +52929,7 @@ async function main(){
   await testWorkingSetPlanD125();
   await testRepAwarePlateauD126();
   await testWarmupWriteBoundaryD127();
+  await testExerciseMasteryArtD128();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

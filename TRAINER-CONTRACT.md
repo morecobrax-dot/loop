@@ -18489,3 +18489,139 @@ In FINDINGS-D88.md:
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
 key, no history rewritten. E46 is closed.
+
+## §167 — EXERCISE MASTERY LEADS WITH THE EXERCISE (D128 · LOOP 10.45 · loop-v222)
+
+**Rule.** On Exercise Mastery's podium an exercise's picture is the drawing LOOP
+already makes for it, the one the workout, the picker, the swap sheet and
+Exercise Detail show. The level is secondary: it reads from the pill and the
+bar, and the tier badge is a small mark in the card's corner.
+
+**Before (10.44).** The hero of every card was the tier badge, 72 px (78 for
+1st). Three leaders at the same level wore the same gold V three times; the
+exercise was a name in 12.5 px type beneath it, cut after two lines
+("Incline Dumbbell…" lost "Press"). The rows beneath the podium have always
+been text only: name, pill, facts, bar.
+
+**After (10.45).** An exercise's card, top to bottom: the place (centred, as
+before) with the tier mark in the corner; the exercise's drawing; its name,
+whole; the level pill; the bar; the facts; the pedestal. Rank order, the
+podium's shape, the metal, the pedestals, the grid, the entrance and the press
+state are the stylesheet's own and unchanged.
+
+### What it is built from
+
+- **One lookup, one tile.** `masteryExerciseArtHtml(m)` hands the card's name to
+  `exerciseThumbHtml(name, { static: true, cls: 'mpod-art' })` and returns
+  what it returns: the same `exerciseVisualKey` lookup, the same
+  `exerciseArtUse` sprite, the same `.ex-thumb` tile as the picker and the swap
+  sheet (static, because the whole card is the button). It finds, names and
+  draws nothing of its own. Contract 245 holds the function to that sentence.
+- **The name on the card decides the picture.** The card is named by the
+  exercise's canonical name, so that name goes to the lookup, not the
+  spelling first logged. Aliases that resolve to the same drawing (Barbell Bench
+  Press for Bench Press) draw the same; a spelling that shares an id with a
+  differently drawn exercise (Pendlay Row, whose card is Barbell Row) draws the
+  card's name (E53).
+- **One builder.** `masteryLeaderCardHtml` takes an optional hero. An exercise
+  passes `hero: 'exercise'` and its picture; a muscle passes neither and is
+  built exactly as before, so its markup is byte-identical (a digest frozen from
+  10.44). Every new style rule begins `.mpod-ex`, a class only an exercise card
+  wears.
+
+### The audit
+
+- **The drawings.** 177 are defined: one for each of the 97 catalogued
+  exercises (every canonical name reaches its drawing) and 80 for uncatalogued
+  names LOOP prescribes. The art is square (a 96 x 96 viewBox) and draws its own
+  ground and arrow, so the tile only gives it a recessed surface and a hairline.
+- **Corners.** In the contact sheet of all 97, the top-right corner usually
+  holds the motion arrow and the bottom holds equipment and the ground line, so
+  nothing may sit over a drawing. The tier mark therefore lives in the card's
+  head, never on the tile.
+- **The rows.** They carry no picture of any kind, so there was no generic
+  image in their identity slot to replace. They are byte-identical to 10.44's
+  and none was added.
+- **No drawing.** A name LOOP has no drawing for (a name the athlete typed, or
+  a spelling the registry does not know) gets nothing from `exerciseThumbHtml`,
+  as on every other surface (the art helper's own rule: "NOTHING IS FAKED"). The card
+  keeps its tier badge, at its old size, in the picture's slot, with no mark
+  beside it. Nothing is drawn that is not the exercise (E52).
+
+### Measures
+
+| | 10.44 | 10.45 |
+|---|---|---|
+| picture on a card | the tier badge, 72 px (1st 78) | the exercise's drawing, 60–76 px (1st 64–84) |
+| tier | the badge plus the pill | the pill and the bar; a 22 px mark (20 px at 359 px and under) |
+| three Level 4 leaders | one picture three times | three drawings |
+| a name | cut after two lines | whole; three lines held, two at 560 px and up |
+| the picture's slot | the badge's | one height for the whole podium (a badge is centred in it) |
+
+The tile is capped in px, so it does not grow on a tablet or a desktop (the
+view stops at 640 px); the names hold two lines there.
+
+### Measured
+
+**Browser rig** (real headless Edge, real touch): 18 fixtures (a normal top three; one drawing missing; every drawing missing; long names, with and without drawings; equal scores; many ranked exercises; a Max-level lift; early mastery; bodyweight, barbell, machine, cable and dumbbell lifts; an alias the athlete typed, with a real tap; and the Muscle control) x 320x568, 360x640, 375x667, 390x844, 393x852, 414x896, 430x932 and 768x1024, 1024x768, 1280x800, with real touch on the phones: **7,430 / 7,430** checks (743 a size). Each cell reads every card: the picture is the drawing the app's own lookup gives that name (or the tier badge where none exists); a square, uncropped tile; the slot one fixed height; the name whole, in exactly the lines it needs and never fewer than the lines held; rank, level, bar and facts visible; nothing overlapping or clipped; no horizontal overflow; one real button of at least 44 x 44; decorative images; a real tap opening the right Exercise Detail; the Muscle control untouched; no console error. Frozen 10.44, as the negative control: 4,963 / 7,430, every failure a check that asks for the new picture or hierarchy. Geometry over all 180 cells, 10.44 against 10.45: Muscle Mastery identical in 10 of 10, the ranked rows identical in 180 of 180, the podium's order and names identical in 180 of 180; cards 242-270 px tall before, 265-300 after (267-300 on phones, 265-284 on a tablet or desktop). The four Muscle Mastery screenshots (390, 320, 768, 1280) are byte-identical before and after.
+
+**Contract 245 (63 checks).** It holds:
+- **BEFORE, on 10.44's own two builders** (compiled back from `D128_EDITS`):
+  three Level 4 leaders with drawings show the same badge three times;
+- **AFTER:** each card's picture slot is exactly what the canonical helper
+  returns for its name, independently the very drawing the lookup gives that
+  name, 1st / 2nd / 3rd each its own and none of the others', three different
+  drawings; the same tile the picker, the swap sheet and Exercise Detail call;
+- **identity:** all 97 catalogued names reach their drawing; an alias; a
+  merged spelling; uncatalogued names return nothing; a name that tries to be
+  markup is escaped;
+- **the hierarchy:** rank, level, bar, facts, Max level; the mark is the only
+  badge on a card with a drawing; the tile is more than twice the mark at every
+  width; one slot height; square, uncropped, capped;
+- **no drawing:** the badge hero, no tile, no mark, nothing broken, one
+  structure past the picture slot; all three missing;
+- **names:** whole, escaped, with no clamp; the held lines;
+- **the rows and Muscle Mastery:** pins, digests and CSS scoping;
+- **navigation, accessibility, touch:** handlers and labels equal 10.44's,
+  run; decorative images; buttons;
+- **the ranking, the scoring, the levels:** a digest of every exercise's id,
+  name, points, level, percentage, sessions, records, weeks, months and dates;
+  the engines by pin; the constants;
+- **everything else:** records, XP, rank, Session Score, Recovery, D49 and the
+  plateau by digest; D50B and D125–D127 by pin; E48, E49, E50 by behaviour;
+  nothing stored.
+
+Run against frozen 10.44 it fails 23 of the 54 checks that run there (9 more are cut short where a section meets 10.44's missing picture slot): every check that asks for the picture, the mark, the held names or the fallback. The 31 that pass are the zero-drift checks that hold on both builds.
+
+**Mutation.** 41 mutants, each run against 13 standalone contracts (245, 244, 243, 242 and nine older ones the change could reach) and, for the 12 that change how a card looks, the browser rig (320x568 and 390x844; 768x1024 for the wide-screen name rule). **41 / 41 killed**: 32 by a behavioural check of the contracts (5 of them also by the browser), 7 CSS-only mutants in real Edge (a stretched tile, an overflowing tile, a clamped name, a mark grown back into a badge, an unheld slot height, unheld name lines, the removed wide-screen rule; each also fails a CSS source check), and 2 by pin by design (E38 and E39 silently fixed: other features' code, held in check 61). The mutants: the badge as the picture again; every card the same wrong exercise; 2nd and 3rd swapped; the registry id looked up; the picture following the first logged spelling; a missing drawing leaving an empty slot; the rank, the pill or the bar removed; the ranking or the list reversed; Muscle Mastery given a picture; a tap opening the wrong exercise; a duplicate accessible name; the card no longer a button; a storage write; D49, D50B, D125, D126, D127, mastery scoring, XP and PR logic changed; E43, E48, E49, E50, E51 silently fixed; the rows given a picture; the mark drawn beside a badge. Strengthened during the work: two browser checks (the slot is --mh tall on every card; the name box holds exactly the lines it needs) were added when the slot-height and wide-screen mutants were first caught only by a CSS source check; and a sweep that overlapped an earlier one (shared directories and port) was thrown away and run again clean.
+
+**The owner's backups** (read-only, hashes unchanged). Both builds rank the same
+exercises with the same points, levels and percentages (a digest each, equal).
+- 2026-08-29 (6 workouts): 3 of 5 ranked exercises have a drawing. Its #1,
+  Chest Press, and Shoulder Press have none (E52), so that card keeps its badge.
+- 2026-08-30 (2 workouts): 9 of 9 have a drawing. Its podium would be
+  Incline Bench Press, Seated Cable Row and Cable Fly, each with its own.
+
+**Performance.** In the vm, on the real code (medians of 25, on 6, 50 and 416 workouts): the podium and the whole view cost the same once warm (podium 0.04-0.06 ms, whole view 0.33-0.41 ms on both builds). The first call builds the 177 exercise drawings once: 30-37 ms against 0.1-0.25 ms. In real Edge (medians of 5 fresh loads, both build orders) the first open of Progress, Mastery went 21 -> 26 ms where the idle warm-up runs (+4-5 ms), 21 -> 36-37 ms where requestIdleCallback is missing (+15 ms), 121 -> 197-205 ms at 4x CPU slowdown and 191-207 -> 321-334 ms at 6x. Every later redraw is unchanged (0.8-0.9 ms; 5-6 ms at 4x; about 10 ms at 6x). The cost is the one-time build of the drawings that the workout, the picker and Exercise Detail pay when they are first used; it was measured and not mitigated.
+
+### Restated contracts
+
+By reversal: `D128_EDITS` holds the two builders' changed statements as
+[now, as of 10.44]; `asOf1044` and `pinAsOf1044` put them back. Two checks of
+Contract 221 (D106):
+- "the two podiums have the SAME element skeleton" is proved on 10.44's builders,
+  compiled back; and what holds now is that past the picture slot every piece
+  of an exercise card is a muscle card's;
+- "the shared card is byte-identical" holds both builders as of 10.44.
+
+### Found, not fixed
+
+In FINDINGS-D88.md:
+- **E52 (P4).** Common spellings of lifts the registry does not know (the
+  owner's Chest Press, Shoulder Press) have no drawing, so those cards keep the
+  badge.
+- **E53 (P4).** A merged spelling's card is drawn as the canonical exercise but
+  opens the page under the spelling first logged.
+
+**Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new
+key, no history rewritten. Mastery's scoring and ranking are untouched.

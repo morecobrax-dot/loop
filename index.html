@@ -2623,10 +2623,39 @@ button.mpod-card:focus-visible{ outline: 2px solid var(--accent); outline-offset
 .mpod-p1 .mpod-step{ height: 20px; background: linear-gradient(180deg, rgba(224,180,92,0.32), rgba(224,180,92,0.08)); }
 .mpod-p2 .mpod-step{ height: 13px; background: linear-gradient(180deg, rgba(159,169,214,0.26), rgba(159,169,214,0.06)); }
 .mpod-p3 .mpod-step{ height: 9px; background: linear-gradient(180deg, rgba(196,144,106,0.26), rgba(196,144,106,0.06)); }
+/* D128 — EXERCISE MASTERY LEADS WITH THE EXERCISE. An exercise's card shows the
+   drawing LOOP already makes for it (the same tile the workout, the picker and
+   Exercise Detail use) where the tier badge used to be, and the level reads from
+   the pill and the bar beneath. Scoped to .mpod-ex, so Muscle Mastery's cards —
+   which never receive that class — keep the badge exactly as they always had it.
+   The head row keeps the place centred as before; the tier, when there is a
+   picture, is a small mark in its corner. */
+.mpod-ex .mpod-head{ display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; width: 100%; min-height: 22px; }
+.mpod-ex .mpod-head .mpod-place{ grid-column: 2; }
+.mpod-ex .mpod-mark{ grid-column: 3; justify-self: end; display: flex; }
+.mpod-ex .mpod-mark .mbadge{ width: 22px; }
+.mpod-ex .mpod-mark .msheen{ display: none; }
+/* The picture's slot has one height for the whole podium, so a card that has no
+   drawing (its badge is centred in the same slot) stands level with the others. */
+.mpod-ex .mpod-hero{ --mh: clamp(60px, 19.5vw, 76px); display: flex; align-items: center; justify-content: center; width: 100%; height: var(--mh); }
+.mpod-ex.mpod-p1 .mpod-hero{ --mh: clamp(64px, 21.5vw, 84px); }
+/* The tile is the canonical one (.ex-thumb: hairline, radius, the drawing framing
+   itself); it is only made the slot's size, on the recessed ground the card sits
+   on, so the drawing keeps its own proportions. */
+.mpod-ex .mpod-hero .mpod-art{ width: var(--mh); height: var(--mh); border-radius: var(--radius-md); background: var(--surface); }
+/* A name is the exercise's identity: it wraps to what it needs and is never cut.
+   Three lines are held for it, with the name centred in them, so the common
+   names (one, two or three lines) leave every card the same height. */
+.mpod-ex .mpod-name{ display: flex; align-items: center; justify-content: center; overflow: visible; min-height: 3.75em; overflow-wrap: break-word; text-wrap: balance; }
+/* Where the cards are wide (a tablet or a desktop: the view stops at 640px) the
+   same names take a line fewer, so two are held. The picture does not grow with
+   the width: it keeps the size it has on a phone. */
+@media (min-width: 560px){ .mpod-ex .mpod-name{ min-height: 2.5em; } }
 /* Narrowest phones — after the card rules, so they win. */
 @media (max-width: 359px){
   .mpod{ gap: 6px; }
   .mpod-card{ padding-left: 3px; padding-right: 3px; }
+  .mpod-ex .mpod-mark .mbadge{ width: 20px; }
 }
 
 /* The entrance — played once when the tab is opened, on the mode that is
@@ -18582,6 +18611,21 @@ const LOOP_UPDATES = [
     bugFixes: [
       'When LOOP Coach changed the weight for your next sets, it could also change a warm-up you hadn’t edited. Warm-ups now keep their own weight'
     ],
+    changes: []
+  },
+  {
+    id: 'v10-45',
+    version: 'LOOP 10.45',
+    title: 'Mastery Shows Your Lifts',
+    date: '2026-10-04',
+    swVersion: 'loop-v222',
+    summary: 'Exercise Mastery now shows your top lifts with their own illustrations, so your strongest movements are easier to recognize at a glance.',
+    newFeatures: [],
+    improvements: [
+      'The top three on Exercise Mastery show the illustration you see in workouts, with each level beside it',
+      'Longer exercise names on that podium are shown in full'
+    ],
+    bugFixes: [],
     changes: []
   }
 ];
@@ -39435,24 +39479,50 @@ function toggleAllMastery(btn){
    the badge and the colour never carry a fact alone. A card with somewhere to go
    is a button; one without (a muscle) is a list item, not a dead button. */
 const MASTERY_PLACE_WORD = { 1:'1st', 2:'2nd', 3:'3rd' };
+/* D128 — how big the tier mark is on an Exercise Mastery card. The card's picture
+   is the exercise; its level is read from the pill and the bar, and this small
+   badge only says which tier those belong to. */
+const MASTERY_MARK_PX = 22;
 function masteryLeaderCardHtml(o){
   const t = masteryTier(o.level);
   const next = o.isMax ? 'Max level' : (o.percent + '% to Level ' + (o.level + 1));
   const nextShort = o.isMax ? 'Max level' : (o.percent + '% to L' + (o.level + 1));
   const spoken = MASTERY_PLACE_WORD[o.place] + ' — ' + o.name + ', Level ' + o.level + ', ' + o.metaSpoken + ', ' + next + '.';
   const pct = o.isMax ? 100 : o.percent;
+  /* D128 — an EXERCISE leads with the exercise itself. A card that is given its
+     picture (o.art, from masteryExerciseArtHtml) puts it where the badge used to
+     be and keeps the badge as a small tier mark in the corner. A movement LOOP has
+     no drawing for passes art '' and keeps the tier badge in that place, exactly
+     as before, with no mark beside it: nothing is drawn that is not the exercise.
+     A muscle passes no hero at all and is built exactly as it always was. */
+  const lead = o.hero === 'exercise';
+  const top = lead
+    ? `<span class="mpod-head mst-rise" aria-hidden="true"><span class="mpod-place">${MASTERY_PLACE_WORD[o.place]}</span>${o.art ? `<span class="mpod-mark">${masteryBadgeHtml(o.level, MASTERY_MARK_PX)}</span>` : ''}</span>
+      <span class="mpod-hero mst-rise">${o.art || masteryBadgeHtml(o.level, 72)}</span>`
+    : `<span class="mpod-place mst-rise" aria-hidden="true">${MASTERY_PLACE_WORD[o.place]}</span>
+      <span class="mst-rise mst-badgewrap">${masteryBadgeHtml(o.level, 72)}</span>`;
   const inner = `
-      <span class="mpod-place mst-rise" aria-hidden="true">${MASTERY_PLACE_WORD[o.place]}</span>
-      <span class="mst-rise mst-badgewrap">${masteryBadgeHtml(o.level, 72)}</span>
+      ${top}
       <span class="mpod-name mst-rise">${escapeHtml(o.name)}</span>
       ${masteryLevelPillHtml(o.level, 'mst-rise')}
       <span class="mcb" aria-hidden="true"><span class="mcb-fill" style="width:${pct}%"></span></span>
       <span class="mpod-meta mst-rise"><span>${escapeHtml(o.metaLine)}</span><span>${escapeHtml(nextShort)}</span></span>
       <span class="mpod-step" aria-hidden="true"></span>
     `;
+  const cls = o.cls + (lead ? ' mpod-ex' : '');
   return o.onclick
-    ? `<button type="button" class="${o.cls} ${o.placeCls}" style="--i:${o.place}" data-tier="${t.level}" onclick="${o.onclick}" aria-label="${escapeAttr(spoken)}">${inner}</button>`
-    : `<div class="${o.cls} ${o.placeCls}" role="listitem" style="--i:${o.place}" data-tier="${t.level}" aria-label="${escapeAttr(spoken)}">${inner}</div>`;
+    ? `<button type="button" class="${cls} ${o.placeCls}" style="--i:${o.place}" data-tier="${t.level}" onclick="${o.onclick}" aria-label="${escapeAttr(spoken)}">${inner}</button>`
+    : `<div class="${cls} ${o.placeCls}" role="listitem" style="--i:${o.place}" data-tier="${t.level}" aria-label="${escapeAttr(spoken)}">${inner}</div>`;
+}
+/* D128 — the picture of an exercise in Mastery is the one LOOP draws for it
+   everywhere else. The name goes through the same lookup (exerciseVisualKey) and
+   the same sprite (exerciseArtUse) as the workout, the picker and Exercise
+   Detail, drawn as a plain picture because the whole card is the button. Nothing
+   here finds, names or draws an exercise picture of its own. The name is the one
+   the card shows, so the picture always matches what is written beneath it; a
+   name with no drawing returns '' exactly as it does on every other surface. */
+function masteryExerciseArtHtml(m){
+  return exerciseThumbHtml(m.displayName, { static: true, cls: 'mpod-art' });
 }
 function masteryPodiumCardHtml(m, place){
   return masteryLeaderCardHtml({
@@ -39460,7 +39530,8 @@ function masteryPodiumCardHtml(m, place){
     name: m.displayName, level: m.level, percent: m.percent, isMax: m.isMax,
     metaLine: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'),
     metaSpoken: m.sessions + ' session' + (m.sessions === 1 ? '' : 's'),
-    onclick: "openExDetail('" + onclickArg(m.loggedName) + "')"
+    onclick: "openExDetail('" + onclickArg(m.loggedName) + "')",
+    hero: 'exercise', art: masteryExerciseArtHtml(m)
   });
 }
 function masteryMuscleCardHtml(m, place){

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.44",
+  "version": "10.45",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: an untouched warm-up keeps its weight when LOOP Coach changes the next sets; Sets 2-3 still change and keep their reps.",
+  "nextAction": "Owner iPhone check: Progress, Mastery, Exercise Mastery shows each top-three lift with its own illustration and level; long names show in full; Muscle Mastery unchanged.",
   "blocker": null,
-  "updatedAt": "2026-10-04T03:22:23Z"
+  "updatedAt": "2026-10-04T06:33:42Z"
 }

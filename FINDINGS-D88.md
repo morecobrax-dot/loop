@@ -1796,6 +1796,50 @@ which D127 had to leave alone, and the swap's reset is Phase B's. Proposing a
 warm-up load, for example from the Suggested Warm-up ramp, is a design decision
 for its own phase.
 
+## E52 — Common spellings of lifts the registry does not know have no drawing · P4 · PROVEN · OPEN
+
+Found by D128's audit of the owner's backups. Recorded, not fixed.
+
+**What happens.** Exercise Mastery's leader cards (and every other surface that
+shows an exercise picture) can only show a drawing LOOP makes for the name. A
+name that is neither one of the 97 catalogued exercises nor one of the 80
+uncatalogued names LOOP draws has none, and LOOP's rule is to show nothing
+rather than a figure for a movement it is not. On the Mastery podium such a
+card keeps its tier badge in the picture's place.
+
+**Measured, 10.45, the owner's backups (read-only).**
+- 2026-08-29: of 5 ranked exercises 3 have a drawing. Chest Press (the #1) and
+  Shoulder Press have none: the registry's names are Machine Chest Press and
+  Dumbbell Shoulder Press, so they resolve to no exercise at all.
+- 2026-08-30: 9 of 9 have a drawing.
+- The brief's own long-name examples, Single-Arm Cable Lateral Raise and Rear
+  Delt Cable Fly, have none either.
+
+**Why it was not fixed in D128.** Reaching a drawing for a spelling is exercise
+identity (aliases, fuzzy matching), which D91 / D96B own and D128 was told not
+to touch. It is the same gap in the workout, the picker and Exercise Detail.
+
+## E53 — A Mastery card for a merged spelling is drawn as the canonical exercise but opens the page under the spelling first logged · P4 · PROVEN · OPEN
+
+Found by D128's audit of the exercise-art lookup. Recorded, not fixed.
+
+**What happens.** Four exercises are logged under a spelling that shares a
+canonical id with another exercise yet has its own drawing: Pendlay Row (Barbell
+Row), T-Bar Row (Machine Row), Walking Lunge (Lunge) and Kettlebell Goblet Squat
+(Goblet Squat). Mastery counts them as the canonical exercise, so the card is
+named, and now drawn, as that exercise. A tap opens Exercise Detail by the
+spelling first logged (D86's rule), so the page is titled, and drawn, as the
+spelling.
+
+**Measured, 10.45.** Six Pendlay Rows and no Barbell Row: the card reads
+"Barbell Row" with the Barbell Row drawing; its page reads "Pendlay Row" with the
+Pendlay Row drawing. The title disagreement is 10.44's; the drawings now agree
+with the card's name, not with the page's.
+
+**Why it was not fixed in D128.** Which name an exercise should carry when two
+spellings share one id is an identity decision, and navigation was not to
+change.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.
