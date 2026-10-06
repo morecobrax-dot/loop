@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.47",
+  "version": "10.48",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: add a set and tap it to Warm-up; it takes the first Suggested Warm-up step, not your working weight, and a warm-up you change is never overwritten.",
+  "nextAction": "Owner iPhone check: start a workout, add an exercise from the picker, close LOOP, reopen and tap Resume: the added exercise has no LOOP target, and planned ones keep theirs.",
   "blocker": null,
-  "updatedAt": "2026-10-06T00:24:52Z"
+  "updatedAt": "2026-10-06T12:12:35Z"
 }

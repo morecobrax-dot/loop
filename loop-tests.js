@@ -385,8 +385,8 @@ const D125_EDITS = {
 function asOf1041(name){
   if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
-  for(const [now, then] of (D130_EDITS[name] || []).concat(D125_EDITS[name] || [])){   // D130 restated: undo D130 first
-    if(t.split(now).length !== 2) return null;           // a D130 or D125 statement itself moved
+  for(const [now, then] of (D131A_EDITS[name] || []).concat(D130_EDITS[name] || [], D125_EDITS[name] || [])){   // D131A, then D130, restated: undo them first
+    if(t.split(now).length !== 2) return null;           // a D131A, D130 or D125 statement itself moved
     t = t.split(now).join(then);
   }
   return t;
@@ -439,8 +439,8 @@ const D127_EDITS = {
 function asOf1043(name){
   if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
-  for(const [now, then] of (D130_EDITS[name] || []).concat(D127_EDITS[name] || [])){   // D130 restated: undo D130 first
-    if(t.split(now).length !== 2) return null;           // a D130 or D127 statement itself moved
+  for(const [now, then] of (D131A_EDITS[name] || []).concat(D130_EDITS[name] || [], D127_EDITS[name] || [])){   // D131A, then D130, restated: undo them first
+    if(t.split(now).length !== 2) return null;           // a D131A, D130 or D127 statement itself moved
     t = t.split(now).join(then);
   }
   return t;
@@ -568,7 +568,7 @@ const D130_EDITS = {
     "function seedWarmupTargets(exRow){ if(!exRow || !exRow.querySelectorAll) return 0; const bw = exRow.querySelector('.ex-bw-in'); if(bw && bw.checked) return 0; const steps = suggestedWarmupSteps(exRow); let place = 0, changed = 0; exRow.querySelectorAll('.set-row').forEach(sr => { if(sr.dataset.setType !== SET_TYPES.WARMUP) return; place++; const w = sr.querySelector('.set-weight-in'), r = sr.querySelector('.set-reps-in'); if(sr.classList.contains('completed') || !w || !r || w.disabled) return; const step = steps.length ? steps[Math.min(place, steps.length) - 1] : null; const loops = !w.dataset.userSet && !r.dataset.userSet; const load = step ? step.weight : ''; if(!w.dataset.userSet && (loops || w.value === '') && w.value !== load){ w.value = load; changed++; } if(step && !r.dataset.userSet && (loops || r.value === '') && r.value !== step.reps){ r.value = step.reps; r.dataset.v = step.reps; changed++; } }); return changed; }",
     ""]]
 };
-function asOf1046(name){ return asOfChain(name, [D130_EDITS]); }
+function asOf1046(name){ return asOfChain(name, [D131A_EDITS, D130_EDITS]); }   // D131A restated: undo D131A first
 function pinAsOf1046(name){
   const t = asOf1046(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -579,6 +579,38 @@ const D130_LOGGER = Object.keys(D130_EDITS).filter(n => D130_EDITS[n].every(p =>
 function withAsOf1046(c, names, fn){
   const vm = require('vm'), keep = names.map(n => c[n]);
   names.forEach(n => { const s = asOf1046(n); c[n] = s === null ? undefined : (s === '' ? undefined : vm.runInContext('(' + s + ')', c)); });
+  try{ return fn(); } finally { names.forEach((n, i) => { c[n] = keep[i]; }); }
+}
+
+/* D131A (E57) - resuming a workout changed ON PURPOSE: it restores each exercise's prescription instead of re-planning it. The
+   draft records the working load each row was prescribed, or that it had none (captureActiveDraft writes meta.rxLoad); a resumed
+   row takes that record back exactly, Bodyweight or not (addLogExerciseRow); and the restore no longer asks progressionFor at all,
+   except, in a draft from before 10.48 that has no record, for a row the plan wrote (restoreDraftToSheet). Every older pin or
+   check that held one of these functions now reads it with these statements put back (giving 10.47), and asOf1046 / asOf1043 /
+   asOf1041 take them out first; any other change to any of them still fails them all. The pairs are [now, as of 10.47];
+   Contract 248 proves what they do. */
+const D131A_EDITS = {
+  captureActiveDraft: [[
+    "if(row.dataset.rxPlan) meta.rxPlan = row.dataset.rxPlan; meta.rxLoad = row.dataset.rxLoad != null ? row.dataset.rxLoad : null;",
+    "if(row.dataset.rxPlan) meta.rxPlan = row.dataset.rxPlan;"]],
+  addLogExerciseRow: [[
+    "if(rec && rec.weight != null && !bodyweight) row.dataset.rxLoad = rec.weight; if(meta.rxLoad != null && meta.rxLoad !== '') row.dataset.rxLoad = meta.rxLoad;",
+    "if(rec && rec.weight != null && !bodyweight) row.dataset.rxLoad = rec.weight;"]],
+  restoreDraftToSheet: [[
+    "(draft.exercises || []).forEach(ex => { const meta = ex.meta || {}; const legacyPlanRow = meta.rxLoad === undefined && !ex.bodyweight && !!(meta.targetReps || ex.effort); const rec = legacyPlanRow ? progressionFor(ex.name, meta.targetReps, meta.recommended) : null; addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, meta); });",
+    "(draft.exercises || []).forEach(ex => { const rec = ex.bodyweight ? null : progressionFor(ex.name, ex.meta && ex.meta.targetReps, ex.meta && ex.meta.recommended); addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, ex.meta || {}); });"]]
+};
+function asOf1047(name){ return asOfChain(name, [D131A_EDITS]); }
+function pinAsOf1047(name){
+  const t = asOf1047(name);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+/* the three functions D131A changed (all three existed in 10.47) */
+const D131A_LOGGER = Object.keys(D131A_EDITS);
+/* the named functions as 10.47 had them, installed in a loaded app for one call */
+function withAsOf1047(c, names, fn){
+  const vm = require('vm'), keep = names.map(n => c[n]);
+  names.forEach(n => { const s = asOf1047(n); c[n] = s === null ? undefined : (s === '' ? undefined : vm.runInContext('(' + s + ')', c)); });
   try{ return fn(); } finally { names.forEach((n, i) => { c[n] = keep[i]; }); }
 }
 
@@ -47007,7 +47039,11 @@ async function testStartupRevealD114(){
      are marked theirs again). With it taken out it must still hash to 10.30's pin. [now, as of 10.41], comment-free. */
   const D125_RESTORE = ["       \n      if(s && typeof s.own === 'string' && setRows[j]){\n        if(s.own.indexOf('w') !== -1) markUserSet(setRows[j].querySelector('.set-weight-in'));\n        if(s.own.indexOf('r') !== -1) markUserSet(setRows[j].querySelector('.set-reps-in'));\n      }\n    });\n","    });\n"];
   T('restoreDraftToSheet carries the one D125 statement, once', fnSrc(raw, 'restoreDraftToSheet').split(D125_RESTORE[0]).length === 2);
-  const moved = Object.keys(PINS).filter(n => sha(n === 'renderAll' ? fnSrc(raw, n).replace(D118_RENDER_ALL, '') : n === 'restoreDraftToSheet' ? fnSrc(raw, n).split(D125_RESTORE[0]).join(D125_RESTORE[1]) : fnSrc(raw, n)) !== PINS[n]);
+  /* D131A restated by reversal: restoreDraftToSheet's first loop changed too (a resumed row is restored, never re-planned,
+     Contract 248). With that statement put back as 10.47 had it, and then D125's, it must still hash to 10.30's pin. */
+  const D131A_RESTORE = [" \n  (draft.exercises || []).forEach(ex => {\n    const meta = ex.meta || {};\n    const legacyPlanRow = meta.rxLoad === undefined && !ex.bodyweight && !!(meta.targetReps || ex.effort);\n    const rec = legacyPlanRow ? progressionFor(ex.name, meta.targetReps, meta.recommended) : null;\n    addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, meta);\n  });\n", "(draft.exercises || []).forEach(ex => {\n    const rec = ex.bodyweight ? null : progressionFor(ex.name, ex.meta && ex.meta.targetReps, ex.meta && ex.meta.recommended);\n    addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, ex.meta || {});\n  });\n"];
+  T('restoreDraftToSheet carries the one D131A statement, once', fnSrc(raw, 'restoreDraftToSheet').split(D131A_RESTORE[0]).length === 2);
+  const moved = Object.keys(PINS).filter(n => sha(n === 'renderAll' ? fnSrc(raw, n).replace(D118_RENDER_ALL, '') : n === 'restoreDraftToSheet' ? fnSrc(raw, n).split(D131A_RESTORE[0]).join(D131A_RESTORE[1]).split(D125_RESTORE[0]).join(D125_RESTORE[1]) : fnSrc(raw, n)) !== PINS[n]);
   T('all 18 startup-adjacent functions are unchanged: boot, both screens, the D106 tour decision and start, the draft load/restore/banner/flush, the update reload, tabs, Today',
     moved.length === 0, moved);
   T('storage is untouched: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow', (() => {
@@ -52479,7 +52515,7 @@ async function testWarmupWriteBoundaryD127(){
       && pin('addSetRow') === '095f10f06e006dd3' && pinAsOf1046('toggleSetType') === '4f62b7d1782bc899' && pinAsOf1046('chooseSetType') === 'f81cad3ec750ee4d' && pin('applySetTypeToRow') === '9fab51981238989b'
       && pin('propagateSetValueForward') === '60f12adf15eda793' && pin('stepValue') === '8e79af408daacf1d' && pin('appendSetRow') === '61f2b7e061afde48' && pin('renumberSets') === '6a65d511509ef489'
       && pinAsOf1046('maybeRefreshWarmup') === '42a4003edd84d57f' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('computeWarmupRamp') === 'b826d1445f153d77'
-      && pin('captureActiveDraft') === '42dabe95ca8963a0' && pin('restoreDraftToSheet') === '1b1ae98544966e44'
+      && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44'   // D131A restated: read at 10.47
       && /const WORKING_SET_PLAN = \{\s*window: 5,\s*buildStep: 1\s*\};/.test(stripComments(raw)));
     T('34–37  D126’s plateau, D49, the phase policy, D119 / D120 and D121–D123’s evidence are byte-identical',
       pin('detectPlateau') === 'cb642b7c61b1aec9' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97'
@@ -52855,7 +52891,7 @@ async function testExerciseMasteryArtD128(){
     T('57  the logger is untouched: Add Set, the type toggle and picker, the stepper, the draft, the swap, the completion path',
       /* D130 restated: the type toggle and picker and the swap now also fill the warm-ups LOOP may fill (Contract 247); held at 10.46 by D130_EDITS */
       pin('addSetRow') === '095f10f06e006dd3' && pinAsOf1046('toggleSetType') === '4f62b7d1782bc899' && pinAsOf1046('chooseSetType') === 'f81cad3ec750ee4d' && pin('appendSetRow') === '61f2b7e061afde48' && pin('stepValue') === '8e79af408daacf1d'
-      && pin('captureActiveDraft') === '42dabe95ca8963a0' && pin('restoreDraftToSheet') === '1b1ae98544966e44' && pinAsOf1046('swapLogExercise') === '7206131885de9128' && pin('toggleSetComplete') === 'ed4187ee4b7b5e61');
+      && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44' && pinAsOf1046('swapLogExercise') === '7206131885de9128' && pin('toggleSetComplete') === 'ed4187ee4b7b5e61');
     T('58  the exercise illustrations themselves, and the picture helpers every surface shares, are byte-identical: the lookup, the sprite, the tile, How To, and the vendored drawings',
       pin('exerciseVisualKey') === 'eeeaad5194ff7779' && pin('exerciseArtSvg') === 'b25e593b5b75b19f' && pin('exerciseArtUse') === 'cd513498f55c104b' && pin('exerciseThumbHtml') === 'fe3dc90ec306b794' && pin('openHowTo') === '35733ce07b9c2bb8'
       && sha(asOf1045Art(raw.slice(raw.indexOf('LOOP-EXERCISE-ART-BEGIN */'), raw.indexOf('/* LOOP-EXERCISE-ART-END */'))) || '') === 'b5256aca5a4fa09b'
@@ -53642,7 +53678,7 @@ async function testWarmupSeedingD130(){
       pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('workingSetSequenceOf') === '653c9a9c0b1227af' && pin('programRepSeed') === '7636574536a06e86'
       && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pin('addSetRow') === '095f10f06e006dd3' && pin('appendSetRow') === '61f2b7e061afde48'
       && pin('applySetTypeToRow') === '9fab51981238989b' && pin('renumberSets') === '6a65d511509ef489' && pin('propagateSetValueForward') === '60f12adf15eda793' && pin('stepValue') === '8e79af408daacf1d'
-      && pin('captureActiveDraft') === '42dabe95ca8963a0' && pin('restoreDraftToSheet') === '1b1ae98544966e44' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('computeWarmupRamp') === 'b826d1445f153d77'
+      && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('computeWarmupRamp') === 'b826d1445f153d77'
       && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52' && /const WORKING_SET_PLAN = \{\s*window: 5,\s*buildStep: 1\s*\};/.test(stripComments(raw)));
     T('37  D127 / D50B: the coach, its write rule, its writer, coachLoadNow, its card and refresh, its constants and the ownership mark are byte-identical; the Warm-up → Working seeding is 10.46’s with D130’s statement put back',
       pin('coachMayWriteSet') === '0de96792fab27ca4' && pin('applyCoachToFutureSets') === '10add8e901495f2d' && pin('coachLoadNow') === '38299e411614887d' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5'
@@ -53840,6 +53876,516 @@ async function testWarmupSeedingD130(){
       T('10.46 replay — P  zero drift against 10.46 (compiled back) wherever no warm-up changes: ' + runs + ' generated workouts, ' + steps + ' steps of Add Set, working edits, the coach, re-opening and removing a working set — identical after every step (' + sameSteps + ' of ' + steps + ')',
         runs === 40 && steps === 200 && sameSteps === steps, [sameSteps, steps]);
     }
+  });
+}
+
+/* =========================================================
+   CONTRACT 248 — A RESUMED WORKOUT RESTORES EACH EXERCISE'S PRESCRIPTION AND NEVER RE-PLANS ONE  (Phase D131A, E57)
+   ---------------------------------------------------------
+   10.47 asked progressionFor again for every row when a workout was
+   resumed. An exercise the athlete added by hand came back
+   prescribed (Dumbbell Bench Press: none → 60, saved as
+   rx {load: 60} and counted prescribed by the execution analysis),
+   a freeform lift likewise (none → 205), a prescribed lift was
+   re-planned by a deload that had begun or by history that had
+   moved (190 → 185 / 195), and one switched to Bodyweight lost its
+   load. The draft now records the load each row was prescribed, or
+   that it had none (meta.rxLoad), and the resume puts that record
+   back; a draft from before 10.48 asks progressionFor only for a row
+   the plan wrote. 10.47 is compiled back from D131A_EDITS for the
+   replays.
+   ========================================================= */
+async function testPrescriptionProvenanceD131A(){
+  section('CONTRACT 248 — a resumed workout restores each exercise’s prescription and never re-plans one (D131A, E57)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const pin = n => sha(col(fnSrc(raw, n)));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const NOW = '2026-10-04T12:00:00', TODAY = '2026-10-04';
+  const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r), rir: rir == null ? '' : String(rir), type: type || 'working' });
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const W = (id, date, exs) => ({ id, date, category: 'push', title: 'Push', notes: '', exercises: exs });
+  /* a true stall at 205 (D49 holds 205); Dumbbell Bench Press at 60; a climb D49 answers with an increase to 190 */
+  const STALL = ['2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29'].map((d, i) => W('h' + i, d, [E('Bench Press', [S(205, 8, 1), S(205, 6, 1), S(205, 5, 0)])]));
+  const DBH = ['2026-09-20', '2026-09-27'].map((d, i) => W('d' + i, d, [E('Dumbbell Bench Press', [S(60, 10, 2), S(60, 9, 1), S(60, 8, 1)])]));
+  const UP = ['2026-09-13', '2026-09-20', '2026-09-27'].map((d, i) => W('u' + i, d, [E('Bench Press', [S(175 + 5 * i, 12, 3), S(175 + 5 * i, 12, 3), S(175 + 5 * i, 12, 3)])]));
+  const LOG = STALL.concat(DBH);
+  const BENCH = { name: 'Bench Press', sets: 3, reps: '8-12', recommended: '185', effort: '8' };
+  const INC135 = { name: 'Incline Bench Press', sets: 3, reps: '8-12', recommended: '135', effort: '8' };
+  const BENCH_RX = { sets: 3, reps: '8-12', load: 205, effort: 8 };
+  const OK1047 = D131A_LOGGER.every(n => asOf1047(n) !== null);
+  const boot = async log => {
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log || []),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) });
+    const rel = pinClock(a.ctx, NOW); try{ await H.settle(300); for(let t = 0; t < 60 && a.ctx.workoutLog.length !== (log || []).length; t++) await H.settle(100); } finally { rel(); }
+    return a;
+  };
+  /* the app's own logger on miniDomD125. o.at1047 installs 10.47's three functions (D131A_EDITS put back): its capture
+     writes no record and its restore asks progressionFor for every row, as 10.47 did */
+  const mount = async (log, o) => {
+    o = o || {};
+    const app = await boot(log); const c = app.ctx;
+    const D = miniDomD125(), body = D.el('body');
+    body.innerHTML = '<div id="logOverlay"><div class="sheet-scroll"><div id="logExercises"></div></div></div><div id="coachLive"></div><div id="setTypeOverlay"></div><div id="setTypeBody"></div>';
+    const byId = id => body.querySelector('#' + id), stub = c.document.getElementById.bind(c.document);
+    Object.assign(c.document, { getElementById: id => byId(id) || stub(id), createElement: tag => D.el(tag), querySelectorAll: sel => body.querySelectorAll(sel), querySelector: sel => body.querySelector(sel) });
+    Object.assign(c, { openLogSheet(){ byId('logOverlay').classList.add('open'); }, onWorkoutRowAdded(){}, renderWorkoutStep(){} });
+    const keep = {};
+    if(o.at1047 && OK1047) D131A_LOGGER.forEach(n => { keep[n] = c[n]; c[n] = vm.runInContext('(' + asOf1047(n) + ')', c); });
+    const rel = pinClock(c, NOW);
+    return { app, c, body, D, exs: () => body.querySelectorAll('#logExercises .ex-log-row'), ex: i => body.querySelectorAll('#logExercises .ex-log-row')[i || 0],
+      byName: n => body.querySelectorAll('#logExercises .ex-log-row').find(x => (x.querySelector('.ex-name-in') || {}).value === n),
+      release: () => { rel(); Object.keys(keep).forEach(n => { c[n] = keep[n]; }); } };
+  };
+  const started = async (log, exs, o) => { const L = await mount(log, o), c = L.c;
+    const like = c.DEFAULT_PLANS.balanced.templates.push[0].exercises[0];
+    const tpl = { id: 'qa-d131a', name: 'QA Push', exercises: exs.map(x => Object.assign({}, like, x)) };
+    const getT = c.getTemplates; c.getTemplates = cat => cat === 'push' ? (getT(cat) || []).concat([tpl]) : getT(cat);
+    await c.clearActiveDraft(); await c.startTemplateLog('push', 'qa-d131a'); return L; };
+  const freeform = async (log, o) => { const L = await mount(log, o), c = L.c;
+    await c.clearActiveDraft(); await c.openFreeformLog(); c.pickLogCategory('push'); c.document.getElementById('logTitle').value = 'Freeform QA'; return L; };
+  /* an exercise added by hand: the picker's own row (no prescription, n empty sets) */
+  const freeRow = (L, name, n) => { const sets = []; for(let i = 0; i < (n || 3); i++) sets.push({ weight: '', reps: '' });
+    L.c.addLogExerciseRow(name, '', false, sets); return L.exs().slice(-1)[0]; };
+  const rowsOf = ex => ex.querySelectorAll('.set-row');
+  const wIn = r => r.querySelector('.set-weight-in'), repsIn = r => r.querySelector('.set-reps-in');
+  const own = r => (wIn(r).dataset.userSet ? 'w' : '') + (repsIn(r).dataset.userSet ? 'r' : '');
+  const idOf = r => r.dataset.setType === 'warmup' ? 'W' : 'S' + col(r.querySelector('.set-idx').textContent).replace(/^Set\s*/, '');
+  const call = (c, el, attr) => vm.runInContext('(function(){ ' + el.getAttribute(attr) + ' })', c).call(el);
+  const type = (c, input, v) => { input.value = String(v); call(c, input, 'oninput'); };
+  const tap = (c, el) => call(c, el, 'onclick');
+  const done = (c, row) => tap(c, row.querySelector('.set-complete-btn'));
+  const perform = (c, row, reps, rir) => { if(reps != null) type(c, repsIn(row), reps); if(rir != null) tap(c, row.querySelectorAll('.rir-opt')[rir]); done(c, row); };
+  const label = (c, row) => tap(c, row.querySelector('.set-idx'));
+  const addSet = (c, ex) => tap(c, ex.querySelector('.add-set-btn'));
+  const toBodyweight = (c, ex) => { const bw = ex.querySelector('.ex-bw-in'); bw.checked = true; vm.runInContext('(function(){ ' + bw.getAttribute('onchange') + ' })', c).call(bw); };
+  /* one exercise as the session holds it: its prescribed load, what capturedPrescription says, the strip, the rows */
+  const fact = (c, ex) => ({ name: (ex.querySelector('.ex-name-in') || {}).value, rxLoad: ex.dataset.rxLoad == null ? null : ex.dataset.rxLoad, rx: c.capturedPrescription(ex),
+    strip: ex.querySelectorAll('.warmup-wrap .warmup-chip').map(x => col(x.textContent)),
+    rows: rowsOf(ex).map(r => idOf(r) + ' ' + wIn(r).value + 'x' + repsIn(r).value + (r.classList.contains('completed') ? '+' : '') + (own(r) ? '/' + own(r) : '')),
+    bw: !!(ex.querySelector('.ex-bw-in') || {}).checked });
+  const facts = L => L.exs().map(ex => fact(L.c, ex));
+  /* the prescription facts without the strip: E56 (held) still moves a D47-shortened strip on resume */
+  const core = f => f ? { name: f.name, rxLoad: f.rxLoad, rx: f.rx, rows: f.rows, bw: f.bw } : null;
+  const cores = a => a.map(core);
+  const capture = c => JSON.parse(JSON.stringify(c.captureActiveDraft()));
+  /* a resume in a fresh app (a reload): o.before(c) changes the world first; progressionFor is counted while it restores */
+  const resumeIn = async (log, draft, o) => {
+    o = o || {}; const L = await mount(log, o), c = L.c; if(o.before) o.before(c);
+    const calls = []; const pf = c.progressionFor;
+    c.progressionFor = function(n){ calls.push(n); return pf.apply(this, arguments); };
+    try{ c.restoreDraftToSheet(JSON.parse(JSON.stringify(draft))); } finally { c.progressionFor = pf; }
+    return { L, c, calls };
+  };
+  const saveRead = async (L, title) => { const c = L.c; if(title) c.document.getElementById('logTitle').value = title;
+    await c.saveLog();
+    const ent = c.workoutLog.find(w => w.date === TODAY && !/^[hdu]\d$/.test(w.id));
+    if(!ent) return null;
+    const x = c.deriveSessionExecution(ent), sc = c.sessionScore(ent);
+    return { ent, rx: ent.exercises.map(e => [e.name, e.rx || null]), exec: [x.prescribedExercises, x.setsPrescribed, x.setsCompleted], score: sc && sc.available ? sc.score : null }; };
+  /* the primary fixture: a programmed Bench Press, then Dumbbell Bench Press added by hand, `typed` into its Set 1, Set 1 done */
+  const primary = async (o, typed) => { const L = await started(LOG, [BENCH], o), c = L.c;
+    const db = freeRow(L, 'Dumbbell Bench Press'); type(c, wIn(rowsOf(db)[0]), typed || '50'); perform(c, rowsOf(db)[0], 10, 2); return L; };
+  const freeBench = async o => { const L = await freeform(STALL, o), c = L.c;
+    const b = freeRow(L, 'Bench Press'); type(c, wIn(rowsOf(b)[0]), '205'); perform(c, rowsOf(b)[0], 8, 1); return L; };
+
+  /* ---------------------------------------------------------------- */
+  sub('1–7  E57 on 10.47’s own functions (compiled back from D131A_EDITS), and closed');
+  await guard('e57', async () => {
+    T('1  10.47 compiles back: the three functions D131A changed are put back byte for byte (their 10.47 pins)',
+      OK1047 && D131A_LOGGER.length === 3 && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('addLogExerciseRow') === '81931805d69abc1d' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44');
+    /* 10.47 */
+    let L = await primary({ at1047: true }); let live = L.byName('Dumbbell Bench Press'); const was0 = fact(L.c, live); let d = capture(L.c); L.release();
+    let R = await resumeIn(LOG, d, { at1047: true }); const was1 = fact(R.c, R.L.byName('Dumbbell Bench Press')); const wasCalls = R.calls.slice(); R.L.release();
+    T('10.47 replay — 2  E57 on 10.47: before leaving, the exercise added by hand has no prescription (no rxLoad, capturedPrescription null) and its strip follows the 50 typed (20 / 30 / 40)',
+      was0.rxLoad === null && was0.rx === null && same(was0.strip, ['20 lb × 5', '30 lb × 3', '40 lb × 2']), JSON.stringify(was0));
+    T('10.47 replay — 1, 3  E57 on 10.47: resumed, progressionFor is asked for it and it comes back prescribed — rxLoad 60, capturedPrescription {load: 60}, its strip re-anchored to 25 / 35 / 50',
+      wasCalls.indexOf('Dumbbell Bench Press') !== -1 && was1.rxLoad === '60' && same(was1.rx, { load: 60 }) && same(was1.strip, ['25 lb × 5', '35 lb × 3', '50 lb × 2']), JSON.stringify([was1, wasCalls]));
+    /* now */
+    L = await primary(); live = L.byName('Dumbbell Bench Press'); const now0 = fact(L.c, live), bench0 = fact(L.c, L.byName('Bench Press')); d = capture(L.c); L.release();
+    R = await resumeIn(LOG, d); const now1 = fact(R.c, R.L.byName('Dumbbell Bench Press')), bench1 = fact(R.c, R.L.byName('Bench Press')); const nowCalls = R.calls.slice(); R.L.release();
+    T('2  before leaving, now: the exercise added by hand has no prescription, its strip the typed 50’s; the programmed Bench Press has its 205 (rx {sets 3, reps 8-12, load 205, effort 8})',
+      now0.rxLoad === null && now0.rx === null && same(now0.strip, ['20 lb × 5', '30 lb × 3', '40 lb × 2']) && bench0.rxLoad === '205' && same(bench0.rx, BENCH_RX), JSON.stringify([now0, bench0]));
+    T('4  resumed now: it is exactly as it was — no rxLoad, no prescription, the strip still the typed 50’s — and the restore asked progressionFor nothing',
+      now1.rxLoad === null && now1.rx === null && same(now1.strip, now0.strip) && same(now1.rows, now0.rows) && nowCalls.length === 0 && bench1.rxLoad === '205' && same(bench1.rx, BENCH_RX), JSON.stringify([now1, nowCalls]));
+    /* freeform */
+    L = await freeBench({ at1047: true }); const fw0 = fact(L.c, L.ex()); d = capture(L.c); L.release();
+    R = await resumeIn(STALL, d, { at1047: true }); const fw1 = fact(R.c, R.L.ex()); R.L.release();
+    L = await freeBench(); const fn0 = fact(L.c, L.ex()); d = capture(L.c); L.release();
+    R = await resumeIn(STALL, d); const fn1 = fact(R.c, R.L.ex()); const fCalls = R.calls.slice(); R.L.release();
+    T('5  a freeform Bench Press has no prescription before leaving (205 typed; no rxLoad; capturedPrescription null) — on 10.47 and now',
+      fw0.rxLoad === null && fw0.rx === null && fn0.rxLoad === null && fn0.rx === null, JSON.stringify([fw0, fn0]));
+    T('10.47 replay — 6  E57 on 10.47: resumed, the freeform Bench Press comes back prescribed at 205 (capturedPrescription {load: 205})', fw1.rxLoad === '205' && same(fw1.rx, { load: 205 }), JSON.stringify(fw1));
+    T('7  resumed now: still no prescription, its strip still the typed 205’s, and progressionFor was not asked', fn1.rxLoad === null && fn1.rx === null && same(fn1.strip, fn0.strip) && fCalls.length === 0, JSON.stringify([fn1, fCalls]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('8–10  an exercise the athlete added stays theirs, whatever its history or D49 says');
+  await guard('manual', async () => {
+    const dbs = n => { const out = []; for(let i = 0; i < n; i++){ const day = new Date(Date.UTC(2026, 8, 30) - (n - i) * 86400000 * 2).toISOString().slice(0, 10);
+      out.push(W('m' + i, day, [E('Dumbbell Bench Press', [S(60, 10, 2), S(60, 9, 1), S(60, 8, 1)])])); } return out; };
+    const flat = n => dbs(n).map(w => Object.assign({}, w, { exercises: [E('Dumbbell Bench Press', [S(60, 8, 1), S(60, 8, 1), S(60, 8, 1)])] }));
+    const histories = [['1 session', dbs(1)], ['2 sessions', dbs(2)], ['20 sessions', dbs(20)], ['a plateau', flat(6)], ['a decline', dbs(3).concat([W('mz', '2026-09-30', [E('Dumbbell Bench Press', [S(60, 6, 0), S(60, 5, 0)])])])]];
+    let n = 0, kept = 0, gained = 0; const why = [];
+    for(const [lab, hist] of histories){
+      const L = await started(STALL.concat(hist), [BENCH]), c = L.c; const db = freeRow(L, 'Dumbbell Bench Press'); type(c, wIn(rowsOf(db)[0]), '55');
+      const d = capture(c); L.release();
+      const R = await resumeIn(STALL.concat(hist), d), f = fact(R.c, R.L.byName('Dumbbell Bench Press')); R.L.release();
+      const R7 = await resumeIn(STALL.concat(hist), d, { at1047: true }), f7 = fact(R7.c, R7.L.byName('Dumbbell Bench Press')); R7.L.release();
+      n++; if(f.rxLoad === null && f.rx === null) kept++; else why.push(lab); if(f7.rxLoad !== null) gained++;
+    }
+    /* D49's answer forced to every tag and load, in the resumed app */
+    for(const tag of ['new', 'hold', 'build', 'increase', 'reduce', 'plateau', 'decline', 'insufficient']){
+      const L = await started(LOG, [BENCH]), c = L.c; const db = freeRow(L, 'Dumbbell Bench Press'); type(c, wIn(rowsOf(db)[0]), '55'); const d = capture(c); L.release();
+      const R = await resumeIn(LOG, d, { before: rc => { rc.progressionFor = () => ({ weight: 65, tag, headline: '', why: '' }); } }), f = fact(R.c, R.L.byName('Dumbbell Bench Press'));
+      const b = fact(R.c, R.L.byName('Bench Press')); R.L.release();
+      n++; if(f.rxLoad === null && f.rx === null && b.rxLoad === '205') kept++; else why.push(tag);
+    }
+    T('8  added by hand with history — 1, 2 and 20 earlier sessions, a plateau, a decline — and with D49 forced to every tag (new, hold, build, increase, reduce, plateau, decline, insufficient) at a load it could prescribe: resumed with no prescription every time (' + kept + ' of ' + n + ')',
+      n === 13 && kept === n, JSON.stringify(why));
+    T('10.47 replay — 8  on 10.47 every one of those histories gave it a prescription on resume (' + gained + ' of ' + histories.length + ')', gained === histories.length, gained);
+    const L0 = await started(STALL, [BENCH]), c0 = L0.c; const x = freeRow(L0, 'Close-Grip Bench Press'); type(c0, wIn(rowsOf(x)[0]), '135'); const d0 = capture(c0); L0.release();
+    const R0 = await resumeIn(STALL, d0), f0 = fact(R0.c, R0.L.byName('Close-Grip Bench Press')); R0.L.release();
+    T('9  added by hand with no history at all: no prescription before or after (and the draft records that it had none)', f0.rxLoad === null && f0.rx === null && d0.exercises[1].meta.rxLoad === null && 'rxLoad' in d0.exercises[1].meta, JSON.stringify([f0, d0.exercises[1].meta]));
+    /* the athlete types exactly what D49 would say: 60 */
+    const L1 = await primary(null, '60'), c1 = L1.c; const live = fact(c1, L1.byName('Dumbbell Bench Press')); const p = c1.progressionFor('Dumbbell Bench Press', '', ''); const d1 = capture(c1); L1.release();
+    const R1 = await resumeIn(LOG, d1), f1 = fact(R1.c, R1.L.byName('Dumbbell Bench Press')); R1.L.release();
+    const R17 = await resumeIn(LOG, d1, { at1047: true }), f17 = fact(R17.c, R17.L.byName('Dumbbell Bench Press')); R17.L.release();
+    T('10  typed to match D49 exactly (60, which progressionFor also answers): still no prescription — provenance is never read off matching numbers', p.weight === 60 && live.rx === null && f1.rxLoad === null && f1.rx === null, JSON.stringify([p.weight, live.rx, f1]));
+    T('10.47 replay — 10  on 10.47 the matching numbers came back as a prescription {load: 60}', same(f17.rx, { load: 60 }), JSON.stringify(f17));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('11–15  a prescribed exercise keeps the prescription it started with');
+  await guard('prescribed', async () => {
+    const one = async (act, log) => { const L = await started(log || STALL, [BENCH]), c = L.c, ex = L.ex(); if(act) act(c, ex); const live = fact(c, ex); const d = capture(c); L.release();
+      const R = await resumeIn(log || STALL, d); const after = fact(R.c, R.L.ex()); const coach = R.L.ex().querySelector('.recommend-wrap').innerHTML; const calls = R.calls.slice(); R.L.release();
+      return { live, after, d, coach, calls }; };
+    const a = await one();
+    T('11  a programmed Bench Press resumes with the prescription it started with: rxLoad 205, capturedPrescription {sets 3, reps 8-12, load 205, effort 8}, the draft recording "205"',
+      a.live.rxLoad === '205' && a.after.rxLoad === '205' && same(a.after.rx, BENCH_RX) && same(a.after.rx, a.live.rx) && a.d.exercises[0].meta.rxLoad === '205' && a.calls.length === 0, JSON.stringify([a.after, a.calls]));
+    const b = await one((c, ex) => type(c, wIn(rowsOf(ex)[0]), '210'));
+    T('12  the athlete changed Set 1 to 210: resumed, the prescription is still 205 and Set 1 is still their 210 (theirs, and carried forward as it was)',
+      b.after.rxLoad === '205' && same(b.after.rx, BENCH_RX) && same(b.after.rows, b.live.rows) && b.after.rows[0] === 'S1 210x8/w', JSON.stringify(b.after));
+    const r = await one((c, ex) => type(c, repsIn(rowsOf(ex)[1]), '10'));
+    T('13  the athlete changed Set 2’s reps to 10: resumed, the prescription is unchanged and Set 2 is still their 10', r.after.rxLoad === '205' && same(r.after.rx, BENCH_RX) && same(r.after.rows, r.live.rows) && /^S2 \d+x10\/r$/.test(r.after.rows[1]), JSON.stringify(r.after));
+    const k = await one((c, ex) => perform(c, rowsOf(ex)[0], 6, 0));
+    T('14  D50B lowered the sets still to do to 200 after Set 1 at 6 @ 0 in reserve: the prescription stays 205 live and resumed; the 200s stay the rows’ own values',
+      k.live.rxLoad === '205' && k.after.rxLoad === '205' && same(k.after.rx, BENCH_RX) && same(k.after.rows, k.live.rows) && /^S2 200x/.test(k.after.rows[1]) && /^S3 200x/.test(k.after.rows[2]), JSON.stringify([k.live.rows, k.after]));
+    T('15  the coach is not re-run by the resume: no card until the next working set', k.coach === '', k.coach.slice(0, 80));
+    T('15  ...the restore path names no coach function', !/refreshSetCoach|applyCoachToFutureSets|coachLoadNow|deriveNextSetCoach/.test(stripComments(fnSrc(raw, 'restoreDraftToSheet'))));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('16–18  a swap keeps exactly the prescription the swap gave');
+  await guard('swap', async () => {
+    const swapped = async (build, o) => { const L = await build(o), c = L.c; const live = facts(L); const d = capture(c); L.release();
+      const R = await resumeIn(LOG, d, o); const after = facts(R.L); const calls = R.calls.slice(); R.L.release(); return { live, after, d, calls }; };
+    const inPlace = o => started(LOG, [BENCH], o).then(L => { L.c.swapLogExercise(L.ex(), 'Dumbbell Bench Press'); return L; });
+    const noHist = o => started(LOG, [BENCH], o).then(L => { L.c.swapLogExercise(L.ex(), 'Floor Press'); return L; });
+    const handSwap = o => started(LOG, [BENCH], o).then(L => { const x = freeRow(L, 'Incline Dumbbell Press'); L.c.swapLogExercise(x, 'Dumbbell Bench Press'); type(L.c, wIn(rowsOf(L.byName('Dumbbell Bench Press'))[0]), '50'); return L; });
+    const s1 = await swapped(inPlace), s2 = await swapped(noHist), s3 = await swapped(handSwap);
+    T('16  swapped to Dumbbell Bench Press: the swap prescribed its own 60 (sets 3, reps 8-12, load 60, effort 8), and the resume restores exactly that without asking progressionFor',
+      s1.live[0].rxLoad === '60' && same(s1.after[0].rx, { sets: 3, reps: '8-12', load: 60, effort: 8 }) && same(s1.after, s1.live) && s1.calls.length === 0, JSON.stringify([s1.after, s1.calls]));
+    T('16  swapped to a lift with no history and no starting weight: the swap prescribed no load, and none comes back (the draft records null)',
+      s2.live[0].rxLoad === null && s2.after[0].rxLoad === null && same(s2.after[0].rx, { sets: 3, reps: '8-12', effort: 8 }) && s2.d.exercises[0].meta.rxLoad === null, JSON.stringify(s2.after));
+    T('16  a row added by hand and then swapped: the swap gave it 60, and the resume restores that 60 — the swap’s prescription survives',
+      s3.live[1].rxLoad === '60' && s3.after[1].rxLoad === '60' && same(s3.after[1].rx, { load: 60 }) && same(s3.after, s3.live), JSON.stringify(s3.after));
+    const split = o => started(LOG, [BENCH], o).then(L => { perform(L.c, rowsOf(L.ex())[0], 8, 1); L.c.swapLogExercise(L.ex(), 'Dumbbell Bench Press'); return L; });
+    const s4 = await swapped(split);
+    T('17  a swap part-way through splits the row: the finished Bench Press keeps its 205, the replacement its 60, and both resume exactly so (rows, prescriptions, no progressionFor; the replacement’s D47-shortened strip is E56’s, held)',
+      s4.live.length === 2 && s4.live[0].rxLoad === '205' && s4.live[1].rxLoad === '60' && same(cores(s4.after), cores(s4.live)) && s4.calls.length === 0, JSON.stringify(s4.after));
+    const undoMerge = o => split(o).then(L => { L.c.undoExerciseSwap(L.byName('Dumbbell Bench Press')); return L; });
+    const undoBack = o => inPlace(o).then(L => { L.c.undoExerciseSwap(L.ex()); return L; });
+    const s5 = await swapped(undoMerge), s6 = await swapped(undoBack);
+    T('18  undone: merged home, the Bench Press row holds its 205; swapped back in place, the slot’s Bench Press takes 205 again — and each resumes exactly as left',
+      s5.live.length === 1 && s5.live[0].rxLoad === '205' && same(s5.after, s5.live) && s6.live[0].name === 'Bench Press' && s6.live[0].rxLoad === '205' && same(s6.after, s6.live), JSON.stringify([s5.after, s6.after]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('19–22  nothing that changes after the capture re-plans the session');
+  await guard('noreplan', async () => {
+    let L = await started(UP, [BENCH]), c = L.c; const live = fact(c, L.ex()); const d = capture(c); L.release();
+    const forced = await resumeIn(UP, d, { before: rc => { rc.progressionFor = () => ({ weight: 999, tag: 'increase', headline: '', why: '' }); } }); const f1 = fact(forced.c, forced.L.ex()); forced.L.release();
+    T('19  D49’s answer forced to 999 in the resumed app: the session still holds the 190 it started with', live.rxLoad === '190' && f1.rxLoad === '190' && same(f1.rx, live.rx), JSON.stringify([live, f1]));
+    const deload = await resumeIn(UP, d, { before: rc => { rc.deloadActiveToday = () => true; } }); const f2 = fact(deload.c, deload.L.ex()); deload.L.release();
+    const deload7 = await resumeIn(UP, d, { at1047: true, before: rc => { rc.deloadActiveToday = () => true; } }); const f27 = fact(deload7.c, deload7.L.ex()); deload7.L.release();
+    T('20  resumed inside a deload (the phase policy would now hold 185): still 190, the prescription the session began with', f2.rxLoad === '190' && same(f2.rx, live.rx), JSON.stringify(f2));
+    const more = UP.concat([W('u9', '2026-10-01', [E('Bench Press', [S(190, 12, 3), S(190, 12, 3), S(190, 12, 3)])])]);
+    const hist = await resumeIn(more, d); const f3 = fact(hist.c, hist.L.ex()); hist.L.release();
+    const hist7 = await resumeIn(more, d, { at1047: true }); const f37 = fact(hist7.c, hist7.L.ex()); hist7.L.release();
+    T('21  resumed after new history arrived (D49 would now say 195): still 190', f3.rxLoad === '190' && same(f3.rx, live.rx), JSON.stringify(f3));
+    T('10.47 replay — 19–21  on 10.47 the same resume re-planned it: 185 inside the deload, 195 after the new history, with the working sets left at 190',
+      f27.rxLoad === '185' && f37.rxLoad === '195' && same(f27.rows, live.rows) && same(f37.rows, live.rows), JSON.stringify([f27.rxLoad, f37.rxLoad]));
+    L = await started(STALL, [BENCH]); c = L.c; toBodyweight(c, L.ex()); const bw0 = fact(c, L.ex()); const db = capture(c); L.release();
+    const bwR = await resumeIn(STALL, db); const bw1 = fact(bwR.c, bwR.L.ex()); const bwRow = bwR.L.ex(); bwR.L.release();
+    const bwR7 = await resumeIn(STALL, db, { at1047: true }); const bw17 = fact(bwR7.c, bwR7.L.ex()); bwR7.L.release();
+    T('22  a prescribed Bench Press switched to Bodyweight keeps its 205 live, and resumes with it: same prescription, still Bodyweight, its load fields still disabled and empty',
+      bw0.rxLoad === '205' && bw0.bw && bw1.rxLoad === '205' && bw1.bw && same(bw1.rx, bw0.rx) && rowsOf(bwRow).every(r => wIn(r).disabled && wIn(r).value === ''), JSON.stringify([bw0, bw1]));
+    T('10.47 replay — 22  on 10.47 the resume dropped it: no rxLoad, capturedPrescription without a load', bw17.rxLoad === null && same(bw17.rx, { sets: 3, reps: '8-12', effort: 8 }), JSON.stringify(bw17));
+    const P = await started(STALL, [BENCH]); P.c.addPickedToWorkout(['Push-Up']); const pu = fact(P.c, P.byName('Push-Up')); const dp = capture(P.c); P.release();
+    const PR = await resumeIn(STALL, dp); const pu1 = fact(PR.c, PR.L.byName('Push-Up')); PR.L.release();
+    T('22  and a bodyweight exercise added by hand gets no loaded prescription, before or after', pu.bw && pu.rxLoad === null && pu.rx === null && pu1.rxLoad === null && pu1.rx === null, JSON.stringify([pu, pu1]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('23–29  resume twice, save, the execution analysis, the warm-up anchor');
+  await guard('save', async () => {
+    let L = await primary(), c = L.c; const live = facts(L); const d1 = capture(c); L.release();
+    const R1 = await resumeIn(LOG, d1); const r1 = facts(R1.L); const d2 = capture(R1.c); R1.L.release();
+    const R2 = await resumeIn(LOG, d2); const r2 = facts(R2.L); const d3 = capture(R2.c); R2.L.release();
+    const meta = d => d.exercises.map(e => [e.name, e.meta.rxLoad]);
+    T('23  resumed twice: every row’s prescription, capturedPrescription, strip and rows are the same after each resume, and each draft records the same loads',
+      same(r1, live) && same(r2, live) && same(meta(d1), meta(d2)) && same(meta(d2), meta(d3)) && same(meta(d1), [['Bench Press', '205'], ['Dumbbell Bench Press', null]]), JSON.stringify([meta(d1), meta(d3)]));
+    /* the same session saved straight and saved after a resume, now and on 10.47 */
+    const finish = (Lx) => { const c = Lx.c; rowsOf(Lx.byName('Bench Press')).forEach((r, i) => { if(!r.classList.contains('completed')) perform(c, r, [8, 6, 5][i], 1); });
+      rowsOf(Lx.byName('Dumbbell Bench Press')).forEach(r => { if(!r.classList.contains('completed')) perform(c, r, 9, 1); }); };
+    L = await primary(); finish(L); const straight = await saveRead(L); L.release();
+    L = await primary(); const dd = capture(L.c); L.release();
+    let R = await resumeIn(LOG, dd); finish(R.L); const resumed = await saveRead(R.L); R.L.release();
+    L = await primary({ at1047: true }); const d7 = capture(L.c); L.release();
+    R = await resumeIn(LOG, d7, { at1047: true }); finish(R.L); const resumed7 = await saveRead(R.L); R.L.release();
+    T('24  saved after the resume, the programmed Bench Press carries the prescription it started with, exactly as a save without the resume does',
+      straight && resumed && same(resumed.rx[0], ['Bench Press', BENCH_RX]) && same(resumed.rx[0], straight.rx[0]), JSON.stringify([straight && straight.rx, resumed && resumed.rx]));
+    T('25  the exercise added by hand is saved with no rx after the resume, as without it', resumed && same(resumed.rx[1], ['Dumbbell Bench Press', null]) && same(straight.rx[1], resumed.rx[1]), JSON.stringify(resumed && resumed.rx));
+    T('10.47 replay — 25  on 10.47 the resumed save wrote rx {load: 60} for it', resumed7 && same(resumed7.rx[1], ['Dumbbell Bench Press', { load: 60 }]), JSON.stringify(resumed7 && resumed7.rx));
+    T('26  the execution analysis counts 1 prescribed exercise, after the resume as without it', straight.exec[0] === 1 && resumed.exec[0] === 1, JSON.stringify([straight.exec, resumed.exec]));
+    T('27  ...and 3 prescribed sets, with the same sets completed: the resume moved nothing it judges (and Session Score is the same)', same(straight.exec, resumed.exec) && straight.exec[1] === 3 && straight.score === resumed.score, JSON.stringify([straight.exec, resumed.exec, straight.score, resumed.score]));
+    T('10.47 replay — 26–27  on 10.47 the resume made it 2 prescribed exercises with ' + (resumed7 && resumed7.exec[2]) + ' sets judged instead of ' + straight.exec[2], resumed7.exec[0] === 2 && resumed7.exec[1] === 3 && resumed7.exec[2] > straight.exec[2], JSON.stringify(resumed7.exec));
+    /* capturedPrescription is the one reader, unchanged; resumed rows answer it exactly as live rows */
+    T('28  every resumed row answers capturedPrescription exactly as the live row did, after each resume', same(r1.map(x => x.rx), live.map(x => x.rx)) && same(r2.map(x => x.rx), live.map(x => x.rx)), JSON.stringify([live.map(x => x.rx), r1.map(x => x.rx)]));
+    T('28  ...capturedPrescription, the one reader, is byte-identical to 10.47, and saveLog with it', pin('capturedPrescription') === '4b741af98b989695' && pin('saveLog') === '66c63714822ef5ee');
+    /* D130's anchor follows the provenance */
+    L = await primary(); let x = capture(L.c); L.release();
+    R = await resumeIn(LOG, x); let dbRow = R.L.byName('Dumbbell Bench Press'); type(R.c, wIn(rowsOf(dbRow)[0]), '55'); const strip55 = fact(R.c, dbRow).strip;
+    addSet(R.c, dbRow); label(R.c, rowsOf(dbRow).slice(-1)[0]); const warm = fact(R.c, dbRow).rows.slice(-1)[0]; R.L.release();
+    L = await primary({ at1047: true }); x = capture(L.c); L.release();
+    R = await resumeIn(LOG, x, { at1047: true }); dbRow = R.L.byName('Dumbbell Bench Press'); type(R.c, wIn(rowsOf(dbRow)[0]), '55'); const strip557 = fact(R.c, dbRow).strip;
+    addSet(R.c, dbRow); label(R.c, rowsOf(dbRow).slice(-1)[0]); const warm7 = fact(R.c, dbRow).rows.slice(-1)[0]; R.L.release();
+    T('29  D130 follows the provenance: resumed, the row added by hand still follows its first working load (typed 55 → 20 / 35 / 45) and a new warm-up takes that strip’s step (20 × 5)',
+      same(strip55, ['20 lb × 5', '35 lb × 3', '45 lb × 2']) && warm === 'W 20x5', JSON.stringify([strip55, warm]));
+    T('10.47 replay — 29  on 10.47 the resume had prescribed 60, so the strip stayed 25 / 35 / 50 when 55 was typed, and the new warm-up took 25 × 5', same(strip557, ['25 lb × 5', '35 lb × 3', '50 lb × 2']) && warm7 === 'W 25x5', JSON.stringify([strip557, warm7]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('30–33  a draft says what each row had; a draft from before 10.48 gets no invented load');
+  await guard('legacy', async () => {
+    const pair = async (swapIt, o) => { const L = await started(LOG, [BENCH], o), c = L.c;
+      const x = freeRow(L, swapIt ? 'Incline Dumbbell Press' : 'Dumbbell Bench Press'); if(swapIt) c.swapLogExercise(x, 'Dumbbell Bench Press');
+      type(c, wIn(rowsOf(L.byName('Dumbbell Bench Press'))[0]), '50'); const live = fact(c, L.byName('Dumbbell Bench Press')); const d = capture(c); L.release(); return { live, d }; };
+    const norm = d => { const y = JSON.parse(JSON.stringify(d)); delete y.id; delete y.startedAt; delete y.savedAt; y.exercises.forEach(e => { delete e.shadowRecId; if(e.meta) delete e.meta.slotKey; }); return y; };
+    const sw = await pair(true), un = await pair(false);
+    const a = norm(sw.d), b = norm(un.d); const aa = JSON.parse(JSON.stringify(a)), bb = JSON.parse(JSON.stringify(b)); delete aa.exercises[1].meta.rxLoad; delete bb.exercises[1].meta.rxLoad;
+    const Rs = await resumeIn(LOG, sw.d), Ru = await resumeIn(LOG, un.d); const fs1 = fact(Rs.c, Rs.L.byName('Dumbbell Bench Press')), fu1 = fact(Ru.c, Ru.L.byName('Dumbbell Bench Press')); Rs.L.release(); Ru.L.release();
+    T('30  a row a swap prescribed and an otherwise identical row added by hand no longer serialise the same: the drafts differ in exactly that row’s recorded load ("60" vs null), and each resumes as it was',
+      sw.live.rxLoad === '60' && un.live.rxLoad === null && !same(a, b) && same(aa, bb) && a.exercises[1].meta.rxLoad === '60' && b.exercises[1].meta.rxLoad === null && fs1.rxLoad === '60' && fu1.rxLoad === null,
+      JSON.stringify([a.exercises[1].meta, b.exercises[1].meta]));
+    /* drafts written by 10.47's own capture: no record */
+    const L7 = await primary({ at1047: true }); const legacy = capture(L7.c); L7.release();
+    const RL = await resumeIn(LOG, legacy); const lb = fact(RL.c, RL.L.byName('Bench Press')), ld = fact(RL.c, RL.L.byName('Dumbbell Bench Press')); const lcalls = RL.calls.slice(); RL.L.release();
+    T('31  a draft from 10.47 with an exercise added by hand: it comes back with no prescription — nothing in that draft proves one, so none is invented (progressionFor is not asked for it)',
+      !('rxLoad' in legacy.exercises[1].meta) && ld.rxLoad === null && ld.rx === null && lcalls.indexOf('Dumbbell Bench Press') === -1, JSON.stringify([ld, lcalls]));
+    const sw7 = await pair(true, { at1047: true }), un7 = await pair(false, { at1047: true });
+    const a7 = norm(sw7.d), b7 = norm(un7.d);
+    const Ra = await resumeIn(LOG, sw7.d), Rb = await resumeIn(LOG, un7.d); const fa = fact(Ra.c, Ra.L.byName('Dumbbell Bench Press')), fb = fact(Rb.c, Rb.L.byName('Dumbbell Bench Press')); Ra.L.release(); Rb.L.release();
+    T('32  the ambiguous pair in drafts from 10.47 (byte-identical there): both come back with no prescription — the swapped row loses the 60 its swap gave it (the documented limit), and neither gains one',
+      same(a7, b7) && sw7.live.rxLoad === '60' && fa.rxLoad === null && fb.rxLoad === null, JSON.stringify([fa.rxLoad, fb.rxLoad]));
+    const R7 = await resumeIn(LOG, legacy, { at1047: true }); const lb7 = fact(R7.c, R7.L.byName('Bench Press')); R7.L.release();
+    T('33  the row the plan wrote, in that 10.47 draft, is asked as 10.47 asked it — its own plan’s target and starting weight — and comes back at 205, exactly 10.47’s answer, with progressionFor asked for it alone',
+      lb.rxLoad === '205' && lb7.rxLoad === '205' && same(lb.rx, lb7.rx) && same(lcalls, ['Bench Press']), JSON.stringify([lb, lcalls]));
+    const bwd = JSON.parse(JSON.stringify(legacy)); bwd.exercises[0].bodyweight = true;
+    const eff = JSON.parse(JSON.stringify(legacy)); eff.exercises[0].meta.targetReps = ''; eff.exercises[0].effort = '8';
+    const Rw = await resumeIn(LOG, bwd), Re = await resumeIn(LOG, eff); const fw = fact(Rw.c, Rw.L.ex()), fe = fact(Re.c, Re.L.ex()); Rw.L.release(); Re.L.release();
+    T('33  ...in Bodyweight there it gets no load (as 10.47 restored it), and a plan row known by its effort target alone is still a plan row (asked, 205)',
+      fw.rxLoad === null && fe.rxLoad === '205', JSON.stringify([fw.rxLoad, fe.rxLoad]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('34–40  held: E56 and E58; D125, D126 / D49, D127, D128 / D129 and D130 are untouched');
+  await guard('held', async () => {
+    let L = await started(STALL, [BENCH]), c = L.c; rowsOf(L.ex()).forEach((r, i) => perform(c, r, [8, 6, 5][i], 1));
+    const cg = freeRow(L, 'Close-Grip Bench Press'); type(c, wIn(rowsOf(cg)[0]), '135'); const before = fact(c, cg); const d = capture(c); L.release();
+    const R = await resumeIn(STALL, d); const after = fact(R.c, R.L.byName('Close-Grip Bench Press')); R.L.release();
+    T('34  E56 is still open: the D47-shortened Close-Grip strip (110 × 2) still resumes as the full 55 / 80 / 110',
+      same(before.strip, ['110 lb × 2']) && same(after.strip, ['55 lb × 5', '80 lb × 3', '110 lb × 2']), JSON.stringify([before.strip, after.strip]));
+    L = await started(STALL, [BENCH, INC135]); c = L.c; rowsOf(L.ex(0)).forEach((r, i) => perform(c, r, [8, 6, 5][i], 1));
+    const inc = fact(c, L.ex(1)); const prep = c.generalPrepSatisfiedBy('Incline Bench Press', c.sessionPreparation()); L.release();
+    T('35  E58 is still open: after Bench Press at 205, the prescribed Incline Bench Press still shows the full 55 / 80 / 110 although D47 says it is prepared', same(inc.strip, ['55 lb × 5', '80 lb × 3', '110 lb × 2']) && !!prep, JSON.stringify([inc.strip, prep]));
+    T('36  D125: the plan, its reader, the row helpers, Add Set, the type writer, renumbering, propagation, the stepper and the strip are byte-identical; the draft, its restore and the row are 10.47’s with D131A’s statements put back, the start 10.41’s',
+      pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pin('addSetRow') === '095f10f06e006dd3' && pin('appendSetRow') === '61f2b7e061afde48'
+      && pin('applySetTypeToRow') === '9fab51981238989b' && pin('renumberSets') === '6a65d511509ef489' && pin('propagateSetValueForward') === '60f12adf15eda793' && pin('stepValue') === '8e79af408daacf1d'
+      && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('computeWarmupRamp') === 'b826d1445f153d77' && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52'
+      && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44' && pinAsOf1047('addLogExerciseRow') === '81931805d69abc1d');
+    T('37  D126 / D49: the plateau, the progression engine, its evidence, the phase policy and the history readers are byte-identical',
+      pin('detectPlateau') === 'cb642b7c61b1aec9' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97'
+      && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('exerciseSessionHistory') === '0947083a50c4e8b7' && pin('bodyweightSessionHistory') === '107a63744acb4508' && pin('deloadActiveToday') === '700ccd9a7101c3d4');
+    T('38  D127 / D50B: the coach, its write rule, its writer, coachLoadNow, the evidence it reads and its refresh are byte-identical',
+      pin('coachMayWriteSet') === '0de96792fab27ca4' && pin('applyCoachToFutureSets') === '10add8e901495f2d' && pin('coachLoadNow') === '38299e411614887d' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5'
+      && pin('liveSetEvidence') === 'f7ff87b1e49c93df' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('markUserSet') === '557fba41fff1a079');
+    T('39  D128 / D129: Mastery’s cards and rows, the tap and its target, Exercise Detail’s header and the drawings are byte-identical',
+      pin('masteryExerciseTarget') === 'e1fabf18c0dcb406' && pin('openMasteryExercise') === 'd5ed0205fd603c1c' && pin('masteryExerciseArtHtml') === '25ac09af9a636bf9'
+      && pin('masteryPodiumCardHtml') === '0c85f5f236685801' && pin('masteryRowHtml') === 'e6348d215127bfc4' && pin('renderExDetail') === '752755306eaa5a44' && pin('openExDetail') === '4cd56427ec818d33');
+    T('40  D130: the warm-up reader and seeder, their callers, the swap, the split and the way back are byte-identical to 10.47',
+      pin('suggestedWarmupSteps') === '7e37069140f2527b' && pin('seedWarmupTargets') === '9c048567ff49a1f1' && pin('maybeRefreshWarmup') === 'bf55b39f07a6e2e4' && pin('swapLogExercise') === 'a61e31bb220f312e'
+      && pin('splitRowForSwap') === '78ed482b25517739' && pin('undoExerciseSwap') === '3b31d52d98a26ff8' && pin('toggleSetType') === 'f403d2834abd80ac' && pin('chooseSetType') === '2a72d3ade6f83fd9'
+      && pin('removeSetRow') === '7b94b99f9f92bb69' && pin('seedWorkingTarget') === '64ed113f75a5573e' && pin('toggleBW') === '8299f1c082c1e68d');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('41–46  what is saved, and everything read from it');
+  await guard('history', async () => {
+    const derived = (c, ent) => withClockOn(c, NOW, () => { ['invalidateSortedLogCache', 'invalidateWorkoutGroups', 'invalidatePRCaches', 'invalidatePRSetCache', 'invalidateXPTimelineCache', 'invalidateRecoveryCache', 'invalidateCapabilityCache', 'invalidateContextCache', 'invalidateAllMasteryCaches']
+      .forEach(k => { if(typeof c[k] === 'function') try{ c[k](); }catch(e){} });
+      const tl = c.computeXPTimeline(), pr = c.getCurrentProgression(), evs = c.computeAllPREvents();
+      return JSON.stringify([evs.map(e => [e.id === (ent && ent.id) ? 'new' : e.id, e.exerciseName, e.hits.map(x => x.type + ':' + x.next)]), c.computePRs().map(p => [p.name, p.weight, p.reps, !!p.isBW]), tl.lifetimeXP, tl.prCount, pr.level,
+        pr.rank && (pr.rank.name || pr.rank), c.masteryPRCounts(), c.computeMuscleRecovery(), ent ? c.sessionVolume(ent) : null, (() => { const p = c.progressionFor('Bench Press', '8-12', null); return [p.tag, p.weight]; })()]); });
+    const strip = e => { const y = JSON.parse(JSON.stringify(e)); delete y.id; delete y.savedAt; delete y.createdAt; delete y.startedAt; delete y.finishedAt; delete y.endedAt; return y; };
+    const session = async (o, resume, hand) => {
+      let L = hand ? await primary(o) : await started(LOG, [BENCH], o);
+      if(resume){ const d = capture(L.c); L.release(); L = (await resumeIn(LOG, d, o)).L; }
+      const c = L.c; rowsOf(L.byName('Bench Press')).forEach((r, i) => { if(!r.classList.contains('completed')) perform(c, r, [8, 6, 5][i], 1); });
+      if(hand) rowsOf(L.byName('Dumbbell Bench Press')).forEach(r => { if(!r.classList.contains('completed')) perform(c, r, 9, 1); });
+      const s = await saveRead(L); const out = { s, all: derived(c, s && s.ent), ent: s && strip(s.ent) }; L.release(); return out; };
+    const p0 = await session(null, true, false), p7 = await session({ at1047: true }, true, false);
+    T('41–46  a prescribed session resumed and saved: the saved workout and everything read from it — PRs and their events, XP, level, rank, Mastery’s PR counts, Recovery, volume, the next prescription — are 10.47’s exactly',
+      p0.s && same(p0.ent, p7.ent) && p0.all === p7.all, [JSON.stringify(p0.ent).slice(0, 200), JSON.stringify(p7.ent).slice(0, 200)].join(' | '));
+    const h0 = await session(null, true, true), h7 = await session({ at1047: true }, true, true);
+    const cf = JSON.parse(JSON.stringify(h7.ent)); cf.exercises.forEach(e => { if(e.name === 'Dumbbell Bench Press') delete e.rx; });
+    T('10.47 replay — 41–46  with an exercise added by hand, the one thing saved differently is 10.47’s invented rx {load: 60}: with only that taken out, 10.47’s saved workout is now’s exactly, and so is everything read from it',
+      same(h7.s.rx[1], ['Dumbbell Bench Press', { load: 60 }]) && same(h0.s.rx[1], ['Dumbbell Bench Press', null]) && same(cf, h0.ent) && h0.all === h7.all, JSON.stringify([h0.s.rx, h7.s.rx]));
+    T('45  Session Score moved only where the false prescription did: here the score is equal and only the execution analysis’ count of prescribed exercises (and the sets it judged) differ',
+      h0.s.score === h7.s.score && h0.s.exec[0] === 1 && h7.s.exec[0] === 2 && h0.s.exec[1] === h7.s.exec[1], JSON.stringify([h0.s.exec, h7.s.exec, h0.s.score, h7.s.score]));
+    T('41–46  their engines are byte-identical', pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50'
+      && pin('calculateRankFromLevel') === '868fd909074da898' && pin('getCurrentProgression') === 'bf3a7572296c620c' && pin('sessionVolume') === '4ddcaadccc1dfa80' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c'
+      && pin('sessionScore') === '842e5699f8ac0835' && pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computePRs') === 'ff1f540c2ae3b46a' && pin('computeMuscleRecovery') === 'd3589033bdb54c67' && pin('getExerciseMastery') === '5b22dba43d65ca1f');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('47–54  the held findings, history, storage, old drafts, no re-planning');
+  await guard('storage', async () => {
+    const held = async (log, fn) => { const a = await boot(log); return withClockOn(a.ctx, NOW, () => fn(a.ctx)); };
+    const wk = (items, setsOf) => items.map((x, i) => W('e' + i, ['2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'][i], [E('Bench Press', setsOf(x))]));
+    const e48 = await held(STALL, hc => { const p = hc.deriveWorkingSetPlan('Bench Press', '8-12', 3, { tag: 'increase', weight: 210 }, {}); return p.source + ' ' + p.reps.join('/'); });
+    const e49 = await held(wk([[8, 6, 4], [8, 7, 5], [8, 8, 6], [8, 8, 7]], s => s.map(r => S(205, r))), hc => { const p = hc.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
+    const e50 = await held(wk([9, 8, 7, 6], x => [S(205, x, 0), S(205, x - 1, 0)]), hc => { const r = hc.progressionFor('Bench Press', '8-12', null); return r ? r.tag : null; });
+    T('47  E48, E49 and E50 are still open, by behaviour: a new load still gets the program’s seed 8 / 8 / 8; better back-offs behind the same top set still read as a stall; a pure decline at 0 in reserve is still a plateau',
+      e48 === 'program 8/8/8' && same(e49, [205, 4]) && e50 === 'plateau', JSON.stringify([e48, e49, e50]));
+    T('48  E52, E54 and E55 are untouched: the art table, the drawing lookup, Mastery’s tap and its target are D129’s, byte for byte',
+      sha(asOf1045Art(raw.slice(raw.indexOf('LOOP-EXERCISE-ART-BEGIN */'), raw.indexOf('/* LOOP-EXERCISE-ART-END */'))) || '') === 'b5256aca5a4fa09b' && pin('exerciseVisualKey') === 'eeeaad5194ff7779'
+      && pin('resolveExerciseId') === '9e5b02b08362d402' && pin('getExerciseMastery') === '5b22dba43d65ca1f' && pin('masteryExerciseTarget') === 'e1fabf18c0dcb406');
+    T('49  E43, E38 and E39 are untouched: the "working sets" XP count and copy, the history chip, the hold rule', pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50'
+      && /working set/.test(raw) && pin('setChipHtml') === '350b4e34eb582056' && pin('substitutionIsHold') === '049ba50329c76db3');
+    const K = await primary(), kc = K.c;
+    const others = () => JSON.stringify(Object.keys(K.app.store).filter(k => k !== 'activeWorkoutDraft').sort().map(k => [k, K.app.store[k]]));
+    const log0 = JSON.stringify(kc.workoutLog), store0 = others();
+    for(let i = 0; i < 3; i++){ const d = capture(kc); kc.restoreDraftToSheet(d); }
+    await H.settle(50);
+    T('50  history is never rewritten: three captures and resumes later the stored workouts and every other stored key are byte-identical — only the active draft moves', JSON.stringify(kc.workoutLog) === log0 && others() === store0);
+    K.release();
+    T('51  16 DATA_KEYS, the same sixteen', kc.DATA_KEYS.length === 16 && kc.DATA_KEYS.indexOf('activeWorkoutDraft') !== -1);
+    T('52  schema 1, no migration, trainer 0.1.1-shadow', kc.DATA_SCHEMA_VERSION === 1 && Object.keys(kc.MIGRATIONS || {}).length === 0 && kc.TRAINER_ENGINE_VERSION === '0.1.1-shadow');
+    T('52  ...the record lives inside the active draft and nowhere else: written by the capture, read back by the restore and the row, never by the save',
+      (stripComments(raw).match(/meta\.rxLoad/g) || []).length === 5 && /meta\.rxLoad = row\.dataset\.rxLoad != null \? row\.dataset\.rxLoad : null;/.test(col(fnSrc(raw, 'captureActiveDraft')))
+      && !/rxLoad/.test(col(fnSrc(raw, 'saveLog'))));
+    /* drafts of every older shape */
+    const shapes = [
+      ['no meta at all', { name: 'Bench Press', effort: '', bodyweight: false, sets: [{ weight: '205', reps: '8', rir: '', completed: false }], restSec: 120 }],
+      ['an empty meta', { name: 'Dumbbell Bench Press', effort: '', bodyweight: false, sets: [{ weight: '60', reps: '10', rir: '', completed: true }], restSec: 90, meta: {} }],
+      ['no sets', { name: 'Dumbbell Bench Press', effort: '', bodyweight: false, meta: { targetSets: '', targetReps: '', recommended: '' } }],
+      ['a numeric record', { name: 'Bench Press', effort: '8', bodyweight: false, sets: [{ weight: '205', reps: '8', rir: '', completed: false }], restSec: 120, meta: { targetSets: '3', targetReps: '8-12', recommended: '185', rxLoad: 205 } }],
+      ['an empty-string record', { name: 'Bench Press', effort: '8', bodyweight: false, sets: [{ weight: '205', reps: '8', rir: '', completed: false }], restSec: 120, meta: { targetSets: '3', targetReps: '8-12', recommended: '185', rxLoad: '' } }],
+      ['a malformed record', { name: 'Bench Press', effort: '8', bodyweight: false, sets: [{ weight: '205', reps: '8', rir: '', completed: false }], restSec: 120, meta: { targetSets: '3', targetReps: '8-12', recommended: '185', rxLoad: 'abc' } }]];
+    const OLD = await mount(LOG); let ok = 0; const bad = [];
+    for(const [lab, ex] of shapes){
+      try{ OLD.c.restoreDraftToSheet({ version: 1, id: 'draft_old', category: 'push', title: 'Old', date: TODAY, notes: '', showCategoryPicker: false, startedAt: '2026-10-04T11:00:00.000Z', exercises: [ex] });
+        const f = fact(OLD.c, OLD.ex());
+        const want = lab === 'a numeric record' ? '205' : lab === 'a malformed record' ? 'abc' : null;
+        if(f.rxLoad === want && (lab !== 'a malformed record' || (f.rx && f.rx.load === undefined && OLD.c.rowWorkingLoad(OLD.ex()) === null))) ok++; else bad.push(lab + ' ' + JSON.stringify(f.rxLoad));
+      }catch(e){ bad.push(lab + ' threw ' + e.message); }
+    }
+    OLD.release();
+    T('53  old and odd drafts still restore: no meta, an empty meta, no sets, a numeric record, an empty or malformed one — no throw, nothing invented for a row with no plan, and a record that is no load prescribes none (' + ok + ' of ' + shapes.length + ')',
+      ok === shapes.length, JSON.stringify(bad));
+    /* progressionFor during a restore: never for a draft that records its rows, and only for the plan's own rows in one that does not */
+    const counts = [];
+    for(const n of [1, 6, 12]){
+      const exs = []; for(let i = 0; i < n; i++) exs.push(Object.assign({}, BENCH, { name: i % 2 ? 'Bench Press' : 'Dumbbell Bench Press' }));
+      const L = await started(LOG, exs), c = L.c; freeRow(L, 'Dumbbell Bench Press'); c.swapLogExercise(L.ex(0), 'Floor Press');
+      const d = capture(c); const d7 = JSON.parse(JSON.stringify(d)); d7.exercises.forEach(e => { delete e.meta.rxLoad; }); L.release();
+      const R = await resumeIn(LOG, d); const r = R.calls.length; R.L.release();
+      const R7 = await resumeIn(LOG, d7); const r7 = R7.calls.length; R7.L.release();
+      counts.push([n, r, r7, d7.exercises.filter(e => !e.bodyweight && (e.meta.targetReps || e.effort)).length]);
+    }
+    T('54  progressionFor is never asked while a draft that records its rows is restored (1, 6 and 12 exercises, a swap and a hand-added row: 0 calls), and in one written before 10.48 only for the plan’s own rows',
+      counts.every(([n, r, r7, plan]) => r === 0 && r7 === plan) && counts[2][3] === 12, JSON.stringify(counts));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('P  properties over generated workouts: idempotence, no re-plan, manual origin, prescribed origin, swap snapshot, save truth, execution analysis, old drafts');
+  await guard('properties', async () => {
+    let seed = 1311; const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
+    const pickOne = a => a[Math.floor(rnd() * a.length)];
+    const POOL_T = [BENCH, Object.assign({}, BENCH, { name: 'Dumbbell Bench Press', recommended: '50' }), INC135, { name: 'Lat Pulldown', sets: 3, reps: '10-12', recommended: '120', effort: '8' }];
+    const POOL_H = ['Dumbbell Bench Press', 'Close-Grip Bench Press', 'Bench Press', 'Cable Fly'];
+    /* one generated session, replayed exactly from its seed: a template, rows added by hand, and a handful of the logger's events */
+    const build = async (k, o) => {
+      seed = 7000 + k * 31;
+      const exs = []; for(let i = 0, n = 1 + Math.floor(rnd() * 3); i < n; i++) exs.push(pickOne(POOL_T));
+      const L = await started(LOG, exs, o), c = L.c;
+      for(let i = 0, n = Math.floor(rnd() * 3); i < n; i++){ const x = freeRow(L, pickOne(POOL_H)); if(rnd() < 0.7) type(c, wIn(rowsOf(x)[0]), pickOne(['45', '55', '60', '135', '205'])); }
+      if(rnd() < 0.3) c.addPickedToWorkout(['Push-Up']);
+      for(let e = 0, n = 2 + Math.floor(rnd() * 5); e < n; e++){
+        const all = L.exs(), ex = pickOne(all), open = rowsOf(ex).filter(r => !r.classList.contains('completed') && r.dataset.setType !== 'warmup');
+        const roll = rnd();
+        if(roll < 0.25 && open.length) perform(c, open[0], pickOne([5, 6, 8, 10, 12]), pickOne([0, 1, 2, 3]));
+        else if(roll < 0.4 && open.length) type(c, wIn(open[0]), pickOne(['200', '210', '62.5']));
+        else if(roll < 0.5 && open.length) type(c, repsIn(open[open.length - 1]), pickOne(['7', '10']));
+        else if(roll < 0.62){ if(open.length && !(ex.querySelector('.ex-bw-in') || {}).checked) c.swapLogExercise(ex, pickOne(['Dumbbell Bench Press', 'Floor Press', 'Incline Bench Press'])); }
+        else if(roll < 0.7){ if(ex.dataset.slotName) c.undoExerciseSwap(ex); }
+        else if(roll < 0.78) toBodyweight(c, ex);
+        else if(roll < 0.9){ addSet(c, ex); label(c, rowsOf(ex).slice(-1)[0]); }
+      }
+      return L;
+    };
+    const WORLDS = [['as it was', null], ['D49 forced to 999 / increase', rc => { rc.progressionFor = () => ({ weight: 999, tag: 'increase', headline: '', why: '' }); }],
+      ['D49 forced to 45 / reduce', rc => { rc.progressionFor = () => ({ weight: 45, tag: 'reduce', headline: '', why: '' }); }], ['inside a deload', rc => { rc.deloadActiveToday = () => true; }]];
+    let sessions = 0, rowsSeen = 0, idem = 0, stripsOk = 0, e57Rows = 0, misses = [], stripMiss = [], noReplan = 0, manualRows = 0, manualOk = 0, rxRows = 0, rxOk = 0, saveRows = 0, saveOk = 0, execSame = 0, zeroCalls = 0, oldRows = 0, oldOk = 0;
+    for(let k = 0; k < 30; k++){
+      const L = await build(k), live = facts(L), d1 = capture(L.c); L.release();
+      sessions++;
+      const world = WORLDS[k % WORLDS.length];
+      const R1 = await resumeIn(LOG, d1, { before: world[1] }); const a1 = facts(R1.L); const d2 = capture(R1.c); if(R1.calls.length === 0) zeroCalls++; R1.L.release();
+      const R2 = await resumeIn(LOG, d2, { before: world[1] }); const a2 = facts(R2.L); R2.L.release();
+      const R7 = await resumeIn(LOG, d1, { at1047: true, before: world[1] }); const b1 = facts(R7.L); R7.L.release();
+      live.forEach((x, i) => { rowsSeen++;
+        if(same(core(a1[i]), core(x)) && same(core(a2[i]), core(x))) idem++; else if(misses.length < 3) misses.push([k, x, a1[i]]);
+        const replanned = !b1[i] || b1[i].rxLoad !== a1[i].rxLoad; if(replanned) e57Rows++;
+        if(a1[i] && same(a1[i].strip, a2[i].strip) && (replanned || same(a1[i].strip, b1[i].strip))) stripsOk++; else if(stripMiss.length < 3) stripMiss.push([k, world[0], x, a1[i], b1[i]]);
+        if(a1[i] && a1[i].rxLoad === x.rxLoad && same(a1[i].rx, x.rx)) noReplan++;
+        if(x.rxLoad === null){ manualRows++; if(a1[i].rxLoad === null && a2[i].rxLoad === null) manualOk++; } else { rxRows++; if(a1[i].rxLoad === x.rxLoad) rxOk++; } });
+      /* save truth and the execution analysis: the same session saved straight, and saved after the resume */
+      const Ls = await build(k); const straight = await saveRead(Ls, 'Gen'); Ls.release();
+      const Lr = await build(k); const dr = capture(Lr.c); Lr.release(); const Rr = await resumeIn(LOG, dr); const resumed = await saveRead(Rr.L, 'Gen'); Rr.L.release();
+      if(straight && resumed){ straight.rx.forEach((x, i) => { saveRows++; if(same(resumed.rx[i], x)) saveOk++; }); if(same(straight.exec, resumed.exec) && straight.score === resumed.score) execSame++; }
+      /* the same session's draft as 10.47 wrote it (no record): a row with no plan gets nothing, a plan row 10.47's own answer */
+      const L7 = await build(k, { at1047: true }); const old = capture(L7.c); L7.release();
+      const Rn = await resumeIn(LOG, old), Ro = await resumeIn(LOG, old, { at1047: true }); const fn = facts(Rn.L), fo = facts(Ro.L); Rn.L.release(); Ro.L.release();
+      old.exercises.forEach((e, i) => { oldRows++; const plan = !e.bodyweight && !!((e.meta && e.meta.targetReps) || e.effort);
+        if(plan ? fn[i].rxLoad === fo[i].rxLoad : fn[i].rxLoad === null) oldOk++; });
+    }
+    T('P  idempotence: ' + sessions + ' generated workouts (templates, rows added by hand, swaps, splits, undos, overrides, the coach, Bodyweight, warm-ups) captured and resumed twice under four worlds — every row exactly as it was, both times (' + idem + ' of ' + rowsSeen + ')',
+      sessions === 30 && rowsSeen > 60 && idem === rowsSeen, JSON.stringify([idem, rowsSeen, misses]));
+    T('P  zero strip drift: every resumed strip is the one 10.47’s resume draws, except on the ' + e57Rows + ' rows whose prescription 10.47 re-planned (E57), and the same after each resume (' + stripsOk + ' of ' + rowsSeen + ')', stripsOk === rowsSeen && e57Rows > 5, JSON.stringify([stripsOk, e57Rows, stripMiss]));
+    T('P  no re-plan: whatever D49 says after the capture (forced high, forced low, a deload), every resumed row has the prescription it had (' + noReplan + ' of ' + rowsSeen + '), and no restore asked progressionFor (' + zeroCalls + ' of ' + sessions + ')',
+      noReplan === rowsSeen && zeroCalls === sessions, [noReplan, zeroCalls]);
+    T('P  manual origin: every row that had no prescription has none after either resume (' + manualOk + ' of ' + manualRows + ')', manualRows > 15 && manualOk === manualRows, [manualOk, manualRows]);
+    T('P  prescribed origin and swap snapshot: every row that had one — from the plan, a swap or an undo, overridden, coached or switched to Bodyweight — has exactly it (' + rxOk + ' of ' + rxRows + ')', rxRows > 30 && rxOk === rxRows, [rxOk, rxRows]);
+    T('P  save truth: every exercise saved after a resume carries exactly the rx it carries saved without one (' + saveOk + ' of ' + saveRows + ')', saveRows > 60 && saveOk === saveRows, [saveOk, saveRows]);
+    T('P  execution analysis: prescribed exercises, prescribed sets, sets judged and Session Score are the same with and without the resume (' + execSame + ' of ' + sessions + ')', execSame === sessions, execSame);
+    T('P  old drafts: the same sessions as 10.47’s capture wrote them — every row with no plan in the draft comes back with no prescription, every plan row with 10.47’s own answer (' + oldOk + ' of ' + oldRows + ')', oldRows > 60 && oldOk === oldRows, [oldOk, oldRows]);
   });
 }
 
@@ -54051,6 +54597,7 @@ async function main(){
   await testExerciseMasteryArtD128();
   await testExerciseIdentityD129();
   await testWarmupSeedingD130();
+  await testPrescriptionProvenanceD131A();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

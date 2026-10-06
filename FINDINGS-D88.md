@@ -1951,6 +1951,96 @@ prepared", 110 × 2, warm-ups W 110 × 2 twice. After: "Suggested warm-up", 55 /
 strip's rule D47's; D130 was told to restore active-session truth exactly and
 add no reseeding on resume.
 
+**What D131 measured (stopped before implementation).** The strip is drawn only at
+events — when the row is created (detached from the logger, so D47 can never
+shorten it there), when the first working load of a row LOOP did not prescribe
+is typed or stepped, and when the exercise is swapped — and is never redrawn when
+a set is done. So the live strip is D47's answer at its last draw, not the
+session's: two drafts with the same facts were shown "already prepared" and the
+full ramp (a Close-Grip Bench Press typed after vs before the bench work; an
+Incline Bench Press swapped away and back after the bench work vs never
+swapped). A resume cannot re-derive what was shown without recording when it
+was drawn. D131A also measured a Bodyweight switch leaving a load ramp on screen
+(toggleBW redraws nothing) that a resume draws from the row as it now is; 10.47
+and 10.48 alike. Held for D131 (Option C: derive the strip everywhere).
+
+## E57 — Resuming a workout gives an exercise added by hand a prescription, and re-plans a prescribed one · P3 · PROVEN · CLOSED in D131A (LOOP 10.48)
+
+Found by D131 while mapping the restore; closed by D131A.
+
+**What happened.** `restoreDraftToSheet` asked `progressionFor` again for every
+row. The draft carried every other prescription fact — the plan's targets and
+starting weight, the slot, D125's rep plan, the effort — but not the working
+load, so the resume decided it afresh:
+
+- an exercise added by hand came back prescribed. A Dumbbell Bench Press added
+  from the picker (history at 60, 50 typed) resumed with rxLoad 60, its
+  Suggested Warm-up re-anchored from the athlete's 50 to 60, and the save wrote
+  `rx: { load: 60 }` — against `capturedPrescription`'s own rule that an
+  exercise typed in by hand gets no rx — so the execution analysis read 2
+  prescribed exercises and 6 sets instead of 1 and 3;
+- a freeform Bench Press likewise (none → 205, then judged);
+- a prescribed lift was re-planned by the world rather than restored from the
+  session: an increase to 190 came back as 185 when the resume fell inside a
+  deload (`deloadActiveToday` reads today, not the session's own phase) and as
+  195 after new history, with the working sets left at 190;
+- a prescribed lift switched to Bodyweight lost its load (`toggleBW` keeps
+  rxLoad live; the restore asked nothing for a bodyweight row).
+
+**Measured, 10.47.** The vm logger and real Edge (a page reload, a tap on
+Resume, the app's own save; frozen and live): saved `rx: null` straight against
+`rx: { load: 60 }` resumed; the execution analysis 1 / 3 / 3 against 2 / 3 / 6.
+
+**Fixed in D131A (LOOP 10.48).** The draft records the working load each row was
+prescribed, or that it had none (`meta.rxLoad`, beside D125's `meta.rxPlan`:
+the value or null, written for every row). A resumed row takes that record back
+exactly — Bodyweight or not — and the restore asks `progressionFor` nothing.
+A draft written before 10.48 has no record: a row the plan wrote (only those
+carry the plan's rep target or effort) is asked as 10.47 asked it; any other
+row gets no prescription, since none is proven.
+
+**Limit (drafts written before 10.48 only).** In such a draft a row added by hand
+and then swapped to a lift with history — which the swap prescribed — reads
+byte for byte like one never swapped, so it resumes without the swap's load;
+and a plan row there is still re-asked, so a deload or new history since the
+capture can still move it, as in 10.47. Drafts written by 10.48 are exact.
+
+## E58 — D47's "already prepared" never reaches an exercise LOOP prescribed, live · P4 · PROVEN · OPEN
+
+Found by D131.
+
+**What happens.** A prescribed row's Suggested Warm-up is drawn once, when the
+workout starts, before the row is in the logger and before anything is done;
+since D125 (10.42, 9914ca5) no live path redraws a prescribed strip except a
+swap. So after Bench Press done at 205 a prescribed Incline Bench Press at 135
+still shows the full 55 / 80 / 110 although D47 says the session prepared it,
+while the same Incline swapped away and back is shortened to 110 × 2. D47 was
+built to stop repeating the whole ramp on the third lift of a session; for a
+program's own exercises it has not done so since 10.42.
+
+**Why it was not fixed.** Held for D131 (Option C), with E56.
+
+## E59 — A swap part-way through an exercise added by hand gives it, and its replacement, a plan · P3 · PROVEN · OPEN
+
+Found by D131A while mapping where an exercise's prescription comes from.
+
+**What happens.** A mid-exercise swap splits the row (`splitRowForSwap`): the
+finished row is re-scoped to what it did (`targetSets` = the sets done) and the
+replacement is created with `targetSets` = the sets still to do, which also
+gives it a slot named after the original. For a row the plan wrote that is
+Phase B's design. For an exercise the athlete added by hand there was no plan:
+measured on 10.47, a freeform Incline Dumbbell Press with Set 1 done and then
+swapped to Dumbbell Bench Press saves the finished row with `rx: { sets: 1 }`
+and the replacement with `rx: { sets: 2, load: 60 }` and
+`planned: { name: 'Incline Dumbbell Press' }`, so a workout with no
+prescription at all is analysed as 2 prescribed exercises and 3 prescribed sets.
+
+**Not the resume.** This is the live split; D131A restores it exactly as it was
+captured (10.47 and 10.48 alike).
+
+**Why it was not fixed.** D131A was scoped to resume provenance; the split is
+Phase B's swap rule.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

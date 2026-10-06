@@ -18666,6 +18666,21 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-48',
+    version: 'LOOP 10.48',
+    title: 'Resume Keeps Your Plan',
+    date: '2026-10-06',
+    swVersion: 'loop-v225',
+    summary: 'Resuming a workout now keeps each exercise’s targets as they were when you left, and an exercise you added yourself stays yours.',
+    newFeatures: [],
+    improvements: [
+      'A workout you resume keeps the weight LOOP set for each exercise when you started it, even if your history or your training week has changed since',
+      'An exercise you added yourself is no longer given a LOOP target when you resume, so your workout history and Session Score stay accurate'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -53872,6 +53887,12 @@ function captureActiveDraft(){
     };
     /* D125 — the working-set plan the row was seeded with, never re-derived. */
     if(row.dataset.rxPlan) meta.rxPlan = row.dataset.rxPlan;
+    /* D131A (E57) — and the working load LOOP prescribed it, if it prescribed one,
+       recorded the same way: the session's own answer, so a resumed row gets back
+       what it had instead of whatever progressionFor would say today. Written for
+       every row — null when it had none — so a row with no prescription can be
+       told apart from a draft written before 10.48, which has no such field. */
+    meta.rxLoad = row.dataset.rxLoad != null ? row.dataset.rxLoad : null;
     exercises.push({
       name,
       shadowRecId: row.dataset.shadowRecId || null,
@@ -54001,9 +54022,19 @@ function restoreDraftToSheet(draft){
   document.getElementById('logNotes').value = draft.notes || '';
   document.getElementById('logExercises').innerHTML = '';
 
+  /* D131A (E57) — RESTORE IS NOT REPLAN. A resumed exercise is prescribed what it
+     was prescribed when the session had it: the draft's own record (meta.rxLoad,
+     put back by addLogExerciseRow), never progressionFor's answer today, which a
+     new deload, new history or a row added by hand would change. A draft written
+     before 10.48 has no record. There, a row the plan wrote — only those carry
+     the plan's rep target or effort — is asked as it always was; any other row
+     gets no prescription, because a row added by hand and one a swap prescribed
+     read the same in such a draft, and LOOP will not invent a load for either. */
   (draft.exercises || []).forEach(ex => {
-    const rec = ex.bodyweight ? null : progressionFor(ex.name, ex.meta && ex.meta.targetReps, ex.meta && ex.meta.recommended);
-    addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, ex.meta || {});
+    const meta = ex.meta || {};
+    const legacyPlanRow = meta.rxLoad === undefined && !ex.bodyweight && !!(meta.targetReps || ex.effort);
+    const rec = legacyPlanRow ? progressionFor(ex.name, meta.targetReps, meta.recommended) : null;
+    addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, meta);
   });
 
   // Reapply completion state and any paused rest timer
@@ -54989,6 +55020,11 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
      written only when genuinely known — an exercise added by hand carries
      neither, and its absence must always read as unknown rather than zero. */
   if(rec && rec.weight != null && !bodyweight) row.dataset.rxLoad = rec.weight;
+  /* D131A (E57) — a row put back from a draft gets the load it was prescribed
+     exactly as the draft recorded it, and a row recorded with none gets none.
+     Bodyweight does not withdraw it: switching a row to Bodyweight never removed
+     the load LOOP had asked for (toggleBW leaves it), so neither does resuming. */
+  if(meta.rxLoad != null && meta.rxLoad !== '') row.dataset.rxLoad = meta.rxLoad;
   if(effort !== '' && effort != null) row.dataset.rxEffort = effort;
   /* D125 — the working-set plan this row was seeded with, kept beside it so a
      set added or turned back into a working set later takes its own target. */

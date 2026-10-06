@@ -18937,3 +18937,179 @@ Restated, each keeping what it proved:
 
 - **E56:** resuming a workout redraws a D47-shortened strip as the full ramp
   (the restore draws every strip before it puts back what was done).
+
+## §170 — RESUMING RESTORES THE PRESCRIPTION; IT NEVER RE-PLANS ONE (D131A · LOOP 10.48 · loop-v225)
+
+**Rule.** A resumed workout is the session that already exists. Each exercise
+comes back with the working load it was prescribed when the session had it, or
+with none if it had none. `progressionFor` decides what a NEW session should
+do; a resume is not a new session, and nothing it answers today — a deload that
+has begun, history that has moved, an exercise that happens to have history —
+may become the session's prescription. Closes E57.
+
+**Before (10.47).** `restoreDraftToSheet` asked `progressionFor` again for every
+loaded row. An exercise added by hand came back prescribed (Dumbbell Bench
+Press: none → 60, its Suggested Warm-up re-anchored from the athlete's 50 to 60,
+saved as `rx: { load: 60 }`, counted as a second prescribed exercise with three
+more sets judged); a freeform lift likewise (none → 205); a prescribed one was
+re-planned (190 → 185 when the resume fell inside a deload, → 195 after new
+history, its working sets left at 190); one switched to Bodyweight lost its
+load.
+
+**After (10.48).** Each of those resumes as it was left: no prescription, 205,
+190, 205 on Bodyweight. Saved, the exercise added by hand has no rx and the
+execution analysis counts 1 prescribed exercise and 3 prescribed sets, as it does
+without the resume.
+
+### What the draft already held, and what it did not
+
+| prescription fact | where it lives | restored by |
+|---|---|---|
+| the plan's sets and rep target | `meta.targetSets` / `meta.targetReps` | the draft (since Phase B) |
+| the plan's starting weight | `meta.recommended` (and `slotRecommended`) | the draft |
+| the slot (what the plan wrote) | `meta.slotName` / `slotKey` | the draft |
+| D125's rep plan | `meta.rxPlan` | the draft (D125: "never re-derived") |
+| the effort target | the row's effort → `rxEffort` | the draft |
+| **the working load** | `row.dataset.rxLoad` | **nothing — re-derived by progressionFor** |
+
+So the working load was the one prescription fact a resume decided afresh. It
+cannot be inferred from the other fields: a row added by hand and later swapped
+to a lift with history (the swap prescribes it, `swapLogExercise` asking
+`progressionFor` as it always has) serialised byte for byte like one never
+swapped (no prescription). Recording it is the smallest change that makes the
+resume exact.
+
+### The record (`meta.rxLoad`)
+
+- `captureActiveDraft` writes `meta.rxLoad` for every row: the row's `rxLoad`
+  exactly as the row holds it, or `null` when it has none. Three states, never
+  overloaded: a value (prescribed), `null` (explicitly none), absent (a draft
+  written before 10.48).
+- `addLogExerciseRow` puts a recorded value back verbatim, before the strip is
+  drawn — so D130's anchor (rxLoad if prescribed, else the first working set)
+  follows the restored provenance with nothing patched — and Bodyweight or not:
+  `toggleBW` never removed the load LOOP had asked for, so a resume does not
+  either.
+- `restoreDraftToSheet` asks `progressionFor` for nothing in a draft that
+  carries the record.
+- **A draft written before 10.48** has no record. There, a row the plan wrote —
+  the only rows that carry the plan's rep target or effort (`startTemplateLog`
+  sets them; a split copies them; nothing else writes either) — is asked exactly
+  as 10.47 asked it; any other row gets no prescription, because a row added by
+  hand and a row a swap prescribed read the same there, and LOOP does not invent
+  a load for either. Bodyweight rows get none, as in 10.47.
+
+It lives in the active draft only. It is never saved: what history keeps is
+still `capturedPrescription`'s `rx`, written once at save, which now reads back
+the session's own prescription. No DATA_KEY, no schema change, no migration.
+
+### Decisions and what was rejected
+
+- **Infer prescription from the existing fields (the slot, the targets).**
+  Rejected: a row added by hand and swapped has a real prescription and no plan
+  fields; a split of a row added by hand has a slot and a set count but no plan
+  (E59). Either rule would be wrong for real sessions.
+- **Recompute, but only for rows the plan wrote, in every draft.** Rejected for
+  new drafts: a deload that began or history that moved still re-plans them
+  (190 → 185 / 195). Kept only as the documented path for drafts from before
+  10.48, which recorded nothing.
+- **Store a boolean ("prescribed") and recompute the value.** Rejected: the same
+  re-planning, and one more field than the fact itself.
+- **Store the whole prescription or D49's answer object.** Rejected: the other
+  fields are already in the draft, and D49's tag, reasons and explanation are
+  between-session advice, not the session.
+- **Read provenance off matching numbers** (a typed 60 that equals D49's 60).
+  Rejected: provenance is how the exercise entered the workout, not its numbers.
+
+### Boundaries (by design)
+
+- Drafts from before 10.48 are restored as described above, not exactly: a row
+  added by hand and swapped before the update resumes without the swap's load,
+  and a plan row there is still re-asked. Every draft 10.48 writes is exact.
+- The live session is unchanged: how a row gets its prescription (the start,
+  the swap, the split, the undo) and what the coach does are 10.47's. E59 (the
+  split giving a hand-added exercise a plan) is live behaviour, recorded, not
+  changed.
+- The Suggested Warm-up strip is not touched here: E56 and E58 stay held for D131
+  (Option C).
+
+### Measured
+
+**Reproduction** (frozen 10.47, the vm logger and real headless Edge with a page
+reload, a tap on Resume and the app's own save; frozen and live at loop-v224):
+the press added by hand saved `rx: null` straight and `rx: { load: 60 }` resumed,
+execution 1 / 3 / 3 against 2 / 3 / 6; the freeform Bench Press `rx: null`
+against `rx: { load: 205 }`; the increase 190 resumed at 185 in a deload and 195
+after new history; Bodyweight dropped its 205.
+
+**Drift** (the same 26 scenarios on 10.47 and 10.48 in separate processes, each
+captured, restored in a fresh app, finished, saved and read back by everything
+history reads). Live behaviour identical on both builds (38 / 38 exercises). The 11
+zero-drift controls (a prescribed exercise; several; a manual override; D50B;
+bodyweight; a swap; a partial swap; an undone swap; no hand-added row; a
+hand-added row and a freeform workout with no history) are identical end to end
+— resumed rows, the saved workout, PRs, XP, rank, Mastery, Recovery, volume,
+D49, D125, the plateau, the execution analysis and Session Score — while
+10.47's restore asked `progressionFor` 1 to 3 times each and 10.48's never. In
+the 15 attribution classes every value that differs is 10.48 restoring the live
+value that 10.47 invented, re-planned or dropped (0 unexplained); the saved
+workout differs only in `rx`, and history only in the execution analysis.
+
+**The owner's backups** (read-only, hashes unchanged: ad746c0cb3da0d7f,
+29351c097d072ef8): PR events and the PR list, Mastery, every lift's Exercise
+Detail data, D49, the D125 plan, the plateau, XP / level / rank, every session's
+volume, Recovery, and every session's execution analysis and Session Score hash
+identically on 10.47 and 10.48 (11 / 11 each). They are completed history and do
+not reproduce E57; deterministic active-session fixtures do.
+
+**Browser rig** (real headless Edge; real touch on the phones, a mouse on the
+wide sizes): 18 fixtures (a normal prescription; a hand-added lift with history;
+freeform; values matching D49; a manual override; D50B; several prescribed plus
+one hand-added; a swap; a partial swap; an undone swap; a bodyweight control; a
+prescribed lift switched to Bodyweight with the real switch; drafts from 10.47 —
+a plan row, a hand-added row, the ambiguous row; history moved after the
+capture; a deload begun after the capture; the execution analysis after a
+resumed save) × 320x568, 360x640, 375x667, 390x844, 393x852, 414x896, 430x932
+and 768x1024, 1024x768, 1280x800, each with a real page reload and a tap on
+Resume: **1,020 / 1,020** (102 a size). Each cell asserts every exercise's rows (role, load, reps, done, ownership), rxLoad, capturedPrescription and strip against the session before leaving, the stored draft's record, and where the fixture saves the stored workout's rx and the execution analysis; plus the layout (no horizontal overflow, set rows inside their card, every value fully visible, the strip inside its box) and no console error. Frozen 10.47, the negative control: 910 / 1,020: the same 11 checks fail at every size — ten are E57 behaviours (a hand-added, freeform or matching-D49 row prescribed; three exercises of four plus one added by hand; Bodyweight dropping its load; a 10.47 draft giving the added row 60, and the ambiguous row 60; new history re-planning to 195; a deload to 185; the execution analysis 2 / 6) and one (the plain prescription) fails only on the draft's record, which 10.47 does not write. No layout, console or badge check fails on either build.
+
+**Contract 248 (75 checks).** E57 on 10.47's own functions compiled back
+from `D131A_EDITS`; a row added by hand (history of 1, 2 and 20 sessions, a
+plateau, a decline, D49 forced to every tag) and a freeform lift never
+prescribed; matching numbers never read as provenance; a prescription kept
+through a manual load or rep override, D50B, a swap, a partial swap and both
+undos; nothing after the capture re-plans (D49 forced, a deload, new history);
+Bodyweight keeps its load; resume twice; the save and the execution analysis;
+D130's anchor; the record telling the swapped row from the one never swapped;
+drafts from 10.47 (manual, ambiguous, plan rows, effort-only, Bodyweight); E56
+and E58 still open; D125–D130 by pin; history and what reads it, attributed by a
+counterfactual; the held findings; storage; old and malformed drafts;
+`progressionFor` never asked restoring a draft that records its rows; and
+properties over 30 generated workouts under four worlds (idempotence, zero strip
+drift against 10.47, no re-plan, manual origin, prescribed origin and swap
+snapshot, save truth, the execution analysis, old drafts). Run against frozen
+10.47 it fails 38 of the 75; the 37 that pass are the "10.47 replay" checks, the pins of what D131A did not change, and the properties that hold on both builds.
+
+**Mutation.** 50 mutants in two tiers: 32 on the capture, the restore, the row and the save, run against Contract 248 and the draft and logger contracts (247, 244, 242, 243, the set-type draft contract, D103's start provenance, D105.1's time truth); 18 on the held systems, run against D130's seventeen and 248. **50 / 50 killed**: 48 by a behavioural check, counting no "10.47 replay" check, and 2 by pin by design (E38 and E39 silently fixed: other features' code). The mutants: the restore asking D49 for every row; a row recorded with none asked anyway; a freeform session asking for every row; matching numbers recorded as a prescription; every row, or no row, recorded as prescribed; the recorded rx replaced by D49 today, by the phase policy or by new history; a manual override removing it; the D50B load recorded as the rx; the record discarded; Bodyweight dropping it; the set count, or the planned-set denominator, changed by a resume; the save giving a hand-added row its typed load; a swap losing, or gaining, a prescription; a swapped hand-added row recorded like one never swapped; the split's replacement recording the original's load; a row swapped back recording none; a second resume moving the rx; a 10.47 draft's hand-added or ambiguous row given rx; a 10.47 draft with no meta crashing the restore; a 10.47 plan row given no load, or not recognised by its effort; a DATA_KEY; a schema migration; a historical rewrite; E56 and E58 silently fixed; D125, D126, D49, D127, D130 (twice), D129, PRs and XP changed; E48, E49, E50, E52, E54, E55, E43, E38, E39 silently fixed. During the work, checks that mixed a behaviour with a pin (the coach not re-run, capturedPrescription's reading, the schema) were split, and Contract 247's own pin checks — numbered differently from 248's — were added to the source list; the verdicts were recomputed from the saved failure lists
+
+**Performance.** In the vm over a generated two-year store (312 workouts; medians of 25, two interleaved rounds): restoring 1 / 6 / 12 prescribed exercises took 2.1-2.3 / 17.9-18.2 / 42.5-43.2 ms on 10.47 (1 / 6 / 12 calls to progressionFor) and 1.7 / 12.0-14.5 / 33.6-35.5 ms on 10.48 (none); 6 prescribed + 3 added by hand 27.1-27.7 against 21.7-23.0 ms; a draft with three swaps and a split 17.1-17.5 against 13.1-13.8 ms; one progressionFor costs 0.48-0.57 ms on that store. In real Edge (medians of 11): 12 prescribed 9.6-10.1 ms against 8.3-8.7 ms, and 68-71 against 60-64 ms at a 4x CPU slowdown; 6 + 3 added by hand 7.0-7.3 against 6.4-6.6 ms (44-47 against 43-44). The restore now reads only the draft: no history scan, cache or dependency was added
+
+### Restated contracts
+
+By reversal: `D131A_EDITS` holds the three changed functions' statements as
+[now, as of 10.47]; `asOf1047` / `pinAsOf1047` / `withAsOf1047` put them back;
+`asOf1046`, `asOf1043` and `asOf1041` take them out first. Restated, each keeping
+what it proved: Contracts 244 (#33), 245 (#57) and 247 (#36) read the draft and
+the restore at 10.47; Contract 246's surfaces list reads the logger row at 10.46
+through the chain; Contract 231's startup pins put D131A's restore statement back
+before D125's (one new check that it is there, once); and every 10.41 reading
+of the draft functions and the logger row (Contracts 217, 218, 219, 220, 236,
+240 and 242) goes through the chain. Twelve checks failed on the change before
+these restatements; none fails after.
+
+### Found, not fixed
+
+- **E59:** a swap part-way through an exercise added by hand gives it, and its
+  replacement, a plan (`rx.sets`, `planned`) — the live split, not the resume.
+- E56 and E58 remain open for D131 (Option C), now resting on a resume that
+  restores the session's own prescription.
