@@ -18764,3 +18764,176 @@ In FINDINGS-D88.md:
 
 **Status.** DATA_KEYS 16, schema 1, trainer 0.1.1-shadow. No migration, no new key,
 no history rewritten. Mastery's scoring, ranking and the registry are untouched.
+
+## §169 — A WARM-UP ROW STARTS FROM THE SUGGESTED WARM-UP (D130 · LOOP 10.47 · loop-v224)
+
+**Rule.** The Suggested Warm-up strip is the one preparation plan, and a warm-up
+row LOOP fills takes its numbers from it. A warm-up is LOOP's while the athlete
+has set neither its load nor its reps; it shows the strip's step for its place
+among the exercise's warm-ups. A warm-up the athlete has set is theirs. The
+strip, the working sets, the coach and history are untouched, and nothing new is
+stored.
+
+**Before (10.46).** Nothing gave a warm-up row a warm-up load (E51). Add Set
+fills a new set from the last working set (D125) and turning a set into a
+warm-up changed no value, so the set opened at the working load: W 205 × 5 under
+a strip reading 80 / 125 / 165, and three of them were W 205 × 5 three times.
+After a swap the warm-up opened empty (W — × 5) under the replacement's 25 / 35 /
+50, because the swap empties every load still to do (Phase B) and since D127 the
+coach writes no warm-up.
+
+**After (10.47).** Add Set tapped to Warm-up is W 80 × 5; three are 80 × 5,
+125 × 3, 165 × 2, in any order of taps; the swap leaves 25 × 5.
+
+### The one plan
+
+`warmupBoxHtml` draws the strip from `computeWarmupRamp` at the prescribed load
+(rxLoad, D125's anchor), at the first working set's load when nothing was
+prescribed (D125's freeform anchor), or as D47's one acclimation step when the
+session has already worked up to the load. `suggestedWarmupSteps(exRow)` reads
+the steps back from the chips as drawn (`80 lb × 5` → 80 / 5); prep guidance in
+words ("Empty bar × 10") is no load, so a strip without loads is no plan. The
+rows therefore never disagree with the strip above them, the ramp has exactly
+the two callers it had, and `computeWarmupRamp` and `warmupBoxHtml` are 10.46's
+byte for byte. A row's target is never computed from rxLoad, the coach or a
+percentage of its own.
+
+### The rule (`seedWarmupTargets`)
+
+| a warm-up row … | gets |
+|---|---|
+| still to do, neither value set by the athlete | the strip's step for its place (load and reps) |
+| past the plan's last step | the last step again (D47's acclimation set), never a new number |
+| with no loads on the strip | no load; its reps stay |
+| with either value set by the athlete (typed or stepped, D125's mark) | nothing; only a field that is EMPTY and never set is filled (a swap empties every load still to do) |
+| done | nothing: it is history |
+| on a bodyweight exercise | nothing |
+
+Its place is counted among the exercise's warm-ups top to bottom, done or not:
+the working sets between them are not counted and neither is the raw row index.
+It runs when a warm-up is gained or lost (the set label, the set picker), when a
+warm-up is removed, when the exercise is swapped or the swap undone, and when
+the strip is redrawn (the freeform anchor typed). It never runs on resuming a
+workout: the draft is active-session truth, and an untouched warm-up comes back
+as it was stored. The coach still never writes a warm-up (D127,
+`coachMayWriteSet`).
+
+**Leaving the warm-ups.** A warm-up chosen Working, Drop, Failure or AMRAP (every
+type the registry counts as work) joins the work through D125 / D127's
+`seedWorkingTarget`: the prescription before any work, the coach's load after
+it, the plan's reps for its place. Where neither the prescription nor the coach
+holds a load (an exercise added by hand), or the plan holds no reps, a value the
+athlete has not set takes the last other working set's, which is what Add Set
+gives a new working set; so a set that went Working → Warm-up → Working comes
+back at the work's numbers and never keeps the warm-up's.
+
+**A mid-exercise swap keeps whose reps they are.** `splitRowForSwap` builds the
+replacement's rows anew and used to drop D125's ownership marks; the reps
+marks now move with the sets (the load is emptied by the swap anyway), so a rep
+count the athlete set on a warm-up survives the split.
+
+### Decisions and what was rejected
+
+- **Seed once, never follow a place.** Rejected: the same three taps made
+  bottom to top gave 80 × 5 three times, and a warm-up made above others
+  duplicated a step. Following the place makes the result a function of the
+  warm-ups present, whatever the order (all six orders end the same).
+- **Per-field following.** Rejected: a warm-up seeded 125 × 3 whose load the
+  athlete set to 135 would become 135 × 5 when the first warm-up is removed
+  (Scenario 3). A set the athlete touched is theirs as a whole.
+- **Recompute the ramp at seed time.** Rejected: a second formula, and wrong
+  wherever the strip is not the plain ramp of rxLoad (D47's shortened strip, the
+  freeform anchor).
+- **The coach's load after D50B.** Rejected: the strip stays on the session's
+  prescription (D125, D127), and the row must agree with it.
+- **Past the plan: keep the row's value, or empty it.** Rejected: the first keeps
+  the working load (E51), the second invents nothing but loses the plan's own
+  last step, which D47 already names as the one acclimation set.
+- **No plan: keep the working load.** Rejected: that is E51 itself. With no
+  loads on the strip LOOP has no warm-up figure to give, so the row holds none.
+
+### Boundaries (by design)
+
+- A lift LOOP gives no Suggested Warm-up (D47's compound lifts only: the owner's
+  Chest Press, a Lat Pulldown) has no plan, so a warm-up made there opens with no
+  load. Extending the strip to machine presses would be its own phase.
+- Phase B's swap still empties every load still to do, warm-ups included, and with
+  it the athlete's mark on that load: the athlete-typed warm-up load belonged to
+  the old exercise. D130 fills the emptied load from the replacement's strip.
+- Add Set appends; a warm-up made from it sits after the working sets. Its place
+  among the warm-ups is what decides its step.
+
+### Measured
+
+**Reproduction** (frozen 10.46, real headless Edge, real touch, 390x844): 23
+scenarios, every one as E51 describes; the same scenarios on 10.47 as above
+(d130/repro130-base.txt, repro130-fix.txt).
+
+**Browser rig** (real headless Edge; real touch on the phones, a mouse on the wide sizes): 22 fixtures (one added warm-up, ticked; three; one inserted before Working 1, then a second; warm-ups between working sets; a typed warm-up through an add, a removal, the coach and a resume; a stepped one; the first of three removed; a fourth past the plan; Working → Warm-up untouched and the athlete's; Warm-up → Working before work and after D50B; D50B reduce and increase, then a warm-up; a swap; a partial swap; a draft restore; a freeform lift; a bodyweight control; a shortened plan; no plan; a low load) x 320x568, 360x640, 375x667, 390x844, 393x852, 414x896, 430x932 and 768x1024, 1024x768, 1280x800: **1,610 / 1,610** checks (161 a size). Each cell asserts the exact rows (role, load, reps, ownership), the strip and the coach where they matter, and the layout: no horizontal overflow, every set row inside its card, every load and rep value fully visible, the strip inside its box, a warm-up's W badge with its word "Warm-up", no console error. Frozen 10.46, the negative control: 1,380 / 1,610 — the same 23 checks fail at every size, every one an E51 behaviour; no layout, console or badge check fails on either build.
+
+**Drift.** The same 242 seeded scenarios on 10.46 and 10.47 in separate processes
+(the app's own logger, its inline handlers, a draft, a resume, a real save and
+what history then reads). The 116 with no warm-up created, every warm-up the
+athlete's, no role change to a warm-up and no swap leaving one untouched are
+identical end to end. In the 126 E51 scenarios every one of the 461 values that
+differ is a warm-up LOOP filled from its strip (0 unexplained); what history
+reads differs in 109 of them, and in all 109 the 10.46 session given 10.47's
+final row values reads exactly as 10.47 does (volume and the volume record carry
+the warm-up's load, D121's Model A; strength records, XP, rank, Session Score,
+Mastery and D49 do not move).
+
+**The owner's backups** (read-only, hashes unchanged: ad746c0cb3da0d7f,
+29351c097d072ef8): PRs, Mastery, every lift's Exercise Detail data, D49, the D125
+plan, XP and every session's volume hash identically on 10.46 and 10.47. Neither
+backup holds a logged warm-up. On the owner's own lifts that LOOP gives a strip
+(2026-08-30), three sets added and tapped to Warm-up were Incline Bench Press
+185 × 8 three times and Bench Press 315 × 8 three times on 10.46; on 10.47
+75 × 5 / 110 × 3 / 150 × 2 and 125 × 5 / 190 × 3 / 250 × 2.
+
+**Contract 247 (83 checks).** BEFORE, on 10.46's own functions compiled back
+from `D130_EDITS`; one plan (the steps read back equal computeWarmupRamp's for
+106 loads, D47's single step, no plan for words); the ordinal; ownership through
+adds, removals, the coach and a resume (typed and stepped, load and reps); the
+working plan, the strip and D50B; the role changes into and out of work; removal,
+insertion, past the plan, a done warm-up, a shortened plan, no plan, freeform,
+bodyweight; swap, partial swap and undo; the draft and the rest timer; D125, D127,
+D126 / D49 and D128 / D129 by pin; what is saved, attributed by a
+counterfactual; the held findings; storage; and properties over 70 generated
+workouts (ramp coherence, edit stability, working-plan invariance, D50B
+isolation, no invention), 24 generated swaps, order independence and zero drift
+against 10.46 over 200 steps. Every check that asserts what 10.46 did is its own
+"10.46 replay" check, apart from what holds now. Run against frozen 10.46 it fails
+42 of the 79 that run there (two sections stop where they call a function 10.46
+does not have, so 4 checks never run); the 37 that pass are the replays and the
+protection, pin and property checks that hold on both builds.
+
+**Mutation.** 51 mutants, each run against 17 standalone contracts (247, 246, 245, 244, 243, 242 and eleven older ones the change could reach). **51 / 51 killed**: 49 by a behavioural check, counting no "10.46 replay" check (a replay fails merely because a mutant no longer compiles back), and 2 by pin by design (E38 and E39 silently fixed: other features' code). The mutants: the warm-up keeps the working load, or is left blank; a second formula from rxLoad; other percentages; the raw row index, or the working rows counted, as the place; every warm-up the first, or the last, step; ownership ignored; the stepper no longer marking; per-field following; the coach's load used after D50B; the strip following a row; the prescription moved by a warm-up; the rejoin fallback removed; Warm-up → Working not seeding; Drop / Failure / AMRAP keeping warm-up numbers; the coach writing warm-ups again; the swap using the old strip, the full working load or nothing; the split forgetting reps; an empty field not filled; the undo not refilling; a removal not moving the rest; freeform not following its strip; a new percentage past the plan; the working load kept with no plan; a fake bodyweight load; a done warm-up rewritten; prep words read as loads; resume refilling, or forgetting the athlete's values; a storage key; a DATA_KEY; D125, D126, D50B, D49, D129, PR and XP changed; E48, E49, E50, E52, E54, E55, E43, E38, E39 silently fixed. Strengthened during the work: checks that asserted NOW and a 10.46 REPLAY together were split, since a mutant that breaks the compile-back failed them for free; a done-warm-up check was added when its mutant had nothing to fail; a first sweep run as five parallel shards hit its time limit under load and was re-run in three.
+
+**Performance.** In the vm, on the real logger (medians of 25, both build orders): the set label turning a set into a warm-up 0.29-0.31 ms (10.46: 0.15), back to Working 0.32-0.33 ms (0.19), Remove set on a warm-up 0.21 ms (0.13), the swap 1.58-1.66 ms (1.50-1.53), the freeform first load typed 0.44 ms (0.31); D130's rule alone 0.06 / 0.11 / 0.20 ms for 1 / 3 / 6 warm-ups. In real Edge (medians of 9 taps on 3 loads, run 10.47, 10.46, 10.47): the set label 0.1 ms at full speed, 0.7-0.9 ms at 4x slowdown and 1.2 ms at 6x (10.46: 0.1 / 0.6 / 1.0); Remove set 0.1-0.2 / 1.0-1.1 / 1.5-1.6 ms (0.2 / 0.9 / 1.6); the swap 0.3-0.4 / 2.4-2.7 / 3.8 ms (0.4 / 2.5 / 3.6). The rule reads one exercise's rows and its strip and nothing else: no history scan, no store.
+
+### Restated contracts
+
+By reversal: `D130_EDITS` holds the eight changed functions' statements as
+[now, as of 10.46] (and the two new functions as absent); `asOf1046` /
+`pinAsOf1046` / `withAsOf1046` put them back; `asOf1041` and `asOf1043` are now
+chains that take D130's statements out first; the 10.41 and 10.43 replays of
+Contracts 242 and 244 install the D130 functions at those versions too.
+Restated, each keeping what it proved:
+- Contract 218: Remove set is held at 10.46;
+- Contract 242: a set made a warm-up (Set 2: 80 × 5, 10.46 kept 205 × 6), the
+  warm-up above an Add Set, the propagation matrix's warm-up (75 × 5) and the
+  real save (135 × 5) now carry the strip's step; only a warm-up joining the work
+  seeds (now every work type);
+- Contract 244: the Add Set warm-up (now 80 × 5; 10.43 and 10.46 replays keep their
+  witnesses), the set tapped after the coach acted and the W 135 × 5 beside it,
+  the set opened at 195, Set 3 after the coach (125 × 3), and the swap (25 × 5;
+  after the split D47's 50 × 2; 10.46 left it empty) — never the coach's load;
+  its pins at 10.46;
+- Contract 245: D125 / D127's seeding and the logger at 10.46; E51 no longer
+  claimed untouched;
+- Contract 246: the held-findings and surfaces pin lists at 10.46.
+
+### Found, not fixed
+
+- **E56:** resuming a workout redraws a D47-shortened strip as the full ramp
+  (the restore draws every strip before it puts back what was done).

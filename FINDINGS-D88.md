@@ -1770,7 +1770,7 @@ documented policy (§161, §162), and falling loads have always read the same
 way. Letting a decline pass to D47 changes what plateau means and moves
 falling-load histories too. It is a product decision for its own phase.
 
-## E51 — A warm-up row's opening load is never a warm-up load · P4 · PROVEN · OPEN
+## E51 — A warm-up row's opening load is never a warm-up load · P4 · PROVEN · CLOSED in D130 (LOOP 10.47)
 
 Found by D127 while closing E46. Recorded, not fixed.
 
@@ -1795,6 +1795,19 @@ A row left as it opened is saved as it shows, and warm-up volume counts.
 which D127 had to leave alone, and the swap's reset is Phase B's. Proposing a
 warm-up load, for example from the Suggested Warm-up ramp, is a design decision
 for its own phase.
+
+**Closed in D130 (LOOP 10.47).** The Suggested Warm-up strip is now the one plan
+a warm-up row comes from (`suggestedWarmupSteps` reads back what `warmupBoxHtml`
+drew from `computeWarmupRamp`; no second formula). A warm-up the athlete has set
+neither number of takes the strip's step for its place among the exercise's
+warm-ups (`seedWarmupTargets`): Add Set tapped to Warm-up is W 80 × 5 under
+80 / 125 / 165, three are 80 × 5 / 125 × 3 / 165 × 2 in any order of taps, a
+swap leaves 25 × 5 under the replacement's 25 / 35 / 50. Past the plan a
+warm-up repeats the last step; with no loads on the strip (a lift LOOP gives no
+Suggested Warm-up, or no working load yet) it holds no load rather than the
+working one. A warm-up the athlete set either number of is theirs; resuming a
+workout never refills; the coach still never writes a warm-up. Contract 247;
+TRAINER-CONTRACT §169.
 
 ## E52 — Common spellings of lifts the registry does not know have no drawing · P4 · PROVEN · OPEN (narrowed in D129: one spelling drawn, three held)
 
@@ -1915,6 +1928,28 @@ Chest Press 8 times and, most recently, "chest press." 6 times sees a card title
 title and says "Logged as Chest Press". Choosing the most-used spelling instead
 would change displayName, which is the ranking's tie-break, so it is Mastery's
 own phase.
+
+## E56 — Resuming a workout redraws a shortened Suggested Warm-up as the full ramp · P4 · PROVEN · OPEN
+
+Found by D130 while mapping where the Suggested Warm-up is drawn. Recorded, not
+fixed.
+
+**What happens.** D47 shortens the strip to its one acclimation step ("Warm-up ·
+already prepared") when the session has already worked up to the load on the
+same movement pattern: a Close-Grip Bench Press after Bench Press done at 205
+shows 110 × 2 alone. `restoreDraftToSheet` rebuilds every exercise, and draws its
+strip, before it puts back which sets were done, so `sessionPreparation()` sees
+nothing done yet and the resumed strip is the full 55 / 80 / 110. The rows keep
+what they held (resuming never refills, D130), so after a resume the strip and
+the warm-ups LOOP filled from it disagree until the next warm-up change.
+
+**Measured, 10.46 and 10.47, the vm logger.** Before the resume: "Warm-up · already
+prepared", 110 × 2, warm-ups W 110 × 2 twice. After: "Suggested warm-up", 55 / 80 /
+110, the same warm-ups.
+
+**Why it was not fixed in D130.** The order of the restore is D88's and the
+strip's rule D47's; D130 was told to restore active-session truth exactly and
+add no reseeding on resume.
 
 ## Not findings — checked and clean
 

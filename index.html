@@ -18651,6 +18651,21 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-47',
+    version: 'LOOP 10.47',
+    title: 'Warm-ups Start From Your Plan',
+    date: '2026-10-05',
+    swVersion: 'loop-v224',
+    summary: 'New warm-up sets now start from LOOP’s suggested warm-up plan instead of your full working weight.',
+    newFeatures: [],
+    improvements: [
+      'Each set you turn into a warm-up takes the matching step of your Suggested Warm-up, first to last, and a warm-up you have changed stays exactly as you set it',
+      'Warm-ups also refresh to the right preparation weights when you swap an exercise'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -55314,6 +55329,11 @@ function splitRowForSwap(row){
   });
   const fresh = wrap.lastElementChild;
   if(!fresh || fresh === row) return row;
+  /* D130 — the sets that move keep whose reps they are. The swap empties every load
+     still to do (a load belongs to the exercise) but keeps every rep count (it
+     belongs to the slot), so reps the athlete set are still theirs on the new row. */
+  const moved = fresh.querySelectorAll('.set-row');
+  todo.forEach((sr, i) => { const r = sr.querySelector('.set-reps-in'); if(r && r.dataset.userSet && moved[i]) markUserSet(moved[i].querySelector('.set-reps-in')); });
   row.parentNode.insertBefore(fresh, row.nextSibling);
   if(row.dataset.rxEffort != null) fresh.dataset.rxEffort = row.dataset.rxEffort;
   if(row.dataset.slotRecommended) fresh.dataset.slotRecommended = row.dataset.slotRecommended;
@@ -55394,6 +55414,9 @@ function swapLogExercise(row, newName){
      its warm-up leads to; with none, its prep guidance, as before. */
   const warmupWrap = target.querySelector('.warmup-wrap');
   if(warmupWrap) warmupWrap.innerHTML = warmupBoxHtml(clean, rowWorkingLoad(target) !== null ? target.dataset.rxLoad : '');
+  /* D130 (E51) — the warm-ups still to do now lead to the replacement's work: the
+     loads were emptied above, and each takes its step of the strip just drawn */
+  try{ seedWarmupTargets(target); }catch(e){}
   const recWrap = target.querySelector('.recommend-wrap');
   if(recWrap) recWrap.innerHTML = '';
   const restSub = target.querySelector('.rest-panel-sub');
@@ -55436,6 +55459,8 @@ function undoExerciseSwap(row){
         into.appendChild(sr);
       });
       try{ renumberSets(into); }catch(e){}
+      /* D130 (E51) — the warm-ups that came home lead to this exercise's work again */
+      try{ seedWarmupTargets(prev); }catch(e){}
       prev.dataset.targetSets = String(into.querySelectorAll('.set-row').length);
       const panel = row.querySelector('.rest-panel');
       if(panel && panel._interval){ clearInterval(panel._interval); panel._interval = null; }
@@ -55684,8 +55709,11 @@ function addSetRow(btnEl){
 function removeSetRow(btn){
   const setsList = btn.closest('.sets-list');
   const exRow = btn.closest('.ex-log-row');
+  const warm = btn.closest('.set-row').dataset.setType === SET_TYPES.WARMUP;
   btn.closest('.set-row').remove();
   renumberSets(setsList);
+  /* D130 (E51) — a warm-up gone moves the warm-ups after it up a place */
+  if(warm) seedWarmupTargets(exRow);
   // Removing the last outstanding set can finish the exercise outright.
   syncWorkoutCompletionState(exRow);
   persistDraftNow();
@@ -55760,6 +55788,8 @@ function maybeRefreshWarmup(weightInput){
   const nameInput = exRow.querySelector('.ex-name-in');
   const name = nameInput ? nameInput.value.trim() : '';
   warmupWrap.innerHTML = warmupBoxHtml(name, weightInput.value);
+  /* D130 (E51) — and the warm-ups LOOP fills follow the strip they come from */
+  seedWarmupTargets(exRow);
 }
 
 /* Dial in the weight on any set and it carries forward to the sets after it —
@@ -55836,6 +55866,8 @@ function toggleSetType(el){
   const next = current === SET_TYPES.WARMUP ? SET_TYPES.WORKING : SET_TYPES.WARMUP;
   applySetTypeToRow(row, next);
   if(current === SET_TYPES.WARMUP) seedWorkingTarget(row);
+  /* D130 (E51) — a warm-up gained or lost: each warm-up LOOP fills takes the step for its place */
+  seedWarmupTargets(row.closest('.ex-log-row'));
   persistDraftNow();
 }
 
@@ -55877,6 +55909,70 @@ function seedWorkingTarget(row){
   const r = row.querySelector('.set-reps-in');
   const target = plannedRepsFor(exRow, ordinal);
   if(r && !r.dataset.userSet && target !== null){ r.value = target; r.dataset.v = target; }
+  /* D130 (E51) — a warm-up LOOP filled holds the warm-up plan's numbers, which are
+     never a working set's. Where neither today's prescription nor the coach holds a
+     load (nothing prescribed before the work, no coach load after it), or the plan
+     holds no reps for the place, a value the athlete has not set joins the work at
+     what Add Set gives a new working set: the last other working set's (D125).
+     Bodyweight work has no warm-up plan, so nothing of it was filled. */
+  const bw = exRow.querySelector('.ex-bw-in');
+  const last = rows.filter(x => x !== row && x.dataset.setType !== SET_TYPES.WARMUP).pop();
+  if(!last || (bw && bw.checked)) return;
+  const lw = last.querySelector('.set-weight-in'), lr = last.querySelector('.set-reps-in');
+  if(w && lw && !w.disabled && !w.dataset.userSet && (started ? coachLoadNow(exRow) : rowWorkingLoad(exRow)) === null) w.value = lw.value;
+  if(r && lr && !r.dataset.userSet && target === null){ r.value = lr.value; r.dataset.v = lr.value; }
+}
+
+/* D130 (E51) — THE SUGGESTED WARM-UP, READ BACK. The strip is LOOP's one plan for
+   reaching today's working load: warmupBoxHtml draws it from computeWarmupRamp at
+   the prescribed load, at the first working set's load when nothing was prescribed
+   (D125), or as D47's one acclimation step when this session has already worked up
+   to it. A warm-up LOOP fills takes its numbers from the strip as drawn, so a row
+   and the plan above it can never disagree, and there is no second warm-up formula
+   anywhere. Prep guidance in words ("Empty bar × 10") is no load: a strip with none
+   is no plan, and the answer is []. */
+function suggestedWarmupSteps(exRow){
+  const chips = exRow && exRow.querySelectorAll ? exRow.querySelectorAll('.warmup-wrap .warmup-chip') : [];
+  const steps = [];
+  for(let i = 0; i < chips.length; i++){
+    const m = /^(\d+(?:\.\d+)?) lb × (\d+)$/.exec(String(chips[i].textContent || '').trim());
+    if(!m) return [];
+    steps.push({ weight: m[1], reps: m[2] });
+  }
+  return steps;
+}
+
+/* D130 (E51) — THE ONE RULE for which warm-ups LOOP fills, and with what. A warm-up
+   still to do is LOOP's while the athlete has set neither its load nor its reps
+   (typed or stepped, D125's mark): it shows the strip's step for its place among the
+   exercise's warm-ups, counted top to bottom, done or not, so the first warm-up is
+   the first step wherever the working sets sit. Past the last step it repeats the
+   last, D47's acclimation set, never a new number; with no loads on the strip it
+   holds no load, because LOOP has no warm-up figure to give it. A warm-up the athlete
+   has set either number of is theirs and keeps it, except that a field still empty
+   and never set is filled: a swap empties every load still to do (a load belongs to
+   the exercise, Phase B). A done set is never written, nor any bodyweight work. The
+   coach never writes a warm-up (D127), and this writes nothing else: no working set,
+   no strip, no store. It runs when a warm-up is gained, lost or removed, when the
+   exercise is swapped and when the strip is redrawn; never on resuming a workout. */
+function seedWarmupTargets(exRow){
+  if(!exRow || !exRow.querySelectorAll) return 0;
+  const bw = exRow.querySelector('.ex-bw-in');
+  if(bw && bw.checked) return 0;
+  const steps = suggestedWarmupSteps(exRow);
+  let place = 0, changed = 0;
+  exRow.querySelectorAll('.set-row').forEach(sr => {
+    if(sr.dataset.setType !== SET_TYPES.WARMUP) return;
+    place++;
+    const w = sr.querySelector('.set-weight-in'), r = sr.querySelector('.set-reps-in');
+    if(sr.classList.contains('completed') || !w || !r || w.disabled) return;
+    const step = steps.length ? steps[Math.min(place, steps.length) - 1] : null;
+    const loops = !w.dataset.userSet && !r.dataset.userSet;
+    const load = step ? step.weight : '';
+    if(!w.dataset.userSet && (loops || w.value === '') && w.value !== load){ w.value = load; changed++; }
+    if(step && !r.dataset.userSet && (loops || r.value === '') && r.value !== step.reps){ r.value = step.reps; r.dataset.v = step.reps; changed++; }
+  });
+  return changed;
 }
 
 /* ---------- ADVANCED SET TYPES (Phase D5) ----------
@@ -55953,7 +56049,10 @@ function chooseSetType(typeId){
   if(!row || !isKnownSetType(typeId)){ closeSetTypePicker(); return; }
   const was = row.dataset.setType;
   applySetTypeToRow(row, typeId);
-  if(was === SET_TYPES.WARMUP && typeId === SET_TYPES.WORKING) seedWorkingTarget(row);
+  /* D130 (E51) — a warm-up turned into work of any kind the registry counts (Working,
+     Drop, Failure, AMRAP) joins the work, so it never keeps a warm-up's numbers */
+  if(was === SET_TYPES.WARMUP && isWorkingSet({ type: typeId })) seedWorkingTarget(row);
+  if((was === SET_TYPES.WARMUP || typeId === SET_TYPES.WARMUP) && row.closest) seedWarmupTargets(row.closest('.ex-log-row'));
   closeSetTypePicker();
   persistDraftNow();
 }
