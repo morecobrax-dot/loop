@@ -18793,8 +18793,8 @@ prescribed (D125's freeform anchor), or as D47's one acclimation step when the
 session has already worked up to the load. `suggestedWarmupSteps(exRow)` reads
 the steps back from the chips as drawn (`80 lb × 5` → 80 / 5); prep guidance in
 words ("Empty bar × 10") is no load, so a strip without loads is no plan. The
-rows therefore never disagree with the strip above them, the ramp has exactly
-the two callers it had, and `computeWarmupRamp` and `warmupBoxHtml` are 10.46's
+rows therefore never disagree with the strip above them, the ramp still has its
+one caller (`warmupBoxHtml`), and `computeWarmupRamp` and `warmupBoxHtml` are 10.46's
 byte for byte. A row's target is never computed from rxLoad, the coach or a
 percentage of its own.
 
