@@ -19192,3 +19192,21 @@ Seven older checks are restated:
   E52, E54, E55, E56, E58, E59.
 
 **Not proven here.** How it looks and feels on a physical iPhone.
+
+## §172 — THE SET NUMBER IS CENTRED (D132.1 · LOOP 10.50 · loop-v227)
+
+**Rule.** The number in a workout set's circle sits at the circle's centre. A visual patch: no engine, renderer,
+handler, record, draft or storage key moved. Read back as 10.49, the file is 10.49 to the byte.
+
+**Cause.** The circle is the `::before` of `.set-idx`. The universal `box-sizing: border-box` rule does not reach
+pseudo-elements, so it was a content box: its 30px plus its border made it 32px (33px for the current set's 1.5px
+ring), and the margin that centred 30px left its centre one border-width right of and below the number. Measured in
+real Edge at 390×844 from the pixels of the glyph: the ink sat 1.1px left of and 0.75px above the circle's centre.
+
+**Fix.** Two rules at the end of the D132 system block: the circle is a border box of the same outer size (32px, 33px
+for the current set) centred by its own half-size. Diameter, ring, halo, colours and row geometry are unchanged.
+
+**Proof.** `asOf1049Html` removes the two rules and the What's New entry and reads back 10.49's index.html
+(`dbe6186dc332a68b`). Contract 250.
+
+**Not proven here.** How it looks on a physical iPhone.

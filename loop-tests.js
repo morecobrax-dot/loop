@@ -638,7 +638,16 @@ const D132_EDITS = [
 const D132_BLOCK = ['/* ==== D132 SYSTEM BEGIN ==== */\n', '/* ==== D132 SYSTEM END ==== */\n'];
 const D132_TOKENS = ['  /* ---- D132 — PRODUCT EXPERIENCE 2.0: the semantic layer ----', '  --press: scale(0.97);\n'];
 const SHA_1048_HTML = '0a94014bdfa2cd94';   /* index.html of LOOP 10.48 (4948cc7), LF */
-function asOf1048Html(raw){
+/* D132.1 (LOOP 10.50): two CSS rules inside the system block and one What's New entry. Removing them reads back LOOP 10.49. */
+const D1321_CSS = "/* D132.1 — the set number sits in the middle of its bubble. The bubble is a ::before\n   (the universal box-sizing rule does not reach pseudo-elements), so it was a content\n   box: its 30px plus its border put its centre one border-width right of and below\n   the number's centre — 1px on a plain set, 1.5px on the current one. Now it is a\n   border box of the same outer size (32px, and 33px for the current set's thicker\n   ring), centred on the number by its own half-size. */\n.stepper-on .ws-current .set-idx::before{ box-sizing: border-box; width: 32px; height: 32px; margin: -16px 0 0 -16px; }\n.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .set-idx::before{ width: 33px; height: 33px; margin: -16.5px 0 0 -16.5px; }\n";
+const D1321_WHATSNEW = "  },\n  {\n    id: 'v10-50',\n    version: 'LOOP 10.50',\n    title: 'Centred Set Numbers',\n    date: '2026-10-07',\n    swVersion: 'loop-v227',\n    summary: 'Set numbers now sit in the middle of their circles.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [\n      'The number in each set circle during a workout now sits in the exact centre'\n    ],\n    changes: []\n";
+const SHA_1049_HTML = 'dbe6186dc332a68b';   /* index.html of LOOP 10.49 (53c52b9), LF */
+function asOf1049Html(raw){
+  if(raw.split(D1321_CSS).length !== 2 || raw.split(D1321_WHATSNEW).length !== 2) return null;
+  return raw.replace(D1321_CSS, () => '').replace(D1321_WHATSNEW, () => '');
+}
+function asOf1048Html(raw0){
+  const raw = asOf1049Html(raw0); if(raw === null) return null;
   let t = raw;
   const cut = ([a, b]) => { const i = t.indexOf(a); if(i === -1) return false; const j = t.indexOf(b, i); if(j === -1) return false; t = t.slice(0, i) + t.slice(j + b.length); return true; };
   if(!cut(D132_BLOCK) || !cut(D132_TOKENS)) return null;
@@ -54493,6 +54502,28 @@ async function testPrescriptionProvenanceD131A(){
    truth is the browser QA's (qa132.js); this holds the
    rules that produce it.
    ========================================================= */
+async function testSetNumberCentringD1321(){
+  section('CONTRACT 250 — the set number is centred in its circle (D132.1)');
+  const fs = require('fs'), crypto = require('crypto');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const was = asOf1049Html(raw);
+  T('1  every D132.1 change is where it was written, once — the file reads back as LOOP 10.49', was !== null);
+  T('2  …and that read-back is LOOP 10.49 to the byte (index.html of 53c52b9): no engine, renderer, handler, record or other rule moved', !!was && sha(was) === SHA_1049_HTML, was && sha(was));
+  const css = raw.slice(raw.indexOf('<style>'), raw.indexOf('</style>')).replace(/\/\*[\s\S]*?\*\//g, '');
+  /* the last declaration of each property wins: take the final rule that names the circle with that property */
+  const BASE = '.stepper-on .ws-current .set-idx::before', CUR = '.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .set-idx::before';
+  const last = (sel, prop) => { const re = /([^{}]+)\{([^{}]*)\}/g; let m, v = null; while((m = re.exec(css))){ if(m[1].split(',').map(s => s.replace(/\s+/g, ' ').trim()).includes(sel)){ const d = new RegExp('(?:^|[ ;])' + prop + ':\\s*([^;]+)').exec(m[2]); if(d) v = d[1].trim(); } } return v; };
+  const num = v => v == null ? null : parseFloat(v);
+  /* the outer size 10.49 drew: 30px content plus a 1px border (1.5px for the current set) */
+  T('3  a plain circle is a border box 32px across (30px + 2 × 1px, 10.49\'s outer size), centred by its own half-size', last(BASE, 'box-sizing') === 'border-box' && num(last(BASE, 'width')) === 32 && num(last(BASE, 'height')) === 32 && /^-16px 0 0 -16px$/.test(last(BASE, 'margin') || ''));
+  T('4  the current set\'s circle is 33px (30px + 2 × 1.5px, 10.49\'s outer size) and centred by its own half-size — its ring and halo untouched', num(last(CUR, 'width')) === 33 && num(last(CUR, 'height')) === 33 && /^-16\.5px 0 0 -16\.5px$/.test(last(CUR, 'margin') || '') && /border: 1\.5px solid var\(--accent\)/.test(css) && /box-shadow: 0 0 0 3px rgba\(76,194,255,0\.10\)/.test(css));
+  /* zero drift on the surfaces that write or read the number */
+  const fn = n => fnSrc(raw, n).replace(/\s+/g, ' ').trim(), fw = n => fnSrc(was || '', n).replace(/\s+/g, ' ').trim();
+  T('5  how a set number is written, renumbered, completed and typed is 10.49\'s, byte for byte', ['setIdxHtml', 'renumberSets', 'toggleSetComplete', 'appendSetRow', 'applySetTypeToRow', 'chooseSetType', 'refreshSetMeta'].every(n => fn(n) && fn(n) === fw(n)));
+  T('6  the What\'s New entry is LOOP 10.50 / loop-v227, dated in New York, with one fix and nothing else', /id: 'v10-50'[\s\S]*swVersion: 'loop-v227'[\s\S]*improvements: \[\],[\s\S]*bugFixes: \[\s*'[^']+'\s*\]/.test(D1321_WHATSNEW) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v227'") !== -1);
+}
+
 async function testProductExperienceD132(){
   section('CONTRACT 249 — Product Experience 2.0: one visual system, and nothing it does not draw has moved (D132)');
   const fs = require('fs'), crypto = require('crypto');
@@ -54967,6 +54998,7 @@ async function main(){
   await testWarmupSeedingD130();
   await testPrescriptionProvenanceD131A();
   await testProductExperienceD132();
+  await testSetNumberCentringD1321();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

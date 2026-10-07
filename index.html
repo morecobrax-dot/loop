@@ -9840,6 +9840,14 @@ svg text[font-family*="JetBrains"]{ font-family: var(--font-ui); font-variant-nu
 /* ---------- 31 · RHYTHM ----------
    An add button is followed by a gap, not by the next heading. */
 .tr-add{ margin-bottom: 12px; }
+/* D132.1 — the set number sits in the middle of its bubble. The bubble is a ::before
+   (the universal box-sizing rule does not reach pseudo-elements), so it was a content
+   box: its 30px plus its border put its centre one border-width right of and below
+   the number's centre — 1px on a plain set, 1.5px on the current one. Now it is a
+   border box of the same outer size (32px, and 33px for the current set's thicker
+   ring), centred on the number by its own half-size. */
+.stepper-on .ws-current .set-idx::before{ box-sizing: border-box; width: 32px; height: 32px; margin: -16px 0 0 -16px; }
+.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .set-idx::before{ width: 33px; height: 33px; margin: -16.5px 0 0 -16.5px; }
 /* ==== D132 SYSTEM END ==== */
 </style>
 </head>
@@ -19554,6 +19562,20 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [
       'The tick at the top of a Workout Summary now sits centred above the title'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-50',
+    version: 'LOOP 10.50',
+    title: 'Centred Set Numbers',
+    date: '2026-10-07',
+    swVersion: 'loop-v227',
+    summary: 'Set numbers now sit in the middle of their circles.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'The number in each set circle during a workout now sits in the exact centre'
     ],
     changes: []
   }
