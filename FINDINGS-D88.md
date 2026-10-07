@@ -1929,7 +1929,7 @@ title and says "Logged as Chest Press". Choosing the most-used spelling instead
 would change displayName, which is the ranking's tie-break, so it is Mastery's
 own phase.
 
-## E56 — Resuming a workout redraws a shortened Suggested Warm-up as the full ramp · P4 · PROVEN · OPEN
+## E56 — Resuming a workout redraws a shortened Suggested Warm-up as the full ramp · P4 · PROVEN · CLOSED in D131B (LOOP 10.51)
 
 Found by D130 while mapping where the Suggested Warm-up is drawn. Recorded, not
 fixed.
@@ -1963,6 +1963,20 @@ swapped). A resume cannot re-derive what was shown without recording when it
 was drawn. D131A also measured a Bodyweight switch leaving a load ramp on screen
 (toggleBW redraws nothing) that a resume draws from the row as it now is; 10.47
 and 10.48 alike. Held for D131 (Option C: derive the strip everywhere).
+
+**Fixed in D131B (LOOP 10.51), with E58.** The strip is derived, never remembered:
+- `refreshSuggestedWarmups` asks D47's own `warmupBoxHtml` again for every exercise, at the anchor the row was first drawn
+  with (`suggestedWarmupAnchor`: the prescription, else the first working set's load).
+- It runs whenever a fact D47 reads changes, and once at the end of a resume, after the sets are back.
+- The resume refresh writes the strips only. No row is filled (`{ reconcile: false }`), and nothing is added to the draft.
+- Measured: the brief's Close-Grip resumes as "Warm-up · already prepared" 110 × 2, with rows, owners and rxLoad exactly as
+  captured and no `progressionFor` call.
+- Live and resumed agree in all 17 D131 classes and in 14 generated workouts, after one resume and after two
+  (Contract 251, 4, 32 and 36).
+- The fact-identical pairs that differed (Close-Grip typed after or before the bench work; Incline swapped away and back or
+  never swapped) now read alike (Contract 251, 35).
+- **Limit:** a draft written by 10.50 or earlier may hold warm-up rows LOOP filled from the stale strip. They resume as they
+  were, under the current strip, until the next warm-up change refills them (Contract 251, 32).
 
 ## E57 — Resuming a workout gives an exercise added by hand a prescription, and re-plans a prescribed one · P3 · PROVEN · CLOSED in D131A (LOOP 10.48)
 
@@ -2005,7 +2019,7 @@ byte for byte like one never swapped, so it resumes without the swap's load;
 and a plan row there is still re-asked, so a deload or new history since the
 capture can still move it, as in 10.47. Drafts written by 10.48 are exact.
 
-## E58 — D47's "already prepared" never reaches an exercise LOOP prescribed, live · P4 · PROVEN · OPEN
+## E58 — D47's "already prepared" never reaches an exercise LOOP prescribed, live · P4 · PROVEN · CLOSED in D131B (LOOP 10.51)
 
 Found by D131.
 
@@ -2019,6 +2033,19 @@ built to stop repeating the whole ramp on the third lift of a session; for a
 program's own exercises it has not done so since 10.42.
 
 **Why it was not fixed.** Held for D131 (Option C), with E56.
+
+**Fixed in D131B (LOOP 10.51).** Every strip is asked again whenever a fact D47 reads changes:
+- a set done or undone, or a done set's load edited;
+- a first working set's type or load, or Bodyweight;
+- a rename, a removal, a swap or an undo.
+D47 itself is byte-identical: the ramp, the pattern rule, the different-exercise rule, the threshold, the copy.
+- After Bench Press done at 205, the prescribed Incline at 135 shows "Warm-up · already prepared" 110 × 2 at the tap that
+  completes Bench Set 1.
+- It returns to the full ramp when that work is undone, or its load is edited below 135.
+- The warm-ups LOOP fills follow the new strip by D130's rule, but only while the exercise has no working set done. Once it
+  has, no row is ever rewritten automatically. An explicit warm-up action still fills from the current strip.
+- A warm-up the athlete set, a working set and the prescription are never written.
+- Contract 251 (5, 14–34) and the browser QA at ten sizes measure it.
 
 ## E59 — A swap part-way through an exercise added by hand gives it, and its replacement, a plan · P3 · PROVEN · OPEN
 
@@ -2080,6 +2107,31 @@ other 108 sit fully open beneath it.
 **Why it was not fixed.** Collapsing older entries changes the page's renderer
 (`renderUpdatesList`). D132 is a visual release with zero renderer drift
 (Contract 249, 2–3).
+
+## E62 — Live, D47's preparation ignores the order work was done in, and an exercise's own heavier work removes its own shortening · P4 · PROVEN · OPEN
+
+Found by D131B. D47 is unchanged; what is new is that its answer is now shown as it stands, instead of as it stood when a
+row was drawn.
+
+**What happens.**
+- `sessionPreparation` takes, per movement pattern, the heaviest completed set of the session, whenever it was done.
+- `generalPrepSatisfiedBy` refuses that evidence when it is the exercise's own.
+
+So, live:
+- an exercise finished FIRST reads "Warm-up · already prepared" once a later exercise of its pattern works heavier;
+- an exercise that was shortened goes back to its full ramp as soon as its own work becomes the session's heaviest.
+
+**Measured (vm, Contract 251, 20; D131 class L).**
+- Bench Press 205 × 3 done, then Close-Grip Bench Press typed 135: Close-Grip shows "already prepared" 110 × 2.
+- Close-Grip then completes a set at 225:
+  - its own strip is the full ramp of its new anchor (90 / 135 / 180);
+  - Bench Press, finished before Close-Grip began, reads "Warm-up · already prepared" 165 × 2, "you already worked up to
+    225 lb on Close-Grip Bench Press".
+- No row changes in either: both exercises' work had begun. History is untouched.
+
+**Why it was not fixed.** The evidence D47 selects, and that order does not matter to it, is D47's policy, and D131B was
+told not to retune D47. For the owner: should preparation count only work done before an exercise starts, and should an
+exercise already under way keep the strip it started with?
 
 ## Not findings — checked and clean
 

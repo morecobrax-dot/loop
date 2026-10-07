@@ -19578,6 +19578,22 @@ const LOOP_UPDATES = [
       'The number in each set circle during a workout now sits in the exact centre'
     ],
     changes: []
+  },
+  {
+    id: 'v10-51',
+    version: 'LOOP 10.51',
+    title: 'Warm-ups Stay in Sync',
+    date: '2026-10-07',
+    swVersion: 'loop-v228',
+    summary: 'Suggested Warm-up now updates as you train and stays correct when you resume a workout.',
+    newFeatures: [],
+    improvements: [
+      'Finishing a similar lift can now shorten the Suggested Warm-up of an exercise still to come, straight away'
+    ],
+    bugFixes: [
+      'Resuming a workout now rebuilds Suggested Warm-up from the work you’ve actually completed'
+    ],
+    changes: []
   }
 ];
 
@@ -54981,6 +54997,10 @@ function restoreDraftToSheet(draft){
       }
     }
   });
+  /* D131B (E56) — every strip was drawn above while its row was still being built, before any set was back. Now that
+     the workout is whole, each asks D47 again, exactly as it would have been answered live. The strips only: a
+     resume restores what the athlete had, and no row is filled from them. */
+  refreshSuggestedWarmups({ reconcile: false });
 
   if(draft.showCategoryPicker) pickLogCategory(pendingLogCategory);
   }finally{ draftRestoring = false; }
@@ -56350,6 +56370,8 @@ function swapLogExercise(row, newName){
   /* D130 (E51) — the warm-ups still to do now lead to the replacement's work: the
      loads were emptied above, and each takes its step of the strip just drawn */
   try{ seedWarmupTargets(target); }catch(e){}
+  /* D131B — and every other exercise asks again: one of them may have prepared this one, or this one another */
+  try{ refreshSuggestedWarmups(); }catch(e){}
   const recWrap = target.querySelector('.recommend-wrap');
   if(recWrap) recWrap.innerHTML = '';
   const restSub = target.querySelector('.rest-panel-sub');
@@ -56392,6 +56414,8 @@ function undoExerciseSwap(row){
         into.appendChild(sr);
       });
       try{ renumberSets(into); }catch(e){}
+      /* D131B — the strips are asked again first, so the warm-ups that came home follow the current one */
+      try{ refreshSuggestedWarmups(); }catch(e){}
       /* D130 (E51) — the warm-ups that came home lead to this exercise's work again */
       try{ seedWarmupTargets(prev); }catch(e){}
       prev.dataset.targetSets = String(into.querySelectorAll('.set-row').length);
@@ -56433,6 +56457,8 @@ function onExerciseNameEdited(input){
   if(!row) return;
   refreshExerciseThumb(row);
   refreshWorkoutStepHead();
+  /* D131B — a name decides whether a lift has a warm-up at all and which movement it prepares */
+  refreshSuggestedWarmups();
 }
 
 /* The line under the stepper's exercise name when it is not what the plan
@@ -56581,6 +56607,8 @@ function removeLogExerciseRow(btn){
   const at = workoutStepRows().indexOf(row);
   const name = workoutStepName(row);
   row.remove();
+  /* D131B — its done sets were this session's preparation */
+  refreshSuggestedWarmups();
   onWorkoutRowRemoved(at, name);
   persistDraftNow();
 }
@@ -56634,6 +56662,8 @@ function addSetRow(btnEl){
     : last ? last.querySelector('.set-reps-in').value : (plannedRepsFor(row, ordinal) || '');
   const rir = last ? last.querySelector('.set-rir-in').value : '';
   appendSetRow(setsList, w, r, bw, rir);
+  /* D131B — after only warm-ups, the new set is the first working set, the anchor of an exercise with no prescription */
+  refreshSuggestedWarmups();
   // A new set is work outstanding again: a finished exercise stops being one.
   syncWorkoutCompletionState(row);
   persistDraftNow();
@@ -56645,6 +56675,8 @@ function removeSetRow(btn){
   const warm = btn.closest('.set-row').dataset.setType === SET_TYPES.WARMUP;
   btn.closest('.set-row').remove();
   renumberSets(setsList);
+  /* D131B — a done set gone is preparation gone, and a first working set gone moves the anchor */
+  refreshSuggestedWarmups();
   /* D130 (E51) — a warm-up gone moves the warm-ups after it up a place */
   if(warm) seedWarmupTargets(exRow);
   // Removing the last outstanding set can finish the exercise outright.
@@ -56709,13 +56741,15 @@ function maybeRefreshWarmup(weightInput){
   if(!setsList || !setRow) return;
   const exRow = weightInput.closest('.ex-log-row');
   if(!exRow) return;
+  /* D131B (E58) — a done set's load is this session's preparation, which every other exercise's strip reads */
+  const done = setRow.classList.contains('completed');
   /* D125 — the Suggested Warm-up is LOOP's plan for reaching the working load it
      prescribed, so while there is one it stays as it was drawn: what the athlete
      logs for a warm-up is what they did, not a new plan. Only an exercise with
      no prescribed load follows its first WORKING set, and never a warm-up. */
-  if(rowWorkingLoad(exRow) !== null) return;
+  if(rowWorkingLoad(exRow) !== null){ if(done) refreshSuggestedWarmups(); return; }
   const firstWorking = Array.prototype.find.call(setsList.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP);
-  if(firstWorking !== setRow) return;
+  if(firstWorking !== setRow){ if(done) refreshSuggestedWarmups(); return; }
   const warmupWrap = exRow.querySelector('.warmup-wrap');
   if(!warmupWrap) return;
   const nameInput = exRow.querySelector('.ex-name-in');
@@ -56723,6 +56757,8 @@ function maybeRefreshWarmup(weightInput){
   warmupWrap.innerHTML = warmupBoxHtml(name, weightInput.value);
   /* D130 (E51) — and the warm-ups LOOP fills follow the strip they come from */
   seedWarmupTargets(exRow);
+  /* D131B — this exercise's own anchor moved, and the session around it may read it too */
+  refreshSuggestedWarmups();
 }
 
 /* Dial in the weight on any set and it carries forward to the sets after it —
@@ -56799,6 +56835,8 @@ function toggleSetType(el){
   const next = current === SET_TYPES.WARMUP ? SET_TYPES.WORKING : SET_TYPES.WARMUP;
   applySetTypeToRow(row, next);
   if(current === SET_TYPES.WARMUP) seedWorkingTarget(row);
+  /* D131B — the first working set may have changed, so the strip is asked again before anything is filled from it */
+  refreshSuggestedWarmups();
   /* D130 (E51) — a warm-up gained or lost: each warm-up LOOP fills takes the step for its place */
   seedWarmupTargets(row.closest('.ex-log-row'));
   persistDraftNow();
@@ -56908,6 +56946,49 @@ function seedWarmupTargets(exRow){
   return changed;
 }
 
+/* D131B (E56, E58) — THE SUGGESTED WARM-UP, KEPT CURRENT. The strip answers "what preparation is still to do, given what
+   this workout has done", and that answer is derived, never remembered: D47's warmupBoxHtml, asked with the exercise's
+   anchor and the session's completed sets as they are now. The anchor is the one the row was first drawn with (D125): the
+   load LOOP prescribed it, else its first working set's load. The strip used to be drawn only when a row was built,
+   swapped or given its first load. A strip drawn before its preparation stayed full for the rest of the workout, and a
+   prescribed exercise was never asked again at all (E58). A resumed workout drew every strip before its completed sets
+   were back (E56). Now every event that changes a fact D47 reads asks it again, here, for every exercise:
+   - a set done or undone, or a done set's load changed;
+   - an anchor changed: a first working set's type or load, or Bodyweight;
+   - an exercise renamed, removed or swapped;
+   - a resumed workout, once its sets are back.
+   Nothing is stored: not the strip, not D47's answer, not whether it was shortened. A strip that changes is the one thing
+   written. The warm-ups LOOP fills follow it by D130's rule (seedWarmupTargets) only while their exercise has no working
+   set done. Once the athlete is working, a change of plan never rewrites a row, and resuming never does
+   ({ reconcile: false }). A warm-up the athlete set, a working set, a done set and the prescription are never written. */
+function suggestedWarmupAnchor(exRow){
+  if(rowWorkingLoad(exRow) !== null) return exRow.dataset.rxLoad;
+  const first = Array.prototype.find.call(exRow.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP);
+  const w = first ? first.querySelector('.set-weight-in') : null;
+  return w ? w.value : '';
+}
+/* An exercise is under way once a set of its WORK is done; a warm-up done is still preparing (seedWorkingTarget's rule). */
+function exerciseWorkBegun(exRow){
+  return Array.prototype.some.call(exRow.querySelectorAll('.set-row'), r => r.classList.contains('completed') && r.dataset.setType !== SET_TYPES.WARMUP);
+}
+function refreshSuggestedWarmups(opts){
+  const reconcile = !(opts && opts.reconcile === false);
+  let changed = 0;
+  document.querySelectorAll('#logExercises .ex-log-row').forEach(exRow => {
+    const wrap = exRow.querySelector ? exRow.querySelector('.warmup-wrap') : null;
+    if(!wrap) return;
+    const nameEl = exRow.querySelector('.ex-name-in');
+    const html = warmupBoxHtml(nameEl ? nameEl.value.trim() : '', suggestedWarmupAnchor(exRow));
+    const was = wrap.innerHTML;
+    if(was === html) return;
+    wrap.innerHTML = html;
+    if(wrap.innerHTML === was) return;           // the same strip, written the same way: nothing changed
+    changed++;
+    if(reconcile && !exerciseWorkBegun(exRow)) seedWarmupTargets(exRow);
+  });
+  return changed;
+}
+
 /* ---------- ADVANCED SET TYPES (Phase D5) ----------
    One shared place that puts a row into a given type: the dataset value, the
    visual state and the index label. Everything — the warm-up toggle, the
@@ -56985,7 +57066,7 @@ function chooseSetType(typeId){
   /* D130 (E51) — a warm-up turned into work of any kind the registry counts (Working,
      Drop, Failure, AMRAP) joins the work, so it never keeps a warm-up's numbers */
   if(was === SET_TYPES.WARMUP && isWorkingSet({ type: typeId })) seedWorkingTarget(row);
-  if((was === SET_TYPES.WARMUP || typeId === SET_TYPES.WARMUP) && row.closest) seedWarmupTargets(row.closest('.ex-log-row'));
+  if((was === SET_TYPES.WARMUP || typeId === SET_TYPES.WARMUP) && row.closest){ refreshSuggestedWarmups(); seedWarmupTargets(row.closest('.ex-log-row')); }   // D131B: the strip first
   closeSetTypePicker();
   persistDraftNow();
 }
@@ -57034,6 +57115,9 @@ function toggleSetComplete(btn){
        on a set that is no longer done. A warm-up was never evidence (D125). */
     if(!warmup){ try{ refreshSetCoach(exRow); }catch(e){} }
   }
+  /* D131B (E58) — a set done or undone is preparation gained or lost: every strip is asked again, after the rest timer
+     and the coach, so neither ever waits on it */
+  refreshSuggestedWarmups();
   syncWorkoutCompletionState(exRow);
   persistDraftNow();
 }
@@ -57366,6 +57450,8 @@ function checkIconSvg(size){
 function toggleBW(checkbox){
   const row = checkbox.closest('.ex-log-row');
   row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });
+  /* D131B — Bodyweight has no load to ramp, and the loads it cleared (done ones too) were preparation */
+  refreshSuggestedWarmups();
 }
 
 /* =========================================================

@@ -19210,3 +19210,45 @@ for the current set) centred by its own half-size. Diameter, ring, halo, colours
 (`dbe6186dc332a68b`). Contract 250.
 
 **Not proven here.** How it looks on a physical iPhone.
+
+## §173 — THE SUGGESTED WARM-UP IS DERIVED, LIVE AND ON RESUME (D131B · LOOP 10.51 · loop-v228)
+
+**Rule.** The Suggested Warm-up answers "what preparation is still to do, given what this workout has done". The answer is
+derived from the workout as it stands, never remembered. Closes E56 and E58.
+
+**The primitive.** `refreshSuggestedWarmups(opts)` asks D47's own `warmupBoxHtml` for every exercise in the logger:
+- the anchor is `suggestedWarmupAnchor(row)`: the load LOOP prescribed it (rxLoad), else its first working set's load. That
+  is exactly what the row was first drawn with (D125).
+- A strip that changed is the only thing written.
+- The warm-ups LOOP fills follow that strip by D130's rule (`seedWarmupTargets`) only while `exerciseWorkBegun(row)` is
+  false, that is, while no working, drop, failure or AMRAP set of that exercise is done. A done warm-up does not count.
+- `{ reconcile: false }` writes strips only.
+
+**When it runs.** On every event that changes a fact D47 reads:
+- a set done or undone (after the rest timer and the coach);
+- a done set's load typed or stepped;
+- a first working set's type changed or load typed, Add Set, Remove set;
+- Bodyweight switched, a rename, an exercise removed, a swap, an undo;
+- once a resume is whole, with `{ reconcile: false }`.
+Where an event also fills warm-ups by D130 (the type toggle and picker, Remove set, the undo merge), the strip is asked
+first, so an explicit warm-up action always fills from the current strip.
+
+**Never.**
+- No strip, ramp, answer or "already prepared" flag is stored: no draft field, no DATA_KEY.
+- A resume fills no row.
+- A refresh never writes:
+  - a working set, a done set, or a warm-up the athlete set;
+  - the prescription (rxLoad, rxPlan) or slot data.
+- A refresh never asks `progressionFor`, D49, the coach or history.
+- D47 is byte-identical: `computeWarmupRamp`, `warmupBoxHtml`, `sessionPreparation`, `generalPrepSatisfiedBy`,
+  `effectiveWorkingLoad`, `movementPatternOf`, WARMUP_LIFTS and MOVEMENT_PATTERNS. So are D130's `suggestedWarmupSteps` and
+  `seedWarmupTargets`, D125's plan, D127's coach rules, D131A's draft and E59's split.
+
+**Proof of no other drift.** `asOf1050Html(raw)` takes D131B's statements and its What's New entry out. It reads back LOOP
+10.50's index.html to the byte (`0cfd1d2a08b72aa0`), and every older pin reads the twelve changed functions through
+D131B_EDITS. Contract 251 holds 51 checks; frozen 10.50 fails 31 of them.
+
+**Recorded, not fixed:** E62. D47 ignores the order work was done in, and an exercise's own heavier work removes its own
+shortening. Live, both are now visible.
+
+**Not proven here.** How it reads on a physical iPhone.

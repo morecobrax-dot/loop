@@ -385,8 +385,8 @@ const D125_EDITS = {
 function asOf1041(name){
   if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
-  for(const [now, then] of (D131A_EDITS[name] || []).concat(D130_EDITS[name] || [], D125_EDITS[name] || [])){   // D131A, then D130, restated: undo them first
-    if(t.split(now).length !== 2) return null;           // a D131A, D130 or D125 statement itself moved
+  for(const [now, then] of (D131B_EDITS[name] || []).concat(D131A_EDITS[name] || [], D130_EDITS[name] || [], D125_EDITS[name] || [])){   // D131B, D131A, then D130, restated: undo them first
+    if(t.split(now).length !== 2) return null;           // a D131B, D131A, D130 or D125 statement itself moved
     t = t.split(now).join(then);
   }
   return t;
@@ -439,8 +439,8 @@ const D127_EDITS = {
 function asOf1043(name){
   if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
-  for(const [now, then] of (D131A_EDITS[name] || []).concat(D130_EDITS[name] || [], D127_EDITS[name] || [])){   // D131A, then D130, restated: undo them first
-    if(t.split(now).length !== 2) return null;           // a D131A, D130 or D127 statement itself moved
+  for(const [now, then] of (D131B_EDITS[name] || []).concat(D131A_EDITS[name] || [], D130_EDITS[name] || [], D127_EDITS[name] || [])){   // D131B, D131A, then D130, restated: undo them first
+    if(t.split(now).length !== 2) return null;           // a D131B, D131A, D130 or D127 statement itself moved
     t = t.split(now).join(then);
   }
   return t;
@@ -568,7 +568,7 @@ const D130_EDITS = {
     "function seedWarmupTargets(exRow){ if(!exRow || !exRow.querySelectorAll) return 0; const bw = exRow.querySelector('.ex-bw-in'); if(bw && bw.checked) return 0; const steps = suggestedWarmupSteps(exRow); let place = 0, changed = 0; exRow.querySelectorAll('.set-row').forEach(sr => { if(sr.dataset.setType !== SET_TYPES.WARMUP) return; place++; const w = sr.querySelector('.set-weight-in'), r = sr.querySelector('.set-reps-in'); if(sr.classList.contains('completed') || !w || !r || w.disabled) return; const step = steps.length ? steps[Math.min(place, steps.length) - 1] : null; const loops = !w.dataset.userSet && !r.dataset.userSet; const load = step ? step.weight : ''; if(!w.dataset.userSet && (loops || w.value === '') && w.value !== load){ w.value = load; changed++; } if(step && !r.dataset.userSet && (loops || r.value === '') && r.value !== step.reps){ r.value = step.reps; r.dataset.v = step.reps; changed++; } }); return changed; }",
     ""]]
 };
-function asOf1046(name){ return asOfChain(name, [D131A_EDITS, D130_EDITS]); }   // D131A restated: undo D131A first
+function asOf1046(name){ return asOfChain(name, [D131B_EDITS, D131A_EDITS, D130_EDITS]); }   // D131B, then D131A, restated: undo them first
 function pinAsOf1046(name){
   const t = asOf1046(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -600,7 +600,7 @@ const D131A_EDITS = {
     "(draft.exercises || []).forEach(ex => { const meta = ex.meta || {}; const legacyPlanRow = meta.rxLoad === undefined && !ex.bodyweight && !!(meta.targetReps || ex.effort); const rec = legacyPlanRow ? progressionFor(ex.name, meta.targetReps, meta.recommended) : null; addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, meta); });",
     "(draft.exercises || []).forEach(ex => { const rec = ex.bodyweight ? null : progressionFor(ex.name, ex.meta && ex.meta.targetReps, ex.meta && ex.meta.recommended); addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, ex.meta || {}); });"]]
 };
-function asOf1047(name){ return asOfChain(name, [D131A_EDITS]); }
+function asOf1047(name){ return asOfChain(name, [D131B_EDITS, D131A_EDITS]); }   // D131B restated: undo D131B first
 function pinAsOf1047(name){
   const t = asOf1047(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -612,6 +612,140 @@ function withAsOf1047(c, names, fn){
   const vm = require('vm'), keep = names.map(n => c[n]);
   names.forEach(n => { const s = asOf1047(n); c[n] = s === null ? undefined : (s === '' ? undefined : vm.runInContext('(' + s + ')', c)); });
   try{ return fn(); } finally { names.forEach((n, i) => { c[n] = keep[i]; }); }
+}
+
+/* D131B (E56, E58) - the Suggested Warm-up became a DERIVED surface ON PURPOSE. Every event that changes a fact D47 reads asks
+   D47 again through one primitive, refreshSuggestedWarmups:
+   - a set done or undone, or a done set's load changed;
+   - a first working set's type or load, Bodyweight;
+   - a rename, a removal, a swap or an undo;
+   - a resume, once its sets are back.
+   The warm-ups LOOP fills follow a strip that changed only while their exercise's work has not begun, and never on a resume.
+   Every older pin or check that held one of these functions now reads it with these statements put back (giving 10.50). The
+   asOf chains take them out FIRST, and any other change to any of them still fails them all. The pairs are [now, as of 10.50];
+   Contract 251 proves what they do. D131B_RAW is the same change on the raw (LF) file, with the What's New entry, so
+   asOf1050Html(raw) is LOOP 10.50's index.html to the byte. */
+const D131B_EDITS = {
+  maybeRefreshWarmup: [[
+    "if(!exRow) return; const done = setRow.classList.contains('completed'); if(rowWorkingLoad(exRow) !== null){ if(done) refreshSuggestedWarmups(); return; } const firstWorking = Array.prototype.find.call(setsList.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP); if(firstWorking !== setRow){ if(done) refreshSuggestedWarmups(); return; } const warmupWrap = exRow.querySelector('.warmup-wrap'); if(!warmupWrap) return; const nameInput = exRow.querySelector('.ex-name-in'); const name = nameInput ? nameInput.value.trim() : ''; warmupWrap.innerHTML = warmupBoxHtml(name, weightInput.value); seedWarmupTargets(exRow); refreshSuggestedWarmups(); }",
+    "if(!exRow) return; if(rowWorkingLoad(exRow) !== null) return; const firstWorking = Array.prototype.find.call(setsList.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP); if(firstWorking !== setRow) return; const warmupWrap = exRow.querySelector('.warmup-wrap'); if(!warmupWrap) return; const nameInput = exRow.querySelector('.ex-name-in'); const name = nameInput ? nameInput.value.trim() : ''; warmupWrap.innerHTML = warmupBoxHtml(name, weightInput.value); seedWarmupTargets(exRow); }"]],
+  toggleSetType: [[
+    "if(current === SET_TYPES.WARMUP) seedWorkingTarget(row); refreshSuggestedWarmups(); seedWarmupTargets(row.closest('.ex-log-row'));",
+    "if(current === SET_TYPES.WARMUP) seedWorkingTarget(row); seedWarmupTargets(row.closest('.ex-log-row'));"]],
+  chooseSetType: [[
+    "type: typeId })) seedWorkingTarget(row); if((was === SET_TYPES.WARMUP || typeId === SET_TYPES.WARMUP) && row.closest){ refreshSuggestedWarmups(); seedWarmupTargets(row.closest('.ex-log-row')); } closeSetTypePicker();",
+    "type: typeId })) seedWorkingTarget(row); if((was === SET_TYPES.WARMUP || typeId === SET_TYPES.WARMUP) && row.closest) seedWarmupTargets(row.closest('.ex-log-row')); closeSetTypePicker();"]],
+  removeSetRow: [[
+    "renumberSets(setsList); refreshSuggestedWarmups(); if(warm) seedWarmupTargets(exRow);",
+    "renumberSets(setsList); if(warm) seedWarmupTargets(exRow);"]],
+  addSetRow: [[
+    "appendSetRow(setsList, w, r, bw, rir); refreshSuggestedWarmups(); syncWorkoutCompletionState(row);",
+    "appendSetRow(setsList, w, r, bw, rir); syncWorkoutCompletionState(row);"]],
+  toggleSetComplete: [[
+    "} refreshSuggestedWarmups(); syncWorkoutCompletionState(exRow);",
+    "} syncWorkoutCompletionState(exRow);"]],
+  removeLogExerciseRow: [[
+    "row.remove(); refreshSuggestedWarmups(); onWorkoutRowRemoved(at, name);",
+    "row.remove(); onWorkoutRowRemoved(at, name);"]],
+  toggleBW: [[
+    "}); refreshSuggestedWarmups(); }",
+    "}); }"]],
+  onExerciseNameEdited: [[
+    "refreshWorkoutStepHead(); refreshSuggestedWarmups(); }",
+    "refreshWorkoutStepHead(); }"]],
+  swapLogExercise: [[
+    "}catch(e){} try{ refreshSuggestedWarmups(); }catch(e){} const recWrap = target.querySelector('.recommend-wrap');",
+    "}catch(e){} const recWrap = target.querySelector('.recommend-wrap');"]],
+  undoExerciseSwap: [[
+    "try{ refreshSuggestedWarmups(); }catch(e){} try{ seedWarmupTargets(prev);",
+    "try{ seedWarmupTargets(prev);"]],
+  restoreDraftToSheet: [[
+    "}); refreshSuggestedWarmups({ reconcile: false }); if(draft.showCategoryPicker) pickLogCategory(pendingLogCategory);",
+    "}); if(draft.showCategoryPicker) pickLogCategory(pendingLogCategory);"]],
+  suggestedWarmupAnchor: [[
+    "function suggestedWarmupAnchor(exRow){ if(rowWorkingLoad(exRow) !== null) return exRow.dataset.rxLoad; const first = Array.prototype.find.call(exRow.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP); const w = first ? first.querySelector('.set-weight-in') : null; return w ? w.value : ''; }",
+    ""]],
+  exerciseWorkBegun: [[
+    "function exerciseWorkBegun(exRow){ return Array.prototype.some.call(exRow.querySelectorAll('.set-row'), r => r.classList.contains('completed') && r.dataset.setType !== SET_TYPES.WARMUP); }",
+    ""]],
+  refreshSuggestedWarmups: [[
+    "function refreshSuggestedWarmups(opts){ const reconcile = !(opts && opts.reconcile === false); let changed = 0; document.querySelectorAll('#logExercises .ex-log-row').forEach(exRow => { const wrap = exRow.querySelector ? exRow.querySelector('.warmup-wrap') : null; if(!wrap) return; const nameEl = exRow.querySelector('.ex-name-in'); const html = warmupBoxHtml(nameEl ? nameEl.value.trim() : '', suggestedWarmupAnchor(exRow)); const was = wrap.innerHTML; if(was === html) return; wrap.innerHTML = html; if(wrap.innerHTML === was) return; changed++; if(reconcile && !exerciseWorkBegun(exRow)) seedWarmupTargets(exRow); }); return changed; }",
+    ""]]
+};
+/* the twelve functions D131B changed (the three it added have nothing to put back) */
+const D131B_LOGGER = Object.keys(D131B_EDITS).filter(n => D131B_EDITS[n].every(p => p[1] !== ''));
+function asOf1050(name){ return asOfChain(name, [D131B_EDITS]); }
+function pinAsOf1050(name){
+  const t = asOf1050(name);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+const D131B_RAW = [
+   [
+    "    ],\n    changes: []\n  },\n  {\n    id: 'v10-51',\n    version: 'LOOP 10.51',\n    title: 'Warm-ups Stay in Sync',\n    date: '2026-10-07',\n    swVersion: 'loop-v228',\n    summary: 'Suggested Warm-up now updates as you train and stays correct when you resume a workout.',\n    newFeatures: [],\n    improvements: [\n      'Finishing a similar lift can now shorten the Suggested Warm-up of an exercise still to come, straight away'\n    ],\n    bugFixes: [\n      'Resuming a workout now rebuilds Suggested Warm-up from the work you’ve actually completed'\n    ],\n    changes: []\n  }\n];\n",
+    "    ],\n    changes: []\n  }\n];\n"
+   ],
+   [
+    "    }\n  });\n  /* D131B (E56) — every strip was drawn above while its row was still being built, before any set was back. Now that\n     the workout is whole, each asks D47 again, exactly as it would have been answered live. The strips only: a\n     resume restores what the athlete had, and no row is filled from them. */\n  refreshSuggestedWarmups({ reconcile: false });\n\n  if(draft.showCategoryPicker) pickLogCategory(pendingLogCategory);\n",
+    "    }\n  });\n\n  if(draft.showCategoryPicker) pickLogCategory(pendingLogCategory);\n"
+   ],
+   [
+    "     loads were emptied above, and each takes its step of the strip just drawn */\n  try{ seedWarmupTargets(target); }catch(e){}\n  /* D131B — and every other exercise asks again: one of them may have prepared this one, or this one another */\n  try{ refreshSuggestedWarmups(); }catch(e){}\n  const recWrap = target.querySelector('.recommend-wrap');\n  if(recWrap) recWrap.innerHTML = '';\n",
+    "     loads were emptied above, and each takes its step of the strip just drawn */\n  try{ seedWarmupTargets(target); }catch(e){}\n  const recWrap = target.querySelector('.recommend-wrap');\n  if(recWrap) recWrap.innerHTML = '';\n"
+   ],
+   [
+    "      });\n      try{ renumberSets(into); }catch(e){}\n      /* D131B — the strips are asked again first, so the warm-ups that came home follow the current one */\n      try{ refreshSuggestedWarmups(); }catch(e){}\n      /* D130 (E51) — the warm-ups that came home lead to this exercise's work again */\n      try{ seedWarmupTargets(prev); }catch(e){}\n",
+    "      });\n      try{ renumberSets(into); }catch(e){}\n      /* D130 (E51) — the warm-ups that came home lead to this exercise's work again */\n      try{ seedWarmupTargets(prev); }catch(e){}\n"
+   ],
+   [
+    "  refreshExerciseThumb(row);\n  refreshWorkoutStepHead();\n  /* D131B — a name decides whether a lift has a warm-up at all and which movement it prepares */\n  refreshSuggestedWarmups();\n}\n\n",
+    "  refreshExerciseThumb(row);\n  refreshWorkoutStepHead();\n}\n\n"
+   ],
+   [
+    "  const name = workoutStepName(row);\n  row.remove();\n  /* D131B — its done sets were this session's preparation */\n  refreshSuggestedWarmups();\n  onWorkoutRowRemoved(at, name);\n  persistDraftNow();\n",
+    "  const name = workoutStepName(row);\n  row.remove();\n  onWorkoutRowRemoved(at, name);\n  persistDraftNow();\n"
+   ],
+   [
+    "  const rir = last ? last.querySelector('.set-rir-in').value : '';\n  appendSetRow(setsList, w, r, bw, rir);\n  /* D131B — after only warm-ups, the new set is the first working set, the anchor of an exercise with no prescription */\n  refreshSuggestedWarmups();\n  // A new set is work outstanding again: a finished exercise stops being one.\n  syncWorkoutCompletionState(row);\n",
+    "  const rir = last ? last.querySelector('.set-rir-in').value : '';\n  appendSetRow(setsList, w, r, bw, rir);\n  // A new set is work outstanding again: a finished exercise stops being one.\n  syncWorkoutCompletionState(row);\n"
+   ],
+   [
+    "  btn.closest('.set-row').remove();\n  renumberSets(setsList);\n  /* D131B — a done set gone is preparation gone, and a first working set gone moves the anchor */\n  refreshSuggestedWarmups();\n  /* D130 (E51) — a warm-up gone moves the warm-ups after it up a place */\n  if(warm) seedWarmupTargets(exRow);\n",
+    "  btn.closest('.set-row').remove();\n  renumberSets(setsList);\n  /* D130 (E51) — a warm-up gone moves the warm-ups after it up a place */\n  if(warm) seedWarmupTargets(exRow);\n"
+   ],
+   [
+    "  const exRow = weightInput.closest('.ex-log-row');\n  if(!exRow) return;\n  /* D131B (E58) — a done set's load is this session's preparation, which every other exercise's strip reads */\n  const done = setRow.classList.contains('completed');\n  /* D125 — the Suggested Warm-up is LOOP's plan for reaching the working load it\n     prescribed, so while there is one it stays as it was drawn: what the athlete\n     logs for a warm-up is what they did, not a new plan. Only an exercise with\n     no prescribed load follows its first WORKING set, and never a warm-up. */\n  if(rowWorkingLoad(exRow) !== null){ if(done) refreshSuggestedWarmups(); return; }\n  const firstWorking = Array.prototype.find.call(setsList.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP);\n  if(firstWorking !== setRow){ if(done) refreshSuggestedWarmups(); return; }\n  const warmupWrap = exRow.querySelector('.warmup-wrap');\n  if(!warmupWrap) return;\n",
+    "  const exRow = weightInput.closest('.ex-log-row');\n  if(!exRow) return;\n  /* D125 — the Suggested Warm-up is LOOP's plan for reaching the working load it\n     prescribed, so while there is one it stays as it was drawn: what the athlete\n     logs for a warm-up is what they did, not a new plan. Only an exercise with\n     no prescribed load follows its first WORKING set, and never a warm-up. */\n  if(rowWorkingLoad(exRow) !== null) return;\n  const firstWorking = Array.prototype.find.call(setsList.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP);\n  if(firstWorking !== setRow) return;\n  const warmupWrap = exRow.querySelector('.warmup-wrap');\n  if(!warmupWrap) return;\n"
+   ],
+   [
+    "  /* D130 (E51) — and the warm-ups LOOP fills follow the strip they come from */\n  seedWarmupTargets(exRow);\n  /* D131B — this exercise's own anchor moved, and the session around it may read it too */\n  refreshSuggestedWarmups();\n}\n\n",
+    "  /* D130 (E51) — and the warm-ups LOOP fills follow the strip they come from */\n  seedWarmupTargets(exRow);\n}\n\n"
+   ],
+   [
+    "  applySetTypeToRow(row, next);\n  if(current === SET_TYPES.WARMUP) seedWorkingTarget(row);\n  /* D131B — the first working set may have changed, so the strip is asked again before anything is filled from it */\n  refreshSuggestedWarmups();\n  /* D130 (E51) — a warm-up gained or lost: each warm-up LOOP fills takes the step for its place */\n  seedWarmupTargets(row.closest('.ex-log-row'));\n",
+    "  applySetTypeToRow(row, next);\n  if(current === SET_TYPES.WARMUP) seedWorkingTarget(row);\n  /* D130 (E51) — a warm-up gained or lost: each warm-up LOOP fills takes the step for its place */\n  seedWarmupTargets(row.closest('.ex-log-row'));\n"
+   ],
+   [
+    "}\n\n/* D131B (E56, E58) — THE SUGGESTED WARM-UP, KEPT CURRENT. The strip answers \"what preparation is still to do, given what\n   this workout has done\", and that answer is derived, never remembered: D47's warmupBoxHtml, asked with the exercise's\n   anchor and the session's completed sets as they are now. The anchor is the one the row was first drawn with (D125): the\n   load LOOP prescribed it, else its first working set's load. The strip used to be drawn only when a row was built,\n   swapped or given its first load. A strip drawn before its preparation stayed full for the rest of the workout, and a\n   prescribed exercise was never asked again at all (E58). A resumed workout drew every strip before its completed sets\n   were back (E56). Now every event that changes a fact D47 reads asks it again, here, for every exercise:\n   - a set done or undone, or a done set's load changed;\n   - an anchor changed: a first working set's type or load, or Bodyweight;\n   - an exercise renamed, removed or swapped;\n   - a resumed workout, once its sets are back.\n   Nothing is stored: not the strip, not D47's answer, not whether it was shortened. A strip that changes is the one thing\n   written. The warm-ups LOOP fills follow it by D130's rule (seedWarmupTargets) only while their exercise has no working\n   set done. Once the athlete is working, a change of plan never rewrites a row, and resuming never does\n   ({ reconcile: false }). A warm-up the athlete set, a working set, a done set and the prescription are never written. */\nfunction suggestedWarmupAnchor(exRow){\n  if(rowWorkingLoad(exRow) !== null) return exRow.dataset.rxLoad;\n  const first = Array.prototype.find.call(exRow.querySelectorAll('.set-row'), r => r.dataset.setType !== SET_TYPES.WARMUP);\n  const w = first ? first.querySelector('.set-weight-in') : null;\n  return w ? w.value : '';\n}\n/* An exercise is under way once a set of its WORK is done; a warm-up done is still preparing (seedWorkingTarget's rule). */\nfunction exerciseWorkBegun(exRow){\n  return Array.prototype.some.call(exRow.querySelectorAll('.set-row'), r => r.classList.contains('completed') && r.dataset.setType !== SET_TYPES.WARMUP);\n}\nfunction refreshSuggestedWarmups(opts){\n  const reconcile = !(opts && opts.reconcile === false);\n  let changed = 0;\n  document.querySelectorAll('#logExercises .ex-log-row').forEach(exRow => {\n    const wrap = exRow.querySelector ? exRow.querySelector('.warmup-wrap') : null;\n    if(!wrap) return;\n    const nameEl = exRow.querySelector('.ex-name-in');\n    const html = warmupBoxHtml(nameEl ? nameEl.value.trim() : '', suggestedWarmupAnchor(exRow));\n    const was = wrap.innerHTML;\n    if(was === html) return;\n    wrap.innerHTML = html;\n    if(wrap.innerHTML === was) return;           // the same strip, written the same way: nothing changed\n    changed++;\n    if(reconcile && !exerciseWorkBegun(exRow)) seedWarmupTargets(exRow);\n  });\n  return changed;\n}\n\n/* ---------- ADVANCED SET TYPES (Phase D5) ----------\n   One shared place that puts a row into a given type: the dataset value, the\n",
+    "}\n\n/* ---------- ADVANCED SET TYPES (Phase D5) ----------\n   One shared place that puts a row into a given type: the dataset value, the\n"
+   ],
+   [
+    "     Drop, Failure, AMRAP) joins the work, so it never keeps a warm-up's numbers */\n  if(was === SET_TYPES.WARMUP && isWorkingSet({ type: typeId })) seedWorkingTarget(row);\n  if((was === SET_TYPES.WARMUP || typeId === SET_TYPES.WARMUP) && row.closest){ refreshSuggestedWarmups(); seedWarmupTargets(row.closest('.ex-log-row')); }   // D131B: the strip first\n  closeSetTypePicker();\n  persistDraftNow();\n",
+    "     Drop, Failure, AMRAP) joins the work, so it never keeps a warm-up's numbers */\n  if(was === SET_TYPES.WARMUP && isWorkingSet({ type: typeId })) seedWorkingTarget(row);\n  if((was === SET_TYPES.WARMUP || typeId === SET_TYPES.WARMUP) && row.closest) seedWarmupTargets(row.closest('.ex-log-row'));\n  closeSetTypePicker();\n  persistDraftNow();\n"
+   ],
+   [
+    "    if(!warmup){ try{ refreshSetCoach(exRow); }catch(e){} }\n  }\n  /* D131B (E58) — a set done or undone is preparation gained or lost: every strip is asked again, after the rest timer\n     and the coach, so neither ever waits on it */\n  refreshSuggestedWarmups();\n  syncWorkoutCompletionState(exRow);\n  persistDraftNow();\n",
+    "    if(!warmup){ try{ refreshSetCoach(exRow); }catch(e){} }\n  }\n  syncWorkoutCompletionState(exRow);\n  persistDraftNow();\n"
+   ],
+   [
+    "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n  /* D131B — Bodyweight has no load to ramp, and the loads it cleared (done ones too) were preparation */\n  refreshSuggestedWarmups();\n}\n\n",
+    "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
+   ]
+];
+const SHA_1050_HTML = '0cfd1d2a08b72aa0';   /* index.html of LOOP 10.50 (0f72dba), LF */
+function asOf1050Html(raw){
+  let t = raw;
+  for(const [now, then] of D131B_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
 }
 
 /* D132 — Product Experience 2.0 is a VISUAL release. Everything it changed in index.html is listed here, so any
@@ -643,6 +777,7 @@ const D1321_CSS = "/* D132.1 — the set number sits in the middle of its bubble
 const D1321_WHATSNEW = "  },\n  {\n    id: 'v10-50',\n    version: 'LOOP 10.50',\n    title: 'Centred Set Numbers',\n    date: '2026-10-07',\n    swVersion: 'loop-v227',\n    summary: 'Set numbers now sit in the middle of their circles.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [\n      'The number in each set circle during a workout now sits in the exact centre'\n    ],\n    changes: []\n";
 const SHA_1049_HTML = 'dbe6186dc332a68b';   /* index.html of LOOP 10.49 (53c52b9), LF */
 function asOf1049Html(raw){
+  raw = asOf1050Html(raw); if(raw === null) return null;   // D131B restated: 10.51 reads back as 10.50 first
   if(raw.split(D1321_CSS).length !== 2 || raw.split(D1321_WHATSNEW).length !== 2) return null;
   return raw.replace(D1321_CSS, () => '').replace(D1321_WHATSNEW, () => '');
 }
@@ -43335,7 +43470,7 @@ async function testExerciseCardD104(){
     T('rename and remove are the SAME field and control as before — only where they wait moved',
       /class="ex-name-in" value="\$\{name \? escapeAttr\(name\) : ''\}" onchange="onExerciseNameEdited\(this\)"/.test(row)
       && /<button class="rm-ex" onclick="removeLogExerciseRow\(this\)" aria-label="Remove exercise">/.test(row)
-      && pin('onExerciseNameEdited') === '044bb110a3fab1e0' && pin('removeLogExerciseRow') === '62f01fc7ef2a6d0c');
+      && pinAsOf1050('onExerciseNameEdited') === '044bb110a3fab1e0' && pinAsOf1050('removeLogExerciseRow') === '62f01fc7ef2a6d0c'); /* D131B restated: it now also asks the Suggested Warm-up again (Contract 251); read at 10.50 */
   });
 
   sub('Edit, by behaviour');
@@ -43400,7 +43535,7 @@ async function testExerciseCardD104(){
     /* D125 restated: the stepper, completion, Add Set and the warm-up toggle changed on purpose (Contract 242); each is
        held at 10.41 with D125_EDITS put back. */
     T('logging: steppers, completion, Bodyweight, add/remove set, set type, set menu',
-      pinAsOf1041('stepValue') === '9ddfa0cf6ccb8b02' && pinAsOf1041('toggleSetComplete') === '46059f0d3306793b' && pin('toggleBW') === '8299f1c082c1e68d'
+      pinAsOf1041('stepValue') === '9ddfa0cf6ccb8b02' && pinAsOf1041('toggleSetComplete') === '46059f0d3306793b' && pinAsOf1050('toggleBW') === '8299f1c082c1e68d' /* D131B restated: it now also asks the Suggested Warm-up again (Contract 251); read at 10.50 */
       /* D130 restated: Remove set re-fills the warm-ups after a removed one (Contract 247); held at 10.46 by D130_EDITS. */
       && pinAsOf1041('addSetRow') === '1b220d04e378d96a' && pinAsOf1046('removeSetRow') === 'd32b19dbde88600b' && pinAsOf1041('toggleSetType') === 'b4fdb34aa3514a5c'
       && pin('toggleSetMore') === '806e551bdbf2c377');
@@ -47137,7 +47272,11 @@ async function testStartupRevealD114(){
      Contract 248). With that statement put back as 10.47 had it, and then D125's, it must still hash to 10.30's pin. */
   const D131A_RESTORE = [" \n  (draft.exercises || []).forEach(ex => {\n    const meta = ex.meta || {};\n    const legacyPlanRow = meta.rxLoad === undefined && !ex.bodyweight && !!(meta.targetReps || ex.effort);\n    const rec = legacyPlanRow ? progressionFor(ex.name, meta.targetReps, meta.recommended) : null;\n    addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, meta);\n  });\n", "(draft.exercises || []).forEach(ex => {\n    const rec = ex.bodyweight ? null : progressionFor(ex.name, ex.meta && ex.meta.targetReps, ex.meta && ex.meta.recommended);\n    addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, ex.meta || {});\n  });\n"];
   T('restoreDraftToSheet carries the one D131A statement, once', fnSrc(raw, 'restoreDraftToSheet').split(D131A_RESTORE[0]).length === 2);
-  const moved = Object.keys(PINS).filter(n => sha(n === 'renderAll' ? fnSrc(raw, n).replace(D118_RENDER_ALL, '') : n === 'restoreDraftToSheet' ? fnSrc(raw, n).split(D131A_RESTORE[0]).join(D131A_RESTORE[1]).split(D125_RESTORE[0]).join(D125_RESTORE[1]) : fnSrc(raw, n)) !== PINS[n]);
+  /* D131B restated by reversal: restoreDraftToSheet gained one statement more (once the workout is whole, every Suggested
+     Warm-up asks D47 again, the strips only, Contract 251). It comes out first, then D131A's and D125's as before. */
+  const D131B_RESTORE = ["      }\n    }\n  });\n   \n  refreshSuggestedWarmups({ reconcile: false });\n\n  if(draft.sho", "      }\n    }\n  });\n\n  if(draft.sho"];
+  T('restoreDraftToSheet carries the one D131B statement, once', fnSrc(raw, 'restoreDraftToSheet').split(D131B_RESTORE[0]).length === 2);
+  const moved = Object.keys(PINS).filter(n => sha(n === 'renderAll' ? fnSrc(raw, n).replace(D118_RENDER_ALL, '') : n === 'restoreDraftToSheet' ? fnSrc(raw, n).split(D131B_RESTORE[0]).join(D131B_RESTORE[1]).split(D131A_RESTORE[0]).join(D131A_RESTORE[1]).split(D125_RESTORE[0]).join(D125_RESTORE[1]) : fnSrc(raw, n)) !== PINS[n]);
   T('all 18 startup-adjacent functions are unchanged: boot, both screens, the D106 tour decision and start, the draft load/restore/banner/flush, the update reload, tabs, Today',
     moved.length === 0, moved);
   T('storage is untouched: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow', (() => {
@@ -51419,7 +51558,7 @@ async function testWorkingSetPlanD125(){
     T('3  the warm-up ALGORITHM is untouched — only its input moved: the 40 / 60 / 80 % ramp and its renderer are 10.41\u2019s', pin('computeWarmupRamp') === 'b826d1445f153d77' && pin('warmupBoxHtml') === '12ed1e93107dbc78');
     T('3  the anchor in the source: the row builder and the swap draw it from rowWorkingLoad, the refresh returns while there is one',
       /const initialWeight = rowWorkingLoad\(row\) !== null \? row\.dataset\.rxLoad : \(firstWorking \? firstWorking\.weight : ''\);/.test(col(fnSrc(raw, 'addLogExerciseRow')))
-      && /if\(rowWorkingLoad\(exRow\) !== null\) return;/.test(col(fnSrc(raw, 'maybeRefreshWarmup'))) && /warmupBoxHtml\(clean, rowWorkingLoad\(target\) !== null \? target\.dataset\.rxLoad : ''\)/.test(col(fnSrc(raw, 'swapLogExercise'))));
+      && /if\(rowWorkingLoad\(exRow\) !== null\) return;/.test(asOf1050('maybeRefreshWarmup') || '')   /* D131B restated: a done load now also refreshes the others first (Contract 251); read at 10.50 */ && /warmupBoxHtml\(clean, rowWorkingLoad\(target\) !== null \? target\.dataset\.rxLoad : ''\)/.test(col(fnSrc(raw, 'swapLogExercise'))));
     tap(c, rowsOf(ex)[0].querySelector('.set-idx'));
     type(c, wIn(rowsOf(ex)[0]), 125);
     const a = read(ex);
@@ -52382,7 +52521,7 @@ async function testWarmupWriteBoundaryD127(){
     T('19  a working set ticked: the coach runs and speaks, and the rest timer runs', read(ex).coach === 'reduce 200 lb' && resting(), JSON.stringify([read(ex).coach, panel.style.display]));
     done(c, rowsOf(ex)[1]);
     T('19  ...after the rest timer has started, as D50B placed it', (b => b.indexOf('startRestPanel') !== -1 && b.indexOf('startRestPanel') < b.indexOf('refreshSetCoach'))(fnSrc(raw, 'toggleSetComplete')));
-    T('29  the completion path and the rest timer are byte-identical (D125’s warm-up guard included)', pin('toggleSetComplete') === 'ed4187ee4b7b5e61' && pinAsOf1041('toggleSetComplete') === '46059f0d3306793b');
+    T('29  the completion path and the rest timer are byte-identical (D125’s warm-up guard included)', pinAsOf1050('toggleSetComplete') === 'ed4187ee4b7b5e61' /* D131B restated: it now also asks the Suggested Warm-up again (Contract 251); read at 10.50 */ && pinAsOf1041('toggleSetComplete') === '46059f0d3306793b');
     L.release();
   });
 
@@ -52606,7 +52745,7 @@ async function testWarmupWriteBoundaryD127(){
       pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('workingSetSequenceOf') === '653c9a9c0b1227af' && pin('programRepSeed') === '7636574536a06e86'
       && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pinAsOf1043('seedWorkingTarget') === '3b78cb0da8752502'
       /* D130 restated: the type toggle and picker and the strip's refresh now also fill the warm-ups LOOP may fill (Contract 247); held at 10.46 by D130_EDITS */
-      && pin('addSetRow') === '095f10f06e006dd3' && pinAsOf1046('toggleSetType') === '4f62b7d1782bc899' && pinAsOf1046('chooseSetType') === 'f81cad3ec750ee4d' && pin('applySetTypeToRow') === '9fab51981238989b'
+      && pinAsOf1050('addSetRow') === '095f10f06e006dd3' && pinAsOf1046('toggleSetType') === '4f62b7d1782bc899' && pinAsOf1046('chooseSetType') === 'f81cad3ec750ee4d' && pin('applySetTypeToRow') === '9fab51981238989b' /* D131B restated: it now also asks the Suggested Warm-up again (Contract 251); read at 10.50 */
       && pin('propagateSetValueForward') === '60f12adf15eda793' && pin('stepValue') === '8e79af408daacf1d' && pin('appendSetRow') === '61f2b7e061afde48' && pin('renumberSets') === '6a65d511509ef489'
       && pinAsOf1046('maybeRefreshWarmup') === '42a4003edd84d57f' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('computeWarmupRamp') === 'b826d1445f153d77'
       && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44'   // D131A restated: read at 10.47
@@ -52984,8 +53123,8 @@ async function testExerciseMasteryArtD128(){
       && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' && pin('progressionRecommendationFor') === '4be672abd167121a' && pin('isPerformanceSet') === 'af02c77cf98e70ef' && pin('isDeloadWorkout') === 'ad99d9e182eb1f22');
     T('57  the logger is untouched: Add Set, the type toggle and picker, the stepper, the draft, the swap, the completion path',
       /* D130 restated: the type toggle and picker and the swap now also fill the warm-ups LOOP may fill (Contract 247); held at 10.46 by D130_EDITS */
-      pin('addSetRow') === '095f10f06e006dd3' && pinAsOf1046('toggleSetType') === '4f62b7d1782bc899' && pinAsOf1046('chooseSetType') === 'f81cad3ec750ee4d' && pin('appendSetRow') === '61f2b7e061afde48' && pin('stepValue') === '8e79af408daacf1d'
-      && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44' && pinAsOf1046('swapLogExercise') === '7206131885de9128' && pin('toggleSetComplete') === 'ed4187ee4b7b5e61');
+      pinAsOf1050('addSetRow') === '095f10f06e006dd3' && pinAsOf1046('toggleSetType') === '4f62b7d1782bc899' && pinAsOf1046('chooseSetType') === 'f81cad3ec750ee4d' && pin('appendSetRow') === '61f2b7e061afde48' && pin('stepValue') === '8e79af408daacf1d'
+      && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44' && pinAsOf1046('swapLogExercise') === '7206131885de9128' && pinAsOf1050('toggleSetComplete') === 'ed4187ee4b7b5e61'); /* D131B restated: it now also asks the Suggested Warm-up again (Contract 251); read at 10.50 */
     T('58  the exercise illustrations themselves, and the picture helpers every surface shares, are byte-identical: the lookup, the sprite, the tile, How To, and the vendored drawings',
       pin('exerciseVisualKey') === 'eeeaad5194ff7779' && pin('exerciseArtSvg') === 'b25e593b5b75b19f' && pin('exerciseArtUse') === 'cd513498f55c104b' && pin('exerciseThumbHtml') === 'fe3dc90ec306b794' && pin('openHowTo') === '35733ce07b9c2bb8'
       && sha(asOf1045Art(raw.slice(raw.indexOf('LOOP-EXERCISE-ART-BEGIN */'), raw.indexOf('/* LOOP-EXERCISE-ART-END */'))) || '') === 'b5256aca5a4fa09b'
@@ -53765,7 +53904,7 @@ async function testWarmupSeedingD130(){
     const panel = ex.querySelector('.rest-panel'), resting = () => panel.style.display === 'flex' && !!panel.dataset.endsAt && !!panel._interval;
     done(c, rowsOf(ex)[3]);
     T('35  ticking a warm-up LOOP filled: the rest timer runs, the coach does not, and nothing moves', resting() && ex.querySelector('.recommend-wrap').innerHTML === '' && read(ex).rows[3] === 'W 80x5+', JSON.stringify(read(ex)));
-    T('35  the completion path and the rest timer are byte-identical', pin('toggleSetComplete') === 'ed4187ee4b7b5e61' && pin('startRestPanel') === '22468c2156bf9eef');
+    T('35  the completion path and the rest timer are byte-identical', pinAsOf1050('toggleSetComplete') === 'ed4187ee4b7b5e61' /* D131B restated: it now also asks the Suggested Warm-up again (Contract 251); read at 10.50 */ && pin('startRestPanel') === '22468c2156bf9eef');
     L.release();
   });
 
@@ -53774,7 +53913,7 @@ async function testWarmupSeedingD130(){
   await guard('pins', async () => {
     T('36  D125: the plan, its reader, BUILD’s rep, the seed, the row helpers, Add Set, the set row, the type writer, renumbering, propagation, the stepper, the start, the strip and the draft are byte-identical',
       pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('workingSetSequenceOf') === '653c9a9c0b1227af' && pin('programRepSeed') === '7636574536a06e86'
-      && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pin('addSetRow') === '095f10f06e006dd3' && pin('appendSetRow') === '61f2b7e061afde48'
+      && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pinAsOf1050('addSetRow') /* D131B restated: read at 10.50 */ === '095f10f06e006dd3' && pin('appendSetRow') === '61f2b7e061afde48'
       && pin('applySetTypeToRow') === '9fab51981238989b' && pin('renumberSets') === '6a65d511509ef489' && pin('propagateSetValueForward') === '60f12adf15eda793' && pin('stepValue') === '8e79af408daacf1d'
       && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('computeWarmupRamp') === 'b826d1445f153d77'
       && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52' && /const WORKING_SET_PLAN = \{\s*window: 5,\s*buildStep: 1\s*\};/.test(stripComments(raw)));
@@ -54307,13 +54446,14 @@ async function testPrescriptionProvenanceD131A(){
     let L = await started(STALL, [BENCH]), c = L.c; rowsOf(L.ex()).forEach((r, i) => perform(c, r, [8, 6, 5][i], 1));
     const cg = freeRow(L, 'Close-Grip Bench Press'); type(c, wIn(rowsOf(cg)[0]), '135'); const before = fact(c, cg); const d = capture(c); L.release();
     const R = await resumeIn(STALL, d); const after = fact(R.c, R.L.byName('Close-Grip Bench Press')); R.L.release();
-    T('34  E56 is still open: the D47-shortened Close-Grip strip (110 × 2) still resumes as the full 55 / 80 / 110',
-      same(before.strip, ['110 lb × 2']) && same(after.strip, ['55 lb × 5', '80 lb × 3', '110 lb × 2']), JSON.stringify([before.strip, after.strip]));
+    /* D131B restated: E56 and E58 were held here; D131B closed both (Contract 251 replays each from 10.50's own functions, 2 and 3) */
+    T('34  E56, held here and closed by D131B: the D47-shortened Close-Grip strip (110 × 2) resumes as 110 × 2',
+      same(before.strip, ['110 lb × 2']) && same(after.strip, ['110 lb × 2']), JSON.stringify([before.strip, after.strip]));
     L = await started(STALL, [BENCH, INC135]); c = L.c; rowsOf(L.ex(0)).forEach((r, i) => perform(c, r, [8, 6, 5][i], 1));
     const inc = fact(c, L.ex(1)); const prep = c.generalPrepSatisfiedBy('Incline Bench Press', c.sessionPreparation()); L.release();
-    T('35  E58 is still open: after Bench Press at 205, the prescribed Incline Bench Press still shows the full 55 / 80 / 110 although D47 says it is prepared', same(inc.strip, ['55 lb × 5', '80 lb × 3', '110 lb × 2']) && !!prep, JSON.stringify([inc.strip, prep]));
+    T('35  E58, held here and closed by D131B: after Bench Press at 205, the prescribed Incline Bench Press shows what D47 says, “already prepared” 110 × 2', same(inc.strip, ['110 lb × 2']) && !!prep, JSON.stringify([inc.strip, prep]));
     T('36  D125: the plan, its reader, the row helpers, Add Set, the type writer, renumbering, propagation, the stepper and the strip are byte-identical; the draft, its restore and the row are 10.47’s with D131A’s statements put back, the start 10.41’s',
-      pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pin('addSetRow') === '095f10f06e006dd3' && pin('appendSetRow') === '61f2b7e061afde48'
+      pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pinAsOf1050('addSetRow') /* D131B restated: read at 10.50 */ === '095f10f06e006dd3' && pin('appendSetRow') === '61f2b7e061afde48'
       && pin('applySetTypeToRow') === '9fab51981238989b' && pin('renumberSets') === '6a65d511509ef489' && pin('propagateSetValueForward') === '60f12adf15eda793' && pin('stepValue') === '8e79af408daacf1d'
       && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('computeWarmupRamp') === 'b826d1445f153d77' && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52'
       && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44' && pinAsOf1047('addLogExerciseRow') === '81931805d69abc1d');
@@ -54327,9 +54467,10 @@ async function testPrescriptionProvenanceD131A(){
       pin('masteryExerciseTarget') === 'e1fabf18c0dcb406' && pin('openMasteryExercise') === 'd5ed0205fd603c1c' && pin('masteryExerciseArtHtml') === '25ac09af9a636bf9'
       && pin('masteryPodiumCardHtml') === '0c85f5f236685801' && pin('masteryRowHtml') === 'e6348d215127bfc4' && pin('renderExDetail') === '752755306eaa5a44' && pin('openExDetail') === '4cd56427ec818d33');
     T('40  D130: the warm-up reader and seeder, their callers, the swap, the split and the way back are byte-identical to 10.47',
-      pin('suggestedWarmupSteps') === '7e37069140f2527b' && pin('seedWarmupTargets') === '9c048567ff49a1f1' && pin('maybeRefreshWarmup') === 'bf55b39f07a6e2e4' && pin('swapLogExercise') === 'a61e31bb220f312e'
-      && pin('splitRowForSwap') === '78ed482b25517739' && pin('undoExerciseSwap') === '3b31d52d98a26ff8' && pin('toggleSetType') === 'f403d2834abd80ac' && pin('chooseSetType') === '2a72d3ade6f83fd9'
-      && pin('removeSetRow') === '7b94b99f9f92bb69' && pin('seedWorkingTarget') === '64ed113f75a5573e' && pin('toggleBW') === '8299f1c082c1e68d');
+      /* D131B restated: the callers now ask the Suggested Warm-up again before they fill from it (Contract 251); read at 10.50 */
+      pin('suggestedWarmupSteps') === '7e37069140f2527b' && pin('seedWarmupTargets') === '9c048567ff49a1f1' && pinAsOf1050('maybeRefreshWarmup') === 'bf55b39f07a6e2e4' && pinAsOf1050('swapLogExercise') === 'a61e31bb220f312e'
+      && pin('splitRowForSwap') === '78ed482b25517739' && pinAsOf1050('undoExerciseSwap') === '3b31d52d98a26ff8' && pinAsOf1050('toggleSetType') === 'f403d2834abd80ac' && pinAsOf1050('chooseSetType') === '2a72d3ade6f83fd9'
+      && pinAsOf1050('removeSetRow') === '7b94b99f9f92bb69' && pin('seedWorkingTarget') === '64ed113f75a5573e' && pinAsOf1050('toggleBW') === '8299f1c082c1e68d');
   });
 
   /* ---------------------------------------------------------------- */
@@ -54450,18 +54591,22 @@ async function testPrescriptionProvenanceD131A(){
     };
     const WORLDS = [['as it was', null], ['D49 forced to 999 / increase', rc => { rc.progressionFor = () => ({ weight: 999, tag: 'increase', headline: '', why: '' }); }],
       ['D49 forced to 45 / reduce', rc => { rc.progressionFor = () => ({ weight: 45, tag: 'reduce', headline: '', why: '' }); }], ['inside a deload', rc => { rc.deloadActiveToday = () => true; }]];
-    let sessions = 0, rowsSeen = 0, idem = 0, stripsOk = 0, e57Rows = 0, misses = [], stripMiss = [], noReplan = 0, manualRows = 0, manualOk = 0, rxRows = 0, rxOk = 0, saveRows = 0, saveOk = 0, execSame = 0, zeroCalls = 0, oldRows = 0, oldOk = 0;
+    let sessions = 0, rowsSeen = 0, idem = 0, stripsOk = 0, e57Rows = 0, e56Rows = 0, misses = [], stripMiss = [], noReplan = 0, manualRows = 0, manualOk = 0, rxRows = 0, rxOk = 0, saveRows = 0, saveOk = 0, execSame = 0, zeroCalls = 0, oldRows = 0, oldOk = 0;
     for(let k = 0; k < 30; k++){
       const L = await build(k), live = facts(L), d1 = capture(L.c); L.release();
       sessions++;
       const world = WORLDS[k % WORLDS.length];
-      const R1 = await resumeIn(LOG, d1, { before: world[1] }); const a1 = facts(R1.L); const d2 = capture(R1.c); if(R1.calls.length === 0) zeroCalls++; R1.L.release();
+      const R1 = await resumeIn(LOG, d1, { before: world[1] }); const a1 = facts(R1.L); const d2 = capture(R1.c); if(R1.calls.length === 0) zeroCalls++;
+      /* D131B restated: what D47 says on the resumed session, each row at its own anchor (Contract 251) */
+      const dv1 = R1.L.exs().map(row => { const div = R1.L.D.el('div'); div.innerHTML = '<div class="warmup-wrap">' + R1.c.warmupBoxHtml(((row.querySelector('.ex-name-in') || {}).value || '').trim(), R1.c.suggestedWarmupAnchor(row)) + '</div>'; return div.querySelectorAll('.warmup-chip').map(x => col(x.textContent)); });
+      R1.L.release();
       const R2 = await resumeIn(LOG, d2, { before: world[1] }); const a2 = facts(R2.L); R2.L.release();
       const R7 = await resumeIn(LOG, d1, { at1047: true, before: world[1] }); const b1 = facts(R7.L); R7.L.release();
       live.forEach((x, i) => { rowsSeen++;
         if(same(core(a1[i]), core(x)) && same(core(a2[i]), core(x))) idem++; else if(misses.length < 3) misses.push([k, x, a1[i]]);
         const replanned = !b1[i] || b1[i].rxLoad !== a1[i].rxLoad; if(replanned) e57Rows++;
-        if(a1[i] && same(a1[i].strip, a2[i].strip) && (replanned || same(a1[i].strip, b1[i].strip))) stripsOk++; else if(stripMiss.length < 3) stripMiss.push([k, world[0], x, a1[i], b1[i]]);
+        const rederived = !replanned && a1[i] && b1[i] && !same(a1[i].strip, b1[i].strip) && same(a1[i].strip, dv1[i]); if(rederived) e56Rows++;
+        if(a1[i] && same(a1[i].strip, a2[i].strip) && (replanned || rederived || same(a1[i].strip, b1[i].strip))) stripsOk++; else if(stripMiss.length < 3) stripMiss.push([k, world[0], x, a1[i], b1[i]]);
         if(a1[i] && a1[i].rxLoad === x.rxLoad && same(a1[i].rx, x.rx)) noReplan++;
         if(x.rxLoad === null){ manualRows++; if(a1[i].rxLoad === null && a2[i].rxLoad === null) manualOk++; } else { rxRows++; if(a1[i].rxLoad === x.rxLoad) rxOk++; } });
       /* save truth and the execution analysis: the same session saved straight, and saved after the resume */
@@ -54476,7 +54621,8 @@ async function testPrescriptionProvenanceD131A(){
     }
     T('P  idempotence: ' + sessions + ' generated workouts (templates, rows added by hand, swaps, splits, undos, overrides, the coach, Bodyweight, warm-ups) captured and resumed twice under four worlds — every row exactly as it was, both times (' + idem + ' of ' + rowsSeen + ')',
       sessions === 30 && rowsSeen > 60 && idem === rowsSeen, JSON.stringify([idem, rowsSeen, misses]));
-    T('P  zero strip drift: every resumed strip is the one 10.47’s resume draws, except on the ' + e57Rows + ' rows whose prescription 10.47 re-planned (E57), and the same after each resume (' + stripsOk + ' of ' + rowsSeen + ')', stripsOk === rowsSeen && e57Rows > 5, JSON.stringify([stripsOk, e57Rows, stripMiss]));
+    /* D131B restated: a resumed strip is now D47's answer on the resumed session (E56 closed), so it may differ from 10.47's resume — and only there */
+    T('P  zero strip drift: every resumed strip is the one 10.47’s resume draws, except on the ' + e57Rows + ' rows whose prescription 10.47 re-planned (E57) and the ' + e56Rows + ' D131B derives from the resumed session (E56), and the same after each resume (' + stripsOk + ' of ' + rowsSeen + ')', stripsOk === rowsSeen && e57Rows > 5, JSON.stringify([stripsOk, e57Rows, e56Rows, stripMiss]));
     T('P  no re-plan: whatever D49 says after the capture (forced high, forced low, a deload), every resumed row has the prescription it had (' + noReplan + ' of ' + rowsSeen + '), and no restore asked progressionFor (' + zeroCalls + ' of ' + sessions + ')',
       noReplan === rowsSeen && zeroCalls === sessions, [noReplan, zeroCalls]);
     T('P  manual origin: every row that had no prescription has none after either resume (' + manualOk + ' of ' + manualRows + ')', manualRows > 15 && manualOk === manualRows, [manualOk, manualRows]);
@@ -54502,6 +54648,338 @@ async function testPrescriptionProvenanceD131A(){
    truth is the browser QA's (qa132.js); this holds the
    rules that produce it.
    ========================================================= */
+async function testLiveWarmupD131B(){
+  section('CONTRACT 251 — the Suggested Warm-up is derived from the workout as it stands, live and after a resume (D131B, E56, E58)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const pin = n => sha(col(fnSrc(raw, n)));
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const NOW = '2026-10-04T12:00:00', TODAY = '2026-10-04';
+  const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r), rir: rir == null ? '' : String(rir), type: type || 'working' });
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const W = (id, date, exs, cat) => ({ id, date, category: cat || 'push', title: 'Push', notes: '', exercises: exs });
+  /* D49 holds Bench Press at 205 (a stall), Incline Bench Press at 135, Dumbbell Bench Press at 60, Back Squat at 225 */
+  const STALL = ['2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29'].map((d, i) => W('h' + i, d, [E('Bench Press', [S(205, 8, 1), S(205, 6, 1), S(205, 5, 0)])]));
+  const DBH = ['2026-09-20', '2026-09-27'].map((d, i) => W('d' + i, d, [E('Dumbbell Bench Press', [S(60, 10, 2), S(60, 9, 1), S(60, 8, 1)])]));
+  const INC_H = ['2026-09-10', '2026-09-24'].map((d, i) => W('i' + i, d, [E('Incline Bench Press', [S(135, 10, 2), S(135, 9, 1), S(135, 8, 1)])]));
+  const SQ_H = ['2026-09-12', '2026-09-26'].map((d, i) => W('q' + i, d, [E('Back Squat', [S(225, 8, 2), S(225, 8, 1), S(225, 7, 1)])], 'legs'));
+  const LOG = STALL.concat(DBH, INC_H, SQ_H);
+  const T_ = { BENCH: { name: 'Bench Press', sets: 3, reps: '8-12', recommended: '185', effort: '8' }, INC: { name: 'Incline Bench Press', sets: 3, reps: '8-12', recommended: '135', effort: '8' },
+    SQUAT: { name: 'Back Squat', sets: 3, reps: '6-8', recommended: '225', effort: '8' }, LAT: { name: 'Lat Pulldown', sets: 3, reps: '10-12', recommended: '120', effort: '8' },
+    OHP0: { name: 'Overhead Press', sets: 3, reps: '6-8', recommended: '', effort: '8' }, PUSHUP: { name: 'Push-Up', sets: 3, reps: '10-15', recommended: 'Bodyweight', effort: '8' } };
+  const OK1050 = D131B_LOGGER.every(n => asOf1050(n) !== null);
+  const boot = async log => {
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log || []),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) });
+    const rel = pinClock(a.ctx, NOW); try{ await H.settle(300); for(let t = 0; t < 60 && a.ctx.workoutLog.length !== (log || []).length; t++) await H.settle(100); } finally { rel(); }
+    return a;
+  };
+  /* the app's own logger on miniDomD125. o.at1050 installs 10.50's functions (D131B_EDITS put back): nothing asks D47 again */
+  const mount = async (log, o) => {
+    o = o || {};
+    const app = await boot(log); const c = app.ctx;
+    const D = miniDomD125(), body = D.el('body');
+    body.innerHTML = '<div id="logOverlay"><div class="sheet-scroll"><div id="logExercises"></div></div></div><div id="coachLive"></div><div id="setTypeOverlay"></div><div id="setTypeBody"></div>';
+    const byId = id => body.querySelector('#' + id), stub = c.document.getElementById.bind(c.document);
+    Object.assign(c.document, { getElementById: id => byId(id) || stub(id), createElement: tag => D.el(tag), querySelectorAll: sel => body.querySelectorAll(sel), querySelector: sel => body.querySelector(sel) });
+    Object.assign(c, { openLogSheet(){ byId('logOverlay').classList.add('open'); }, onWorkoutRowAdded(){}, renderWorkoutStep(){}, confirm(){ return true; } });
+    const keep = {};
+    if(o.at1050 && OK1050) D131B_LOGGER.forEach(n => { keep[n] = c[n]; c[n] = vm.runInContext('(' + asOf1050(n) + ')', c); });
+    const rel = pinClock(c, NOW);
+    return { app, c, body, D, exs: () => body.querySelectorAll('#logExercises .ex-log-row'), ex: i => body.querySelectorAll('#logExercises .ex-log-row')[i || 0],
+      byName: n => body.querySelectorAll('#logExercises .ex-log-row').find(x => (x.querySelector('.ex-name-in') || {}).value === n),
+      release: () => { rel(); Object.keys(keep).forEach(n => { c[n] = keep[n]; }); } };
+  };
+  const started = async (log, exs, o) => { const L = await mount(log, o), c = L.c;
+    const like = c.DEFAULT_PLANS.balanced.templates.push[0].exercises[0];
+    const tpl = { id: 'qa-d131b', name: 'QA Push', exercises: exs.map(x => Object.assign({}, like, x)) };
+    const getT = c.getTemplates; c.getTemplates = cat => cat === 'push' ? (getT(cat) || []).concat([tpl]) : getT(cat);
+    await c.clearActiveDraft(); await c.startTemplateLog('push', 'qa-d131b'); return L; };
+  const freeform = async (log, o) => { const L = await mount(log, o), c = L.c;
+    await c.clearActiveDraft(); await c.openFreeformLog(); c.pickLogCategory('push'); c.document.getElementById('logTitle').value = 'Freeform QA'; return L; };
+  const freeRow = (L, name, n) => { const sets = []; for(let i = 0; i < (n || 3); i++) sets.push({ weight: '', reps: '' });
+    L.c.addLogExerciseRow(name, '', false, sets); return L.exs().slice(-1)[0]; };
+  const rowsOf = ex => ex.querySelectorAll('.set-row');
+  const wIn = r => r.querySelector('.set-weight-in'), repsIn = r => r.querySelector('.set-reps-in');
+  const own = r => (wIn(r).dataset.userSet ? 'w' : '') + (repsIn(r).dataset.userSet ? 'r' : '');
+  const idOf = r => r.dataset.setType === 'warmup' ? 'W' : 'S' + col(r.querySelector('.set-idx').textContent).replace(/^Set\s*/, '');
+  const call = (c, el, attr) => vm.runInContext('(function(){ ' + el.getAttribute(attr) + ' })', c).call(el);
+  const type = (c, input, v) => { input.value = String(v); call(c, input, 'oninput'); };
+  const tap = (c, el) => call(c, el, 'onclick');
+  const done = (c, row) => tap(c, row.querySelector('.set-complete-btn'));
+  const perform = (c, row, reps, rir) => { if(reps != null) type(c, repsIn(row), reps); if(rir != null) tap(c, row.querySelectorAll('.rir-opt')[rir]); done(c, row); };
+  const label = (c, row) => tap(c, row.querySelector('.set-idx'));
+  const addSet = (c, ex) => tap(c, ex.querySelector('.add-set-btn'));
+  const toBodyweight = (c, ex) => { const bw = ex.querySelector('.ex-bw-in'); bw.checked = true; vm.runInContext('(function(){ ' + bw.getAttribute('onchange') + ' })', c).call(bw); };
+  const twoWarmups = (c, ex) => { addSet(c, ex); addSet(c, ex); const rs = rowsOf(ex); label(c, rs[rs.length - 2]); label(c, rs[rs.length - 1]); };
+  const benchDone = (c, L, n) => rowsOf(L.ex(0)).slice(0, n == null ? 3 : n).forEach((r, i) => perform(c, r, [8, 6, 5][i], 1));
+  const cg135 = (c, L) => { const cg = freeRow(L, 'Close-Grip Bench Press'); type(c, wIn(rowsOf(cg)[0]), '135'); return cg; };
+  /* one exercise as the athlete sees it: the strip (label, chips, note), the rows, the prescription */
+  const strip = ex => ({ label: col((ex.querySelector('.warmup-wrap .warmup-label') || {}).textContent || ''),
+    chips: ex.querySelectorAll('.warmup-wrap .warmup-chip').map(x => col(x.textContent)), note: col((ex.querySelector('.warmup-wrap .warmup-note') || {}).textContent || '') });
+  const rowsTxt = ex => rowsOf(ex).map(r => idOf(r) + ' ' + wIn(r).value + 'x' + repsIn(r).value + (r.classList.contains('completed') ? '+' : '') + (own(r) ? '/' + own(r) : ''));
+  const fact = ex => ({ name: (ex.querySelector('.ex-name-in') || {}).value, rxLoad: ex.dataset.rxLoad == null ? null : ex.dataset.rxLoad, strip: strip(ex), rows: rowsTxt(ex) });
+  const facts = L => L.exs().map(fact);
+  const SHORT = st => /already prepared/.test(st.label);
+  /* D47 asked now, with every exercise in view, at each exercise's own anchor (its prescription, else its first working set) */
+  const derived = L => L.exs().map(row => { const nm = ((row.querySelector('.ex-name-in') || {}).value || '').trim();
+    const div = L.D.el('div'); div.innerHTML = '<div class="warmup-wrap">' + L.c.warmupBoxHtml(nm, L.c.suggestedWarmupAnchor ? L.c.suggestedWarmupAnchor(row) : '') + '</div>';
+    return { label: col((div.querySelector('.warmup-label') || {}).textContent || ''), chips: div.querySelectorAll('.warmup-chip').map(x => col(x.textContent)), note: col((div.querySelector('.warmup-note') || {}).textContent || '') }; });
+  const allDerived = L => same(L.exs().map(strip), derived(L));
+  const capture = c => JSON.parse(JSON.stringify(c.captureActiveDraft()));
+  const resumeIn = async (log, draft, o) => {
+    o = o || {}; const L = await mount(log, o), c = L.c; if(o.before) o.before(c);
+    const calls = []; const pf = c.progressionFor;
+    c.progressionFor = function(n){ calls.push(n); return pf.apply(this, arguments); };
+    try{ c.restoreDraftToSheet(JSON.parse(JSON.stringify(draft))); } finally { c.progressionFor = pf; }
+    return { L, c, calls };
+  };
+  const roundTrip = async (L, log) => { const d = capture(L.c); const before = facts(L); L.release(); const R = await resumeIn(log || LOG, d); return { before, after: facts(R.L), R, d }; };
+  const keys = (o, p, out) => { out = out || new Set(); if(o && typeof o === 'object') Object.keys(o).forEach(k => { const q = (p ? p + '.' : '') + (Array.isArray(o) ? '[]' : k); out.add(q); keys(o[k], q, out); }); return out; };
+  const P1050 = { maybeRefreshWarmup: 'bf55b39f07a6e2e4', toggleSetType: 'f403d2834abd80ac', chooseSetType: '2a72d3ade6f83fd9', removeSetRow: '7b94b99f9f92bb69', addSetRow: '095f10f06e006dd3',
+    toggleSetComplete: 'ed4187ee4b7b5e61', removeLogExerciseRow: '62f01fc7ef2a6d0c', toggleBW: '8299f1c082c1e68d', onExerciseNameEdited: '044bb110a3fab1e0', swapLogExercise: 'a61e31bb220f312e',
+    undoExerciseSwap: '3b31d52d98a26ff8', restoreDraftToSheet: '33f0e4de3ce21e63' };
+
+  /* ---------------------------------------------------------------- */
+  sub('1–5  E56 and E58 on 10.50’s own functions (compiled back from D131B_EDITS), and closed');
+  await guard('e56e58', async () => {
+    T('1  10.50 compiles back: the twelve functions D131B changed are put back byte for byte (their 10.50 pins), and the three it added had no 10.50 form',
+      OK1050 && D131B_LOGGER.length === 12 && D131B_LOGGER.every(n => pinAsOf1050(n) === P1050[n]) && ['suggestedWarmupAnchor', 'exerciseWorkBegun', 'refreshSuggestedWarmups'].every(n => D131B_EDITS[n] && D131B_EDITS[n][0][1] === ''),
+      D131B_LOGGER.filter(n => pinAsOf1050(n) !== P1050[n]));
+    let L = await started(LOG, [T_.BENCH], { at1050: true }), c = L.c; benchDone(c, L); let cg = cg135(c, L); const a0 = fact(cg); let d = capture(c); L.release();
+    let R = await resumeIn(LOG, d, { at1050: true }); const a1 = fact(R.L.byName('Close-Grip Bench Press')); R.L.release();
+    T('10.50 replay — 2  E56 on 10.50: Close-Grip after the Bench work shows “Warm-up · already prepared” 110 × 2 live, and the full 55 / 80 / 110 after a resume',
+      SHORT(a0.strip) && same(a0.strip.chips, ['110 lb × 2']) && !SHORT(a1.strip) && same(a1.strip.chips, ['55 lb × 5', '80 lb × 3', '110 lb × 2']), JSON.stringify([a0.strip, a1.strip]));
+    L = await started(LOG, [T_.BENCH, T_.INC], { at1050: true }); c = L.c; benchDone(c, L); const i0 = fact(L.ex(1)), di = derived(L)[1]; L.release();
+    T('10.50 replay — 3  E58 on 10.50: the prescribed Incline (135) keeps the full ramp after the Bench work, while D47 asked now says “already prepared” 110 × 2',
+      !SHORT(i0.strip) && same(i0.strip.chips, ['55 lb × 5', '80 lb × 3', '110 lb × 2']) && SHORT(di) && same(di.chips, ['110 lb × 2']), JSON.stringify([i0.strip, di]));
+    L = await started(LOG, [T_.BENCH]); c = L.c; benchDone(c, L); cg = cg135(c, L); const n0 = fact(cg); d = capture(c); L.release();
+    R = await resumeIn(LOG, d); const n1 = fact(R.L.byName('Close-Grip Bench Press')); const calls = R.calls.slice(); R.L.release();
+    T('4  E56 closed: resumed, the same Close-Grip shows “Warm-up · already prepared” 110 × 2 with its note; its rows, owners and rxLoad are exactly as captured, and progressionFor was asked nothing',
+      SHORT(n1.strip) && same(n1.strip, n0.strip) && /worked up to 205 lb on Bench Press/.test(n1.strip.note) && same(n1.rows, n0.rows) && n1.rxLoad === n0.rxLoad && calls.length === 0, JSON.stringify([n0, n1, calls]));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; const full0 = fact(L.ex(1)); perform(c, rowsOf(L.ex(0))[0], 8, 1); const one = fact(L.ex(1)); L.release();
+    T('5  E58 closed: the prescribed Incline shortens to “already prepared” 110 × 2 at the tap that completes Bench Set 1 — no swap, no reload, no type change',
+      !SHORT(full0.strip) && SHORT(one.strip) && same(one.strip.chips, ['110 lb × 2']) && one.rxLoad === '135', JSON.stringify([full0.strip, one.strip]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('6–9  nothing is remembered: the answer is derived');
+  await guard('nopersist', async () => {
+    const make = async o => { const L = await started(LOG, [T_.BENCH, T_.INC], o), c = L.c; benchDone(c, L); twoWarmups(c, L.ex(1)); cg135(c, L); const d = capture(c); L.release(); return d; };
+    const dNow = await make(), dThen = await make({ at1050: true });
+    const txt = JSON.stringify(dNow);
+    T('6  no strip in the draft: its keys, at every level, are exactly 10.50’s for the same session, and it holds no chip, label or note of a Suggested Warm-up',
+      same([...keys(dNow)].sort(), [...keys(dThen)].sort()) && !/already prepared|Suggested warm-up|warmup-|lb × \d/.test(txt), [...keys(dNow)].filter(k => !keys(dThen).has(k)));
+    T('7  no “already prepared” flag: each exercise’s meta carries only what 10.50’s did (D131A’s rxLoad the newest), and no exercise or set field mentions a warm-up plan',
+      dNow.exercises.every(e => same(Object.keys(e.meta).sort(), ['recommended', 'rxLoad', 'rxPlan', 'slotKey', 'slotName', 'slotRecommended', 'targetReps', 'targetSets'].filter(k => k in e.meta).sort()) && !Object.keys(e).some(k => /warm|prep|strip|ramp/i.test(k))));
+    const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw);
+    const dk50 = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(asOf1050Html(raw) || '');
+    T('8  no new store and no new schema: 16 DATA_KEYS (the same sixteen), data schema 1', !!dk && !!dk50 && dk[1].split(',').map(s => s.trim()).filter(Boolean).length === 16 &&
+      sha(dk[1]) === sha(dk50[1]) && /const DATA_SCHEMA_VERSION = 1;/.test(raw), dk && dk[1]);
+    T('9  D47 is 10.50’s to the byte: the ramp, the strip, the session’s preparation, the pattern rule, the target, the lift list and patterns, and D130’s read-back and filler',
+      pin('computeWarmupRamp') === 'b826d1445f153d77' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('sessionPreparation') === '1032e4ca719ea32a' && pin('generalPrepSatisfiedBy') === '2e4033d67cf45b3e' &&
+      pin('effectiveWorkingLoad') === 'c0d91327f6ac9f76' && pin('movementPatternOf') === '8fc481e3ff974992' && pin('isWarmupLift') === 'd7fe97228126a49e' && pin('suggestedWarmupSteps') === '7e37069140f2527b' && pin('seedWarmupTargets') === '9c048567ff49a1f1' &&
+      sha(raw.slice(raw.indexOf('const WARMUP_LIFTS ='), raw.indexOf(';', raw.indexOf('const WARMUP_LIFTS =')) + 1)) === 'a84439622bca6e65' &&
+      sha(raw.slice(raw.indexOf('const MOVEMENT_PATTERNS = {'), raw.indexOf('};', raw.indexOf('const MOVEMENT_PATTERNS = {')) + 2)) === 'cbb789e7d0c3c907');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('10–21  controls, and the live classes D47 decides');
+  await guard('classes', async () => {
+    const both = async (exs, act, log) => { const out = [];
+      for(const o of [{}, { at1050: true }]){ const L = await (exs ? started(log || LOG, exs, o) : freeform(log || LOG, o)); await act(L, L.c); const live = facts(L); const d = capture(L.c); L.release();
+        const R = await resumeIn(log || LOG, d, o); out.push({ live, resumed: facts(R.L) }); R.L.release(); }
+      return { now: out[0], then: out[1] }; };
+    let r = await both([T_.BENCH], (L, c) => { cg135(c, L); });
+    T('10  full-plan control: Close-Grip at 135 with nothing done shows the full 55 / 80 / 110, live and resumed, exactly as 10.50', !SHORT(r.now.live[1].strip) && same(r.now.live[1].strip.chips, ['55 lb × 5', '80 lb × 3', '110 lb × 2']) && same(r.now, r.then), JSON.stringify(r.now.live[1]));
+    r = await both([T_.LAT], (L, c) => { perform(c, rowsOf(L.ex(0))[0], 10, 2); });
+    T('11  no-plan control: Lat Pulldown has no Suggested Warm-up, live and resumed, exactly as 10.50', r.now.live[0].strip.chips.length === 0 && same(r.now, r.then));
+    r = await both([T_.OHP0], () => {});
+    T('12  prose control: Overhead Press with no load keeps its words (Empty bar × 10 / ~50% × 5 / ~75% × 3), live and resumed, exactly as 10.50', same(r.now.live[0].strip.chips, ['Empty bar × 10', '~50% × 5', '~75% × 3']) && same(r.now, r.then), JSON.stringify(r.now.live[0]));
+    r = await both([T_.PUSHUP], (L, c) => { perform(c, rowsOf(L.ex(0))[0], 12, 2); });
+    let L = await started(LOG, [T_.BENCH]), c = L.c; const cg = cg135(c, L); const bw0 = strip(cg); toBodyweight(c, cg); const bw1 = strip(cg); const dbw = derived(L)[1]; L.release();
+    T('13  bodyweight: Push-Up has no strip (exactly as 10.50), and a Close-Grip switched to Bodyweight loses the ramp of the load it no longer has — the strip a resume always gave it',
+      r.now.live[0].strip.chips.length === 0 && same(r.now, r.then) && bw0.chips.length === 3 && bw1.chips.length === 0 && same(bw1, dbw), JSON.stringify([bw0, bw1]));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; benchDone(c, L, 1); const part = strip(L.ex(1)); L.release();
+    T('14  partial preparation: one Bench set done at 205 already prepares Incline (D47 counts the heaviest set done, whatever the number)', SHORT(part) && same(part.chips, ['110 lb × 2']), JSON.stringify(part));
+    /* a Back Squat prescribed BELOW the Bench work (135), so only the pattern can keep it full */
+    const SQ_LOW = ['2026-09-12', '2026-09-26'].map((d, i) => W('ql' + i, d, [E('Back Squat', [S(135, 6, 1), S(135, 6, 1), S(135, 6, 1)])], 'legs'));
+    const LOWLOG = STALL.concat(DBH, INC_H, SQ_LOW);
+    L = await started(LOWLOG, [T_.BENCH, Object.assign({}, T_.SQUAT, { recommended: '135' })]); c = L.c; const sqHtml = L.ex(1).querySelector('.warmup-wrap').innerHTML; benchDone(c, L); const sqAfter = L.ex(1).querySelector('.warmup-wrap').innerHTML; const sq = strip(L.ex(1)); const sqRx = L.ex(1).dataset.rxLoad; L.release();
+    T('15  unrelated pattern: Bench done at 205 leaves a Back Squat prescribed below it (135) unchanged — the full 55 / 80 / 110 — because a press does not prepare a squat', sqRx === '135' && sqHtml === sqAfter && same(sq.chips, ['55 lb × 5', '80 lb × 3', '110 lb × 2']), JSON.stringify([sqRx, sq]));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; rowsOf(L.ex(0)).forEach(rw => { type(c, wIn(rw), '115'); perform(c, rw, 8, 2); }); const light = strip(L.ex(1)); L.release();
+    T('16  not enough load: Bench done at 115 does not prepare Incline at 135 (full ramp)', !SHORT(light) && light.chips.length === 3, JSON.stringify(light));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; benchDone(c, L); const u0 = strip(L.ex(1)); done(c, rowsOf(L.ex(0))[2]); const u1 = strip(L.ex(1));
+    done(c, rowsOf(L.ex(0))[0]); done(c, rowsOf(L.ex(0))[1]); const u2 = strip(L.ex(1)); L.release();
+    T('17  untick: one Bench set undone leaves Incline prepared (205 is still done); all undone gives the full ramp back', SHORT(u0) && SHORT(u1) && !SHORT(u2) && same(u2.chips, ['55 lb × 5', '80 lb × 3', '110 lb × 2']), JSON.stringify([u0, u1, u2]));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; benchDone(c, L); rowsOf(L.ex(0)).forEach(rw => type(c, wIn(rw), '115')); const e1 = strip(L.ex(1));
+    rowsOf(L.ex(0)).forEach(rw => type(c, wIn(rw), '205')); const e2 = strip(L.ex(1)); L.release();
+    T('18  a done load edited: Bench’s done sets edited to 115 give Incline its full ramp, and back to 205 shorten it again', !SHORT(e1) && SHORT(e2), JSON.stringify([e1, e2]));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; const cgm = cg135(c, L); benchDone(c, L); const m1 = strip(L.ex(1)), m2 = strip(cgm); L.release();
+    T('19  three exercises of one pattern: after the Bench work both Incline (prescribed) and Close-Grip (added by hand) are prepared, each from its own anchor', SHORT(m1) && SHORT(m2) && same(m1.chips, ['110 lb × 2']) && same(m2.chips, ['110 lb × 2']), JSON.stringify([m1, m2]));
+    L = await started(LOG, [T_.BENCH]); c = L.c; const cgs = cg135(c, L); perform(c, rowsOf(cgs)[0], 8, 2); const selfS = strip(cgs);
+    benchDone(c, L); const st0 = strip(cgs); const r0 = rowsOf(cgs)[1]; type(c, wIn(r0), '225'); perform(c, r0, 5, 1); const st1 = strip(cgs), bst = strip(L.ex(0)); L.release();
+    T('20  an exercise’s own work is never its own preparation (D47’s different-exercise rule): Close-Grip done alone stays full; with Bench at 205 done it is prepared; once its own 225 is the session’s heaviest press, the evidence is its own and it is not',
+      !SHORT(selfS) && SHORT(st0) && !SHORT(st1) && SHORT(bst) && /225 lb on Close-Grip Bench Press/.test(bst.note), JSON.stringify([selfS, st0, st1, bst]));
+    L = await freeform(LOG); c = L.c; const cgf = cg135(c, L); const fb = freeRow(L, 'Bench Press'); type(c, wIn(rowsOf(fb)[0]), '205'); rowsOf(fb).forEach((rw, i) => perform(c, rw, [8, 6, 5][i], 1));
+    const ff = strip(cgf); const rx = [cgf.dataset.rxLoad, fb.dataset.rxLoad]; L.release();
+    T('21  freeform: Close-Grip planned before a freeform Bench at 205 is done shortens live, and neither row is given a prescription', SHORT(ff) && same(ff.chips, ['110 lb × 2']) && rx[0] === undefined && rx[1] === undefined, JSON.stringify([ff, rx]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('22–26  the prescription, the coach and swaps');
+  await guard('rx', async () => {
+    let L = await started(LOG, [T_.BENCH, T_.INC]), c = L.c; benchDone(c, L); perform(c, rowsOf(L.ex(1))[0], 6, 0); const f = fact(L.ex(1)); L.release();
+    T('22  D50B: with Incline under way at 6 reps RIR 0 the coach lowers its sets still to do (130), and the Suggested Warm-up stays on the prescription (135 → 110 × 2)',
+      f.rxLoad === '135' && SHORT(f.strip) && same(f.strip.chips, ['110 lb × 2']) && f.rows[1].indexOf('130x') !== -1, JSON.stringify(f));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; const d = capture(c); L.release();
+    const later = LOG.concat(['2026-10-01', '2026-10-02', '2026-10-03'].map((day, i) => W('z' + i, day, [E('Incline Bench Press', [S(185, 8, 1), S(185, 8, 1), S(185, 8, 1)])])));
+    const R = await resumeIn(later, d); benchDone(R.c, R.L); const rf = fact(R.L.ex(1)); const calls = R.calls.slice(); R.L.release();
+    T('23  the prescription is the draft’s (D131A): with Incline history at 185 by the time of the resume, it is still prescribed 135 and its strip leads to 135 (110 × 2 prepared), and the restore asked progressionFor nothing',
+      rf.rxLoad === '135' && same(rf.strip.chips, ['110 lb × 2']) && calls.length === 0, JSON.stringify([rf, calls]));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; c.swapLogExercise(L.ex(1), 'Dumbbell Bench Press'); const sw0 = fact(L.ex(1)); benchDone(c, L); const sw1 = fact(L.ex(1)); L.release();
+    T('24  a swap before the preparation: Dumbbell Bench Press (its own 60) shows its full 25 / 35 / 50, then shortens to its own 50 × 2 when Bench is done — never Incline’s steps',
+      sw0.rxLoad === '60' && same(sw0.strip.chips, ['25 lb × 5', '35 lb × 3', '50 lb × 2']) && SHORT(sw1.strip) && same(sw1.strip.chips, ['50 lb × 2']), JSON.stringify([sw0, sw1]));
+    const split = async o => { const L2 = await started(LOG, [T_.BENCH], o), c2 = L2.c; benchDone(c2, L2, 1); c2.swapLogExercise(L2.ex(0), 'Dumbbell Bench Press');
+      const out = L2.exs().map(ex => ({ name: ex.querySelector('.ex-name-in').value, ds: ['targetSets', 'targetReps', 'slotName', 'recommended', 'slotRecommended'].map(k => ex.dataset[k] == null ? null : ex.dataset[k]), rows: rowsTxt(ex), strip: strip(ex) }));
+      const d2 = capture(c2); L2.release(); const R2 = await resumeIn(LOG, d2, o); const back = R2.L.exs().map(strip); R2.L.release(); return { out, back }; };
+    const sNow = await split(), sThen = await split({ at1050: true });
+    T('25  a swap part-way: Dumbbell Bench Press split off after one Bench set is prepared live and resumed (50 × 2), and the split itself — sets, slot, rows — is exactly 10.50’s',
+      SHORT(sNow.out[1].strip) && same(sNow.back, sNow.out.map(x => x.strip)) && same(sNow.out.map(x => [x.name, x.ds, x.rows]), sThen.out.map(x => [x.name, x.ds, x.rows])), JSON.stringify([sNow.out, sThen.out]));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; benchDone(c, L); c.swapLogExercise(L.ex(1), 'Dumbbell Bench Press'); c.undoExerciseSwap(L.ex(1)); const u = fact(L.ex(1)); const du = capture(c); L.release();
+    const RU = await resumeIn(LOG, du); const uu = fact(RU.L.ex(1)); RU.L.release();
+    T('26  back to the plan after the work (Incline → DB → Incline): prepared live and resumed, at the prescription it had (135)', SHORT(u.strip) && same(uu, u) && u.rxLoad === '135', JSON.stringify([u, uu]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('27–34  the rows: D130’s rules, the boundary of work begun, and resume');
+  await guard('rows', async () => {
+    let L = await started(LOG, [T_.BENCH, T_.INC]), c = L.c; twoWarmups(c, L.ex(1)); const w0 = rowsTxt(L.ex(1)); benchDone(c, L); const w1 = rowsTxt(L.ex(1));
+    rowsOf(L.ex(0)).forEach(rw => done(c, rw)); const w2 = rowsTxt(L.ex(1)); L.release();
+    T('27  before its work begins, the warm-ups LOOP fills follow the strip: 55 × 5 / 80 × 3 → (Bench done) 110 × 2 / 110 × 2 → (Bench undone) 55 × 5 / 80 × 3; its working sets untouched',
+      same(w0.slice(3), ['W 55x5', 'W 80x3']) && same(w1.slice(3), ['W 110x2', 'W 110x2']) && same(w2.slice(3), ['W 55x5', 'W 80x3']) && same(w0.slice(0, 3), w1.slice(0, 3)) && same(w1.slice(0, 3), w2.slice(0, 3)), JSON.stringify([w0, w1, w2]));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; twoWarmups(c, L.ex(1)); type(c, wIn(rowsOf(L.ex(1))[4]), '125'); benchDone(c, L); const o1 = rowsTxt(L.ex(1));
+    rowsOf(L.ex(0)).forEach(rw => done(c, rw)); const o2 = rowsTxt(L.ex(1)); benchDone(c, L); const dOwn = capture(c); L.release();
+    const RO = await resumeIn(LOG, dOwn); const o3 = rowsTxt(RO.L.ex(1)); RO.L.release();
+    T('28  a warm-up the athlete set is theirs: 125 × 3 typed stays 125 × 3 through the Bench work, its undoing and a resume, while the LOOP warm-up beside it follows the strip',
+      o1[4] === 'W 125x3/w' && o2[4] === 'W 125x3/w' && o3[4] === 'W 125x3/w' && o1[3] === 'W 110x2' && o2[3] === 'W 55x5', JSON.stringify([o1, o2, o3]));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; twoWarmups(c, L.ex(1)); perform(c, rowsOf(L.ex(1))[0], 10, 2); const b0 = rowsTxt(L.ex(1)); benchDone(c, L); const b1 = rowsTxt(L.ex(1)), bs = strip(L.ex(1));
+    T('29  once its work has begun, a change of plan writes no row: Incline Set 1 done, then the Bench work — its strip says prepared, every row is exactly as it was', SHORT(bs) && same(b0, b1), JSON.stringify([b0, b1]));
+    addSet(c, L.ex(1)); const rs = rowsOf(L.ex(1)); label(c, rs[rs.length - 1]); const b2 = rowsTxt(L.ex(1)); L.release();
+    T('30  an explicit D130 action after that reads the strip as it is now: Add Set → Warm-up puts every warm-up LOOP fills on 110 × 2', same(b2.slice(3), ['W 110x2', 'W 110x2', 'W 110x2']) && same(b2.slice(0, 3), b1.slice(0, 3)), JSON.stringify(b2));
+    /* working sets: across 27–30 no working value moved except where the athlete or the coach moved it */
+    T('31  a refresh never writes a working set: in 27–29 every working row is identical before and after the preparation changed', same(w0.slice(0, 3), w2.slice(0, 3)) && same(b0.slice(0, 3), b1.slice(0, 3)));
+    /* a draft written by 10.50 while its strip was stale: LOOP warm-ups on the full ramp, D47 now prepared */
+    L = await started(LOG, [T_.BENCH, T_.INC], { at1050: true }); c = L.c; twoWarmups(c, L.ex(1)); benchDone(c, L); const stale = rowsTxt(L.ex(1)); const d50 = capture(c); L.release();
+    const RS = await resumeIn(LOG, d50); const rsRows = rowsTxt(RS.L.ex(1)), rsStrip = strip(RS.L.ex(1));
+    T('32  a resume fills no row: a 10.50 draft whose LOOP warm-ups sit on the stale full ramp (55 × 5 / 80 × 3) resumes with exactly those rows, under the strip D47 gives now (110 × 2 prepared)',
+      same(stale.slice(3), ['W 55x5', 'W 80x3']) && same(rsRows, stale) && SHORT(rsStrip) && same(rsStrip.chips, ['110 lb × 2']), JSON.stringify([stale, rsRows, rsStrip]));
+    addSet(RS.c, RS.L.ex(1)); const rr = rowsOf(RS.L.ex(1)); label(RS.c, rr[rr.length - 1]); const after = rowsTxt(RS.L.ex(1)); RS.L.release();
+    T('33  and the next explicit D130 action uses the current strip: Add Set → Warm-up after that resume puts LOOP’s warm-ups on 110 × 2', same(after.slice(3), ['W 110x2', 'W 110x2', 'W 110x2']), JSON.stringify(after));
+    L = await started(LOG, [T_.BENCH, T_.INC]); c = L.c; const inc = L.ex(1); [0, 1, 2].forEach(() => addSet(c, inc)); const all = rowsOf(inc); [3, 5].forEach(i => label(c, all[i])); label(c, all[0]);
+    const ord = rowsTxt(inc); benchDone(c, L); const ordS = rowsTxt(inc); L.release();
+    T('34  D130’s order: warm-ups are numbered among themselves, working sets between them ignored — 55 × 5 / 80 × 3 / 110 × 2 by place on the full ramp, and every one on the last step once it is shortened',
+      same(ord.filter(x => x[0] === 'W'), ['W 55x5', 'W 80x3', 'W 110x2']) && same(ordS.filter(x => x[0] === 'W'), ['W 110x2', 'W 110x2', 'W 110x2']), JSON.stringify([ord, ordS]));
+    /* an explicit action that moves the anchor itself: a freeform Close-Grip under way (Set 4 done at 185), Set 1 (135) tapped to Warm-up —
+       the first working set is now Set 2 (185), and the warm-up LOOP fills takes the step of THAT strip, not the one before the tap */
+    L = await freeform(LOG); c = L.c; const fc = freeRow(L, 'Close-Grip Bench Press', 4); type(c, wIn(rowsOf(fc)[0]), '135'); type(c, wIn(rowsOf(fc)[1]), '185');
+    perform(c, rowsOf(fc)[3], 8, 2); addSet(c, fc); label(c, rowsOf(fc).slice(-1)[0]); const ex0 = rowsTxt(fc).slice(-1)[0], s0 = strip(fc);
+    label(c, rowsOf(fc)[0]); const ex1 = rowsTxt(fc), s1 = strip(fc); L.release();
+    T('51  an explicit warm-up action that moves the anchor fills from the strip it leaves behind: under way, Set 1 (135) tapped to Warm-up makes 185 the anchor (75 / 110 / 150), and LOOP’s warm-up in second place takes 110 × 3, not the 80 × 3 of the strip before the tap',
+      ex0 === 'W 55x5' && same(s0.chips, ['55 lb × 5', '80 lb × 3', '110 lb × 2']) && same(s1.chips, ['75 lb × 5', '110 lb × 3', '150 lb × 2']) && ex1[ex1.length - 1] === 'W 110x3' && ex1[0].indexOf('W 135x') === 0, JSON.stringify([ex0, s0, ex1, s1]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('35–41  properties over fact-identical pairs and generated workouts');
+  await guard('props', async () => {
+    const pair = async (a, b) => { const out = [];
+      for(const o of [{}, { at1050: true }]){ const A = await started(LOG, a.exs, o); await a.act(A, A.c); const sa = A.exs().map(strip); A.release();
+        const B = await started(LOG, b.exs, o); await b.act(B, B.c); const sb = B.exs().map(strip); B.release(); out.push(same(sa, sb)); }
+      return out; };
+    const p1 = await pair({ exs: [T_.BENCH], act: (L, c) => { benchDone(c, L); cg135(c, L); } }, { exs: [T_.BENCH], act: (L, c) => { cg135(c, L); benchDone(c, L); } });
+    const p2 = await pair({ exs: [T_.BENCH, T_.INC], act: (L, c) => { benchDone(c, L); c.swapLogExercise(L.ex(1), 'Dumbbell Bench Press'); c.undoExerciseSwap(L.ex(1)); } }, { exs: [T_.BENCH, T_.INC], act: (L, c) => { benchDone(c, L); } });
+    T('35  the same facts give the same strip: Close-Grip typed after vs before the Bench work, and Incline swapped away and back vs never swapped, now read alike (on 10.50 neither pair did)',
+      p1[0] && p2[0] && !p1[1] && !p2[1], JSON.stringify([p1, p2]));
+    /* generated workouts: a seeded walk of the events a session has, D47 asked after every one */
+    let seed = 131; const rnd = n => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+    let steps = 0, stale = 0, rt = 0, rtBad = [], idem = 0;
+    for(let g = 0; g < 14; g++){
+      const L = await started(LOG, [T_.BENCH, T_.INC, T_.SQUAT]), c = L.c; if(g % 2) cg135(c, L);
+      for(let k = 0; k < 9; k++){
+        const exs = L.exs(), ex = exs[rnd(exs.length)], rows = rowsOf(ex), r = rows[rnd(rows.length)], ev = rnd(7);
+        if(ev === 0 || ev === 1) done(c, r);
+        else if(ev === 2) type(c, wIn(r), String([95, 135, 185, 205, 225][rnd(5)]));
+        else if(ev === 3){ addSet(c, ex); label(c, rowsOf(ex).slice(-1)[0]); }
+        else if(ev === 4) label(c, r);
+        else if(ev === 5 && rows.length > 1) tap(c, r.querySelector('.rm-set'));
+        else if(ev === 6 && ex === exs[1] && !c.completedSetRows(ex).length) c.swapLogExercise(ex, rnd(2) ? 'Dumbbell Bench Press' : 'Incline Bench Press');
+        steps++; if(!allDerived(L)) stale++;
+      }
+      if(c.refreshSuggestedWarmups() === 0) idem++;
+      const live = facts(L), d = capture(c); L.release();
+      const R1 = await resumeIn(LOG, d), r1 = facts(R1.L), d2 = capture(R1.c); R1.L.release();
+      const R2 = await resumeIn(LOG, d2), r2 = facts(R2.L); R2.L.release();
+      if(same(live, r1) && same(r1, r2) && R1.calls.length === 0) rt++; else rtBad.push(g);
+    }
+    T('36  live = resumed: in 14 generated workouts (9 events each: done, undone, loads, warm-ups, types, removals, swaps), the strip, rows, owners and prescription after a resume — and after a second — are exactly the live ones, with no progressionFor', rt === 14, rtBad);
+    T('37  never stale: after every one of the ' + steps + ' generated events, every exercise’s strip is exactly D47 asked at that moment', stale === 0 && steps === 126, stale);
+    T('38  a refresh is idempotent: asked again with nothing changed, it changes nothing (all 14 workouts)', idem === 14, idem);
+    /* what a refresh asks and writes */
+    const L = await started(LOG, [T_.BENCH, T_.INC]), c = L.c; twoWarmups(c, L.ex(1)); type(c, wIn(rowsOf(L.ex(1))[4]), '125');
+    rowsOf(L.ex(0)).forEach(rw => { rw.classList.add('completed'); repsIn(rw).value = '8'; });   // done behind the logger's back: nothing has asked D47 yet
+    const asked = []; ['progressionFor', 'getPreviousSets', 'sortedLog', 'buildProgressionRecommendation', 'getExerciseFullHistory', 'deriveWorkingSetPlan', 'refreshSetCoach', 'persistDraftNow', 'scheduleDraftSave'].forEach(n => {
+      const f = c[n]; if(typeof f === 'function') c[n] = function(){ asked.push(n); return f.apply(this, arguments); }; });
+    const ds0 = L.exs().map(ex => JSON.stringify(ex.dataset)), work0 = L.exs().map(ex => rowsOf(ex).filter(r => r.dataset.setType !== 'warmup').map(r => wIn(r).value + 'x' + repsIn(r).value + r.className + own(r)));
+    const n1 = c.refreshSuggestedWarmups();
+    const ds1 = L.exs().map(ex => JSON.stringify(ex.dataset)), work1 = L.exs().map(ex => rowsOf(ex).filter(r => r.dataset.setType !== 'warmup').map(r => wIn(r).value + 'x' + repsIn(r).value + r.className + own(r)));
+    const inc = rowsTxt(L.ex(1)); L.release();
+    T('39  a refresh asks nothing of history and saves nothing: no progressionFor, previous sets, log scan, D49, D125 plan, coach or draft write while it runs', n1 === 1 && asked.length === 0, asked);
+    T('40  a refresh writes only strips and, before the work, LOOP’s warm-ups: every row’s data (rxLoad, plan, slot, targets), every working value and every owned warm-up are unchanged',
+      same(ds0, ds1) && same(work0, work1) && inc[3] === 'W 110x2' && inc[4] === 'W 125x3/w', JSON.stringify([inc]));
+    /* history: a session whose strips changed live (no warm-up rows) saves exactly what 10.50 saves */
+    const saveOf = async o => { const L2 = await started(LOG, [T_.BENCH, T_.INC], o), c2 = L2.c; benchDone(c2, L2); rowsOf(L2.ex(1)).forEach((rw, i) => perform(c2, rw, [10, 9, 8][i], 2));
+      c2.document.getElementById('logTitle').value = 'D131B'; await c2.saveLog(); const ent = c2.workoutLog.find(w => w.date === TODAY && w.title === 'D131B'); L2.release();
+      return ent ? JSON.parse(JSON.stringify(Object.assign({}, ent, { id: null, startedAt: null, savedAt: null, createdAt: null, completedAt: null, durationSec: null, endedAt: null }))) : null; };
+    const hNow = await saveOf(), hThen = await saveOf({ at1050: true });
+    T('41  history: a workout whose Incline strip shortened live saves exactly what 10.50 saved (its sets, prescriptions and execution untouched)', !!hNow && same(hNow, hThen), JSON.stringify([hNow && hNow.exercises, hThen && hThen.exercises]).slice(0, 600));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('42–50  what D131B must not move');
+  await guard('protected', async () => {
+    const L = await started(LOG, [T_.BENCH, T_.INC]), c = L.c; const hand = freeRow(L, 'Dumbbell Bench Press'); type(c, wIn(rowsOf(hand)[0]), '55'); toBodyweight(c, L.ex(1));
+    const d = capture(c); L.release(); const R = await resumeIn(LOG, d);
+    const rx = R.L.exs().map(ex => ex.dataset.rxLoad == null ? null : ex.dataset.rxLoad); R.L.release();
+    T('42  D131A holds (E57 closed): resumed, the restore asks progressionFor nothing, the Bodyweight-switched Incline keeps its 135, the hand-added press stays unprescribed', R.calls.length === 0 && same(rx, ['205', '135', null]), JSON.stringify([rx, R.calls]));
+    const e59 = async o => { const L2 = await started(LOG, [T_.BENCH], o), c2 = L2.c; const cgx = cg135(c2, L2); perform(c2, rowsOf(cgx)[0], 8, 2); c2.swapLogExercise(cgx, 'Dumbbell Bench Press');
+      const out = L2.exs().slice(1).map(ex => ({ name: ex.querySelector('.ex-name-in').value, targetSets: ex.dataset.targetSets || null, slotName: ex.dataset.slotName || null, rxLoad: ex.dataset.rxLoad || null })); L2.release(); return out; };
+    const s1 = await e59(), s0 = await e59({ at1050: true });
+    T('43  E59 is held, as recorded: a hand-added Close-Grip split by a swap still gives the original targetSets and the replacement a slot, exactly as 10.50', same(s1, s0) && !!s1[0].targetSets && !!s1[1].slotName, JSON.stringify([s1, s0]));
+    T('44  D125 / D127 / D130 / D131A are 10.50’s: the working-set plan, the coach’s write rule and its load, the working target, the split, the draft capture, the row builder and the set builders',
+      pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('coachMayWriteSet') === '0de96792fab27ca4' && pin('coachLoadNow') === '38299e411614887d' && pin('seedWorkingTarget') === '64ed113f75a5573e' &&
+      pin('splitRowForSwap') === '78ed482b25517739' && pin('captureActiveDraft') === '7ed552854d7f4526' && pin('addLogExerciseRow') === 'be4678472bf41b62' && pin('applySetTypeToRow') === '9fab51981238989b' &&
+      pin('appendSetRow') === '61f2b7e061afde48' && pin('renumberSets') === '6a65d511509ef489' && pin('setIdxHtml') === '3614080a0cb6a1f2' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('applyCoachToFutureSets') === '10add8e901495f2d' &&
+      pin('startTemplateLog') === 'd2264fc049660e8e' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('capturedPrescription') === '4b741af98b989695' && pin('saveLog') === '66c63714822ef5ee');
+    const was = asOf1050Html(raw);
+    T('45  the file reads back as LOOP 10.50 to the byte (index.html of 0f72dba) once D131B’s statements and What’s New entry are taken out', !!was && sha(was) === SHA_1050_HTML, was && sha(was));
+    const css = s => s.slice(s.indexOf('<style>'), s.indexOf('</style>'));
+    T('46  D132 and D132.1 untouched: the stylesheet is 10.50’s byte for byte — the current-set ring, the set circle, the warm-up’s amber, every token', !!was && css(raw) === css(was));
+    T('47  records, XP, rank, Mastery, Recovery and Session Score are 10.50’s: their engines byte-identical',
+      pin('computePRs') === 'ff1f540c2ae3b46a' && pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computeXPEvents') === 'cec5fa2cffc42db5' && pin('getCurrentProgression') === 'bf3a7572296c620c' &&
+      pin('computeMuscleRecovery') === 'd3589033bdb54c67' && pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' && pin('deriveExerciseDetail') === '2e7f87f1c8567b0a' && pin('masteryViewHtml') === 'cfeb04f7ef9796a6');
+    T('48  the trainer is still 0.1.1-shadow', /const TRAINER_ENGINE_VERSION = '0\.1\.1-shadow';/.test(raw));
+    T('49  What’s New: LOOP 10.51 / loop-v228, dated in New York, and sw.js serves loop-v228',
+      /id: 'v10-51',\s*version: 'LOOP 10\.51',\s*title: 'Warm-ups Stay in Sync',\s*date: '2026-10-0\d',\s*swVersion: 'loop-v228'/.test(raw) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v228'") !== -1);
+    /* cost: twelve exercises, four of one pattern, every set of the first done, then one refresh */
+    const many = [T_.BENCH, T_.INC, T_.SQUAT, T_.LAT, T_.OHP0, T_.INC, T_.BENCH, T_.SQUAT, T_.LAT, T_.INC, T_.BENCH, T_.SQUAT];
+    const L3 = await started(LOG, many), c3 = L3.c; rowsOf(L3.ex(0)).forEach(rw => rw.classList.add('completed'));
+    const t0 = Date.now(); for(let i = 0; i < 20; i++){ L3.exs().forEach(ex => { ex.querySelector('.warmup-wrap').innerHTML = ''; }); c3.refreshSuggestedWarmups(); } const per = (Date.now() - t0) / 20; L3.release();
+    T('50  cheap: one refresh of a twelve-exercise workout (four of one pattern), every strip redrawn, takes ' + per.toFixed(1) + ' ms in the test vm (under 50; a real phone is faster)', per < 50, per);
+  });
+}
 async function testSetNumberCentringD1321(){
   section('CONTRACT 250 — the set number is centred in its circle (D132.1)');
   const fs = require('fs'), crypto = require('crypto');
@@ -54519,9 +54997,10 @@ async function testSetNumberCentringD1321(){
   T('3  a plain circle is a border box 32px across (30px + 2 × 1px, 10.49\'s outer size), centred by its own half-size', last(BASE, 'box-sizing') === 'border-box' && num(last(BASE, 'width')) === 32 && num(last(BASE, 'height')) === 32 && /^-16px 0 0 -16px$/.test(last(BASE, 'margin') || ''));
   T('4  the current set\'s circle is 33px (30px + 2 × 1.5px, 10.49\'s outer size) and centred by its own half-size — its ring and halo untouched', num(last(CUR, 'width')) === 33 && num(last(CUR, 'height')) === 33 && /^-16\.5px 0 0 -16\.5px$/.test(last(CUR, 'margin') || '') && /border: 1\.5px solid var\(--accent\)/.test(css) && /box-shadow: 0 0 0 3px rgba\(76,194,255,0\.10\)/.test(css));
   /* zero drift on the surfaces that write or read the number */
-  const fn = n => fnSrc(raw, n).replace(/\s+/g, ' ').trim(), fw = n => fnSrc(was || '', n).replace(/\s+/g, ' ').trim();
+  /* D131B restated: toggleSetComplete and chooseSetType now ask the Suggested Warm-up again (Contract 251), so they are read at 10.50 */
+  const fn = n => D131B_EDITS[n] ? asOf1050(n) : fnSrc(raw, n).replace(/\s+/g, ' ').trim(), fw = n => fnSrc(was || '', n).replace(/\s+/g, ' ').trim();
   T('5  how a set number is written, renumbered, completed and typed is 10.49\'s, byte for byte', ['setIdxHtml', 'renumberSets', 'toggleSetComplete', 'appendSetRow', 'applySetTypeToRow', 'chooseSetType', 'refreshSetMeta'].every(n => fn(n) && fn(n) === fw(n)));
-  T('6  the What\'s New entry is LOOP 10.50 / loop-v227, dated in New York, with one fix and nothing else', /id: 'v10-50'[\s\S]*swVersion: 'loop-v227'[\s\S]*improvements: \[\],[\s\S]*bugFixes: \[\s*'[^']+'\s*\]/.test(D1321_WHATSNEW) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v227'") !== -1);
+  T('6  the What\'s New entry is LOOP 10.50 / loop-v227, dated in New York, with one fix and nothing else', /id: 'v10-50'[\s\S]*swVersion: 'loop-v227'[\s\S]*improvements: \[\],[\s\S]*bugFixes: \[\s*'[^']+'\s*\]/.test(D1321_WHATSNEW) && /CACHE_VERSION = 'loop-v2(2[7-9]|[3-9]\d)'/.test(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8')));   // D131B restated: sw.js serves the newest release (Contract 168 holds it to the newest entry)
 }
 
 async function testProductExperienceD132(){
@@ -54560,7 +55039,7 @@ async function testProductExperienceD132(){
     T('1  every D132 change is where it was written, once — the file reads back as LOOP 10.48', wasRaw !== null);
     T('2  …and that read-back is LOOP 10.48 to the byte (index.html of 4948cc7): no engine, no renderer, no handler, no record, no rule outside the system block moved', !!wasRaw && sha(wasRaw) === SHA_1048_HTML, wasRaw && sha(wasRaw));
     const PINS = {"deriveSessionExecution":"0498f3f2c0dd3c2c","sessionScore":"842e5699f8ac0835","computeAllPREvents":"94af217dbcf1f9ed","computePRs":"ff1f540c2ae3b46a","computeXPEvents":"cec5fa2cffc42db5","getCurrentProgression":"bf3a7572296c620c","computeMuscleRecovery":"d3589033bdb54c67","recoveryStripHtml":"6eb427476c25e796","progressionFor":"a992f11698e3e9e7","getProgramWorkoutForDate":"496d8572d640dc24","objectiveProgress":"e0889920b620163e","syncObjectives":"406ea6f01ae1b62e","deriveWorkingSetPlan":"b5c00dac1e00d09b","coachMayWriteSet":"0de96792fab27ca4","seedWarmupTargets":"9c048567ff49a1f1","suggestedWarmupSteps":"7e37069140f2527b","maybeRefreshWarmup":"bf55b39f07a6e2e4","splitRowForSwap":"78ed482b25517739","captureActiveDraft":"7ed552854d7f4526","restoreDraftToSheet":"33f0e4de3ce21e63","addLogExerciseRow":"be4678472bf41b62","appendSetRow":"61f2b7e061afde48","toggleSetComplete":"ed4187ee4b7b5e61","saveLog":"66c63714822ef5ee","openWorkoutSummary":"58c0ec576bb1bad2","renderSummaryScore":"be7971b69696ae40","openMasteryExercise":"d5ed0205fd603c1c","deriveExerciseDetail":"2e7f87f1c8567b0a","masteryPodiumCardHtml":"0c85f5f236685801","masteryViewHtml":"cfeb04f7ef9796a6","renderWeeklyReview":"b8e25f3b77b18cb5","renderToday":"4eddd61a7575f0e7","renderTodayWorkout":"7957f591c99febed","switchTab":"de35ef75d197810e","renderProgress":"45badcbf3a0defd5","renderExDetail":"752755306eaa5a44","renderProgramDetail":"2b47b25b6540176e","renderSettingsSocialRow":"4cd1dbb1731fbca4","computeConsistencyData":"5bfe9ebbb27ff11e","paintTabIcons":"db23ee85cb7633b8","tabIconSvg":"2386e6e0cddb2e3a"};
-    const moved = Object.keys(PINS).filter(n => pin(n) !== PINS[n]);
+    const moved = Object.keys(PINS).filter(n => (D131B_EDITS[n] ? pinAsOf1050(n) : pin(n)) !== PINS[n]);   // D131B restated: toggleSetComplete, restoreDraftToSheet and maybeRefreshWarmup read at 10.50 (Contract 251)
     T('3  the engines and surfaces it must not move are byte-identical to 10.48 — Session Score and the execution analysis, PRs, XP and level, recovery, D49, programs, objectives, D125’s plan, D127’s write boundary, D130’s warm-ups, D131A’s draft, E56/E58/E59 as recorded, the summary, Mastery (D128/D129), Exercise Detail, Weekly Review, Today — ' + Object.keys(PINS).length + ' pins',
       moved.length === 0, moved.join(','));
     T('3  the one statement D132 added to a function is switchProgTab’s aria-selected — and that function is otherwise 10.48’s',
@@ -54999,6 +55478,7 @@ async function main(){
   await testPrescriptionProvenanceD131A();
   await testProductExperienceD132();
   await testSetNumberCentringD1321();
+  await testLiveWarmupD131B();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

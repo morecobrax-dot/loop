@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.50",
+  "version": "10.51",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: start a workout and look at the set numbers; each sits in the middle of its circle, the current set keeps its blue ring.",
+  "nextAction": "Owner iPhone check: in a Push workout finish Bench Press, then look at the next press: its Suggested Warm-up shows the shortened plan, and again after Resume.",
   "blocker": null,
-  "updatedAt": "2026-10-07T04:36:07Z"
+  "updatedAt": "2026-10-07T08:09:55Z"
 }
