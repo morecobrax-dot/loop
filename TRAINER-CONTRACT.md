@@ -19252,3 +19252,41 @@ D131B_EDITS. Contract 251 holds 51 checks; frozen 10.50 fails 31 of them.
 shortening. Live, both are now visible.
 
 **Not proven here.** How it reads on a physical iPhone.
+
+## §174 — THE WORKOUT PAGE IS FULL-HEIGHT, AND THE SETS COME FIRST (D133 · LOOP 10.52 · loop-v229)
+
+**What it is.** CSS only: one delimited block at the end of the D132 system block, and one What's New entry.
+`asOf1051Html(raw)` takes both out and reads back LOOP 10.51's index.html to the byte (`05f6bafc2b0ba81b`). No engine,
+handler, renderer, record, storage key or script moved. 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow.
+
+**The footer.** The workout is a fixed, full-screen page over the app, so the tab bar is never in its layout and nothing is
+reserved for it. What read as a footer was the dock itself:
+- 12px above the buttons, the 50px buttons, and the bottom inset below them (34px on an iPhone): 97px in all, the tab bar's
+  own height;
+- painted as its own lighter surface (rgba(13,19,30,0.94)) under a hairline, so the 34px of home-indicator space read as a
+  footer-sized block with nothing in it.
+
+Now the dock is the workout's own ground (var(--bg)): no rule, a 12px fade where the sets run under it, 8px above the buttons
+and max(8px, the inset) below them. That is the inset itself on a phone that has one, and 8px on a phone that has none. The
+scroll box still ends at the dock's edge (the dock is a flex sibling, not an overlay) and has 24px of end padding, twice the
+fade, so the last set, Add Set and Rest are never covered. While a rest runs, the readout sits on the dock and its own card is
+the edge, so the fade steps aside. The empty workout's finish bar is the same surface. The app's tab bar, its tabs, the update
+row and the page's own clearance are text-identical rules.
+
+**The sets.** Everything above the first set tightens, never a touch target: the top bar's padding (10 → 6), the scroll box
+(18 → 8), the head (16 → 8 above, 14 → 8 below), the title (12 → 8), Swap / Edit (10 → 6), the brief (12 → 8), the Last time row
+(48 → 44), the warm-up strip, the Sets header (16 → 8) and the list (10 → 0). Last time and Note share one row while the note is
+empty. The Note takes a row of its own when it holds a note, when Last time is open, when there is no Last time, and on phones
+narrower than 360px. The set rows, the ring, the numbers and the dock's buttons are not named by the block.
+
+**Not changed.** D131B's derived warm-up, D130, D127, D125, D50B, D49, the swap and split (E59), records, XP, Session Score,
+recovery, and every duration function. The block adds no colour, no gradient and no token.
+
+**Recorded, not fixed:** E63. An active workout's time is the wall clock since it was opened, so one left open reads
+"492 min" and saves those hours as training time.
+
+**Proof.** Contract 252 holds the cascade (frozen 10.51 has the slab, the candidate has none, only the safe area is left) and
+what must not move. The real geometry (ten sizes, portrait and landscape, the device's safe area applied, an exit and a
+re-entry, a simulated keyboard) is the QA rig's, reported with the release.
+
+**Not proven here.** How it reads on a physical iPhone.

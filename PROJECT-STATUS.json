@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.51",
+  "version": "10.52",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: in a Push workout finish Bench Press, then look at the next press: its Suggested Warm-up shows the shortened plan, and again after Resume.",
+  "nextAction": "Owner iPhone check: open a workout. Only the home-indicator space sits below Previous / Skip / Next, more sets show, and Today / Train / Progress / Log return on exit.",
   "blocker": null,
-  "updatedAt": "2026-10-07T08:09:55Z"
+  "updatedAt": "2026-10-07T19:50:33Z"
 }

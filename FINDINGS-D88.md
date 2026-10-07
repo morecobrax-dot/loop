@@ -2133,6 +2133,45 @@ So, live:
 told not to retune D47. For the owner: should preparation count only work done before an exercise starts, and should an
 exercise already under way keep the strip it started with?
 
+## E63 — An active workout's time is the wall clock since it was opened, so one left open reads "492 min" and saves those hours as training time · P3 · PROVEN · OPEN
+
+Found by D133, from the owner's iPhone view of the Resume card ("492 min").
+
+**What happens.**
+- `startTemplateLog` and `openFreeformLog` stamp `pendingDraftStartedAt` once, when the workout is opened.
+- `captureActiveDraft` keeps it as `startedAt`. `restoreDraftToSheet` puts it back: a resume never restarts it.
+- `renderResumeBanner` draws `max(1, round((now − startedAt) / 60 000))` minutes on Today's "Workout in progress" card and on
+  the Train tab's resume row. Nothing is subtracted for a backgrounded app, a locked phone, a closed PWA or sleep.
+- There is no pause for the workout. Only the rest timer pauses.
+- `saveLog` writes `startedAt` and `endedAt = now`. `workoutElapsedSeconds` returns that span whenever `startedAt` falls
+  on the workout's own date, and `workoutTimeOf` calls it an ACTUAL duration (D105 / D105.1). It is the Summary's main stat.
+  A span is refused only when its start date is not the workout's date. That date is stamped when the workout is opened and restored from the draft, so a workout left overnight keeps its start date and passes the check.
+
+**Measured (Contract 252, 31–34).** Opened at 09:00, resumed at 17:12:
+- the card reads "492 min · …";
+- the restored workout still carries the 09:00 start;
+- finishing it the same day saves 29 520 s, read back as an actual duration.
+
+**Why it matters.** "492 min" is arithmetically what the code says, but a person reads it as how long they trained. A workout
+left open over lunch, or all day, is then a wrong number on the card and a wrong Duration in history.
+
+**Why it was not fixed.** Every fix needs a rule the repository does not have, and D133 was told not to invent one: which time
+counts as training time, and what an old unfinished workout should say.
+
+**Options.**
+- A. Presentation only. Past a threshold the card says when it was started ("Started 8 h ago", "Started yesterday") instead of
+  "N min". Needs a threshold and wording. No data changes; the saved duration is untouched.
+- B. Saved duration only. `workoutElapsedSeconds` treats a span above a ceiling as unknown, so the Summary falls back to its
+  estimate, the way it already does when the start date is not the workout's date. Needs a ceiling.
+- C. Active time. Sum the foreground intervals, or cap each gap between logged sets. Needs a per-set timestamp or a visibility
+  log: new stored fields.
+- D. A workout pause. An explicit control and a saved paused total. New draft fields, new UI.
+- E. Do nothing.
+
+**Recommendation.** A and B together, as one small phase: say plainly that an old workout was started hours ago, and stop
+presenting an implausible span as measured. Both need no new storage, and neither invents pausing. Leave C and D until the
+owner decides what "workout time" means.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

@@ -9848,6 +9848,57 @@ svg text[font-family*="JetBrains"]{ font-family: var(--font-ui); font-variant-nu
    ring), centred on the number by its own half-size. */
 .stepper-on .ws-current .set-idx::before{ box-sizing: border-box; width: 32px; height: 32px; margin: -16px 0 0 -16px; }
 .stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .set-idx::before{ width: 33px; height: 33px; margin: -16.5px 0 0 -16.5px; }
+/* D133 — THE WORKOUT IS ONE SURFACE, EDGE TO EDGE, AND THE SETS COME FIRST.
+   The workout is a page laid over the app (a fixed, full-screen overlay), so the app's tab bar is never in its
+   layout: nothing is reserved for it. What read as a footer was the dock itself. It was a 97px slab — the same
+   height as the tab bar beneath it — in its own lighter surface under a hairline, with the bottom safe area
+   (34px on an iPhone) painted inside it as an empty band: 12px above the buttons, 34px of "footer" below them.
+   Now the dock is the page: the same ground as the workout, no rule, a short fade where the sets run under it,
+   and below the buttons only the real inset (8px on a phone that has none). The sets scroll to the dock's edge
+   and end one clear step above the fade, so the last set and Add Set are never covered.
+   The rest of this block takes the room the sets need from above them: the top bar and the first gaps are
+   tighter, and Last time and Note share one row while the note is empty. Every touch target keeps its size, and
+   the set rows themselves are untouched. */
+#logOverlay .ws-nav{
+  position: relative; background: var(--bg); border-top: none;
+  padding-top: var(--space-2); padding-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));
+}
+#logOverlay .ws-nav::before{
+  content: ""; position: absolute; left: 0; right: 0; bottom: 100%; height: var(--space-3);
+  background: linear-gradient(to top, var(--bg), transparent); pointer-events: none;
+}
+#logOverlay .ws-rest:not([hidden]) + .ws-nav::before{ display: none; }
+#logOverlay .sheet-actions{
+  background: var(--bg); border-top: none;
+  padding-top: var(--space-2); padding-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));
+}
+#logOverlay .workout-topbar{ padding-top: calc(6px + env(safe-area-inset-top, 0px)); padding-bottom: 6px; }
+#logOverlay .workout-topbar + .sheet-scroll{ padding-top: var(--space-2); padding-bottom: var(--space-6); }
+#logOverlay .ws-head{ padding-top: var(--space-2); padding-bottom: 8px; }
+#logOverlay .ws-title{ margin-top: var(--space-2); }
+#logOverlay .ex-actions{ margin-top: 6px; }
+#logOverlay .ex-brief{ margin-top: var(--space-2); display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+#logOverlay .ex-brief > *{ grid-column: 1 / -1; }
+#logOverlay .ex-brief > .ex-context{ grid-column: 1; grid-row: 1; }
+#logOverlay .ex-brief > .ex-note-wrap{ grid-column: 2; grid-row: 1; display: flex; align-items: center; }
+#logOverlay .ex-brief .ex-context-btn{ min-height: 44px; gap: var(--space-2); }
+#logOverlay .ex-brief .ex-note-btn{ width: auto; padding: 0 var(--space-3); justify-content: center; }
+#logOverlay .ex-brief > .ex-note-wrap:has(.ex-note-memory),
+#logOverlay .ex-brief:has(> .ex-context.open) > .ex-note-wrap,
+#logOverlay .ex-brief:has(> .ex-context.is-empty) > .ex-note-wrap{ grid-column: 1 / -1; grid-row: auto; display: block; }
+#logOverlay .ex-brief:has(> .ex-note-wrap .ex-note-memory) > .ex-context,
+#logOverlay .ex-brief:has(> .ex-context.open) > .ex-context{ grid-column: 1 / -1; }
+#logOverlay .ex-brief:has(> .ex-context.open) .ex-note-btn,
+#logOverlay .ex-brief:has(> .ex-context.is-empty) .ex-note-btn{ width: 100%; justify-content: flex-start; }
+@media (max-width: 359px){
+  #logOverlay .ex-brief > .ex-context{ grid-column: 1 / -1; }
+  #logOverlay .ex-brief > .ex-note-wrap{ grid-column: 1 / -1; grid-row: auto; display: block; }
+  #logOverlay .ex-brief .ex-note-btn{ width: 100%; justify-content: flex-start; }
+}
+#logOverlay .ex-brief .warmup-box{ padding: 10px var(--space-3); }
+#logOverlay .ex-brief .warmup-label{ margin-bottom: 6px; }
+#logOverlay .ex-sets-bar{ margin-top: var(--space-2); }
+#logOverlay .ex-log-row .sets-list{ margin-top: 0; }
 /* ==== D132 SYSTEM END ==== */
 </style>
 </head>
@@ -19593,6 +19644,21 @@ const LOOP_UPDATES = [
     bugFixes: [
       'Resuming a workout now rebuilds Suggested Warm-up from the work you’ve actually completed'
     ],
+    changes: []
+  },
+  {
+    id: 'v10-52',
+    version: 'LOOP 10.52',
+    title: 'More Room to Train',
+    date: '2026-10-07',
+    swVersion: 'loop-v229',
+    summary: 'The workout screen now uses the full height of your phone, with more room for your sets.',
+    newFeatures: [],
+    improvements: [
+      'The workout controls now sit directly above your phone’s safe area, with no empty footer beneath them',
+      'More of your sets show before you scroll: Last time and Note share a row, and the space above your sets is tighter'
+    ],
+    bugFixes: [],
     changes: []
   }
 ];

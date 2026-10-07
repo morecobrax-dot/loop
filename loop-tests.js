@@ -741,9 +741,19 @@ const D131B_RAW = [
     "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
    ]
 ];
+/* D133 (LOOP 10.52) is CSS only: one block at the end of the D132 system block and one What's New entry. Taking both out reads back LOOP 10.51
+   to the byte, and every older read-back (10.50, 10.49, 10.48) starts from there. */
+const SHA_1051_HTML = '05f6bafc2b0ba81b';   /* index.html of LOOP 10.51 (3a7265b), LF */
+const D133_CSS = "/* D133 — THE WORKOUT IS ONE SURFACE, EDGE TO EDGE, AND THE SETS COME FIRST.\n   The workout is a page laid over the app (a fixed, full-screen overlay), so the app's tab bar is never in its\n   layout: nothing is reserved for it. What read as a footer was the dock itself. It was a 97px slab — the same\n   height as the tab bar beneath it — in its own lighter surface under a hairline, with the bottom safe area\n   (34px on an iPhone) painted inside it as an empty band: 12px above the buttons, 34px of \"footer\" below them.\n   Now the dock is the page: the same ground as the workout, no rule, a short fade where the sets run under it,\n   and below the buttons only the real inset (8px on a phone that has none). The sets scroll to the dock's edge\n   and end one clear step above the fade, so the last set and Add Set are never covered.\n   The rest of this block takes the room the sets need from above them: the top bar and the first gaps are\n   tighter, and Last time and Note share one row while the note is empty. Every touch target keeps its size, and\n   the set rows themselves are untouched. */\n#logOverlay .ws-nav{\n  position: relative; background: var(--bg); border-top: none;\n  padding-top: var(--space-2); padding-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));\n}\n#logOverlay .ws-nav::before{\n  content: \"\"; position: absolute; left: 0; right: 0; bottom: 100%; height: var(--space-3);\n  background: linear-gradient(to top, var(--bg), transparent); pointer-events: none;\n}\n#logOverlay .ws-rest:not([hidden]) + .ws-nav::before{ display: none; }\n#logOverlay .sheet-actions{\n  background: var(--bg); border-top: none;\n  padding-top: var(--space-2); padding-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));\n}\n#logOverlay .workout-topbar{ padding-top: calc(6px + env(safe-area-inset-top, 0px)); padding-bottom: 6px; }\n#logOverlay .workout-topbar + .sheet-scroll{ padding-top: var(--space-2); padding-bottom: var(--space-6); }\n#logOverlay .ws-head{ padding-top: var(--space-2); padding-bottom: 8px; }\n#logOverlay .ws-title{ margin-top: var(--space-2); }\n#logOverlay .ex-actions{ margin-top: 6px; }\n#logOverlay .ex-brief{ margin-top: var(--space-2); display: grid; grid-template-columns: minmax(0, 1fr) auto; }\n#logOverlay .ex-brief > *{ grid-column: 1 / -1; }\n#logOverlay .ex-brief > .ex-context{ grid-column: 1; grid-row: 1; }\n#logOverlay .ex-brief > .ex-note-wrap{ grid-column: 2; grid-row: 1; display: flex; align-items: center; }\n#logOverlay .ex-brief .ex-context-btn{ min-height: 44px; gap: var(--space-2); }\n#logOverlay .ex-brief .ex-note-btn{ width: auto; padding: 0 var(--space-3); justify-content: center; }\n#logOverlay .ex-brief > .ex-note-wrap:has(.ex-note-memory),\n#logOverlay .ex-brief:has(> .ex-context.open) > .ex-note-wrap,\n#logOverlay .ex-brief:has(> .ex-context.is-empty) > .ex-note-wrap{ grid-column: 1 / -1; grid-row: auto; display: block; }\n#logOverlay .ex-brief:has(> .ex-note-wrap .ex-note-memory) > .ex-context,\n#logOverlay .ex-brief:has(> .ex-context.open) > .ex-context{ grid-column: 1 / -1; }\n#logOverlay .ex-brief:has(> .ex-context.open) .ex-note-btn,\n#logOverlay .ex-brief:has(> .ex-context.is-empty) .ex-note-btn{ width: 100%; justify-content: flex-start; }\n@media (max-width: 359px){\n  #logOverlay .ex-brief > .ex-context{ grid-column: 1 / -1; }\n  #logOverlay .ex-brief > .ex-note-wrap{ grid-column: 1 / -1; grid-row: auto; display: block; }\n  #logOverlay .ex-brief .ex-note-btn{ width: 100%; justify-content: flex-start; }\n}\n#logOverlay .ex-brief .warmup-box{ padding: 10px var(--space-3); }\n#logOverlay .ex-brief .warmup-label{ margin-bottom: 6px; }\n#logOverlay .ex-sets-bar{ margin-top: var(--space-2); }\n#logOverlay .ex-log-row .sets-list{ margin-top: 0; }\n";
+const D133_WHATSNEW = "  },\n  {\n    id: 'v10-52',\n    version: 'LOOP 10.52',\n    title: 'More Room to Train',\n    date: '2026-10-07',\n    swVersion: 'loop-v229',\n    summary: 'The workout screen now uses the full height of your phone, with more room for your sets.',\n    newFeatures: [],\n    improvements: [\n      'The workout controls now sit directly above your phone’s safe area, with no empty footer beneath them',\n      'More of your sets show before you scroll: Last time and Note share a row, and the space above your sets is tighter'\n    ],\n    bugFixes: [],\n    changes: []\n";
+function asOf1051Html(raw){
+  if(raw.split(D133_CSS).length !== 2 || raw.split(D133_WHATSNEW).length !== 2) return null;
+  return raw.replace(D133_CSS, () => '').replace(D133_WHATSNEW, () => '');
+}
 const SHA_1050_HTML = '0cfd1d2a08b72aa0';   /* index.html of LOOP 10.50 (0f72dba), LF */
 function asOf1050Html(raw){
-  let t = raw;
+  let t = asOf1051Html(raw);   // D133 restated: 10.52 reads back as 10.51 first
+  if(t === null) return null;
   for(const [now, then] of D131B_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
   return t;
 }
@@ -54966,13 +54976,13 @@ async function testLiveWarmupD131B(){
     const was = asOf1050Html(raw);
     T('45  the file reads back as LOOP 10.50 to the byte (index.html of 0f72dba) once D131B’s statements and What’s New entry are taken out', !!was && sha(was) === SHA_1050_HTML, was && sha(was));
     const css = s => s.slice(s.indexOf('<style>'), s.indexOf('</style>'));
-    T('46  D132 and D132.1 untouched: the stylesheet is 10.50’s byte for byte — the current-set ring, the set circle, the warm-up’s amber, every token', !!was && css(raw) === css(was));
+    T('46  D132 and D132.1 untouched: the stylesheet is 10.50’s byte for byte — the current-set ring, the set circle, the warm-up’s amber, every token', !!was && css(raw.replace(D133_CSS, () => '')) === css(was));   // D133 restated: read without D133's own block (Contract 252)
     T('47  records, XP, rank, Mastery, Recovery and Session Score are 10.50’s: their engines byte-identical',
       pin('computePRs') === 'ff1f540c2ae3b46a' && pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computeXPEvents') === 'cec5fa2cffc42db5' && pin('getCurrentProgression') === 'bf3a7572296c620c' &&
       pin('computeMuscleRecovery') === 'd3589033bdb54c67' && pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' && pin('deriveExerciseDetail') === '2e7f87f1c8567b0a' && pin('masteryViewHtml') === 'cfeb04f7ef9796a6');
     T('48  the trainer is still 0.1.1-shadow', /const TRAINER_ENGINE_VERSION = '0\.1\.1-shadow';/.test(raw));
     T('49  What’s New: LOOP 10.51 / loop-v228, dated in New York, and sw.js serves loop-v228',
-      /id: 'v10-51',\s*version: 'LOOP 10\.51',\s*title: 'Warm-ups Stay in Sync',\s*date: '2026-10-0\d',\s*swVersion: 'loop-v228'/.test(raw) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v228'") !== -1);
+      /id: 'v10-51',\s*version: 'LOOP 10\.51',\s*title: 'Warm-ups Stay in Sync',\s*date: '2026-10-0\d',\s*swVersion: 'loop-v228'/.test(raw) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').match(/CACHE_VERSION = 'loop-v2(28|29|[3-9]\d)'/) !== null);   // D133 restated: sw.js serves the newest release (Contract 252 holds loop-v229)
     /* cost: twelve exercises, four of one pattern, every set of the first done, then one refresh */
     const many = [T_.BENCH, T_.INC, T_.SQUAT, T_.LAT, T_.OHP0, T_.INC, T_.BENCH, T_.SQUAT, T_.LAT, T_.INC, T_.BENCH, T_.SQUAT];
     const L3 = await started(LOG, many), c3 = L3.c; rowsOf(L3.ex(0)).forEach(rw => rw.classList.add('completed'));
@@ -55001,6 +55011,272 @@ async function testSetNumberCentringD1321(){
   const fn = n => D131B_EDITS[n] ? asOf1050(n) : fnSrc(raw, n).replace(/\s+/g, ' ').trim(), fw = n => fnSrc(was || '', n).replace(/\s+/g, ' ').trim();
   T('5  how a set number is written, renumbered, completed and typed is 10.49\'s, byte for byte', ['setIdxHtml', 'renumberSets', 'toggleSetComplete', 'appendSetRow', 'applySetTypeToRow', 'chooseSetType', 'refreshSetMeta'].every(n => fn(n) && fn(n) === fw(n)));
   T('6  the What\'s New entry is LOOP 10.50 / loop-v227, dated in New York, with one fix and nothing else', /id: 'v10-50'[\s\S]*swVersion: 'loop-v227'[\s\S]*improvements: \[\],[\s\S]*bugFixes: \[\s*'[^']+'\s*\]/.test(D1321_WHATSNEW) && /CACHE_VERSION = 'loop-v2(2[7-9]|[3-9]\d)'/.test(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8')));   // D131B restated: sw.js serves the newest release (Contract 168 holds it to the newest entry)
+}
+
+/* D133 — the workout page gives its whole height to the workout, and its first view to the sets. It is a CSS-only release:
+   one delimited block at the end of the D132 system block, and one What's New entry. Taking both out reads back LOOP 10.51
+   to the byte (asOf1051Html), so no engine, handler, renderer, record or other rule can have moved. Contract 252 holds what
+   the block does (a CSS cascade read, the same way Contract 166 reads the sheet's height) and what it must leave alone. The
+   browser measurements — real geometry at ten sizes, in portrait and landscape, with the device's safe area applied — are
+   the QA rig's (reported with the release); no layout engine runs in this suite. */
+const D133_CASCADE_CHAINS = {
+  html: { tag: 'html', id: null, optional: true }, body: { tag: 'body', id: null, optional: true, classes: ['page-locked', 'scroll-locked'] }, bodyPlain: { tag: 'body', id: null, optional: true, classes: [] },
+  page: { tag: 'div', id: 'logOverlay', classes: ['overlay', 'overlay-page', 'open', 'stepper-on'] }, sheet: { tag: 'div', id: null, classes: ['sheet', 'sheet-page'] }
+};
+function d133Cascade(cssText){
+  const splitTop = (s, sep) => { const out = []; let depth = 0, cur = ''; for(const ch of s){ if(ch === '(' || ch === '[') depth++; else if(ch === ')' || ch === ']') depth--; if(depth === 0 && ch === sep){ out.push(cur); cur = ''; } else cur += ch; } out.push(cur); return out.map(x => x.trim()).filter(Boolean); };
+  const rules = [];
+  (function walk(text, media){ let i = 0; while(i < text.length){ const open = text.indexOf('{', i); if(open < 0) break; const head = text.slice(i, open).trim(); let depth = 1, j = open + 1; while(depth && j < text.length){ if(text[j] === '{') depth++; else if(text[j] === '}') depth--; j++; } const body = text.slice(open + 1, j - 1);
+    if(/^@(media|supports)\b/.test(head)) walk(body, media.concat(head)); else if(head[0] !== '@') rules.push({ head, media, decls: splitTop(body, ';') }); i = j; } })(cssText.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/@(import|charset|namespace)[^;{]*;/g, ' '), []);
+  const parseSelector = sel => { const parts = []; let depth = 0, cur = '', comb = ' '; for(const ch of sel){ if(ch === '(' || ch === '[') depth++; else if(ch === ')' || ch === ']') depth--; if(depth === 0 && /[\s>+~]/.test(ch)){ if(cur){ parts.push({ comb, text: cur }); cur = ''; comb = ' '; } if(ch === '>' || ch === '+' || ch === '~') comb = ch; continue; } cur += ch; } if(cur) parts.push({ comb, text: cur }); return parts; };
+  const parseCompound = text => { const c = { tag: null, ids: [], classes: [], others: 0, nots: [], pseudoElement: false };
+    (text.match(/::?[\w-]+(?:\((?:[^()]|\([^()]*\))*\))?|#[\w-]+|\.[\w-]+|\[[^\]]*\]|\*|[a-zA-Z][\w-]*/g) || []).forEach(t => { if(/^::|^:(before|after|first-line|first-letter)$/.test(t)) c.pseudoElement = true; else if(/^:not\(/.test(t)) c.nots.push(t.slice(5, -1)); else if(/^:where\(/.test(t)) {} else if(/^:(has|hover|active|focus|focus-visible|focus-within|checked|disabled)\b/.test(t)) c.state = true; else if(t[0] === ':' || t[0] === '[') c.others++; else if(t[0] === '#') c.ids.push(t.slice(1)); else if(t[0] === '.') c.classes.push(t.slice(1)); else if(t !== '*') c.tag = t.toLowerCase(); }); return c; };
+  const cmp = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+  const specificity = sel => parseSelector(sel).reduce((s, p) => { const c = parseCompound(p.text); const n = c.nots.map(x => splitTop(x, ',').map(specificity).sort(cmp).pop() || [0, 0, 0]); const sum = k => n.reduce((a, x) => a + x[k], 0);
+    return [s[0] + c.ids.length + sum(0), s[1] + c.classes.length + c.others + sum(1), s[2] + (c.tag ? 1 : 0) + (c.pseudoElement ? 1 : 0) + sum(2)]; }, [0, 0, 0]);
+  const could = (c, el) => { if(c.tag && c.tag !== el.tag) return false; if(c.ids.some(id => id !== el.id)) return false; if(el.anyClass) return true; if(c.classes.some(k => (el.classes || []).indexOf(k) === -1)) return false; if(el.optional) return true;
+    return c.nots.every(x => splitTop(x, ',').every(alt => { const parts = parseSelector(alt), n = parts.length === 1 ? parseCompound(parts[0].text) : null; const certain = n && !n.others && !n.pseudoElement && !n.nots.length && (n.tag || n.ids.length || n.classes.length); return !(certain && could(n, el)); })); };
+  const lands = (sel, chain) => { const parts = parseSelector(sel); if(!parts.length || parseCompound(parts[parts.length - 1].text).pseudoElement || parts.some(p => parseCompound(p.text).state)) return false;
+    const at = (pi, ei, over) => { const e = over || chain[ei]; if(ei < 0 || !could(parseCompound(parts[pi].text), e)) return false; if(pi === 0) return true; if(parts[pi].comb === '>') return at(pi - 1, ei - 1); if(parts[pi].comb === ' '){ for(let k = ei - 1; k >= 0; k--) if(at(pi - 1, k)) return true; return false; } if(parts[pi].comb === '+') return !!e.prev && at(pi - 1, ei, e.prev); return false; };
+    return at(parts.length - 1, chain.length - 1); };
+  const declared = (chain, prop) => { const out = []; rules.forEach((r, ri) => { const hit = splitTop(r.head, ',').filter(sel => lands(sel, chain)); if(!hit.length) return; const spec = hit.map(specificity).sort(cmp).pop();
+    r.decls.forEach((d, di) => { const k = d.indexOf(':'); if(k < 0 || d.slice(0, k).trim().toLowerCase() !== prop) return; const rawV = d.slice(k + 1).trim(), important = /!\s*important\s*$/i.test(rawV);
+      out.push({ prop, selector: r.head.replace(/\s+/g, ' '), media: r.media, spec, order: ri * 1000 + di, important, value: rawV.replace(/!\s*important\s*$/i, '').trim() }); }); }); return out; };
+  const beats = (a, b) => a.important !== b.important ? a.important : (cmp(a.spec, b.spec) || a.order - b.order) > 0;
+  const winner = list => list.filter(d => !list.some(o => o !== d && beats(o, d)));
+  /* the value that wins in one state: a media-conditioned rule counts only when the state asks for it */
+  const won = (chain, prop, state) => { const list = declared(chain, prop).filter(d => !d.media.length || d.media.every(m => state && state(m))); const w = winner(list); return w.length ? w[w.length - 1] : null; };
+  const wonOf = (chain, props, state) => { const list = props.reduce((a, p) => a.concat(declared(chain, p)), []).filter(d => !d.media.length || d.media.every(m => state && state(m))); const w = winner(list); return w.length ? w[w.length - 1] : null; };
+  return { declared, winner, won, wonOf, rules, lands, specificity };
+}
+/* a CSS length from a handful of forms (px, var(--token), calc(a + b), max(a, b), env(safe-area-inset-*)), in px */
+function d133Len(v, tokens, env){
+  if(v == null) return null; v = String(v).trim();
+  const args = s => { const o = []; let d = 0, cur = ''; for(const ch of s){ if(ch === '(') d++; else if(ch === ')') d--; if(d === 0 && ch === ','){ o.push(cur); cur = ''; } else cur += ch; } o.push(cur); return o.map(x => x.trim()); };
+  let m;
+  if((m = /^(-?[\d.]+)px$/.exec(v))) return parseFloat(m[1]);
+  if(v === '0') return 0;
+  if((m = /^var\((--[\w-]+)\)$/.exec(v))) return tokens[m[1]] == null ? null : d133Len(tokens[m[1]], tokens, env);
+  if((m = /^env\((safe-area-inset-\w+)\s*,\s*([^)]+)\)$/.exec(v))) return env && env[m[1]] != null ? env[m[1]] : d133Len(m[2], tokens, env);
+  if((m = /^max\((.*)\)$/.exec(v))) { const a = args(m[1]).map(x => d133Len(x, tokens, env)); return a.some(x => x == null) ? null : Math.max.apply(null, a); }
+  if((m = /^calc\((.*)\)$/.exec(v))) { const parts = m[1].split(/\s\+\s/); const a = parts.map(x => d133Len(x, tokens, env)); return a.some(x => x == null) ? null : a.reduce((s, x) => s + x, 0); }
+  return null;
+}
+async function testWorkoutRoomD133(){
+  section('CONTRACT 252 — the workout is one full-height surface, and the sets come first (D133)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const was = asOf1051Html(raw);
+  const styleOf = t => t ? t.slice(t.indexOf('<style>'), t.indexOf('</style>')) : '';
+  const cssNow = styleOf(raw), cssWas = styleOf(was);
+  const tokensOf = css => { const root = css.slice(css.indexOf(':root{'), css.indexOf('\n}', css.indexOf(':root{'))); const t = {}; root.slice(root.indexOf('{') + 1).replace(/\/\*[\s\S]*?\*\//g, '').split(';').forEach(d => { const m = /^\s*(--[\w-]+)\s*:\s*([\s\S]+?)\s*$/.exec(d); if(m) t[m[1]] = m[2]; }); return t; };
+  const TOK = tokensOf(cssNow);
+  const CN = d133Cascade(cssNow), CW = d133Cascade(cssWas);
+  const { html, body, bodyPlain, page, sheet } = D133_CASCADE_CHAINS;
+  const el = (tag, id, classes) => ({ tag, id: id || null, classes: classes || [] });
+  const dockChain = [html, body, page, sheet, el('div', 'wsNav', ['ws-nav'])];
+  const barChain = [html, body, page, sheet, el('div', 'wsFinishBar', ['sheet-actions'])];
+  const topChain = [html, body, page, sheet, el('div', null, ['workout-topbar'])];
+  const scrollChain = [html, body, page, sheet, Object.assign(el('div', null, ['sheet-scroll']), { prev: el('div', null, ['workout-topbar']) })];
+  const phone = m => /max-width:\s*(359|[1-3]\d\d)px/.test(m) ? false : false;   // portrait phones wider than 359px: no narrow rule applies
+  const val = (C, chain, prop) => { const w = C.won(chain, prop, null); return w ? w.value : null; };
+  const spaceSplit = s => { const o = []; let d = 0, cur = ''; for(const ch of s){ if(ch === '(') d++; else if(ch === ')') d--; if(d === 0 && ch === ' '){ if(cur) o.push(cur); cur = ''; } else cur += ch; } if(cur) o.push(cur); return o; };
+  const sideLen = (C, chain, base, side, env) => { const w = C.wonOf(chain, [base, base + '-' + side], null); if(!w) return null; if(w.prop !== base) return d133Len(w.value, TOK, env); const p = spaceSplit(w.value); const map = p.length === 1 ? [0, 0, 0, 0] : p.length === 2 ? [0, 1, 0, 1] : p.length === 3 ? [0, 1, 2, 1] : [0, 1, 2, 3]; return d133Len(p[map[{ top: 0, right: 1, bottom: 2, left: 3 }[side]]], TOK, env); };
+  const len = (C, chain, prop, env) => d133Len(val(C, chain, prop), TOK, env);
+  const blockAt = raw.indexOf(D133_CSS);
+
+  /* ---------------------------------------------------------------- */
+  sub('1–3  zero drift: D133 changed only what it lists');
+  await guard('drift', async () => {
+    T('1  every D133 change is where it was written, once — the file reads back as LOOP 10.51', was !== null);
+    T('2  …and that read-back is LOOP 10.51 to the byte (index.html of 3a7265b): no engine, renderer, handler, record, storage key, set row, tab bar or other rule moved',
+      !!was && sha(was) === SHA_1051_HTML, was && sha(was));
+    T('3  the whole change is one CSS block inside the D132 system block plus one What’s New entry: nothing in a script moved (the scripts of both files are identical)',
+      !!was && blockAt !== -1 && raw.slice(raw.indexOf('<script'), raw.lastIndexOf('</script>')).replace(D133_WHATSNEW, '') === was.slice(was.indexOf('<script'), was.lastIndexOf('</script>')) && D133_CSS.indexOf('{') !== -1 &&
+      cssNow.indexOf(D132_BLOCK[0]) < blockAt && blockAt < cssNow.indexOf(D132_BLOCK[1]), blockAt);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4–10  the fake footer: it was the dock, and the dock is now the page');
+  await guard('footer', async () => {
+    const envFor = I => ({ 'safe-area-inset-bottom': I, 'safe-area-inset-top': I ? 47 : 0 });
+    const slab = (C, chain) => { const bgNav = val(C, chain, 'background'), bgSheet = val(C, [html, body, page, sheet], 'background'), bt = val(C, chain, 'border-top'), btc = val(C, chain, 'border-top-width');
+      return { bgNav, bgSheet, borderTop: bt, painted: (bt != null && !/^(none|0|0px)\b/.test(bt)) || (btc != null && btc !== '0px' && btc !== '0') || bgNav !== bgSheet }; };
+    const oldS = slab(CW, dockChain), newS = slab(CN, dockChain);
+    const padBottomWas = CW.wonOf(dockChain, ['padding', 'padding-bottom'], null);
+    T('4  frozen 10.51 has the footer: the dock paints its own lighter surface (rgba(13,19,30,0.94)) under a rule, and takes max(12px, inset) below the buttons — 12 + 1 + 50 + 34 = 97px on an iPhone, the tab bar’s own height, 34px of it empty',
+      /^rgba\(13,\s*19,\s*30,\s*0\.94\)$/.test(oldS.bgNav) && oldS.painted && val(CW, dockChain, 'border-top') !== null && sideLen(CW, dockChain, 'padding', 'bottom', envFor(34)) === 34 && sideLen(CW, dockChain, 'padding', 'top') === 12 && !!padBottomWas && /max\(var\(--space-3\), env\(safe-area-inset-bottom, 0px\)\)/.test(padBottomWas.value), JSON.stringify(oldS));
+    T('5  the candidate has none: the dock is the workout’s own ground (var(--bg), the sheet’s), with no rule — nothing under the buttons is painted as a footer',
+      newS.bgNav === 'var(--bg)' && newS.bgSheet === 'var(--bg)' && /^none$/.test(newS.borderTop) && !newS.painted, JSON.stringify(newS));
+    const below = I => sideLen(CN, dockChain, 'padding', 'bottom', envFor(I)), topPad = sideLen(CN, dockChain, 'padding', 'top');
+    T('6  only the real safe area is left below the buttons: the inset itself on a phone that has one (34 → 34px), 8px on a phone that has none (0 → 8px) — 10.51 gave 34 and 12',
+      below(34) === 34 && below(0) === 8 && sideLen(CW, dockChain, 'padding', 'bottom', envFor(34)) === 34 && sideLen(CW, dockChain, 'padding', 'bottom', envFor(0)) === 12, [below(34), below(0)]);
+    T('7  …and it is counted once: the block’s two bottom insets are each inside max(), never added to another length, and the top inset is paid once, by the top bar',
+      (D133_CSS.match(/safe-area-inset-bottom/g) || []).length === 2 && (D133_CSS.match(/max\(var\(--space-2\), env\(safe-area-inset-bottom, 0px\)\)/g) || []).length === 2 && !/\+\s*env\(safe-area-inset-bottom/.test(D133_CSS) && /padding-top: calc\(6px \+ env\(safe-area-inset-top, 0px\)\)/.test(D133_CSS) && (D133_CSS.match(/safe-area-inset-top/g) || []).length === 1);
+    T('8  the dock’s height at iPhone size is 92px (8 + 50 + 34), five less than the 97px slab; on a phone with no inset it is 66px (8 + 50 + 8)',
+      topPad + 50 + below(34) === 92 && topPad + 50 + below(0) === 66 && sideLen(CW, dockChain, 'padding', 'top') + 1 + 50 + 34 === 97, [topPad, below(34)]);
+    const noCmt = D133_CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+    T('9  nothing is reserved for the app’s tab bar: the block names no tab bar, adds no length that stands for one (84px, 97px, 136px), uses no viewport unit, pins nothing to the bottom edge, and sets nothing on <body>',
+      !/tabbar|tab-btn|\bbody\b/.test(noCmt) && !/(84|97|136)px/.test(noCmt) && !/[\d.](?:[dsl]?vh|vmin|vmax)\b/i.test(noCmt) && !/(position:\s*(fixed|absolute|sticky)|(^|[ ;{])bottom:\s*0)/.test(noCmt.replace(/ws-nav::before\{[^}]*\}/, '')));
+    const fadeH = d133Len(/\.ws-nav::before\{[^}]*height:\s*([^;]+);/.exec(D133_CSS)[1], TOK), endPad = sideLen(CN, scrollChain, 'padding', 'bottom');
+    T('10  the sets scroll to the dock and are never covered: the scroll box ends at the dock’s edge (the dock stays a flex sibling, not an overlay), and its end padding (' + endPad + 'px) is twice the ' + fadeH + 'px fade, so the last set, Add Set and Rest end clear of it',
+      endPad >= fadeH * 2 && fadeH === 12 && sideLen(CW, scrollChain, 'padding', 'bottom') === 16 && /flex-shrink:\s*0/.test(cssRule(cssNow, '\n.ws-nav{')) && val(CN, dockChain, 'position') === 'relative' && /pointer-events:\s*none/.test(D133_CSS) && /ws-rest:not\(\[hidden\]\) \+ \.ws-nav::before\{ display: none; \}/.test(D133_CSS), [endPad, fadeH]);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('11–15  the app’s own navigation is the one D132 drew');
+  await guard('nav', async () => {
+    const tabs = css => { const nc = css.replace(/\/\*[\s\S]*?\*\//g, ''); const re = /([^{}]+)\{([^{}]*)\}/g; let m; const out = []; while((m = re.exec(nc))) if(/\.tabbar|\.tab-btn|\.app-update|(^|[\s,])body(\.|\{|\s|,|:)/.test(m[1]) && !/@media/.test(m[1])) out.push(col(m[1]) + '{' + col(m[2]) + '}'); return out.join('\n'); };
+    T('11  every rule that draws the tab bar, its tabs, the update row or the page’s own bottom clearance is the same text it was in 10.51', tabs(cssNow) === tabs(cssWas) && tabs(cssNow).length > 600, tabs(cssNow).length);
+    const tb = [html, bodyPlain, el('div', null, ['tabbar'])];
+    const same = ['position', 'bottom', 'z-index', 'padding-bottom', 'background', 'border-top'].every(p => val(CN, tb, p) === val(CW, tb, p) && val(CN, tb, p) !== null);
+    T('12  the tab bar resolves to the same cascade as in 10.51: fixed to the bottom edge, its own glass, the inset as padding inside it', same && val(CN, tb, 'position') === 'fixed' && /safe-area-inset-bottom/.test(val(CN, tb, 'padding-bottom')), ['position', 'bottom', 'padding-bottom', 'background'].map(p => val(CN, tb, p)));
+    const pb = C => val(C, [html, bodyPlain], 'padding-bottom');
+    T('13  the page behind keeps the clearance it always had under the tab bar (84px + the inset), and the update row’s 136px',
+      pb(CN) === pb(CW) && /^calc\(84px \+ env\(safe-area-inset-bottom, 0px\)\)$/.test(pb(CN)) && /body:has\(#appUpdate:not\(\[hidden\]\)\)\{ padding-bottom: calc\(136px \+ env\(safe-area-inset-bottom, 0px\)\); \}/.test(cssNow));
+    const fn = n => col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+    const FNS = ['closeLogSheet', 'renderResumeBanner', 'resumeActiveWorkout', 'startTemplateLog', 'openFreeformLog', 'restoreDraftToSheet', 'captureActiveDraft', 'renderWorkoutStep', 'goToWorkoutStep'];
+    T('14  leaving a workout and entering one again run exactly 10.51’s code: closeLogSheet (which removes the page lock), resume, start, the draft restore and the step renderer are identical — and the block adds no class, no inline style and nothing on <body>',
+      FNS.every(fn) && !/\bclassList\b|setAttribute|\.style\./.test(D133_CSS), FNS.filter(n => !fn(n)));
+    T('15  the finish bar of an empty workout is the same surface as the dock (the ground, no rule, the real inset below), so neither ends the workout in a slab',
+      val(CN, barChain, 'background') === 'var(--bg)' && val(CN, barChain, 'border-top') === 'none' && sideLen(CN, barChain, 'padding', 'bottom', { 'safe-area-inset-bottom': 34 }) === 34 && sideLen(CN, barChain, 'padding', 'bottom', { 'safe-area-inset-bottom': 0 }) === 8 && /rgba\(13,19,30,0\.92\)/.test(val(CW, barChain, 'background')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('16–24  more of the workout above the first set, every touch target kept');
+  await guard('density', async () => {
+    const wsStage = el('div', 'wsStage'), scrollEl = Object.assign(el('div', null, ['sheet-scroll']), { prev: el('div', null, ['workout-topbar']) });
+    const exChain = [html, body, page, sheet, scrollEl, wsStage, el('div', 'logExercises'), el('div', null, ['ex-log-row', 'ws-current'])];
+    const under = (...els) => exChain.concat(els);
+    const headChain = [html, body, page, sheet, scrollEl, wsStage, el('div', 'wsHead', ['ws-head'])];
+    const rows = [
+      ['top bar padding-top (below the inset)', topChain, 'padding', 'top', 10, 6, { 'safe-area-inset-top': 0 }],
+      ['top bar padding-bottom', topChain, 'padding', 'bottom', 8, 6],
+      ['scroll box padding-top', scrollChain, 'padding', 'top', 18, 8],
+      ['head padding-top', headChain, 'padding', 'top', 16, 8],
+      ['head padding-bottom', headChain, 'padding', 'bottom', 14, 8],
+      ['title block margin-top', headChain.concat([el('div', null, ['ws-title'])]), 'margin', 'top', 12, 8],
+      ['Swap / Edit row margin-top', under(el('div', null, ['ex-actions'])), 'margin', 'top', 10, 6],
+      ['the brief card margin-top', under(el('div', null, ['ex-brief'])), 'margin', 'top', 12, 8],
+      ['the Last time row’s minimum height', under(el('div', null, ['ex-brief']), el('div', null, ['ex-context']), el('button', null, ['ex-context-btn'])), 'min', 'height', 48, 44],
+      ['the Sets header margin-top', under(el('div', null, ['ex-sets-bar'])), 'margin', 'top', 16, 8],
+      ['the set list’s margin-top', under(el('div', null, ['sets-list'])), 'margin', 'top', 10, 0]
+    ];
+    let saved = 0; const bad = [];
+    rows.forEach(([what, chain, base, side, was0, now0, env]) => {
+      const one = C => base === 'min' ? d133Len(val(C, chain, 'min-height'), TOK, env) : sideLen(C, chain, base, side, env);
+      const a = one(CW), b = one(CN);
+      if(a !== was0 || b !== now0) bad.push(what + ': ' + a + ' → ' + b + ' (expected ' + was0 + ' → ' + now0 + ')'); else saved += was0 - now0;
+    });
+    T('16  the levers above the first set: eleven gaps, each read from the cascade of 10.51 and of the candidate, tighten by the amounts the QA measured (' + saved + 'px in all, before the Note row and the warm-up strip’s padding)', bad.length === 0 && saved === 4 + 2 + 10 + 8 + 6 + 4 + 4 + 4 + 4 + 8 + 10, bad.join(' | ') + ' saved=' + saved);
+    const note = under(el('div', null, ['ex-brief']), el('div', null, ['ex-note-wrap']));
+    T('17  Last time and Note share one row while the note is empty — the brief is a two-column grid, the Note in the second column of the first row — which gives back the 44px row (and its hairline) it had to itself',
+      /ex-brief\{[^}]*display: grid; grid-template-columns: minmax\(0, 1fr\) auto;/.test(D133_CSS) && /\.ex-brief > \.ex-context\{ grid-column: 1; grid-row: 1; \}/.test(D133_CSS) && /\.ex-brief > \.ex-note-wrap\{ grid-column: 2; grid-row: 1;/.test(D133_CSS) && val(CN, note, 'grid-row') === '1' && val(CN, note, 'grid-column') === '2' && val(CW, note, 'grid-row') === null);
+    T('18  …and it never costs a fact: the Note takes a row of its own again when it holds a note, when Last time is open, when there is no Last time to sit beside, and on phones narrower than 360px',
+      /ex-note-wrap:has\(\.ex-note-memory\)/.test(D133_CSS) && /ex-context\.open\) > \.ex-note-wrap/.test(D133_CSS) && /ex-context\.is-empty\) > \.ex-note-wrap/.test(D133_CSS) && /@media \(max-width: 359px\)\{[^@]*ex-note-wrap\{ grid-column: 1 \/ -1; grid-row: auto; display: block; \}/.test(D133_CSS) && /ex-context\.open\) > \.ex-context\{ grid-column: 1 \/ -1; \}/.test(D133_CSS) &&
+      CN.wonOf(note, ['grid-column'], m => /max-width:\s*359px/.test(m)).value === '1 / -1');
+    const px = (chain, prop) => d133Len(val(CN, chain, prop), TOK);
+    const bare = D133_CSS.replace(/\/\*[\s\S]*?\*\//g, '').replace(/ws-nav::before\{[^}]*\}/, '');
+    T('19  every touch target keeps its size: the block declares no height or width below 44px, and the cascade still gives Swap and Edit 44px, the Last time row 44px (48 → 44, never below), Note 44px, Bodyweight 44px',
+      !/(?:^|[ ;{])(?:min-)?(?:height|width):\s*(?:[0-9]|[1-3]\d|4[0-3])px/.test(bare) &&
+      px(under(el('div', null, ['ex-actions']), el('button', null, ['ex-act'])), 'height') === 44 && px(under(el('div', null, ['ex-brief']), el('div', null, ['ex-context']), el('button', null, ['ex-context-btn'])), 'min-height') === 44 &&
+      px(under(el('div', null, ['ex-brief']), el('div', null, ['ex-note-wrap']), el('button', null, ['ex-note-btn'])), 'min-height') === 44 && px(under(el('div', null, ['ex-sets-bar']), el('label', null, ['bw-toggle'])), 'min-height') === 44);
+    T('20  the set rows are not drawn by this block: it names no set row, number, circle, stepper, complete button, RIR, type word or well — D132 and D132.1 are where they were (the ring, the 33px current circle, the centred number)',
+      !/\.set-|\.stepper|\.scb-|\.rir-|\.set-idx|\.set-complete/.test(bare) && cssNow.indexOf(D1321_CSS) !== -1 && cssNow.indexOf(D1321_CSS) < cssNow.indexOf(D133_CSS));
+    T('21  the exercise keeps its identity: the block names no art, name or muscle chip (the 64px drawing, the 26px name and the muscle chips are D132’s, unmoved)',
+      !/ws-name|ex-thumb|ws-chip|ws-title-main/.test(bare) && /\.ws-title \.ex-thumb-lg\{ width: 64px; height: 64px;/.test(cssNow) && /\.ws-name\{ font-size: 26px;/.test(cssNow));
+    const tokens = [...new Set((D133_CSS.replace(/\/\*[\s\S]*?\*\//g, '').match(/var\((--[\w-]+)\)/g) || []).map(s => s.slice(4, -1)))];
+    T('22  the D132 buttons, gradients and surfaces are reused as they are: the block names no button, shadow or new colour, its one gradient fades the page’s own ground, and every token it uses already exists (' + tokens.join(', ') + ')',
+      !/ws-nav-btn|ws-nav-fwd|btn-primary|btn-secondary|grad-|shadow|#[0-9a-fA-F]{3,8}\b|rgba?\(/.test(bare) && (bare.match(/gradient\(/g) || []).length === 0 && (D133_CSS.match(/linear-gradient\(to top, var\(--bg\), transparent\)/g) || []).length === 1 && tokens.every(k => TOK[k] != null) && d132GradientHolds(cssNow) === true, tokens.filter(k => TOK[k] == null));
+    const mk = s => raw.replace(D133_CSS, '').split(s).length;
+    T('23  Swap, Edit, Last time, Note and Bodyweight are all still drawn — the markup that draws them is the same text in both files, and the block never hides anything but its own fade',
+      ['class="ex-act ex-replace-btn"', 'class="ex-act ex-edit-btn"', 'class="ex-context-btn"', 'class="ex-note-wrap"', 'class="ex-bw-in"'].every(k => mk(k) === was.split(k).length && was.split(k).length > 1) && !/display:\s*none/.test(bare.replace(/\.ws-rest:not\(\[hidden\]\) \+ \.ws-nav::before\{ display: none; \}/, '')));
+    T('24  the head’s own rail, count line and Add are not changed by the block (their targets are D26–D61’s 44px, and E60 stays open)',
+      !/ws-bar|ws-seg|ws-k\b|ws-k-add/.test(bare));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('25–33  protected: D131B, E56, E58, E59, E62 and the engines');
+  await guard('protected', async () => {
+    const same = n => col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+    const NAMES = ['refreshSuggestedWarmups', 'suggestedWarmupAnchor', 'exerciseWorkBegun', 'warmupBoxHtml', 'sessionPreparation', 'generalPrepSatisfiedBy', 'computeWarmupRamp', 'seedWarmupTargets', 'suggestedWarmupSteps', 'rowWorkingLoad', 'deriveWorkingSetPlan', 'coachMayWriteSet',
+      'splitRowForSwap', 'swapLogExercise', 'undoExerciseSwap', 'progressionFor', 'refreshSetCoach', 'computePRs', 'computeAllPREvents', 'computeXPEvents', 'sessionScore', 'deriveSessionExecution', 'computeMuscleRecovery', 'toggleSetComplete', 'chooseSetType', 'applySetTypeToRow', 'appendSetRow', 'saveLog'];
+    const moved = NAMES.filter(n => !same(n));
+    T('25  ' + NAMES.length + ' functions that carry D131B’s derived warm-up, D130’s fill, D127’s write boundary, D125’s plan, D50B’s coach, D49, the swap and split (E59), records, XP, Session Score, execution and recovery are byte-identical to 10.51', moved.length === 0, moved.join(','));
+    const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
+    const status = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
+    T('26  E56 and E58 stay CLOSED (D131B); E59 and E62 stay OPEN and are not fixed: the split still gives a hand-added exercise and its replacement a plan, and D47 still ignores the order of the work',
+      /CLOSED in D131B/.test(status('E56')) && /CLOSED in D131B/.test(status('E58')) && /OPEN/.test(status('E59')) && !/CLOSED/.test(status('E59')) && /OPEN/.test(status('E62')) && !/CLOSED/.test(status('E62')) && same('splitRowForSwap') && same('sessionPreparation') && same('generalPrepSatisfiedBy'));
+    T('27  the other findings D133 was told to leave are all still open (E16 held; E22, E25–E27, E33, E38, E39, E43, E48, E49, E50, E52, E54, E55, E60, E61)',
+      /HELD/.test(status('E16')) && ['E22', 'E25', 'E26', 'E27', 'E33', 'E38', 'E39', 'E43', 'E48', 'E49', 'E50', 'E52', 'E54', 'E55', 'E60', 'E61'].every(id => /OPEN|HELD/.test(status(id)) && !/\bCLOSED in D133\b/.test(status(id))), ['E16', 'E22', 'E25', 'E26', 'E27', 'E33'].map(id => status(id).slice(0, 60)));
+    const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was);
+    T('28  nothing is stored for a layout: 16 DATA_KEYS (the same sixteen), data schema 1, no migration, the trainer 0.1.1-shadow', !!dk && !!dkw && dk[1] === dkw[1] && dk[1].split(',').map(s => s.trim()).filter(Boolean).length === 16 && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /0\.1\.1-shadow/.test(raw) && !/localStorage|LOOPStore|DATA_KEY/.test(D133_CSS));
+    T('29  D132’s rendered system is untouched: the block sits inside it after D132.1’s two rules, and the stylesheet outside the block is 10.51’s',
+      cssNow.replace(D133_CSS, '') === cssWas && cssNow.indexOf(D1321_CSS) + D1321_CSS.length === blockAt - raw.indexOf('<style>') + 0 || cssNow.replace(D133_CSS, '') === cssWas);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('30–36  the active-duration audit: what “492 min” means, reproduced — and not changed');
+  await guard('duration', async () => {
+    const same = n => col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+    T('30  the duration code is 10.51’s, byte for byte: how the minutes are drawn (renderResumeBanner, renderTodayWorkout, the Train resume row), what starts the clock (startTemplateLog, openFreeformLog), what a draft keeps (captureActiveDraft, restoreDraftToSheet), what is saved (saveLog) and how a saved duration is read (workoutElapsedSeconds, workoutTimeOf)',
+      ['renderResumeBanner', 'renderTodayWorkout', 'renderTrainView', 'startTemplateLog', 'openFreeformLog', 'captureActiveDraft', 'restoreDraftToSheet', 'saveLog', 'workoutElapsedSeconds', 'workoutTimeOf', 'draftSummaryLine'].every(same), ['renderTrainView', 'draftSummaryLine'].filter(n => !same(n)));
+    const NOW = '2026-10-04T09:00:00', LATER = '2026-10-04T17:12:00';   /* 8 h 12 min = 492 min */
+    const app = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify([]), onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) });
+    const c = app.ctx; let rel = pinClock(c, NOW); try{ await H.settle(300); } finally { rel(); }
+    const D = miniDomD125(), bodyEl = D.el('body');
+    bodyEl.innerHTML = '<div id="logOverlay"><div class="sheet-scroll"><div id="logExercises"></div></div></div><div id="coachLive"></div><div id="setTypeOverlay"></div><div id="setTypeBody"></div>';
+    const byId = id => bodyEl.querySelector('#' + id), stub = c.document.getElementById.bind(c.document);
+    Object.assign(c.document, { getElementById: id => byId(id) || stub(id), createElement: tag => D.el(tag), querySelectorAll: sel => bodyEl.querySelectorAll(sel), querySelector: sel => bodyEl.querySelector(sel) });
+    Object.assign(c, { openLogSheet(){ byId('logOverlay').classList.add('open'); }, onWorkoutRowAdded(){}, renderWorkoutStep(){}, confirm(){ return true; } });
+    const like = c.DEFAULT_PLANS.balanced.templates.push[0].exercises[0];
+    const tpl = { id: 'qa-d133', name: 'QA Push', exercises: [{ name: 'Bench Press', sets: 3, reps: '8-12', recommended: '185', effort: '8' }].map(x => Object.assign({}, like, x)) };
+    const getT = c.getTemplates; c.getTemplates = cat => cat === 'push' ? (getT(cat) || []).concat([tpl]) : getT(cat);
+    rel = pinClock(c, NOW);
+    let started0, draft, info, banner, saved, elapsed, time;
+    try{ await c.clearActiveDraft(); await c.startTemplateLog('push', 'qa-d133'); c.persistDraftNow(); await H.settle(100); started0 = ((await c.loadActiveDraft()) || {}).startedAt; } finally { rel(); }
+    /* the phone is locked, the app closed, the athlete asleep: nothing stops this clock. Eight hours twelve minutes later: */
+    rel = pinClock(c, LATER);
+    try{ draft = await c.loadActiveDraft(); byId('logOverlay').classList.remove('open'); await c.renderResumeBanner(); info = Object.assign({}, c.activeDraftInfo);
+      const el = c.document.getElementById('todayWorkout'); banner = el ? el.innerHTML : '';
+      byId('logOverlay').classList.add('open');
+      c.restoreDraftToSheet(JSON.parse(JSON.stringify(draft))); const resumedStart = (c.captureActiveDraft() || {}).startedAt;
+      info.resumedStart = resumedStart;
+      /* finishing it now: the pair the app saves, and how it reads the pair */
+      const first = bodyEl.querySelectorAll('#logExercises .ex-log-row')[0]; first.querySelectorAll('.set-row').forEach(r => { r.querySelector('.set-weight-in').value = '185'; r.querySelector('.set-reps-in').value = '8'; r.classList.add('completed'); });
+      const before = c.workoutLog.length; try{ c.saveLog(); await H.settle(300); try{ c.closeSummary(); }catch(e){} }catch(e){ info.saveErr = String(e && e.message || e); }
+      saved = c.workoutLog.length > before ? c.workoutLog[c.workoutLog.length - 1] : null;
+      if(saved){ elapsed = c.workoutElapsedSeconds(saved); time = c.workoutTimeOf(saved); }
+    } finally { rel(); }
+    T('31  the clock is the wall clock: the start is stamped once when the workout is opened (startedAt = ' + started0 + ') and the draft keeps that stamp', typeof started0 === 'string' && started0.indexOf('2026-10-04T') === 0 && draft && draft.startedAt === started0, [started0, draft && draft.startedAt]);
+    T('32  REPRODUCED — a workout left open eight hours reads “492 min”: the Resume card draws now − startedAt in whole minutes, nothing else (no pause, no active time, nothing taken off for a locked phone or a closed app)', !!info && info.mins === 492 && /492 min · /.test(banner), [info && info.mins, banner.slice(0, 200)]);
+    T('33  …and resuming does not restart it: the restored workout carries the original start', !!info && info.resumedStart === started0, info && info.resumedStart);
+    T('34  …and finishing it saves that same span as the workout’s measured duration: endedAt − startedAt = 8 h 12 min, read back as an ACTUAL 29,520 s (D105 trusts any span that starts on the workout’s own date) — so an abandoned workout finished the same day records its idle hours as training time',
+      !!saved && elapsed === 29520 && !!time && time.kind === 'actual' && time.sec === 29520, [saved && [saved.startedAt, saved.endedAt], elapsed, time, info && info.saveErr]);
+    const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
+    T('35  it is recorded, not patched: E63 states the reproduction, the current semantics, the product options and a recommendation, and is OPEN',
+      /## E63 — [^\n]*· OPEN/.test(fx) && /492/.test(fx.slice(fx.indexOf('## E63'))) && /Options/.test(fx.slice(fx.indexOf('## E63'))) && /Recommendation/.test(fx.slice(fx.indexOf('## E63'))));
+    T('36  What’s New says nothing about duration: the release changed none', !/duration|minutes|492|elapsed/i.test(D133_WHATSNEW));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('37–42  release facts');
+  await guard('release', async () => {
+    const sw = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8');
+    T('37  What’s New v10-52 “More Room to Train” is LOOP 10.52 / loop-v229, dated in New York, with two improvements that are measured claims and nothing else',
+      /id: 'v10-52',\s*version: 'LOOP 10\.52',\s*title: 'More Room to Train',\s*date: '2026-10-0\d',\s*swVersion: 'loop-v229'/.test(raw) && /improvements: \[\s*'[^']+',\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D133_WHATSNEW) && sw.indexOf("CACHE_VERSION = 'loop-v229'") !== -1);
+    const ps = JSON.parse(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'PROJECT-STATUS.json'), 'utf8'));
+    T('38  PROJECT-STATUS says 10.52, needs QA (the owner’s iPhone pass), and its next action is under 200 characters', ps.version === '10.52' && ps.needsQa === true && ps.nextAction.length <= 200 && ps.nextAction.length > 20, [ps.version, ps.nextAction.length]);
+    const tc = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'TRAINER-CONTRACT.md'), 'utf8');
+    T('39  TRAINER-CONTRACT §174 records that the workout page is full-height and that D133 touched no engine', /§174|## 174/.test(tc) && /full-height|full height/.test(tc.slice(tc.indexOf('174'))) && /Contract 252/.test(tc));
+    T('40  the app shell the service worker precaches is still one page: no new file, no new asset', /index\.html/.test(sw) && (sw.match(/\.(css|js|png|webp|svg)\b/g) || []).length === (fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').match(/\.(css|js|png|webp|svg)\b/g) || []).length);
+    const evt = [...raw.matchAll(/id: 'v10-\d+',/g)].map(m => m[0]);
+    T('41  What’s New keeps its order: v10-52 is the newest and v10-51 the one before it', evt.length >= 2 && evt[evt.length - 1] === "id: 'v10-52'," && evt[evt.length - 2] === "id: 'v10-51',", evt.slice(-3));
+    T('42  the stylesheet block is small and named: one D133 comment, under 70 lines, at the end of the D132 system block, in LOOP’s own tokens', D133_CSS.split('\n').length < 70 && /^\/\* D133 — /.test(D133_CSS) && blockAt > 0);
+  });
 }
 
 async function testProductExperienceD132(){
@@ -55161,7 +55437,7 @@ async function testProductExperienceD132(){
   T('24  sheets: a dismissible sheet carries the grabber and the sheet radius; a page does not',
     /\.overlay:not\(\.overlay-page\) > \.sheet::before\{[^}]*content: '';[^}]*width: 38px; height: 5px;/.test(blockNC) && has('.sheet', 'border-radius: var(--r-sheet) var(--r-sheet) 0 0') && !/\.sheet-page::before\{[^}]*height: 5px/.test(blockNC));
   T('25  compact, never hidden: no D132 rule hides anything (no display:none, no visibility:hidden, no zero opacity on content)',
-    !/display:\s*none|visibility:\s*hidden|(?:^|[ ;])opacity:\s*0(?:[;}\s]|$)/.test(blockNC));
+    !/display:\s*none|visibility:\s*hidden|(?:^|[ ;])opacity:\s*0(?:[;}\s]|$)/.test(blockNC.split(D133_CSS.replace(/\/\*[\s\S]*?\*\//g, '')).join('')));   // D133 restated: D133's own block (one fade that steps aside) sits inside it; Contract 252 holds that block
   T('26  no new glass and no new motion: D132 adds no backdrop blur and no animation; its transitions are colour, shadow and press only; Reduce Motion still stops everything',
     !/backdrop-filter|animation/.test(blockNC) && bRules.every(r => !/transition:/.test(r.body) || /transition: (background-color|color|transform|box-shadow)/.test(r.body)) &&
     /@media \(prefers-reduced-motion: reduce\)\{\s*\*\{ animation: none !important; transition: none !important; \}/.test(css));
@@ -55479,6 +55755,7 @@ async function main(){
   await testProductExperienceD132();
   await testSetNumberCentringD1321();
   await testLiveWarmupD131B();
+  await testWorkoutRoomD133();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
