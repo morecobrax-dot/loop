@@ -19113,3 +19113,82 @@ these restatements; none fails after.
   replacement, a plan (`rx.sets`, `planned`) — the live split, not the resume.
 - E56 and E58 remain open for D131 (Option C), now resting on a resume that
   restores the session's own prescription.
+
+## §171 — ONE LOOK; THE TRAINER UNTOUCHED (D132 · LOOP 10.49 · loop-v226)
+
+**Rule.** D132 (Product Experience 2.0) is a visual release. It changes how
+LOOP draws, never what LOOP decides. No engine, renderer, handler, record,
+draft or storage key moved. Read back as 10.48, the file is 10.48 to the byte.
+
+**What it is.** One design system, in two places in the stylesheet:
+
+- **Tokens** at the end of `:root`:
+  - colour **roles**: action, progress, effort, recovery, mastery, program,
+    warning and danger, each with a soft tint;
+  - **gradients by meaning**: progress, mastery, recovery, program and the
+    hero tone. The action gradient is still the one `--grad-accent`;
+  - the surfaces `--surface-1`, `--surface-sheet`, `--surface-inset` and the
+    hairlines;
+  - elevation `--elev-1/2/3`;
+  - radii: cards 16, controls 12, buttons 14, sheets 22;
+  - type: `--font-display`, `--font-ui`, one eyebrow.
+- **The D132 system block** at the end of the sheet, between
+  `/* ==== D132 SYSTEM BEGIN/END ==== */`. It follows D28's precedent: every
+  family it restyles already exists earlier in the file.
+  - Type: the data face retires from labels and numbers. It stays only in
+    Rank (D113), the tour's rank ladder (D97/D106) and the Mastery podium,
+    whose stylesheet is pinned (D128/D129).
+  - Controls: one segmented control (Progress's website tabs are gone); one
+    button hierarchy.
+  - Surfaces: one card material, one hero, grouped rows, sheets with a grabber.
+  - The workout: the set to do now carries the action ring.
+  - Floors: 44px targets and 11px type for the controls the 10.48 browser pass
+    found short.
+
+The only changes outside those two places:
+- the large titles on Train and Progress;
+- the Progress tabs' semantics (`role="tablist"`/`tab`/`tabpanel`, ids,
+  `aria-controls`, `aria-labelledby`);
+- one statement in `switchProgTab` that keeps `aria-selected` with the
+  visible state;
+- the 10.48 Progress subtab rules, replaced by a note;
+- the What's New entry.
+
+**Proof of no drift.** `asOf1048Html(raw)` (loop-tests.js) removes the system
+block and the tokens and puts every other listed change back. The result is
+10.48's index.html to the byte (`0a94014bdfa2cd94`), and 42 engines and
+surfaces are pinned to their 10.48 hashes:
+- Session Score and the execution analysis;
+- PRs, XP and level;
+- recovery, D49 and programs;
+- objectives, D125's plan, D127's write boundary, D130's warm-ups and
+  D131A's draft;
+- E56/E58/E59 as recorded;
+- the summary, Mastery, Exercise Detail, Weekly Review and Today.
+
+Contract 249 holds the system, the reversal and the behaviour: 41 checks. It
+fails 28 on 10.48. On a 15-week history at a fixed clock, eight engine outputs
+are digested equal to 10.48's: records, XP and level, Session Score, recovery,
+Mastery, D49, the program, and D50B's coach. E59 is held by behaviour.
+
+Seven older checks are restated:
+- the D21 gradient budget, in four places. It is now a vocabulary: the action
+  gradient paints primary forward actions only, at most seven selectors;
+- the Progress subtabs (D25/D28). They are the one segmented control now;
+- the PB timeline's host markup. The panel carries its tab semantics;
+- D129's whole-stylesheet digest, read back through the reversal.
+
+**Not changed:**
+- Every training decision: D49, D50B, D85 phase policy, D125, D126, D127,
+  D130, D131A.
+- Records, XP, Session Score, recovery (including its band colours), programs,
+  objectives and blocks.
+- History, social and storage: 16 DATA_KEYS, schema 1, no migration.
+- Navigation and every control's action.
+- The Mastery podium and its art. Rank and its stage. The launch and its
+  ground (`--bg` #070B12, the body rule, the manifest).
+- The tour's own frames.
+- The held findings: E16, E22, E25–E27, E33, E38, E39, E43, E48, E49, E50,
+  E52, E54, E55, E56, E58, E59.
+
+**Not proven here.** How it looks and feels on a physical iPhone.

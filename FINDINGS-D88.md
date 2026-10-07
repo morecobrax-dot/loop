@@ -2041,6 +2041,46 @@ captured (10.47 and 10.48 alike).
 **Why it was not fixed.** D131A was scoped to resume provenance; the split is
 Phase B's swap rule.
 
+## E60 — Five dense controls are narrower than 44px on small phones · P4 · PROVEN · OPEN
+
+Found by D132's browser QA, which measures every visible control at ten sizes.
+It measured all five identically on frozen 10.48, so D132 did not cause any of
+them.
+
+**What happens.** Each is a row of equal columns that has to fit the width:
+- **Workout progress dots.** One dot per exercise, plus warm-up. They are
+  34–40 px wide with 8 exercises on any phone.
+- **Weekly volume chart.** Its tappable week bars are 27 px wide at 390 px.
+- **Calendar day cells.** About 37 px at 320 px and 43 px at 360 px.
+- **Today's week strip.** The seven day tiles are 36, 42 and 43.x px wide at
+  320, 360 and 375 px (65 px tall).
+- **Rank's rail.** Its eight segments are 36, 41 and 43 px wide at 320, 360 and
+  375 px (44 px tall). Rank is D113 and protected.
+
+Every one of them has a full-size way to the same place:
+- the workout dock's Previous / Next;
+- the week list;
+- the Recent list and the month arrows;
+- the day card's own actions;
+- Rank's swipe.
+
+**Why it was not fixed.** D132 changes no layout geometry that other contracts
+pin (the D97/D113 width budgets, the D80A-era day-strip gestures). A 44px column
+needs either fewer columns or a hit area that overlaps its neighbour. Both are
+interaction decisions, not visual ones.
+
+## E61 — What's New lists every release's full notes in one scroll · P4 · PROVEN · OPEN
+
+Found by D132's density audit: about 81 screens at 390 × 844, every entry
+expanded.
+
+**What happens.** The newest entry is the one an athlete opens the page for. The
+other 108 sit fully open beneath it.
+
+**Why it was not fixed.** Collapsing older entries changes the page's renderer
+(`renderUpdatesList`). D132 is a visual release with zero renderer drift
+(Contract 249, 2–3).
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

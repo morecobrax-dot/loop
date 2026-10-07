@@ -614,6 +614,85 @@ function withAsOf1047(c, names, fn){
   try{ return fn(); } finally { names.forEach((n, i) => { c[n] = keep[i]; }); }
 }
 
+/* D132 — Product Experience 2.0 is a VISUAL release. Everything it changed in index.html is listed here, so any
+   contract can read the app exactly as LOOP 10.48 had it (restated by reversal, the same discipline as the asOf
+   tables above): the D132 system block and the D132 tokens are removed, and each [now, then] pair below is put
+   back. asOf1048Html(raw) returns null if any listed change is missing or has been edited, so a later change to
+   one of them fails here rather than silently reverting something else. raw is LF text. */
+const D132_PROGSEG_THEN = "/* The Progress subtabs are navigation, not four solid buttons: quiet text on\n   a hairline, the active section named by weight and an accent underline.\n   Touch height stays at the 44px floor — only the visual bulk went. */\n#progSeg{\n  background: transparent; border-radius: 0; padding: 0; gap: 0;\n  border-bottom: 1px solid var(--border); margin-top: 8px;\n}\n#progSeg .seg-btn{ position: relative; border-radius: 0; font-size: 13px; letter-spacing: 0.01em; }\n#progSeg .seg-btn::after{\n  content: ''; position: absolute; left: 20%; right: 20%; bottom: -1px; height: 2px;\n  border-radius: 2px 2px 0 0; background: transparent; transition: background 0.18s var(--ease);\n}\n#progSeg .seg-btn.active{ background: none; color: var(--text); }\n#progSeg .seg-btn.active::after{ background: var(--accent); }";
+const D132_PROGSEG_NOW = "/* D132 — the Progress subtabs used to be drawn here as website tabs (quiet\n   text on a hairline, an accent underline under the active one). They are now\n   the app's one segmented control (see the D132 system section): the same\n   control Training, Profile and every range selector use. Only the spacing\n   that belongs to this page stays. */\n#progSeg{ margin-top: 0; }";
+const D132_WHATSNEW = "  },\n  {\n    id: 'v10-49',\n    version: 'LOOP 10.49',\n    title: 'A New Look',\n    date: '2026-10-06',\n    swVersion: 'loop-v226',\n    summary: 'LOOP has a new look built around faster training decisions.',\n    newFeatures: [],\n    improvements: [\n      'Pages now share one style of tabs and one style of buttons, and the numbers that matter most are bigger',\n      'During a workout, the set you are on now has a blue ring, and warm-up, failure and AMRAP sets each name their type in their own colour',\n      'Your program now has its own colour, violet, on its phase, its weeks and its progress bar',\n      'Settings and achievements are grouped like the rest of your phone, and small buttons are easier to tap'\n    ],\n    bugFixes: [\n      'The tick at the top of a Workout Summary now sits centred above the title'\n    ],\n    changes: []\n  }\n];";
+const D132_TABS = [['overview', 'Overview', true], ['strength', 'Strength', false], ['volume', 'Volume', false], ['muscles', 'Mastery', false]];
+const D132_EDITS = [
+  ['    <h2 class="page-title" id="trainTitle">Train</h2>\n', ''],
+  ['    <h2 class="page-title" id="progressTitle">Progress</h2>\n\n    <div class="seg" id="progSeg" role="tablist" aria-label="Progress views">', '\n    <div class="seg" id="progSeg">'],
+  ...D132_TABS.map(([k, l, on]) => ['<button class="seg-btn' + (on ? ' active' : '') + '" data-p="' + k + '" role="tab" id="progTab-' + k + '" aria-controls="ppanel-' + k + '" aria-selected="' + on + '" onclick="switchProgTab(\'' + k + '\')">' + l + '</button>',
+    '<button class="seg-btn' + (on ? ' active' : '') + '" data-p="' + k + '" onclick="switchProgTab(\'' + k + '\')">' + l + '</button>']),
+  ...D132_TABS.map(([k, , on]) => ['<div class="seg-panel" id="ppanel-' + k + '" role="tabpanel" aria-labelledby="progTab-' + k + '"' + (on ? '' : ' style="display:none"') + '>',
+    '<div class="seg-panel" id="ppanel-' + k + '"' + (on ? '' : ' style="display:none"') + '>']),
+  ["  document.querySelectorAll('#progSeg .seg-btn').forEach(b => { b.classList.toggle('active', b.dataset.p === t); b.setAttribute('aria-selected', b.dataset.p === t ? 'true' : 'false'); });",
+   "  document.querySelectorAll('#progSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.p === t));"],
+  [D132_PROGSEG_NOW, D132_PROGSEG_THEN],
+  [D132_WHATSNEW, '  }\n];']
+];
+const D132_BLOCK = ['/* ==== D132 SYSTEM BEGIN ==== */\n', '/* ==== D132 SYSTEM END ==== */\n'];
+const D132_TOKENS = ['  /* ---- D132 — PRODUCT EXPERIENCE 2.0: the semantic layer ----', '  --press: scale(0.97);\n'];
+const SHA_1048_HTML = '0a94014bdfa2cd94';   /* index.html of LOOP 10.48 (4948cc7), LF */
+function asOf1048Html(raw){
+  let t = raw;
+  const cut = ([a, b]) => { const i = t.indexOf(a); if(i === -1) return false; const j = t.indexOf(b, i); if(j === -1) return false; t = t.slice(0, i) + t.slice(j + b.length); return true; };
+  if(!cut(D132_BLOCK) || !cut(D132_TOKENS)) return null;
+  for(const [now, then] of D132_EDITS){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
+}
+/* the rules that paint the action gradient, by selector (the D21 budget, restated by D132 as a vocabulary) */
+const D132_ACTION_GRADIENT = /^(\.btn-primary|\.ws-nav-fwd\.is-next|\.ws-nav-fwd\.is-finish|\.tpl-start|\.hdr-level-bar span|\.tw-cta|\.tl-start\.is-next)$/;
+function d132GradientUses(css){
+  const out = []; const nc = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const re = /([^{}]+)\{([^{}]*)\}/g; let m;
+  while((m = re.exec(nc))) if(/var\(--grad-accent\)/.test(m[2])) m[1].split(',').map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean).forEach(s => out.push(s));
+  return out;
+}
+/* the D132 QA fixture (scratch fixture132.js), as data: 15 weeks of Push A / Pull A / Legs A / Full Body A from
+   Mon 29 Jun 2026, four sessions missed, warm-ups on the barbell lifts, rx on program sessions from 3 Aug, and the
+   12-week Hypertrophy Block that owns the week. Deterministic: no clock, no randomness. */
+function d132FixtureHistory(){
+  const TPL = {
+    push: { name: 'Push A — Chest Focus', ex: [['Machine Chest Press', 3, '8–12', 100, 5], ['Incline DB Press', 3, '8–12', 40, 2.5], ['Pec Deck', 3, '12–15', 80, 5], ['Machine Shoulder Press', 2, '8–12', 60, 5], ['Lateral Raise', 3, '12–15', 12.5, 0], ['Triceps Dips', 3, '10–15', 0, 0], ['Ab Crunch Machine', 3, '12–15', 45, 5], ['Hanging Leg Raise', 2, '10–15', 0, 0]] },
+    pull: { name: 'Pull A — Back Width', ex: [['Lat Pulldown', 3, '8–12', 110, 5], ['Seated Cable Row', 3, '8–12', 100, 5], ['Single-Arm DB Row', 3, '10–12', 45, 5], ['Face Pull', 3, '12–15', 35, 2.5], ['Rear Delt Fly', 3, '12–15', 12.5, 0], ['Barbell Curl', 3, '8–12', 55, 5], ['Hammer Curl', 2, '10–15', 25, 0], ['Back Extension', 2, '12–15', 0, 0]] },
+    legs: { name: 'Legs A — Balanced', ex: [['Leg Press', 3, '10–12', 230, 10], ['Leg Extension', 3, '12–15', 90, 5], ['Leg Curl', 3, '12–15', 80, 5], ['Walking Lunge', 2, '10–12/leg', 30, 0], ['Standing Calf Raise', 3, '12–15', 120, 10]] },
+    fullbody: { name: 'Full Body A — Strength', ex: [['Barbell Back Squat', 3, '6–10', 175, 5], ['Flat Bench Press', 3, '6–10', 145, 5], ['Bent-Over Row', 3, '8–12', 115, 5], ['Romanian Deadlift', 3, '8–12', 155, 10], ['Walking Lunge', 2, '10–12/leg', 30, 0], ['Plank', 3, '30–45s', 0, 0]] }
+  };
+  const DAYS = [['push', 0], ['pull', 1], ['legs', 3], ['fullbody', 5]], MISSED = new Set(['3-legs', '6-fullbody', '9-pull', '11-fullbody']);
+  const BW = new Set(['Triceps Dips', 'Hanging Leg Raise', 'Back Extension', 'Plank']), WARM = new Set(['Barbell Back Squat', 'Flat Bench Press', 'Romanian Deadlift']);
+  const log = []; const start = Date.UTC(2026, 5, 29); let seq = 0;
+  for(let w = 0; w < 15; w++) for(const [cat, dow] of DAYS){
+    const date = new Date(start + (w * 7 + dow) * 86400000).toISOString().slice(0, 10);
+    if(date >= '2026-10-06' || MISSED.has(w + '-' + cat)) continue;
+    const t = TPL[cat], inProgram = date >= '2026-08-03';
+    const exercises = t.ex.map(([name, sets, reps, base, step], k) => {
+      const bw = BW.has(name), timed = /s$/.test(reps), load = bw ? '' : String(base + Math.floor(w / 2) * step), top = parseInt(reps, 10) || 10, out = [];
+      if(WARM.has(name)) out.push({ weight: String(Math.round((base + Math.floor(w / 2) * step) * 0.5 / 5) * 5), reps: '8', rir: '', type: 'warmup', completed: true });
+      for(let i = 0; i < sets; i++) out.push({ weight: load, reps: timed ? String(30 + (w % 3) * 5) : String(Math.max(top - 1, top + 2 - i - ((w + k) % 3))), rir: String(i === sets - 1 ? 1 : 2), type: 'working', completed: true });
+      const ex = { name, effort: '8', bodyweight: bw, sets: out };
+      if(inProgram) ex.rx = Object.assign({ sets, reps, effort: 8 }, bw ? {} : { load: parseFloat(load) });
+      return ex;
+    });
+    const startedAt = date + 'T' + String(17 + (seq % 3)).padStart(2, '0') + ':10:00.000Z', mins = 48 + ((seq * 7) % 22);
+    const entry = { id: 'w' + String(++seq).padStart(3, '0'), title: t.name, category: cat, date, notes: '', exercises, startedAt, endedAt: new Date(Date.parse(startedAt) + mins * 60000).toISOString(), plannedMinutes: 60 };
+    if(inProgram){ entry.origin = 'program'; entry.programId = 'p1'; } else entry.origin = 'freeform';
+    log.push(entry);
+  }
+  const day = cat => ({ type: 'workout', planId: 'balanced', category: cat, templateId: { push: 'd1', pull: 'd3', legs: 'd-lg1', fullbody: 'd5' }[cat], name: TPL[cat].name, exercises: TPL[cat].ex.map(([name, sets, reps]) => ({ name, sets, reps, effort: '8' })) });
+  const programs = { version: 1, activeProgramId: 'p1', programs: [{ id: 'p1', name: 'Hypertrophy Block', goal: 'hypertrophy', status: 'active', durationWeeks: 12, startDate: '2026-08-03',
+    schedule: { mon: day('push'), tue: day('pull'), wed: { type: 'rest' }, thu: day('legs'), fri: { type: 'rest' }, sat: day('fullbody'), sun: { type: 'rest' } } }] };
+  return { log, programs };
+}
+function d132GradientHolds(css){
+  const uses = d132GradientUses(css);
+  return uses.length >= 4 && uses.length <= 7 && uses.every(s => D132_ACTION_GRADIENT.test(s)) ? true : uses.join(' | ');
+}
+
 /* A CSS rule's body, bounded by its own closing brace rather than by a
    character count that a new declaration pushes a property out of. */
 function cssRule(css, selector){
@@ -13958,9 +14037,10 @@ function testTrainingTruth(app){
   T('the accent pair exists and the gradient is built from it, nowhere else',
     /--accent: #4CC2FF;/.test(css) && /--accent-2: #2E6BFF;/.test(css) &&
     /--grad-accent: linear-gradient\(135deg, var\(--accent\), var\(--accent-2\)\);/.test(css));
-  T('gradients are said, not sprayed',
-    (css.match(/var\(--grad-accent\)/g) || []).length <= 4,
-    String((css.match(/var\(--grad-accent\)/g) || []).length));
+  /* D132 restated: the D21 budget was a count (four uses of the action gradient). D132 made it a vocabulary:
+     the action gradient paints primary forward actions only — Today's Start Workout and Train's next Start
+     joined the ones that had it — so the rule is now WHERE it is said, not how often (Contract 249, 19). */
+  T('gradients are said, not sprayed', d132GradientHolds(css) === true, String(d132GradientHolds(css)));
   T('glass is one floating surface, not a theme',
     /\.tabbar\{[\s\S]{0,300}var\(--glass-bg\)/.test(css) &&
     (css.match(/backdrop-filter/g) || []).length <= 6,
@@ -14048,9 +14128,8 @@ function testHomeAndTouch(app){
     /\.tpl-name\{[^}]*font-weight: 700; font-size: 17px;/.test(css));
   T('starting it is the same gradient as every primary forward action',
     /\.tpl-start\{[\s\S]{0,220}background: var\(--grad-accent\); color: #06121F;/.test(css));
-  T('and the gradient budget still holds',
-    (css.match(/var\(--grad-accent\)/g) || []).length <= 4,
-    String((css.match(/var\(--grad-accent\)/g) || []).length));
+  /* D132 restated: the budget is a vocabulary now — primary forward actions only (Contract 249, 19). */
+  T('and the gradient budget still holds', d132GradientHolds(css) === true, String(d132GradientHolds(css)));
   T('the card answers interaction with its border, not a glow',
     /\.tpl-card:hover, \.tpl-card:focus-within\{ border-color: rgba\(76,194,255,0\.35\);/.test(css));
 
@@ -14492,9 +14571,12 @@ async function testProgressExperience(){
     const fn = src.slice(src.indexOf('function switchProgTab'), src.indexOf('function setProgRange'));
     return /window\.scrollTo\(\{ top: 0, behavior: 'instant' \}\)/.test(fn);
   })());
-  T('the subtabs are navigation: underline active state, no solid slab',
-    /#progSeg \.seg-btn\.active\{ background: none/.test(css) &&
-    /#progSeg \.seg-btn\.active::after\{ background: var\(--accent\)/.test(css));
+  /* D132 restated: the subtabs are the app's one segmented control now — an inset track and a raised neutral
+     thumb, the same control Training, Profile and every range use (Contract 249, 13–17). The underline rules
+     are gone, and the four are tabs to a screen reader as well as to the eye. */
+  T('the subtabs are the one segmented control: no underline, a raised thumb, real tab semantics',
+    !/#progSeg \.seg-btn\.active::after/.test(css) && /\.seg-btn\.active\{[^}]*background: var\(--surface-3\)/.test(css) &&
+    /id="progSeg" role="tablist"/.test(src));
   T('their touch height still meets the 44px floor',
     /\.seg-btn\{[^}]*min-height: 44px/.test(css));
 
@@ -15152,9 +15234,9 @@ async function testLuminousDepth(){
     /\.cal-unknown\{ opacity: 0\.22/.test(css) && /\.lc-unknown\{ background: none; border: 1px dashed/.test(css));
 
   sub('glow budgets stay scarce');
-  T('the signature gradient is still at its D21 budget',
-    (src.match(/var\(--grad-accent\)/g) || []).length <= 4,
-    String((src.match(/var\(--grad-accent\)/g) || []).length));
+  /* D132 restated: the budget is a vocabulary now — primary forward actions only (Contract 249, 19). */
+  T('the signature gradient is still at its D21 budget — said only by primary forward actions',
+    d132GradientHolds(src.slice(src.indexOf('<style>'), src.indexOf('</style>'))) === true, String(d132GradientHolds(src.slice(src.indexOf('<style>'), src.indexOf('</style>')))));
   T('backdrop blur did not spread', (src.match(/backdrop-filter/g) || []).length <= 6,
     String((src.match(/backdrop-filter/g) || []).length));
   T('no pool animates and none pulses', (() => {
@@ -26610,7 +26692,9 @@ async function testTrainLauncher(){
     /\.tl-main:focus-visible, \.tl-start:focus-visible\{ outline: 2px solid var\(--accent\);/.test(css) && /\.tl-empty-cta:focus-visible\{ outline: 2px solid var\(--accent\);/.test(css) &&
     /\.td-close:focus-visible, \.td-link:focus-visible\{ outline: 2px solid var\(--accent\);/.test(css) && /\.tpl-kind-opt:focus-visible\{ outline: 2px solid var\(--accent\);/.test(css) &&
     /\.tl-toggle:focus-visible\{ outline: 2px solid var\(--accent\);/.test(css));
-  T('the gradient budget still holds: no launcher surface adds one', !/gradient\(|--grad-/.test(stripComments(launcherCss)) && (css.match(/var\(--grad-accent\)/g) || []).length <= 4);
+  /* D132 restated: the launcher's own stylesheet still adds no gradient; its next Start is a primary action, painted
+     by the D132 system block inside the action-gradient vocabulary (Contract 249, 19). */
+  T('the gradient budget still holds: no launcher surface adds one', !/gradient\(|--grad-/.test(stripComments(launcherCss)) && d132GradientHolds(css) === true);
 
   sub('D69.5 — a refinement pass, not a redesign: the same launcher, quieter in five places');
   T('the plan\'s name is not repeated inside Train — the header\'s Plan chip already carries it, on every tab',
@@ -31448,8 +31532,9 @@ async function testPersonalBestTimeline(){
   /* ===================================================== RENDERING / PLACEMENT */
   sub('RENDERING — one primitive, called from the Strength tab, ahead of everything else there');
   {
+    /* D132 restated: the panel now carries its tab semantics (role, aria-labelledby); the host's place is unchanged. */
     T('T — the static host sits inside the Strength panel, before the rest of it',
-      /id="ppanel-strength"[\s\S]{0,40}<div id="progPBTimeline"><\/div>[\s\S]{0,120}<div id="progReady">/.test(src));
+      /id="ppanel-strength"[^>]*>[\s\S]{0,40}<div id="progPBTimeline"><\/div>[\s\S]{0,120}<div id="progReady">/.test(src));
     T('  renderProgStrength renders the timeline first, before Ready to progress and the rest', (() => {
       const body = fnSrc(src, 'renderProgStrength');
       const i1 = body.indexOf('renderPersonalBestTimeline();'), i2 = body.indexOf('computeProgressionBuckets()');
@@ -53181,9 +53266,13 @@ async function testExerciseIdentityD129(){
     T('33  a ranked row is 10.45’s to the byte in everything but its handler (text only, as D128 audited them)', was.rows.length === 14 && nowRows.every((h, i) => strip(h) === strip(was.rows[i]) && h !== was.rows[i]));
     const view = atNow(() => c.masteryViewHtml(c.getMasteryProgress())), viewWas = atNow(() => withAsOf1045(c, ['masteryPodiumCardHtml', 'masteryRowHtml'], () => c.masteryViewHtml(c.getMasteryProgress())));
     T('34  so the whole Mastery view - both modes, the toggle, the podium, the list, the muscle side - is 10.45’s, byte for byte, apart from the handlers of its exercise cards and rows', strip(view) === strip(viewWas) && view.length > 5000 && view !== viewWas);
-    const styles = cssNC.replace(/\.exd-meta-as\{[^}]*\}\s*/, ''), css35 = sha(col(styles));
-    T('35  the stylesheet is 10.45’s with ONE rule added - the line under the title on a page opened from a card - and no Mastery rule moved',
-      /\.exd-meta-as\{ display: block;/.test(cssNC) && css35 === '52906371971e29a1' && /\.mpod-ex \.mpod-head\{/.test(cssNC), css35);
+    /* D132 restated by reversal: D132 is the first release since to touch the stylesheet, and it lists every change
+       it made (asOf1048Html). Read back as 10.48 — its system block and tokens removed, its one in-place rule put
+       back — the stylesheet is still 10.45's with ONE rule added. */
+    const was1048 = asOf1048Html(raw), css1048 = was1048 ? was1048.slice(was1048.indexOf('<style>'), was1048.indexOf('</style>')).replace(/\/\*[\s\S]*?\*\//g, '') : '';
+    const styles = css1048.replace(/\.exd-meta-as\{[^}]*\}\s*/, ''), css35 = sha(col(styles));
+    T('35  the stylesheet (read back as 10.48 through the D132 reversal) is 10.45’s with ONE rule added - the line under the title on a page opened from a card - and no Mastery rule moved',
+      /\.exd-meta-as\{ display: block;/.test(css1048) && css35 === '52906371971e29a1' && /\.mpod-ex \.mpod-head\{/.test(css1048), css35);
     const pins36 = ['masteryMuscleCardHtml', 'muscleMasteryRowHtml', 'masteryMusclePodiumHtml', 'masteryLeadersHtml', 'masteryRankRowHtml', 'masteryListHtml', 'exerciseMasteryListHtml', 'masteryLeaderCardHtml', 'masteryExerciseArtHtml', 'masteryLevelPillHtml', 'masteryBarHtml', 'masteryBadgeHtml'].map(pin).join();
     T('36  Muscle Mastery is exactly what it was: its cards and rows are built by functions byte-identical to 10.45, and nothing of its markup carries a handler or a picture',
       pins36 === '42964283ac42eb13,de6e069ff0909c2f,6b99bd085e59e77a,682d97311fa7861f,ab85b6b7047615aa,058ea74eaf729ee2,39be1a56affbcbf8,a437b9e4eaeb99f2,25ac09af9a636bf9,5a84d2dfd1e2d419,8ff159ded75a682e,3ec676f4777b644b' && !/openMasteryExercise|openExDetail/.test(atNow(() => c.masteryMusclePodiumHtml(c.getTopMuscleMastery().filter(m => m.hasHistory).slice(0, 3)) + c.muscleMasteryListHtml(50))), pins36);
@@ -54389,6 +54478,285 @@ async function testPrescriptionProvenanceD131A(){
   });
 }
 
+/* =========================================================
+   CONTRACT 249 — PRODUCT EXPERIENCE 2.0 (D132 · LOOP 10.49)
+   ---------------------------------------------------------
+   One app, one material, one control for one job — and
+   nothing it does not draw has moved. Three kinds of check:
+   ZERO DRIFT (the file read back as 10.48 is 10.48 to the
+   byte, and every engine and surface it must not touch is
+   pinned to 10.48); the SYSTEM (tokens, type, controls,
+   buttons, surfaces, the workout's "what now", floors,
+   motion, the protected surfaces it does not touch); and
+   BEHAVIOUR where a visual release has any (the Progress
+   tabs' selection, on the app's own switchProgTab). Pixel
+   truth is the browser QA's (qa132.js); this holds the
+   rules that produce it.
+   ========================================================= */
+async function testProductExperienceD132(){
+  section('CONTRACT 249 — Product Experience 2.0: one visual system, and nothing it does not draw has moved (D132)');
+  const fs = require('fs'), crypto = require('crypto');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const pin = n => sha(col(fnSrc(raw, n)));
+  const css = raw.slice(raw.indexOf('<style>'), raw.indexOf('</style>'));
+  const B = css.indexOf(D132_BLOCK[0]), E = css.indexOf(D132_BLOCK[1]);
+  const block = B !== -1 && E > B ? css.slice(B, E) : '';
+  const blockNC = block.replace(/\/\*[\s\S]*?\*\//g, '');
+  const root = css.slice(css.indexOf(':root{'), css.indexOf('\n}', css.indexOf(':root{')));
+  /* the rules of a stylesheet: selectors (split, collapsed), body, and the @media they sit in */
+  const parse = text => {
+    const out = []; const nc = text.replace(/\/\*[\s\S]*?\*\//g, ''); const stack = []; let i = 0, start = 0;
+    while(i < nc.length){
+      const ch = nc[i];
+      if(ch === '{'){ stack.push({ sel: nc.slice(start, i).trim(), at: i + 1 }); start = i + 1; }
+      else if(ch === '}'){ const top = stack.pop(); if(top && !top.sel.startsWith('@')) out.push({ sels: top.sel.split(',').map(col).filter(Boolean), body: col(nc.slice(top.at, i)), media: stack.map(s => s.sel).join(' ') }); start = i + 1; }
+      i++;
+    }
+    return out;
+  };
+  const bRules = parse(block), wasRaw = asOf1048Html(raw), wasCss = wasRaw ? wasRaw.slice(wasRaw.indexOf('<style>'), wasRaw.indexOf('</style>')) : '';
+  /* the body of the block's top-level rule(s) naming exactly this selector, joined */
+  const blk = sel => bRules.filter(r => !r.media && r.sels.includes(sel)).map(r => r.body).join(' ; ');
+  const has = (sel, decl) => blk(sel).indexOf(decl) !== -1;
+  const px = (body, prop) => { const m = new RegExp('(?:^|[ ;])' + prop + ': ([\\d.]+)px').exec(body); return m ? parseFloat(m[1]) : null; };
+
+  /* ---------------------------------------------------------------- */
+  sub('1–3  zero drift: D132 changed only what it lists');
+  await guard('drift', async () => {
+    T('1  every D132 change is where it was written, once — the file reads back as LOOP 10.48', wasRaw !== null);
+    T('2  …and that read-back is LOOP 10.48 to the byte (index.html of 4948cc7): no engine, no renderer, no handler, no record, no rule outside the system block moved', !!wasRaw && sha(wasRaw) === SHA_1048_HTML, wasRaw && sha(wasRaw));
+    const PINS = {"deriveSessionExecution":"0498f3f2c0dd3c2c","sessionScore":"842e5699f8ac0835","computeAllPREvents":"94af217dbcf1f9ed","computePRs":"ff1f540c2ae3b46a","computeXPEvents":"cec5fa2cffc42db5","getCurrentProgression":"bf3a7572296c620c","computeMuscleRecovery":"d3589033bdb54c67","recoveryStripHtml":"6eb427476c25e796","progressionFor":"a992f11698e3e9e7","getProgramWorkoutForDate":"496d8572d640dc24","objectiveProgress":"e0889920b620163e","syncObjectives":"406ea6f01ae1b62e","deriveWorkingSetPlan":"b5c00dac1e00d09b","coachMayWriteSet":"0de96792fab27ca4","seedWarmupTargets":"9c048567ff49a1f1","suggestedWarmupSteps":"7e37069140f2527b","maybeRefreshWarmup":"bf55b39f07a6e2e4","splitRowForSwap":"78ed482b25517739","captureActiveDraft":"7ed552854d7f4526","restoreDraftToSheet":"33f0e4de3ce21e63","addLogExerciseRow":"be4678472bf41b62","appendSetRow":"61f2b7e061afde48","toggleSetComplete":"ed4187ee4b7b5e61","saveLog":"66c63714822ef5ee","openWorkoutSummary":"58c0ec576bb1bad2","renderSummaryScore":"be7971b69696ae40","openMasteryExercise":"d5ed0205fd603c1c","deriveExerciseDetail":"2e7f87f1c8567b0a","masteryPodiumCardHtml":"0c85f5f236685801","masteryViewHtml":"cfeb04f7ef9796a6","renderWeeklyReview":"b8e25f3b77b18cb5","renderToday":"4eddd61a7575f0e7","renderTodayWorkout":"7957f591c99febed","switchTab":"de35ef75d197810e","renderProgress":"45badcbf3a0defd5","renderExDetail":"752755306eaa5a44","renderProgramDetail":"2b47b25b6540176e","renderSettingsSocialRow":"4cd1dbb1731fbca4","computeConsistencyData":"5bfe9ebbb27ff11e","paintTabIcons":"db23ee85cb7633b8","tabIconSvg":"2386e6e0cddb2e3a"};
+    const moved = Object.keys(PINS).filter(n => pin(n) !== PINS[n]);
+    T('3  the engines and surfaces it must not move are byte-identical to 10.48 — Session Score and the execution analysis, PRs, XP and level, recovery, D49, programs, objectives, D125’s plan, D127’s write boundary, D130’s warm-ups, D131A’s draft, E56/E58/E59 as recorded, the summary, Mastery (D128/D129), Exercise Detail, Weekly Review, Today — ' + Object.keys(PINS).length + ' pins',
+      moved.length === 0, moved.join(','));
+    T('3  the one statement D132 added to a function is switchProgTab’s aria-selected — and that function is otherwise 10.48’s',
+      pin('switchProgTab') !== '7eb35657e1fc9e68' && sha(col(fnSrc(wasRaw || '', 'switchProgTab'))) === '7eb35657e1fc9e68');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4–8  the tokens: one ground, colour as roles, gradients by meaning');
+  T('4  the ground is untouched — --bg is #070B12 and the body still paints it under the one top light (D114’s launch ground)',
+    /--bg: #070B12;/.test(root) && /body\{\s*background:\s*radial-gradient\(ellipse 560px 280px at 50% -6%, rgba\(76,194,255,0\.07\), transparent 62%\),\s*var\(--bg\);/.test(css));
+  const ROLES = { '--c-progress': '#46C38E', '--c-effort': '#F0A845', '--c-recovery': '#3CC6C0', '--c-mastery': '#EBB84D', '--c-program': '#8F7CF7', '--c-warning': '#E8963F' };
+  T('5  colour is a role, defined once each: progress, effort, recovery, mastery, program, warning — each with its soft tint — and danger is the one danger',
+    Object.keys(ROLES).every(k => (root.match(new RegExp(k.replace(/-/g, '\\-') + ': ' + ROLES[k] + ';', 'g')) || []).length === 1 && new RegExp(k.replace(/-/g, '\\-') + '-soft: rgba\\(').test(root))
+    && /--c-danger: var\(--danger\);/.test(root) && /--c-action: var\(--accent\);/.test(root));
+  T('6  gradients are said by meaning: progress, mastery, recovery, program and the hero tone each defined once; the action gradient is still one token (--grad-accent)',
+    ['--grad-progress', '--grad-mastery', '--grad-recovery', '--grad-program', '--grad-hero'].every(k => (css.match(new RegExp(k.replace(/-/g, '\\-') + ': linear-gradient\\(', 'g')) || []).length === 1)
+    && (css.match(/--grad-accent:/g) || []).length === 1 && !/--grad-action/.test(css));
+  T('7  one shape and one type system: cards 16, controls 12, buttons 14, sheets 22; a display face and a UI face; one eyebrow (11px, 0.07em)',
+    /--r-card: 16px;/.test(root) && /--r-control: 12px;/.test(root) && /--r-button: 14px;/.test(root) && /--r-sheet: 22px;/.test(root) &&
+    /--font-display: 'Space Grotesk', sans-serif;/.test(root) && /--font-ui: 'Inter', sans-serif;/.test(root) && /--eyebrow-size: 11px;/.test(root) && /--eyebrow-track: 0\.07em;/.test(root));
+  T('8  every category keeps its colour (D81’s identity): push, pull, legs, core, full body, upper, lower, arms are 10.48’s values',
+    ['--push: #5B8CFF;', '--pull: #BD9260;', '--legs: #8579B0;', '--core: #B8748C;', '--full: #4B9C81;', '--upper: #4FA3C7;', '--lower: #C77F4F;', '--arms: #A3B25A;'].every(v => root.indexOf(v) !== -1));
+
+  /* ---------------------------------------------------------------- */
+  sub('9–12  type: one face for the interface, one eyebrow, and the protected faces kept');
+  await guard('type', async () => {
+    const PROTECTED = /\.rank-(?!row|val|name|list)|#rank|(^|[\s,>+~(])\.ob-|\.obr-|intro|\.rk-|\.mpod|\.mastery-lvl-chip|\.muscle-fig-labels|\.msys-|\.mtl-/;
+    const was = parse(wasCss);
+    const mediaFam = new Set(); was.filter(r => r.media && /font-family/.test(r.body)).forEach(r => r.sels.forEach(s => mediaFam.add(s)));
+    const mono = []; was.filter(r => !r.media && /font-family: 'JetBrains Mono', monospace/.test(r.body)).forEach(r => r.sels.forEach(s => { if(!PROTECTED.test(s) && !mediaFam.has(s)) mono.push(s); }));
+    const ui = new Set(); bRules.filter(r => !r.media && /font-family: var\(--font-ui\)/.test(r.body)).forEach(r => r.sels.forEach(s => ui.add(s)));
+    const missed = mono.filter(s => !ui.has(s));
+    T('9  every label and number 10.48 set in the data face — outside Rank, the tour, the launch and the Mastery podium — is set in the UI face (' + mono.length + ' rules, enumerated from 10.48’s own stylesheet)',
+      mono.length > 150 && missed.length === 0, missed.slice(0, 8).join(' | '));
+    const upper = []; was.filter(r => !r.media && /text-transform: uppercase/.test(r.body) && /letter-spacing: 0?\.(0[4-9]|1\d|20)\d*em/.test(r.body)).forEach(r => r.sels.forEach(s => { if(!PROTECTED.test(s)) upper.push(s); }));
+    const mediaTrack = new Set(); was.filter(r => r.media && /letter-spacing/.test(r.body)).forEach(r => r.sels.forEach(s => mediaTrack.add(s)));
+    const tracked = new Set(); bRules.filter(r => !r.media && /letter-spacing: var\(--eyebrow-track\)/.test(r.body)).forEach(r => r.sels.forEach(s => tracked.add(s)));
+    const off = upper.filter(s => !mediaTrack.has(s) && !tracked.has(s));
+    T('10  every uppercase label takes the one eyebrow tracking (' + upper.length + ' rules) — none left at its own private spacing', upper.length > 120 && off.length === 0, off.slice(0, 8).join(' | '));
+    T('11  Rank (D113), the tour’s rank ladder and its framed miniatures (D97/D106) and the Mastery podium (D128/D129) keep their own faces: their 10.48 rules still say JetBrains Mono and no D132 rule names them',
+      /\.rank-[a-z-]+\{[^}]*font-family: 'JetBrains Mono', monospace/.test(css) && /\.obr-name\{[^}]*font-family: 'JetBrains Mono', monospace/.test(css) && /\.mastery-lvl-chip\{[^}]*font-family: 'JetBrains Mono', monospace/.test(css)
+      && !bRules.some(r => r.sels.some(s => /\.rank-(?!row|val|name|list)|#rank|\.obr-|\.ob-ranks|\.ob-demo|intro|\.mpod|mbadge|\.mastery-lvl-chip|\.msys-|\.mtl-/.test(s))));
+    const small = []; bRules.forEach(r => { const m = /(?:^|[ ;])font-size: ([\d.]+)px/.exec(r.body); if(m && +m[1] < 11 && !(r.sels.length === 1 && r.sels[0] === '.workout-back' && +m[1] === 0)) small.push(r.sels.join(',') + ' ' + m[1]); });
+    T('12  nothing D132 draws is under the 11px floor (the back button’s glyph is drawn, not set: 0)', small.length === 0, small.join(' | '));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('13–20  controls: one segmented control, one button hierarchy, said gradients, readable colour');
+  await guard('controls', async () => {
+    const thumb = 'background: var(--surface-3)';
+    T('13  one segmented control: an inset track, a raised neutral thumb for the selected segment, every segment a 44px target',
+      has('.seg', 'background: var(--surface-inset)') && has('.seg', 'border-radius: var(--r-control)') &&
+      has('.seg-btn.active', thumb) && /box-shadow: inset 0 1px 0 var\(--edge-hi\), 0 1px 3px/.test(blk('.seg-btn.active')) && px(blk('.seg-btn'), 'min-height') >= 44);
+    T('14  Progress uses it: the website tabs are gone — no underline rule anywhere, no transparent track, the 10.48 rules read back only through the reversal',
+      !/#progSeg \.seg-btn\.active::after|#progSeg \.seg-btn::after/.test(css) && !/#progSeg\{\s*background: transparent/.test(css) && /#progSeg \.seg-btn\.active::after\{ background: var\(--accent\); \}/.test(wasCss));
+    const seg = raw.slice(raw.indexOf('<div class="seg" id="progSeg"'), raw.indexOf('<div class="seg-panel" id="ppanel-overview"'));
+    T('15  the Progress tabs are tabs: a labelled tablist, four tabs with ids and controls, Overview the one selected, and each panel labelled by its tab',
+      /role="tablist" aria-label="Progress views"/.test(seg) && (seg.match(/role="tab" id="progTab-(overview|strength|volume|muscles)" aria-controls="ppanel-\1"/g) || []).length === 4 &&
+      (seg.match(/aria-selected="true"/g) || []).length === 1 && /data-p="overview" role="tab"[^>]*aria-selected="true"/.test(seg) &&
+      ['overview', 'strength', 'volume', 'muscles'].every(k => raw.indexOf('id="ppanel-' + k + '" role="tabpanel" aria-labelledby="progTab-' + k + '"') !== -1));
+    const app = H.loadApp(), c = app.ctx; await H.settle(200);
+    const D = miniDomD125(), host = D.el('div');
+    host.innerHTML = seg + ['overview', 'strength', 'volume', 'muscles'].map(k => '<div class="seg-panel" id="ppanel-' + k + '"></div>').join('');
+    const byId = id => host.querySelector('#' + id), qsa0 = c.document.querySelectorAll, gid0 = c.document.getElementById;
+    c.document.querySelectorAll = sel => sel === '#progSeg .seg-btn' ? host.querySelectorAll('#progSeg .seg-btn') : qsa0.call(c.document, sel);
+    c.document.getElementById = id => byId(id) || gid0.call(c.document, id);
+    const keepR = c.renderProgTab, keepS = c.scrollTo; c.renderProgTab = () => {}; c.scrollTo = () => {};
+    let sel = null, shown = null;
+    try{
+      c.switchProgTab('volume');
+      sel = host.querySelectorAll('#progSeg .seg-btn').map(b => b.dataset.p + ':' + b.getAttribute('aria-selected') + (b.classList.contains('active') ? '*' : '')).join(',');
+      shown = ['overview', 'strength', 'volume', 'muscles'].map(k => byId('ppanel-' + k).style.display).join(',');
+    } finally { c.renderProgTab = keepR; c.scrollTo = keepS; c.document.querySelectorAll = qsa0; c.document.getElementById = gid0; }
+    T('16  switching moves the selection the screen reader hears with the one it sees (switchProgTab on the static markup): Volume alone is selected and shown',
+      sel === 'overview:false,strength:false,volume:true*,muscles:false' && shown === 'none,none,block,none', [sel, shown]);
+    T('17  every other selector wears the same control: ranges, Profile’s filters, the program builder’s choice, RIR and the Mastery thumb — the same thumb, the same track, 44px',
+      has('.range-row', 'background: var(--surface-inset)') && has('.range-btn.active', thumb) && px(blk('.range-btn'), 'min-height') >= 44 &&
+      has('#profileAchSeg .seg-btn.active', thumb) && px(blk('#profileAchSeg .seg-btn'), 'min-height') >= 44 &&
+      has('.pb-seg', 'background: var(--surface-inset)') && has('.pb-seg-b.on', thumb) && px(blk('.pb-seg-b'), 'min-height') >= 44 &&
+      has('.rir-picker', 'background: var(--surface-inset)') && has('.rir-opt.on', thumb) &&
+      has('.mst-toggle', 'background: var(--surface-inset)') && has('.mst-thumb', thumb));
+    T('18  one button hierarchy: primary is the action gradient with dark text (every page’s main action, Today’s Start Workout and the workout’s Next among them); secondary is a tonal surface, never a gradient; tertiary and destructive exist; one radius',
+      /\.btn-primary\{[^}]*background: var\(--grad-accent\); color: #06121F;/.test(css) && has('.btn-primary', 'color: #06121F') &&
+      has('.tw-cta', 'background: var(--grad-accent)') && has('.tw-cta', 'color: #06121F') && px(blk('.tw-cta'), 'min-height') >= 52 &&
+      has('.tl-start.is-next', 'background: var(--grad-accent)') && has('.tl-start.is-next', 'color: #06121F') &&
+      has('.btn-secondary', 'background: var(--surface-3)') && has('.btn-secondary', 'color: var(--text)') && !/gradient/.test(blk('.btn-secondary')) &&
+      has('.btn-tertiary', 'background: none') && has('.btn-destructive', 'color: var(--danger)') &&
+      has('.btn-primary', 'border-radius: var(--r-button)') && has('.btn-secondary', 'border-radius: var(--r-button)') && px(blk('.btn-primary'), 'min-height') >= 50);
+    T('19  the action gradient is said, not sprayed (D21 restated): every rule that paints it is a primary forward action or the level bar, and there are at most seven',
+      d132GradientHolds(css) === true, d132GradientHolds(css));
+    const lum = h => { const v = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255).map(x => x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4)); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2]; };
+    const cr = (a, b) => { const x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+    const S1 = (/--surface-1: (#[0-9A-Fa-f]{6});/.exec(root) || [])[1];
+    /* the label sits across the middle of a 135° gradient: sampled at 30, 50 and 70% of the way, and at its light end */
+    const mix = (a, b, t) => '#' + [1, 3, 5].map(i => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, '0')).join('');
+    const FAINT = ([...root.matchAll(/--text-faint: (#[0-9A-Fa-f]{6});/g)].pop() || [])[1];   /* the last declaration is the one that holds */
+    const pairs = [0.3, 0.5, 0.7].map(t => ['#06121F', mix('#4CC2FF', '#2E6BFF', t), 4.5]).concat([['#06121F', '#4CC2FF', 4.5], ['#EEF1F5', S1, 12], ['#9AA6B8', S1, 6], [FAINT, S1, 4.5]])
+      .concat(Object.keys(ROLES).map(k => [ROLES[k], S1, 4.5])).concat([['#4CC2FF', S1, 4.5], ['#E5675F', S1, 4.5]]);
+    const low = pairs.filter(([a, b, min]) => !(cr(a, b) >= min)).map(([a, b, min]) => a + '/' + b + ' ' + cr(a, b).toFixed(2) + '<' + min);
+    T('20  colour stays readable: dark text clears 4.5:1 across the middle of the action gradient where the label sits (30–70%) and at its light end, body text clears 12:1 on a card, faint text (the eyebrows) and every role colour (and the action and danger colours) clear 4.5:1 on a card',
+      !!S1 && !!FAINT && low.length === 0, low.join(' | '));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('21–26  surfaces: one card material, one hero, grouped rows, sheets, nothing hidden, motion kept');
+  T('21  one card material: every stand-alone card is the E1 surface — a tone above the ground, a hairline, one line of top light, radius 16 — and the edge light is never forked into a literal',
+    ['.wk-card', '.obj-card', '.fd', '.tm-card', '.po-card', '.pd-card', '.lc-card', '.cal-card', '.rec-card', '.mst-card'].every(s => has(s, 'background: var(--surface-1)') && has(s, 'border: 1px solid var(--hairline)') && has(s, 'border-radius: var(--r-card)'))
+    && !/inset 0 1px 0 rgba\(238,241,245/.test(css));
+  T('22  one hero: the day’s workout and Progress’s lead card are the E2 surface (the hero tone, an ambient lift), and the hero’s category is said by a cap of its own colour along the top, not a side rail',
+    has('.tw', 'background: var(--grad-hero)') && has('.po-hero', 'box-shadow: var(--elev-2)') && has('.tw-push::before', 'background: var(--push)') && has('.tw-fullbody::before', 'background: var(--full)') &&
+    has('.tw.tw-wi::before', 'background: var(--wi)') &&
+    /* the LAST border-left the block gives a bare hero is the hairline — a later rail would win the cascade */
+    (bRules.filter(r => !r.media && r.sels.includes('.tw') && /border-left/.test(r.body)).map(r => (/border-left:[^;]+/.exec(r.body) || [''])[0]).pop() || '') === 'border-left: 1px solid var(--hairline)');
+  T('23  grouped rows: a run of settings rows, achievements or XP lines is one surface — the first rounds the top, the last the bottom, an inset hairline between',
+    /:not\(\.settings-row-btn\) \+ \.settings-row-btn, \.settings-row-btn:first-child\{[^}]*border-top-left-radius: var\(--r-card\)/.test(blockNC) && /\.settings-row-btn:not\(:has\(\+ \.settings-row-btn\)\)\{[^}]*border-bottom-left-radius: var\(--r-card\)/.test(blockNC) &&
+    /* a bare row is square: only the first and last of a run round (rounding every row makes each one a card again) */
+    has('.settings-row-btn', 'border-radius: 0') && !/border-(?:top|bottom)-left-radius/.test(blk('.settings-row-btn')) &&
+    /\.settings-row-btn \+ \.settings-row-btn::before\{[^}]*left: 16px;/.test(blockNC) && /\.achievement-row:not\(:has\(\+ \.achievement-row\)\)/.test(blockNC) && /\.xp-history-row \+ \.xp-history-row::before/.test(blockNC));
+  T('24  sheets: a dismissible sheet carries the grabber and the sheet radius; a page does not',
+    /\.overlay:not\(\.overlay-page\) > \.sheet::before\{[^}]*content: '';[^}]*width: 38px; height: 5px;/.test(blockNC) && has('.sheet', 'border-radius: var(--r-sheet) var(--r-sheet) 0 0') && !/\.sheet-page::before\{[^}]*height: 5px/.test(blockNC));
+  T('25  compact, never hidden: no D132 rule hides anything (no display:none, no visibility:hidden, no zero opacity on content)',
+    !/display:\s*none|visibility:\s*hidden|(?:^|[ ;])opacity:\s*0(?:[;}\s]|$)/.test(blockNC));
+  T('26  no new glass and no new motion: D132 adds no backdrop blur and no animation; its transitions are colour, shadow and press only; Reduce Motion still stops everything',
+    !/backdrop-filter|animation/.test(blockNC) && bRules.every(r => !/transition:/.test(r.body) || /transition: (background-color|color|transform|box-shadow)/.test(r.body)) &&
+    /@media \(prefers-reduced-motion: reduce\)\{\s*\*\{ animation: none !important; transition: none !important; \}/.test(css));
+
+  /* ---------------------------------------------------------------- */
+  sub('27–31  the active workout: what now, then load, reps, effort, then why');
+  const FIRST_OPEN = '.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed))';
+  T('27  what now: the first set still to do carries the action ring on its number and lifts its two fields — shape and colour, never colour alone; completed sets keep their progress bar',
+    has(FIRST_OPEN + ' .set-idx::before', 'border: 1.5px solid var(--accent)') && has(FIRST_OPEN + ' .set-idx', 'color: var(--accent)') && has(FIRST_OPEN + ' .stepper', 'border-color: rgba(76,194,255,0.40)') &&
+    has('.stepper-on .ws-current .set-row.completed::before', 'background: var(--c-progress)'));
+  T('28  set types stay named and distinct: warm-up in the effort colour (number and label), failure in danger, AMRAP in progress — each with its word in the row',
+    has('.stepper-on .ws-current .set-row.set-warmup .set-idx', 'color: var(--c-effort)') && has('.set-row.set-warmup .set-meta-type', 'color: var(--c-effort)') &&
+    has('.set-row.set-type-failure .set-meta-type', 'color: var(--c-danger)') && has('.set-row.set-type-amrap .set-meta-type', 'color: var(--c-progress)') && /<span class="set-meta-type">Working<\/span>/.test(raw));
+  T('29  the two numbers typed every set sit in 48px instrument wells, set large', has('.stepper', 'background: var(--surface-inset)') && px(blk('.stepper button'), 'height') >= 48 && px(blk('.stepper input'), 'font-size') >= 18);
+  T('30  the Suggested Warm-up is restyled only — its colours and shape in the block, what it suggests (D130, E56) pinned in 3',
+    has('.warmup-chip', 'background: var(--c-effort-soft)') && has('.warmup-box', 'border: 1px solid var(--hairline)') && !/warmup/.test(bRules.filter(r => /content:/.test(r.body)).map(r => r.sels.join()).join()));
+  T('31  LOOP Coach is the decision on the page: the hero tone, its load at 30px',
+    has('.coach', 'background: var(--grad-hero)') && has('.coach', 'box-shadow: var(--elev-2)') && px(blk('.coach-load'), 'font-size') >= 30);
+
+  /* ---------------------------------------------------------------- */
+  sub('32–35  page hierarchy, metrics and floors');
+  T('32  every tab root says where you are with a native large title — Train and Progress carry one, Log’s title is drawn at that size, Today keeps its greeting',
+    /<div class="view" id="view-train">\n    <h2 class="page-title" id="trainTitle">Train<\/h2>/.test(raw) && /<div class="view" id="view-progress">\n    <h2 class="page-title" id="progressTitle">Progress<\/h2>/.test(raw) &&
+    has('.page-title', 'font-size: var(--fs-large-title)') && has('.log-hdr .log-title', 'font-size: var(--fs-large-title)') && /--fs-large-title: 30px;/.test(root));
+  const METRICS = [['.ss-num', 64], ['.pbt-hero-num', 46], ['.exd-trend-pct', 34], ['.exd-ln-v', 32], ['.wr-stat b', 32], ['.coach-load', 30], ['.tw-title', 28], ['.po-head', 28]];
+  const lowM = METRICS.filter(([s, min]) => !(px(blk(s), 'font-size') >= min));
+  T('33  the number a page exists to show stays its largest: score 64, current best 46, trend 34, last → next 32, the week’s stats 32, the coach’s load 30, the day’s workout 28, Progress’s verdict 28',
+    lowM.length === 0, lowM.map(x => x[0]).join(','));
+  const FLOOR = ['.seg-btn', '.range-btn', '#profileAchSeg .seg-btn', '.pb-seg-b', '.filter-chip', '.obj-all, .tr-link', '.ws-swap-undo', '.xp-fbtn', '.ready-chips .pchip', '.pbt-select', '.tab-btn'];
+  const lowF = FLOOR.filter(s => { const body = s.indexOf(',') !== -1 ? bRules.filter(r => !r.media && r.sels.join(', ') === s).map(r => r.body).join(' ') : blk(s); return !(px(body, 'min-height') >= 44); });
+  T('34  every control the 10.48 browser pass found short is a 44px target now (View all, the Train link, Undo swap, the picker’s filters, the check-in chips, the PB picker, the tabs and chips)',
+    lowF.length === 0, lowF.join(','));
+  T('35  the Workout Summary’s mark is centred again: a block, so its auto margins hold (the shared icon rule had made it inline)', has('.summary-mark', 'display: flex') && /\.summary-mark\{[^}]*margin: 4px auto 14px;/.test(css));
+
+  /* ---------------------------------------------------------------- */
+  sub('36–38  protected: Rank, the launch, Mastery, storage');
+  T('36  Rank (D113) and the launch (D114) are untouched: the block names none of their selectors and the launch ground and reveal rules are 10.48’s',
+    !bRules.some(r => r.sels.some(s => /rank-(?!row|val|name|list)|#rank|intro/.test(s))) && /#introOverlay\{[\s\S]{0,200}var\(--bg\);/.test(css));
+  T('37  Mastery’s art and podium (D128/D129) are untouched: no D132 rule reaches .mpod, a badge, a medal or a level pill, and the cards that draw them are pinned in 3',
+    !/\.mpod|mbadge|mpod-medal|mastery-lvl-chip|msheen/.test(bRules.map(r => r.sels.join(',')).join('\n')));
+  T('38  storage: still 16 DATA_KEYS, schema 1, no migration — a new look writes nothing',
+    /const DATA_KEYS = \[\n  'workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft',\n  'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog',\n  'cardioLog', 'cardioDraft', 'gymProfile', 'exerciseNotes', 'programs', 'onboarding',\n  'objectives'\n\];/.test(raw)
+    && /const MIGRATIONS = \{\n  \/\/ 1: async function migrateV1toV2\(\)\{ \.\.\. \}\n\};/.test(raw));
+
+  /* ---------------------------------------------------------------- */
+  sub('39–42  behaviour: the engines’ answers on a real history, and a held finding, run — not read');
+  await guard('behaviour', async () => {
+    const FX = d132FixtureHistory(), NOW = '2026-10-06T09:00:00';
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(FX.log), programs: JSON.stringify(FX.programs),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: {} }) });
+    const c = a.ctx; const rel = pinClock(c, NOW);
+    const J = v => JSON.stringify(v, (k, x) => typeof x === 'function' ? undefined : x);
+    let out = null;
+    try{
+      await H.settle(300); for(let t = 0; t < 60 && c.workoutLog.length !== FX.log.length; t++) await H.settle(100);
+      clearCaches(c);
+      const names = [...new Set(FX.log.flatMap(w => w.exercises.map(e => e.name)))];
+      out = {
+        records: sha(J(c.computeAllPREvents())),
+        xp: sha(J([c.computeXPEvents().lifetimeXP, c.computeXPEvents().events.length, c.getCurrentProgression()])),
+        score: sha(J(c.workoutLog.map(w => [w.id, c.sessionScore(w), c.deriveSessionExecution(w)]))),
+        recovery: sha(J(c.computeMuscleRecovery())),
+        mastery: sha(J(c.getTopExerciseMastery(12).map(m => [m.displayName, m.points, m.level, m.percent, m.sessions]))),
+        d49: sha(J(names.map(n => [n, c.progressionFor(n, '8-12', '')]))),
+        program: sha(J([c.getProgramWorkoutForDate('2026-10-06'), c.computeConsistencyData()])),
+        coach: sha(J(['8-12', '6-10'].flatMap(reps => [null, 0, 1, 2, 3, 4].flatMap(rir => [4, 6, 8, 10, 12, 13].flatMap(r => [false, true].map(deload =>
+          c.deriveNextSetCoach({ rx: { sets: 3, reps, effort: 8, load: 100 }, performed: [{ weight: 100, reps: r, rir }], exerciseName: 'Bench Press', deload }))))))) };
+    } finally { rel(); }
+    const WANT = {"records":"536d5697fb7f5420","xp":"64a928332b7a6f32","score":"16159b2068c247c6","recovery":"528d220a775c6041","mastery":"4c241985d94ef61a","d49":"c002f00a6e7c033c","program":"03dea82d91447e9a","coach":"de0f468c031160f7"};
+    const off = Object.keys(WANT).filter(k => !out || out[k] !== WANT[k]);
+    T('39  on a 15-week history at a fixed clock, every engine gives 10.48’s answers: records, XP and level, Session Score and the execution analysis of every workout, recovery, Mastery, D49 for every lift, the program’s day and consistency, and D50B’s coach across a grid of sets — each a digest frozen from 10.48',
+      off.length === 0, off.map(k => k + ' ' + (out && out[k])).join(' | '));
+
+    /* E59, held: an exercise added by hand, one set done, then swapped — the split still gives both rows a plan */
+    const L0 = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify([]),
+      onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) });
+    const k = L0.ctx; const rel2 = pinClock(k, '2026-10-04T12:00:00');
+    let rows = null;
+    try{
+      await H.settle(300);
+      const D = miniDomD125(), body = D.el('body');
+      body.innerHTML = '<div id="logOverlay"><div class="sheet-scroll"><div id="logExercises"></div></div></div><div id="coachLive"></div><div id="setTypeOverlay"></div><div id="setTypeBody"></div>';
+      const byId = id => body.querySelector('#' + id), stub = k.document.getElementById.bind(k.document);
+      Object.assign(k.document, { getElementById: id => byId(id) || stub(id), createElement: tag => D.el(tag), querySelectorAll: s => body.querySelectorAll(s), querySelector: s => body.querySelector(s) });
+      Object.assign(k, { openLogSheet(){ byId('logOverlay').classList.add('open'); }, onWorkoutRowAdded(){}, renderWorkoutStep(){} });
+      const vm = require('vm'), call = (el, at) => vm.runInContext('(function(){ ' + el.getAttribute(at) + ' })', k).call(el);
+      await k.clearActiveDraft(); await k.openFreeformLog(); k.pickLogCategory('push');
+      k.addLogExerciseRow('Incline Dumbbell Press', '', false, [{ weight: '', reps: '' }, { weight: '', reps: '' }, { weight: '', reps: '' }]);
+      const ex = body.querySelectorAll('#logExercises .ex-log-row')[0], s1 = ex.querySelectorAll('.set-row')[0];
+      const w = s1.querySelector('.set-weight-in'), r = s1.querySelector('.set-reps-in');
+      w.value = '50'; call(w, 'oninput'); r.value = '10'; call(r, 'oninput'); call(s1.querySelector('.set-complete-btn'), 'onclick');
+      k.swapLogExercise(ex, 'Dumbbell Bench Press');
+      rows = body.querySelectorAll('#logExercises .ex-log-row').map(x => [(x.querySelector('.ex-name-in') || {}).value, x.dataset.targetSets || '', x.dataset.slotName || '']);
+    } finally { rel2(); }
+    T('40  E59 is held, not quietly fixed: an exercise added by hand, one set done, then swapped, still splits into a row asked for 1 set and a replacement asked for 2, slotted under the original (FINDINGS E59)',
+      JSON.stringify(rows) === JSON.stringify([['Incline Dumbbell Press', '1', ''], ['Dumbbell Bench Press', '2', 'Incline Dumbbell Press']]), JSON.stringify(rows));
+  });
+}
+
+
+
+
+
+
+
 async function main(){
   const started = Date.now();
   console.log('LOOP CORE SAFETY + TRAINER SIMULATION');
@@ -54598,6 +54966,7 @@ async function main(){
   await testExerciseIdentityD129();
   await testWarmupSeedingD130();
   await testPrescriptionProvenanceD131A();
+  await testProductExperienceD132();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

@@ -140,6 +140,58 @@
   --fs-lg:   var(--fs-section);   /* 18 */
   --fs-xl:   var(--fs-title);     /* 22 */
 
+  /* ---- D132 — PRODUCT EXPERIENCE 2.0: the semantic layer ----
+     One app, one material. Elevation is told by TONE and a hairline of top
+     light, not by outlines; colour is a ROLE, never decoration; a gradient
+     says what it means (action, progress, mastery, recovery, program) or it
+     is not used. Every value below is referenced by name from the D132
+     system section at the end of this sheet, so a role cannot drift. The
+     ground (--bg) is untouched: the launch reveal and the manifest's theme
+     colour are drawn on it (D114). */
+  --surface-1: #0F1622;          /* E1 — a card on the ground */
+  --surface-sheet: #101826;      /* E3 — a sheet over the app */
+  --surface-inset: #0A1019;      /* wells: fields, steppers, segmented tracks */
+  /* Faint text, lifted: D28.1 set it to clear ~4:1 on the ground; on the E1
+     card it measured 4.43:1. #7A8599 clears 4.5:1 on the card (4.87), the
+     sheet (4.78) and the raised surface (4.54), and stays well under the dim
+     tier (7.36), so the hierarchy holds. A later declaration in this same
+     block, so 10.48's line above still reads as it was. */
+  --text-faint: #7A8599;
+  --hairline: rgba(148,170,205,0.10);
+  --hairline-strong: rgba(148,170,205,0.17);
+
+  --c-action: var(--accent);
+  --c-progress: #46C38E;   --c-progress-soft: rgba(70,195,142,0.13);
+  --c-effort: #F0A845;     --c-effort-soft: rgba(240,168,69,0.13);
+  --c-recovery: #3CC6C0;   --c-recovery-soft: rgba(60,198,192,0.13);
+  --c-mastery: #EBB84D;    --c-mastery-soft: rgba(235,184,77,0.13);
+  --c-program: #8F7CF7;    --c-program-soft: rgba(143,124,247,0.14);
+  --c-warning: #E8963F;    --c-warning-soft: rgba(232,150,63,0.13);
+  --c-danger: var(--danger); --c-danger-soft: rgba(229,103,95,0.13);
+
+  --grad-progress: linear-gradient(90deg, #2F9E74, #55D49D);
+  --grad-mastery: linear-gradient(90deg, #C99231, #F2C860);
+  --grad-recovery: linear-gradient(90deg, #22999A, #52D8CF);
+  --grad-program: linear-gradient(90deg, #6853E4, #A493FF);
+  --grad-hero: linear-gradient(165deg, #172235 0%, #111A28 58%, #0E1520 100%);
+
+  --elev-1: inset 0 1px 0 var(--edge-hi);
+  --elev-2: inset 0 1px 0 var(--edge-hi), 0 18px 34px -22px rgba(0,0,0,0.8);
+  --elev-3: 0 -14px 44px rgba(0,0,0,0.5);
+
+  --r-card: 16px;
+  --r-control: 12px;
+  --r-button: 14px;
+  --r-chip: 999px;
+  --r-sheet: 22px;
+
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-ui: 'Inter', sans-serif;
+  --fs-large-title: 30px;
+  --fs-hero: 44px;
+  --eyebrow-size: 11px;
+  --eyebrow-track: 0.07em;
+  --press: scale(0.97);
 }
 
 *{ box-sizing: border-box; }
@@ -4590,20 +4642,12 @@ button.mpod-card:focus-visible{ outline: 2px solid var(--accent); outline-offset
   background: linear-gradient(to bottom, var(--bg) 0%, var(--bg) calc(100% - 10px), transparent);
 }
 
-/* The Progress subtabs are navigation, not four solid buttons: quiet text on
-   a hairline, the active section named by weight and an accent underline.
-   Touch height stays at the 44px floor — only the visual bulk went. */
-#progSeg{
-  background: transparent; border-radius: 0; padding: 0; gap: 0;
-  border-bottom: 1px solid var(--border); margin-top: 8px;
-}
-#progSeg .seg-btn{ position: relative; border-radius: 0; font-size: 13px; letter-spacing: 0.01em; }
-#progSeg .seg-btn::after{
-  content: ''; position: absolute; left: 20%; right: 20%; bottom: -1px; height: 2px;
-  border-radius: 2px 2px 0 0; background: transparent; transition: background 0.18s var(--ease);
-}
-#progSeg .seg-btn.active{ background: none; color: var(--text); }
-#progSeg .seg-btn.active::after{ background: var(--accent); }
+/* D132 — the Progress subtabs used to be drawn here as website tabs (quiet
+   text on a hairline, an accent underline under the active one). They are now
+   the app's one segmented control (see the D132 system section): the same
+   control Training, Profile and every range selector use. Only the spacing
+   that belongs to this page stays. */
+#progSeg{ margin-top: 0; }
 
 /* Most trained: the top movement leads the ranking instead of five equal rows. */
 .mtx-row.mtx-top .mtx-name{ font-weight: 700; color: var(--text); }
@@ -8987,6 +9031,816 @@ html, body{ max-width: 100%; overflow-x: hidden; }
 }
 .rank-about:active{ opacity: 0.6; }
 .rank-about:focus-visible{ outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+/* ==== D132 SYSTEM BEGIN ==== */
+/* ---------- 0 · TYPE ----------
+   One face for the interface, one eyebrow. JetBrains Mono used to letter half
+   the app's labels and numbers; it now speaks only inside Rank and the tour's
+   rank ladder, whose look is their own (D113, D97), and on the Mastery podium,
+   whose stylesheet is pinned (D128/D129). Every other label and number takes
+   the UI face — numbers with tabular figures, so columns still align — and
+   every uppercase label the one eyebrow tracking. Generated from the 10.48
+   stylesheet; nothing an @media rule sets is overridden here. */
+.coach-k, .hdr-level-k, .tm-title, .tm-k, .act-k, .act-flab, .pl-head, .fd-phase, .fdd-k, .fdd-sec, .ba-sec,
+.mst-title, .mst-list-head, .quality-title, .ss-k, .soc-lab, .tl-group-k, .mt-start-k, .mt-status, .mt-draft-k,
+.po-eyebrow, .po-k, .wr-nav-sub, .wr-k, .wr-vs-h, .wr-prog-tag, .wr-ctx-row dt, .cs-gps, .cs-splits-h,
+.pb-split-rec, .pb-cs-head, .ps-day, .ps-lab, .ps-rx-lab, .xp-sec, .pb-rv-sec, .pc-kicker, .pc-perf-h,
+.pc-outcome-k, .pgm-why-k, .pb-warn-h, .pm-role, .pm-exgroup, .ew-dirty, .ew-ex-meta, .ew-skip-chip,
+.log-ex-skip, .prep-ready-k, .prep-side-len, .exd-art, .exd-state, .exd-k, .exd-ln-k, .ex-note-label,
+.tw-program-name, .prog-status, .prog-missed-label, .phase-current-label, .phase-status{ font-family: var(--font-ui); letter-spacing: var(--eyebrow-track); }
+.prog-day-key{ font-family: var(--font-ui); }
+.section-label, .hero-tag, .obj-gl, .soc-req-p, .td-k, .ch-measured, .pb-pv-d, .pb-resume-when, .xp-row-in,
+.pm-d{ font-family: var(--font-ui); letter-spacing: var(--eyebrow-track); font-weight: 600; }
+.plan-chip-label, .current-plan-label, .plan-current-tag, .dash-mini-label, .pr-hist-label, .warmup-label,
+.phase-badge, .focus-tag, .today-focus, .sec-head, .tw-label, .tw-next-k, .snap-label, .insight-tag,
+.mini-label, .ready-row-label, .cd-hero-label, .cd-streak-lbl, .cd-selected-label, .cd-field-label,
+.cd-pr-vals span, .cd-detail-stats > div, .fb-label, .rec-strip-label, .perf-detail-stats > div, .vw-k,
+.fu-demo-label, .fu-step, .ev-sec-h, .pl-rank, .mt-stat-l, .day-move-label, .wk-foot-k, .mastery-label,
+.wk-label, #profileAchSeg .seg-btn, .stat-label, .soc-sub-head, .update-current-tag, .update-cat-label,
+.tr-resume-k, .tl-tag, .tl-kind, .td-kicker, .share-k, .mt-phase, .ts-set-label, .pbt-eyebrow,
+.pbt-single-label, .mas-sum-k, .lc-title, .sd-count, .sd-date, .cat-chip, .tw-daynav-label, .set-chip-pr,
+.log-ex-pr, label, .ws-k, .ws-k-add, .ws-chip, .emph-chip, .ws-rest-k, .last-time-label, .exc-k, .ex-sets-k,
+.ex-brief .warmup-label, .ex-brief .ex-note-label, .pb-num-l, .cs-sum-lead-l, .cs-activity, .cs-state,
+.cs-tile-hint, .cs-sum-activity, .rest-panel-label, .sub-label, .sub-current-k, .how-to-k, .set-chip-badge{ letter-spacing: var(--eyebrow-track); }
+.settings-version, .dash-mini-num, .pr-callout-icon, .pr-callout-sub, .pr-hist-date, .pr-hist-current,
+.pr-hist-delta, .coach-sets, .warmup-chip, .phase-week, .hdr-level-r, .snap-num, .ready-summary-score,
+.ready-expand-score, .cd-input, .cd-row-meta, .cd-pr-vals b, .cd-detail-stats span, .act-meta, .rec-pct, .dval,
+.perf-axis, .perf-detail-stats span, .rank-val, .fu-card-days, .fu-day-c, .ev-tier-l, .ev-meta code,
+.trj-label, .wk-count, .fd-count, .week-trend, .wk-num, .xp-identity-lvl, .xp-streak, .level-bar-label,
+.achievement-xp, .xp-history-xp, .tr-prog-badge, .obj-p, .obj-xp, .xp-foot-row, .xp-breakdown-level,
+.muscle-bar-pct, .trend-sessions, .trend-pct, .pr-date, .pr-value, .pr-e1rm, .e1rm-current span, .update-date,
+.tpl-ex-row span:last-child, .mt-day-k, .mt-var-count, .mt-var-meta, .mt-sess-day, .ts-row-day, .ts-row-min,
+.wr-day-l, .wr-row-day, .wr-row-score span, .wr-li-v, .wr-prog-load, .pd-cov, .pd-mus-lvl, .pd-mas-lvl,
+.pd-pr-val, .pbt-single-date, .pbt-pagenum, .pd-chart-cov, .lc-range, .rw-meta, .cal-daynum, .ex-history-date,
+.log-date, .set-chip, .last-time-chip, .ex-brief .exc-summary, .set-idx, .set-meta-rir, .stepper input,
+.rir-opt, .cw-arc-num, .cw-stat b, .cs-split-n, .pb-num-n, .pb-day-l, .pb-rv-meta, .xp-opt-n, .xp-pick,
+.pc-meta, .perf-val, .pm-ph-w, .pm-w-n, .pm-ex-s, .ch-metrics, .ce-input, .rest-panel-time, .ew-set-n, .ew-rir,
+.prep-card-label, .prep-card-time, .prep-step-count, .prep-tag, .prep-step i, .prep-guide-target,
+.prep-guide-head, .gym-cat-count, .exd-head-n, .exd-ln-r, .exd-delta, .exd-end i, .exd-best-d, .exd-pb-d,
+.exd-pb-tag, .exd-row-date, .how-to-cues li::before, .time-chip, .dur-planned-val, .note-row-date,
+.builder-weeks-val, .prog-block-now, .phase-index, .log-phase-context{ font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
+.ev-stat b, .ev-row-v, .mt-stat-v, .mtx-n, .dl-n, .dl-pct, .ss-row-w, .ss-row-v, .nexttime-target, .soc-lb-p,
+.soc-lb-x, .tr-count, .tl-meta, .share-ex-rx, .po-lift-v, .wr-count, .ws-rest-t, .cs-split-t, .pb-split-s,
+.ps-ex-rx, .ps-rx-in, .ps-step-v, .pc-fact-v, .cs-sum-lead-v, .cs-clock, .cs-tile-val, .cs-sum-time, .cs-sum-v,
+.rest-dial-time, .ew-num, .prep-ready-num, .prep-metric{ font-family: var(--font-ui); }
+/* =========================================================
+   D132 — PRODUCT EXPERIENCE 2.0 · THE SYSTEM
+   ---------------------------------------------------------
+   One app, one material, one control for one job. This is
+   the last layer of the sheet on purpose — the same precedent
+   D28 set ("corrected here by the SAME precedent, not by a
+   second system"): every family below already exists earlier
+   in the file, and is brought onto the D132 tokens here so a
+   reader can see the whole system in one place.
+
+   Hierarchy every surface answers, in this order:
+     1 what matters  2 what to do  3 what it means  4 evidence.
+   Elevation is TONE plus one hairline of top light; outlines
+   are kept only where they carry state (selected, current,
+   a category's identity). Colour is a role (see :root).
+   Motion: 160–240 ms ease-out; press = scale(.97) + tone;
+   Reduce Motion keeps every state and drops the movement
+   (the global rule near the top of the sheet still applies).
+   ========================================================= */
+
+/* ---------- 1 · APP SHELL ---------- */
+/* The masthead becomes a native navigation bar: quieter, shorter, no rule
+   under it until content scrolls beneath (the page simply passes under the
+   status scrim). Its two controls keep their 44px targets. */
+header{
+  padding-top: calc(14px + env(safe-area-inset-top, 0px)); padding-bottom: 10px;
+  border-bottom: 1px solid transparent;
+}
+h1{ font-size: 24px; letter-spacing: -0.02em; }
+.plan-chip{
+  background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-chip);
+  padding: 5px 14px; box-shadow: var(--elev-1);
+}
+.plan-chip-name{ font-size: 12px; }
+.settings-gear{ width: 44px; height: 44px; background: var(--surface-1); border-color: var(--hairline); box-shadow: var(--elev-1); }
+.plan-chip:hover, .settings-gear:hover{ border-color: var(--hairline-strong); }
+
+/* Tab roots carry a native large title. Today keeps its greeting, which is
+   its title. */
+.page-title{
+  font-family: var(--font-display); font-weight: 700; font-size: var(--fs-large-title);
+  line-height: 1.08; letter-spacing: -0.02em; color: var(--text); margin: 6px 0 14px;
+}
+.page-title-row{ display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin: 6px 0 14px; }
+.page-title-row .page-title{ margin: 0; min-width: 0; }
+.today-greet{ font-size: 26px; letter-spacing: -0.02em; line-height: 1.1; }
+.today-sub{ font-size: 13px; margin-top: 4px; }
+
+/* The second light of the atmosphere: a faint violet depth low on the first
+   screen, on its own fixed layer so the ground rule stays one solid colour. */
+body::after{
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse 520px 360px at 8% 92%, rgba(143,124,247,0.035), transparent 70%);
+}
+
+/* ---------- 2 · BOTTOM NAVIGATION ----------
+   Four destinations, glass over content (the one surface allowed to float).
+   The glyph is drawn larger and unboxed; the destination you are on carries a
+   soft capsule of the action colour behind its glyph and a full-strength
+   label — shape AND colour, never colour alone. */
+.tabbar{
+  background: rgba(9,14,22,0.84);
+  border-top: 1px solid var(--hairline); box-shadow: 0 -10px 30px -18px rgba(0,0,0,0.7);
+  border-left-color: var(--hairline); border-right-color: var(--hairline);
+}
+.tab-btn{ padding: 8px 4px 7px; gap: 3px; font-size: 11px; font-weight: 600; letter-spacing: 0.01em; min-height: 56px; color: var(--text-faint); }
+.tab-btn .glyph{ width: 52px; height: 30px; border: none; border-radius: var(--r-chip); background: transparent; }
+.tab-btn .glyph svg{ width: 21px; height: 21px; }
+.tab-btn.active{ color: var(--text); }
+.tab-btn.active .glyph{ background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px rgba(76,194,255,0.22); }
+.tab-btn:active{ transform: none; }
+.tab-btn:active .glyph{ transform: var(--press); }
+.tab-btn .glyph{ transition: background-color 0.18s var(--ease), color 0.18s var(--ease), transform 0.12s var(--ease); }
+
+/* ---------- 3 · EYEBROWS & SECTION HEADS ----------
+   One eyebrow. The typography pass set every label to the UI face and the
+   eyebrow tracking; these are the section heads that frame a group. */
+.section-label{ font-size: var(--eyebrow-size); font-weight: 600; color: var(--text-faint); margin: 28px 0 10px; }
+.sec-head{ font-size: var(--eyebrow-size); font-weight: 600; margin: 28px 0 10px; padding-bottom: 0; border-bottom: none; }
+.sec-head + *{ margin-top: 0; }
+label{ font-weight: 600; letter-spacing: var(--eyebrow-track); }
+
+/* ---------- 4 · SEGMENTED CONTROL — ONE FAMILY ----------
+   Inset track, raised neutral thumb, the selected label at full strength.
+   It used to be four controls: Progress drew website tabs (an underline),
+   Training and Profile a cyan-filled block, the ranges boxed buttons and the
+   achievement filters outlined pills. Every one is now this control, at two
+   sizes: the page control (full width) and the compact control (ranges and
+   filters). Targets stay 44px. */
+.seg{
+  display: flex; gap: 2px; padding: 3px; margin-top: 14px;
+  background: var(--surface-inset); border: 1px solid var(--hairline);
+  border-radius: var(--r-control); box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);
+}
+.seg-btn{
+  position: relative; min-height: 44px; border-radius: 9px;
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600; letter-spacing: 0;
+  color: var(--text-dim); background: transparent; text-transform: none;
+  transition: background-color 0.18s var(--ease), color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+}
+.seg-btn.active{
+  background: var(--surface-3); color: var(--text);
+  box-shadow: inset 0 1px 0 var(--edge-hi), 0 1px 3px rgba(0,0,0,0.45), 0 0 0 1px rgba(148,170,205,0.10);
+}
+.seg-btn:active{ color: var(--text); }
+@media (max-width: 389px){ .seg-btn{ font-size: 12.5px; } .seg{ gap: 2px; padding: 3px; } }
+@media (max-width: 359px){ .seg-btn{ font-size: 12px; padding-left: 2px; padding-right: 2px; } }
+/* Profile's achievement filter: the compact control, not a row of pills. */
+#profileAchSeg{ margin-top: 12px; padding: 3px; gap: 2px; background: var(--surface-inset); }
+#profileAchSeg .seg-btn{ min-height: 44px; font-size: 12px; letter-spacing: 0; text-transform: none; border: none; border-radius: 9px; color: var(--text-dim); }
+#profileAchSeg .seg-btn.active{ background: var(--surface-3); color: var(--text); border: none; }
+/* Ranges (4W / 8W / 12W, 12W / 26W / 52W / All): the compact control. */
+.range-row{
+  display: inline-flex; gap: 2px; padding: 3px; background: var(--surface-inset);
+  border: 1px solid var(--hairline); border-radius: var(--r-control); box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);
+}
+.range-btn{
+  position: relative; min-height: 44px; min-width: 48px; padding: 0 12px; border: none; border-radius: 9px;
+  background: transparent; color: var(--text-dim); font-family: var(--font-ui); font-size: 12px; font-weight: 600; letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.range-btn.active{
+  background: var(--surface-3); color: var(--text); border: none;
+  box-shadow: inset 0 1px 0 var(--edge-hi), 0 1px 3px rgba(0,0,0,0.45), 0 0 0 1px rgba(148,170,205,0.10);
+}
+/* The program-builder's own two-way choice wears the same control. */
+.pb-seg{ gap: 2px; padding: 3px; background: var(--surface-inset); border: 1px solid var(--hairline); border-radius: var(--r-control); }
+.pb-seg-b{ min-height: 44px; border: none; border-radius: 9px; background: transparent; color: var(--text-dim); font-size: 13px; font-weight: 600; }
+.pb-seg-b.on{ background: var(--surface-3); color: var(--text); border: none; box-shadow: inset 0 1px 0 var(--edge-hi), 0 1px 3px rgba(0,0,0,0.45), 0 0 0 1px rgba(148,170,205,0.10); }
+/* Mastery's two views keep their own sliding thumb (D94B) in the same
+   material: inset track, raised neutral thumb, no cyan block. */
+.mst-toggle{ background: var(--surface-inset); border: 1px solid var(--hairline); border-radius: var(--r-control); box-shadow: inset 0 1px 2px rgba(0,0,0,0.35); }
+.mst-thumb{
+  border-radius: 9px; background: var(--surface-3); border: none;
+  box-shadow: inset 0 1px 0 var(--edge-hi), 0 1px 3px rgba(0,0,0,0.45), 0 0 0 1px rgba(148,170,205,0.10);
+}
+.mst-seg{ border-radius: 9px; font-size: 13.5px; color: var(--text-dim); }
+.mst-seg.on{ color: var(--text); }
+/* Filter chips (plan categories, exercise filters): a chip is a chip — a quiet
+   capsule; the selected one takes the action tint AND a weight change. */
+.filter-chip{
+  background: var(--surface-1); border: 1px solid var(--hairline); color: var(--text-dim);
+  padding: 0 16px; border-radius: var(--r-chip); font-size: 13px; font-weight: 600; min-height: 44px;
+  position: relative;
+}
+.filter-chip.active{ background: var(--accent-soft); border-color: rgba(76,194,255,0.55); color: var(--text); font-weight: 700; }
+.hist-filters{ gap: 8px; padding-top: 2px; padding-bottom: 6px; }
+
+/* ---------- 5 · BUTTONS ----------
+   primary · secondary · tertiary · destructive · icon. One radius (14), one
+   height (52 for a page's main action, 48 for docks), one press. */
+.btn-primary, .btn-secondary{ min-height: 50px; border-radius: var(--r-button); font-family: var(--font-ui); font-size: 15px; letter-spacing: 0.005em; }
+.btn-primary{ color: #06121F; font-weight: 700; box-shadow: 0 8px 22px -10px rgba(46,107,255,0.65), inset 0 1px 0 rgba(255,255,255,0.22); }
+.btn-secondary{ background: var(--surface-3); color: var(--text); font-weight: 600; border: 1px solid var(--hairline); box-shadow: inset 0 1px 0 var(--edge-hi); }
+.btn-secondary:active, .btn-primary:active{ transform: var(--press); }
+.btn-primary:disabled{ opacity: 0.45; box-shadow: none; filter: saturate(0.6); }
+.btn-tertiary{ min-height: 44px; padding: 0 var(--space-3); background: none; border: none; cursor: pointer; color: var(--accent); font-family: var(--font-ui); font-size: 14px; font-weight: 600; border-radius: var(--r-button); }
+.btn-tertiary:active{ opacity: 0.65; }
+.btn-destructive{ color: var(--danger) !important; background: var(--c-danger-soft) !important; border-color: transparent !important; }
+/* Today's hero action is the primary button at hero size. */
+.tw-cta{
+  min-height: 54px; border-radius: var(--r-button); margin-top: 16px;
+  background: var(--grad-accent); color: #06121F; font-family: var(--font-ui); font-size: 16px; font-weight: 700; letter-spacing: 0.005em;
+  box-shadow: 0 10px 24px -10px rgba(46,107,255,0.7), inset 0 1px 0 rgba(255,255,255,0.24);
+}
+.tw-cta:active{ transform: var(--press); }
+.tw-cta-done{ background: var(--grad-progress); color: #04150D; box-shadow: 0 10px 24px -12px rgba(47,158,116,0.7), inset 0 1px 0 rgba(255,255,255,0.22); }
+.tw-cta-ghost{ background: var(--surface-3); color: var(--text); border: 1px solid var(--hairline); box-shadow: none; }
+/* The hero's secondary row: one quiet segmented row of text actions. */
+.tw-actions{ border: 1px solid var(--hairline); border-radius: var(--r-button); background: rgba(10,16,25,0.35); margin-top: 10px; }
+.tw-actions .tw-change{ border-right-color: var(--hairline); font-size: 13px; color: var(--accent); }
+.tw-change{ font-size: 13px; }
+/* Train's start buttons and every other "accent-filled block": primary. */
+.tr-cta, .prep-start-btn, .ob-next, .fu-primary{ border-radius: var(--r-button) !important; }
+/* Outlined full-width utility buttons ("All records", "Show 42 more", "How this
+   is worked out", "Browse by exercise") become secondary tonal buttons — they
+   are actions, not boxes. */
+.log-lens{ background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); box-shadow: var(--elev-1); min-height: 54px; }
+.custom-log-btn{ border: none; background: var(--accent-soft); color: var(--accent); border-radius: var(--r-chip); padding: 0 16px; font-size: 13.5px; }
+/* Dashed "add" boxes become quiet tonal add buttons. */
+.add-set-btn, .tr-add{ border: 1px solid var(--hairline); border-style: solid; background: var(--surface-1); color: var(--accent); border-radius: var(--r-control); font-size: 13px; font-weight: 600; min-height: 44px; }
+.add-set-btn:hover, .tr-add:hover{ border-color: var(--hairline-strong); color: var(--accent); }
+.rest-start-btn{ border-radius: var(--r-control); min-height: 44px; background: var(--surface-1); border: 1px solid var(--hairline); color: var(--text-dim); font-size: 13px; }
+
+/* ---------- 6 · SHEETS, PAGES, TOP BARS ---------- */
+.overlay{ background: rgba(4,7,12,0.66); }
+.sheet{ background: var(--surface-sheet); border-radius: var(--r-sheet) var(--r-sheet) 0 0; border-top: 1px solid var(--hairline-strong); box-shadow: var(--elev-3); }
+/* A sheet you can dismiss shows the grabber every iOS sheet has. */
+.overlay:not(.overlay-page) > .sheet::before{
+  content: ''; position: absolute; top: 7px; left: 50%; width: 38px; height: 5px; margin-left: -19px;
+  border-radius: 3px; background: rgba(148,170,205,0.28); z-index: 7; pointer-events: none;
+}
+.overlay:not(.overlay-page) > .sheet{ position: relative; }
+.sheet-scroll{ padding-top: 24px; }
+.sheet h2{ font-size: 22px; letter-spacing: -0.015em; line-height: 1.15; }
+.sheet-sub{ font-size: 13px; line-height: 1.5; color: var(--text-dim); }
+.sheet.sheet-page{ background: var(--bg); }
+.sheet.sheet-page::before{ background: var(--surface-sheet); }
+.sheet-actions{ background: rgba(13,19,30,0.92); border-top: 1px solid var(--hairline); gap: var(--space-2); padding-top: 12px; }
+@media (min-width: 640px){ .sheet{ border-radius: var(--r-sheet); } }
+/* Pushed pages: one top bar. A drawn chevron (the "‹" glyph sat low and thin),
+   the title centred in the UI face, an opaque surface and a hairline. */
+.workout-topbar{ background: var(--surface-sheet); border-bottom: 1px solid var(--hairline); padding-bottom: 8px; min-height: 52px; }
+.workout-topbar-title{ font-family: var(--font-ui); font-size: 16px; font-weight: 600; letter-spacing: -0.005em; }
+.workout-back{ font-size: 0; color: var(--accent); border-radius: 50%; }
+.workout-back::before{
+  content: ''; display: block; width: 12px; height: 12px; margin-left: 4px;
+  border-left: 2.5px solid currentColor; border-bottom: 2.5px solid currentColor; border-radius: 1px;
+  transform: rotate(45deg);
+}
+.workout-back:active{ opacity: 0.55; }
+/* Settings' own pages keep the native back control: a chevron and the name of
+   the page it returns to. */
+.sheet-page .sheet-back, .sheet-back{
+  font-family: var(--font-ui); font-size: 16px; font-weight: 500; color: var(--accent); gap: 2px; margin-left: -4px; padding: 0 6px 0 0;
+}
+.sheet h2 + .sheet-sub, .sheet-back + h2{ margin-top: 2px; }
+
+/* ---------- 7 · SURFACES ----------
+   E1 card: a tone above the ground, a hairline, one line of top light. The
+   class list is every card that stands alone on a page; joined rows keep
+   their seams. */
+.wk-card, .obj-card, .fd, .tm-card, .po-card, .pd-card, .lc-card, .cal-card, .mv-card, .cw-card,
+.rec-card, .gym-summary, .cl-empty, .tr-empty, .mst-card, .vw-grid, .pd-tiles{
+  background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card);
+  box-shadow: var(--elev-1);
+}
+/* E2 hero / decision: the day's workout, a page's lead card. Tonal gradient,
+   the semantic pool already drawn by D28, and an ambient lift. */
+.tw, .po-hero{
+  background: var(--grad-hero); border: 1px solid var(--hairline); border-radius: 20px;
+  box-shadow: var(--elev-2);
+}
+.tw{ padding: 20px 18px 16px; margin-top: 14px; }
+/* The category rail on the hero is replaced by the category's own light: a
+   2px cap of colour along the top edge, which reads as identity without the
+   web-card side stripe. */
+.tw::before{
+  content: ''; position: absolute; left: 18px; right: 18px; top: 0; height: 2px; border-radius: 0 0 2px 2px;
+  background: var(--wi, var(--accent)); opacity: 0.9; z-index: 1;
+}
+.tw-push::before{ background: var(--push); } .tw-pull::before{ background: var(--pull); }
+.tw-legs::before{ background: var(--legs); } .tw-core::before{ background: var(--core); }
+.tw-fullbody::before{ background: var(--full); } .tw-upper::before{ background: var(--upper); }
+.tw-lower::before{ background: var(--lower); } .tw-arms::before{ background: var(--arms); }
+.tw-rest::before{ background: var(--text-faint); }
+.tw.tw-wi::before{ background: var(--wi); }
+.tw-done-hero::before{ background: var(--c-progress); }
+.tw-active::before{ background: var(--accent); }
+.tw, .tw.tw-wi, .tw-push, .tw-pull, .tw-legs, .tw-core, .tw-fullbody, .tw-upper, .tw-lower, .tw-arms, .tw-rest{ border-left: 1px solid var(--hairline); }
+.tw-label{ font-size: var(--eyebrow-size); font-weight: 600; }
+.tw-title{ font-size: 28px; letter-spacing: -0.02em; margin-top: 6px; }
+.tw-meta{ font-size: 13px; line-height: 1.5; margin-top: 6px; color: var(--text-dim); }
+.tw-active{ box-shadow: var(--elev-2), 0 0 0 1px rgba(76,194,255,0.28), 0 10px 30px -14px rgba(76,194,255,0.35); }
+
+/* ---------- 8 · TODAY ----------
+   1 the day's workout (hero) · 2 the week · 3 what LOOP suggests · 4 the
+   program · 5 context. The hero is the only E2 surface on the page. */
+.hdr-level{
+  background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card);
+  box-shadow: var(--elev-1); padding: 8px 12px 9px;
+}
+.hdr-level:hover, .hdr-level:focus-visible{ border-color: var(--hairline-strong); }
+.hdr-level-n{ font-family: var(--font-display); font-size: 20px; font-variant-numeric: tabular-nums; }
+.hdr-level-r{ font-size: 11px; font-weight: 700; letter-spacing: var(--eyebrow-track); color: var(--text-dim); }
+.hdr-level-bar{ height: 4px; background: var(--surface-inset); }
+/* Logging an activity is an add, not a drop zone. */
+.act-log{ border: 1px solid var(--hairline); background: var(--surface-1); color: var(--text-dim); border-radius: var(--r-control); min-height: 48px; }
+.act-log:active{ border-color: var(--hairline-strong); color: var(--text); }
+.act-row{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-control); }
+/* The week: seven quiet columns, not seven boxes. Today and the selected day
+   keep their light; done is the progress colour AND a filled mark. */
+.wk-card{ padding: 16px 14px 12px; }
+.wk-title, .obj-title, .fd-title{ font-family: var(--font-display); font-size: 17px; letter-spacing: -0.01em; }
+.wk-seg{ height: 5px; border-radius: 3px; background: var(--surface-inset); }
+.wk-seg.on{ background: var(--grad-progress); }
+.wk-day{ background: transparent; border-color: transparent; border-radius: var(--r-control); }
+.wk-today, .wk-done-today{ background: var(--accent-soft); border-color: rgba(76,194,255,0.55); }
+.wk-done .wk-mark, .wk-done-today .wk-mark{ background: var(--c-progress); border-color: var(--c-progress); }
+.wk-done .wk-dc, .wk-done-today .wk-dc{ color: var(--c-progress); }
+.wk-missed .wk-mark{ border-color: var(--c-warning); }
+.wk-missed .wk-dc{ color: var(--c-warning); }
+.wk-foot{ border-top-color: var(--hairline); font-size: 13px; }
+.wk-foot-k{ border-radius: 6px; }
+.wk-foot-done .wk-foot-k{ color: var(--c-progress); background: var(--c-progress-soft); }
+.wk-hint{ font-size: 11.5px; margin-top: 10px; }
+/* Objectives: one card, its items rows inside it — not a card in a card. */
+.obj-card{ padding: 16px 16px 8px; }
+.obj-gl{ margin: 16px 0 2px; }
+.obj-row{ background: transparent; border: none; border-top: 1px solid var(--hairline); border-radius: 0; padding: 12px 0; margin-top: 0; }
+.obj-gl + .obj-row{ border-top: none; }
+.obj-mark{ background: var(--surface-inset); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.obj-row-done .obj-mark{ background: var(--c-progress-soft); color: var(--c-progress); box-shadow: none; }
+.obj-t{ font-size: 14px; }
+.obj-w{ font-size: 12.5px; color: var(--text-dim); }
+.obj-bar{ height: 4px; background: var(--surface-inset); }
+.obj-bar > span{ background: var(--accent); }
+.obj-row-done .obj-bar > span{ background: var(--grad-progress); }
+.obj-row-done .obj-p, .obj-row-done .obj-xp{ color: var(--c-progress); }
+.obj-xp{ color: var(--c-mastery); }
+/* The program: its phase speaks in the program colour. */
+.fd-phase{ color: var(--c-program); background: var(--c-program-soft); border-radius: 6px; }
+.fd-phase-deload{ color: var(--c-warning); background: var(--c-warning-soft); }
+.fd-count{ font-size: 13px; }
+.fd-foot{ border-top-color: var(--hairline); }
+.fd-act{ background: var(--accent-soft); border-radius: var(--r-button); min-height: 46px; }
+.fd-act-quiet{ background: var(--surface-3); color: var(--text); border: 1px solid var(--hairline); border-radius: var(--r-button); min-height: 46px; }
+/* Context: the check-in is a row, the insights a quiet list. */
+.ready-prompt{ background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); box-shadow: var(--elev-1); padding: 14px 16px; }
+.ready-prompt-text{ font-size: 14px; color: var(--text); }
+.ready-prompt-cta{ font-size: 13.5px; }
+.insight-row{ border-top-color: var(--hairline); font-size: 13.5px; padding: 12px 0; color: var(--text-dim); }
+.insight-tag{ border-radius: 6px; }
+.tm-card{ padding: 16px; }
+.tm-name{ font-family: var(--font-display); font-size: 24px; letter-spacing: -0.015em; }
+.tm-foot{ border-top-color: var(--hairline); }
+
+/* ---------- 9 · LOG HEADER ---------- */
+.log-hdr{ margin: 6px 0 14px; align-items: flex-end; }
+.log-hdr-text{ flex-direction: column; align-items: flex-start; gap: 2px; }
+.log-hdr .log-title{ font-family: var(--font-display); font-weight: 700; font-size: var(--fs-large-title); line-height: 1.08; letter-spacing: -0.02em; }
+.log-hdr .log-sub{ font-size: 13px; }
+
+/* ---------- 10 · THE ACTIVE WORKOUT ----------
+   The screen the athlete reads with a bar in their hands. In order:
+   the exercise · what to do now · load / reps / RIR · the state of each set ·
+   the coach's why. Nothing here changes what a control does. */
+.ws-head{ border-bottom-color: var(--hairline); padding-bottom: 14px; }
+.ws-k{ font-size: var(--eyebrow-size); font-weight: 600; }
+.ws-name{ font-size: 26px; letter-spacing: -0.02em; }
+.ws-title .ex-thumb-lg{ width: 64px; height: 64px; border-radius: var(--r-card); background: var(--surface-1); border-color: var(--hairline-strong); }
+.ws-chip{ border-radius: var(--r-chip); padding: 4px 10px; }
+.ws-seg-done::before{ background: var(--c-progress); }
+.ws-seg-done::after{ background: var(--c-progress); }
+.ws-seg-warmup.ws-seg-done::after{ background: var(--c-progress); border-color: var(--c-progress); }
+/* The block the athlete is in, in the program's colour, with room around it. */
+.log-phase-context{ margin: 14px 0 12px; color: var(--c-program); font-size: var(--eyebrow-size); font-weight: 700; letter-spacing: var(--eyebrow-track); }
+.log-phase-note{ font-size: 13px; }
+.ex-actions{ gap: var(--space-2); margin-top: 10px; }
+.ex-actions .ex-act{ background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-control); color: var(--text); font-size: 13.5px; padding: 0 18px; }
+.ex-actions .ex-act:hover{ border-color: var(--hairline-strong); color: var(--text); }
+.ex-actions .ex-edit-btn[aria-expanded="true"]{ border-color: rgba(76,194,255,0.55); color: var(--accent); background: var(--accent-soft); }
+/* LOOP Coach — the decision: what this exercise asks for today. */
+.coach{
+  background: var(--grad-hero); border: 1px solid var(--hairline-strong); border-radius: var(--r-card);
+  padding: 14px 16px 15px; box-shadow: var(--elev-2);
+}
+.coach-k{ color: var(--accent); }
+.coach-load{ font-size: 30px; letter-spacing: -0.02em; margin-top: 4px; }
+.coach-target{ font-size: 14px; color: var(--text); }
+.coach-why{ font-size: 13px; color: var(--text-dim); }
+.coach-increase .coach-load{ color: var(--c-progress); }
+.coach-reduce .coach-load{ color: var(--c-warning); }
+.coach-detail{ border-top-color: var(--hairline); }
+.coach-note{ background: var(--surface-1); border: 1px solid var(--hairline); border-left-width: 1px; border-radius: var(--r-control); }
+.coach-note.coach-positive{ border-color: rgba(70,195,142,0.35); background: var(--c-progress-soft); }
+/* Last time · warm-up · note: one grouped card, rows on hairlines. */
+.ex-brief{ background: var(--hairline); border-radius: var(--r-card); border: 1px solid var(--hairline); margin-top: 12px; }
+.ex-brief > *{ background: var(--surface-1); }
+.ex-brief .exc-summary{ font-size: 13.5px; }
+.last-time-chip{ background: var(--surface-inset); border-color: var(--hairline); border-radius: 8px; font-size: 12px; }
+/* The Suggested Warm-up: restyled only (what it suggests is D130's). */
+.warmup-box{ background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-control); }
+.warmup-chip{ background: var(--c-effort-soft); border: 1px solid rgba(240,168,69,0.28); color: var(--text); border-radius: 8px; font-size: 12px; font-weight: 600; padding: 5px 9px; }
+.warmup-label{ color: var(--c-effort); font-weight: 700; }
+/* Sets. */
+.bw-toggle{ font-size: 13px; }
+.bw-toggle input[type="checkbox"]{ border-radius: 6px; background-color: var(--surface-inset); border-color: var(--hairline-strong); }
+.stepper-on .ws-current .set-row{ border-bottom-color: var(--hairline); padding: 12px 0 14px; }
+.stepper-on .ws-current .set-row.completed::before{ background: var(--c-progress); left: -12px; width: 3px; border-radius: 2px; }
+.stepper-on .ws-current .set-idx{ font-size: 13px; font-weight: 700; }
+.stepper-on .ws-current .set-idx::before{ background: var(--surface-inset); border: 1px solid var(--hairline-strong); }
+.stepper-on .ws-current .set-row.completed .set-idx{ color: var(--c-progress); }
+.stepper-on .ws-current .set-row.completed .set-idx::before{ background: var(--c-progress-soft); border-color: rgba(70,195,142,0.5); }
+.stepper-on .ws-current .set-row.set-warmup .set-idx{ color: var(--c-effort); }
+.stepper-on .ws-current .set-row.set-warmup .set-idx::before{ background: var(--c-effort-soft); border-color: rgba(240,168,69,0.4); }
+/* WHAT NOW: the first set still to do carries the action light — its number
+   in an action ring and its two fields lifted. Shape and colour, so it never
+   rests on colour alone; every other set is untouched. */
+.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .set-idx{ color: var(--accent); }
+.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .set-idx::before{
+  background: var(--accent-soft); border: 1.5px solid var(--accent); box-shadow: 0 0 0 3px rgba(76,194,255,0.10);
+}
+.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .stepper{
+  border-color: rgba(76,194,255,0.40); background: var(--surface-2);
+}
+.set-meta-btn{ font-size: 13px; }
+.set-meta-type{ color: var(--text); font-weight: 600; }
+.set-meta-type.nondefault{ color: var(--accent); }
+.set-meta-rir{ font-size: 12px; color: var(--text-faint); }
+.set-meta-rir.set{ color: var(--c-effort); font-weight: 700; }
+/* Set types: warm-up is effort (amber), drop the action colour, AMRAP progress
+   (green), failure danger — each with its own name in the row, so colour is
+   never the only signal. */
+.set-row.set-warmup .set-type-btn{ box-shadow: inset 3px 0 0 var(--c-effort); background: var(--c-effort-soft); color: var(--c-effort); }
+.set-row.set-warmup .set-type-caret{ color: var(--c-effort); }
+.set-row.set-type-amrap{ border-left-color: var(--c-progress); }
+.set-row.set-type-amrap .set-idx{ color: var(--c-progress); }
+.set-row.set-warmup{ opacity: 0.8; }
+.set-row.set-warmup .set-meta-type{ color: var(--c-effort); }
+.set-row.set-type-failure .set-meta-type{ color: var(--c-danger); }
+.set-row.set-type-amrap .set-meta-type{ color: var(--c-progress); }
+/* The two fields typed every set: instrument wells, 48px, the number large. */
+.stepper{ background: var(--surface-inset); border: 1px solid var(--hairline-strong); border-radius: var(--r-control); }
+.stepper button{ height: 48px; width: 46px; color: var(--text-dim); font-size: 20px; }
+.stepper input{ font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+.stepper button:active{ background: rgba(148,170,205,0.08); }
+.set-row-controls{ gap: 10px; }
+.scb-track{ fill: var(--surface-inset); stroke: var(--hairline-strong); }
+.scb-ring, .scb-check{ stroke: var(--c-progress); }
+.set-row.completed .scb-track{ fill: var(--c-progress-soft); }
+/* RIR and "How did it feel": compact segmented tracks. */
+.rir-picker{ gap: 2px; padding: 3px; background: var(--surface-inset); border: 1px solid var(--hairline); border-radius: var(--r-control); }
+.rir-opt{ border: none; border-radius: 9px; opacity: 1; color: var(--text-dim); font-size: 13px; }
+.rir-opt.on{ background: var(--surface-3); color: var(--c-effort); border: none; box-shadow: inset 0 1px 0 var(--edge-hi), 0 1px 3px rgba(0,0,0,0.45), 0 0 0 1px rgba(240,168,69,0.30); }
+.fb-strip{ border-top-color: var(--hairline); }
+.fb-chip{ border: 1px solid var(--hairline); background: var(--surface-1); color: var(--text-dim); border-radius: var(--r-control); font-size: 12.5px; }
+.fb-chip.on{ background: var(--accent-soft); border-color: rgba(76,194,255,0.55); color: var(--text); }
+.set-row-more .rm-set{ border-color: var(--hairline); border-radius: var(--r-control); background: transparent; }
+.set-type-btn{ background: var(--surface-inset); border-color: var(--hairline-strong); border-radius: var(--r-control); }
+/* Rest: the one live surface on the page. */
+.rest-panel{ border-radius: var(--r-card); border-color: rgba(76,194,255,0.45); }
+.stepper-on .ws-current .rest-panel{ background: linear-gradient(160deg, rgba(76,194,255,0.13), rgba(46,107,255,0.06)), var(--surface-sheet); }
+.rest-ring-track{ stroke: rgba(148,170,205,0.14); }
+.rest-panel-btn{ background: var(--surface-3); border: 1px solid var(--hairline); border-radius: var(--r-control); color: var(--text); font-size: 13px; }
+.rest-panel.done{ border-color: rgba(70,195,142,0.55); }
+.rest-panel.done .rest-ring-fill{ stroke: var(--c-progress); }
+.rest-panel.ending .rest-ring-fill{ stroke: var(--c-warning); }
+.rest-panel.ending .rest-dial-time{ color: var(--c-warning); }
+.ws-rest{ border-radius: var(--r-control); background: var(--surface-1); border-color: var(--hairline); }
+/* The dock: Previous is secondary; the way forward is primary when it moves
+   on, secondary when it skips. */
+.ws-nav{ background: rgba(13,19,30,0.94); border-top-color: var(--hairline); }
+.ws-nav-btn, .ws-nav-fwd{ min-height: 50px; border-radius: var(--r-button); font-size: 15px; }
+.ws-nav-btn{ background: var(--surface-3); border-color: var(--hairline); color: var(--text); }
+.ws-nav-btn:disabled{ background: transparent; border-color: var(--hairline); color: var(--text-faint); }
+.ws-nav-fwd.is-skip{ background: var(--surface-3); border-color: var(--hairline); }
+.ws-nav-fwd.is-next, .ws-nav-fwd.is-finish{ box-shadow: 0 8px 22px -10px rgba(46,107,255,0.65), inset 0 1px 0 rgba(255,255,255,0.22); }
+.ws-add{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-control); }
+.wb-alt{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-card); }
+
+/* ---------- 11 · PROGRESS ----------
+   "Am I getting stronger?" is answered first, in the progress colour; the
+   program in its own; evidence below. */
+.po-hero{ padding: 18px 18px 16px; }
+.po-head{ font-size: 28px; letter-spacing: -0.02em; }
+.po-line{ font-size: 14px; }
+.po-spark.po-improving, .po-lift-v.po-improving{ color: var(--c-progress); }
+.po-spark.po-declining, .po-lift-v.po-declining{ color: var(--c-warning); }
+.po-lift-v{ font-size: 13px; }
+.po-foot{ border-top-color: var(--hairline); font-size: 11.5px; }
+.po-card{ padding: 16px; margin-top: 12px; }
+.po-card-t{ font-size: 17px; letter-spacing: -0.01em; }
+.po-wk{ height: 6px; border-radius: 3px; background: var(--surface-inset); }
+.po-wk-done{ background: var(--c-program); }
+.po-wk-now{ background: #B9AEFF; box-shadow: 0 0 0 2px var(--c-program-soft); }
+.po-stat b{ font-size: 22px; letter-spacing: -0.01em; }
+.po-mus-name, .mv-name{ font-family: var(--font-display); letter-spacing: -0.015em; }
+.pd-card{ padding: 16px; }
+.pd-card-title{ font-size: 17px; letter-spacing: -0.01em; }
+.pd-card-sub, .pd-note{ font-size: 13px; color: var(--text-dim); }
+.pd-wk{ background: var(--surface-inset); border-radius: 4px; }
+.pd-wk span{ background: rgba(148,170,205,0.32); border-radius: 4px; }
+.pd-wk.on span{ background: var(--grad-progress); }
+.pd-mus-bar, .pd-mas-bar{ background: var(--surface-inset); }
+.pd-pr-row{ border-bottom-color: var(--hairline); padding: 10px 0; }
+.pd-pr-mark{ color: var(--c-progress); }
+.pd-pr-name{ font-size: 14px; }
+.pd-pr-val{ font-size: 12px; color: var(--text-dim); }
+.pd-more, .rw-more, .ss-more{
+  background: var(--surface-3); border: 1px solid var(--hairline); border-radius: var(--r-button);
+  color: var(--text); font-weight: 600; min-height: 48px;
+}
+.pd-more:hover, .rw-more:hover{ color: var(--text); border-color: var(--hairline-strong); }
+.pd-tiles{ background: var(--surface-1); }
+.pd-tile + .pd-tile{ border-left-color: var(--hairline); }
+.mtx-bar{ background: var(--surface-inset); }
+/* The personal best timeline is this tab's hero. */
+.pbt-card{ background: var(--grad-hero); border: 1px solid var(--hairline); border-radius: 20px; box-shadow: var(--elev-2); }
+.pbt-hero-num{ font-size: 46px; letter-spacing: -0.03em; }
+.pbt-single{ background: var(--surface-inset); border-color: var(--hairline); border-radius: var(--r-control); }
+/* Volume. */
+.vw-grid{ background: var(--hairline); }
+.vw-cell{ background: var(--surface-1); padding: 14px; }
+.vw-v{ font-family: var(--font-display); font-size: 24px; letter-spacing: -0.015em; }
+.vw-d-up{ color: var(--c-progress); }
+.vw-d-down{ color: var(--c-warning); }
+.vw-foot{ font-size: 12.5px; }
+/* Consistency: a week that met its plan is progress; the current one is now. */
+.lc-col{ background: var(--surface-inset); border-radius: 4px; }
+.lc-fill{ background: rgba(148,170,205,0.32); border-radius: 4px; }
+.lc-col.on .lc-fill{ background: var(--grad-progress); }
+.lc-col.now .lc-fill{ background: var(--accent); }
+.lc-col.now{ box-shadow: 0 0 0 1.5px rgba(76,194,255,0.7); }
+.lc-title{ font-weight: 600; }
+/* Mastery: the art and the podium are D128/D129's; only the frame moves. */
+.mst-card{ padding: 16px 12px 8px; }
+.mst-title{ font-weight: 700; }
+.mst-sub{ font-size: 13.5px; }
+.mlist-row, .mst-list-head{ border-color: var(--hairline); }
+
+/* ---------- 12 · EXERCISE DETAIL ----------
+   LAST → NEXT is the decision; the trend and records are the evidence. */
+.exd-hero-id h2{ font-size: 26px; letter-spacing: -0.02em; }
+.exd-art .ex-thumb{ width: 64px; height: 64px; border-radius: var(--r-card); background: var(--surface-1); border-color: var(--hairline-strong); }
+.exd-fact b{ font-size: 16px; }
+.exd-state-build{ color: var(--accent); border-color: rgba(76,194,255,0.4); background: var(--accent-soft); }
+.exd-state-increase{ color: var(--c-progress); border-color: rgba(70,195,142,0.45); background: var(--c-progress-soft); }
+.exd-state-reduce{ color: var(--c-warning); border-color: rgba(232,150,63,0.45); background: var(--c-warning-soft); }
+.exd-zone{ border-top-color: var(--hairline); }
+.exd-zone.exd-next{
+  background: var(--pool-accent), var(--grad-hero); border: 1px solid var(--hairline-strong); border-radius: 20px;
+  box-shadow: var(--elev-2); padding: 18px 18px 16px;
+}
+.exd-zone.exd-next.exd-next-quiet{ background: var(--surface-1); box-shadow: var(--elev-1); }
+.exd-ln-v{ font-size: 32px; letter-spacing: -0.02em; }
+.exd-delta{ border-radius: 6px; }
+.exd-delta-up{ color: var(--c-progress); background: var(--c-progress-soft); }
+.exd-delta-down{ color: var(--c-warning); background: var(--c-warning-soft); }
+.exd-why{ font-size: 14px; color: var(--text); }
+.exd-trend-pct{ font-size: 34px; letter-spacing: -0.02em; }
+.exd-best, .exd-rec-grid .mastery-block{ background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); box-shadow: var(--elev-1); }
+.exd-pb{ border-top-color: var(--hairline); padding: 11px 0; }
+.exd-pb-cur .exd-pb-tag{ color: var(--c-progress); }
+.exd-row{ border-top-color: var(--hairline); }
+
+/* ---------- 13 · WEEKLY REVIEW ---------- */
+.wr-nav-btn{ border-radius: var(--r-control); background: var(--surface-1); border-color: var(--hairline); }
+.wr-nav-range{ font-size: 24px; letter-spacing: -0.02em; }
+.wr-hero{ background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); box-shadow: var(--elev-1); padding: 16px 16px 6px; }
+.wr-stat b{ font-size: 32px; letter-spacing: -0.02em; }
+.wr-dot-done{ background: var(--c-progress); }
+.wr-dot-pr{ border-color: var(--c-progress); }
+.wr-legend-pr{ box-shadow: 0 0 0 2px var(--surface-1), 0 0 0 3.5px var(--c-progress); }
+.wr-dot-missed{ border-color: var(--c-warning); }
+.wr-row{ border-top-color: var(--hairline); min-height: 56px; }
+.wr-row-score b{ font-size: 18px; }
+.wr-win{ border-bottom-color: var(--hairline); }
+.wr-win-t{ font-size: 18px; letter-spacing: -0.01em; }
+.wr-vs{ border-top-color: var(--hairline); }
+.wr-prog-increase{ color: var(--c-progress); }
+.wr-prog-reduce{ color: var(--c-warning); }
+.wr-ctx-row{ border-top-color: var(--hairline); }
+.wr-sec{ margin-top: 32px; }
+
+/* ---------- 14 · WORKOUT SUMMARY (live and historical) ----------
+   The verdict first (the score and its word), then what it was made of. */
+.summary-mark{ margin-left: auto; margin-right: auto; background: var(--c-progress-soft); color: var(--c-progress); box-shadow: 0 0 0 6px rgba(70,195,142,0.06); }
+#summaryHeading{ font-size: 26px; letter-spacing: -0.02em; }
+.ss-num{ font-size: 64px; letter-spacing: -0.04em; }
+.ss-word{ font-size: 17px; }
+.ss-reasons{ border-top-color: var(--hairline); }
+.ss-reason::before{ background: var(--c-progress); }
+.ss-row{ border-bottom-color: var(--hairline); }
+.quality-block{ background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); }
+.ss-none{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-card); }
+
+/* ---------- 15 · LOG ---------- */
+.cal-card{ padding: 12px 12px 14px; }
+.cal-nav-btn{ border-radius: var(--r-control); background: var(--surface-2); border-color: var(--hairline); color: var(--text); }
+.cal-nav-btn:hover{ border-color: var(--hairline-strong); color: var(--text); }
+.cal-nav-label{ font-size: 17px; letter-spacing: -0.01em; }
+/* A month is read by its training days: an empty day is quiet ground, a day
+   with training wears its category, today and the selected day keep their
+   rings. */
+.cal-empty{ background: none; }
+.cal-has-log{ border-width: 1px; }
+.cal-selected{ border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
+.cal-mark-done{ background: var(--c-progress); }
+.cal-lg-done{ background: var(--c-progress); }
+.cal-mark-missed, .cal-lg-missed{ border-color: var(--c-warning); }
+.cal-legend{ font-size: 11.5px; }
+.rw-row{ border-bottom-color: var(--hairline); min-height: 64px; }
+.rw-title{ font-size: 15px; }
+.rw-meta{ font-size: 12px; }
+.rw-pr{ color: var(--c-progress); background: var(--c-progress-soft); border-radius: 6px; letter-spacing: 0.02em; }
+
+/* ---------- 16 · TRAIN ---------- */
+.tq-btn{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-card); box-shadow: var(--elev-1); min-height: 64px; padding: 12px; }
+.tq-ic{ width: 32px; height: 32px; }
+.tq-title{ font-size: 15px; }
+.tl-list{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-card); box-shadow: var(--elev-1); }
+.tl-row + .tl-row{ border-top-color: var(--hairline); }
+.tl-name{ font-size: 16px; letter-spacing: -0.01em; }
+.tl-muscles{ font-size: 13px; }
+.tl-meta{ font-size: 12px; }
+.tl-start{ background: var(--surface-3); border: 1px solid var(--hairline-strong); color: var(--text); font-weight: 700; }
+.tl-start.is-next{ background: var(--grad-accent); border-color: transparent; color: #06121F; box-shadow: 0 8px 20px -10px rgba(46,107,255,0.7), inset 0 1px 0 rgba(255,255,255,0.22); }
+.tl-empty{ border-style: solid; border-color: var(--hairline); background: var(--surface-1); border-radius: var(--r-card); }
+.tr-prog{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-card); }
+.tr-prog-on{ border-color: rgba(76,194,255,0.5); background: linear-gradient(160deg, rgba(76,194,255,0.10), rgba(76,194,255,0.03)), var(--surface-1); }
+.tr-prog-badge{ color: var(--accent); }
+.tr-resume{ border-radius: var(--r-card); }
+
+/* ---------- 17 · SETTINGS — grouped rows ----------
+   A settings page is a list of grouped rows, not a stack of cards. A run of
+   rows becomes one surface: the first rounds the top, the last the bottom,
+   and an inset hairline separates the rows between — wherever settings rows
+   appear (Settings, Backup & Data, Workout Plans), with no change to their
+   markup or to what any row does. */
+.settings-row-btn{
+  position: relative; margin-top: 0; min-height: 60px; padding: 12px 16px;
+  background: var(--surface-1); border: 1px solid var(--hairline); border-top-width: 0; border-bottom-width: 0;
+  border-radius: 0; box-shadow: none;
+}
+:not(.settings-row-btn) + .settings-row-btn, .settings-row-btn:first-child{
+  margin-top: 8px; border-top-width: 1px; border-top-left-radius: var(--r-card); border-top-right-radius: var(--r-card);
+}
+.settings-row-btn:not(:has(+ .settings-row-btn)){ border-bottom-width: 1px; border-bottom-left-radius: var(--r-card); border-bottom-right-radius: var(--r-card); }
+.settings-row-btn + .settings-row-btn::before{
+  content: ''; position: absolute; left: 16px; right: 0; top: 0; height: 1px; background: var(--hairline-strong); pointer-events: none;
+}
+.settings-row-btn:hover{ border-color: var(--hairline); }
+.settings-row-btn:active{ background: var(--surface-2); }
+.settings-row-title{ font-size: 15px; font-weight: 600; }
+.settings-row-desc{ font-size: 12.5px; color: var(--text-dim); }
+.settings-row-arrow{ font-size: 18px; color: var(--text-faint); }
+
+/* ---------- 18 · PROFILE ---------- */
+.achievement-row{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-control); }
+.achievement-row.unlocked .achievement-mark{ color: var(--c-progress); }
+.achievement-xp{ color: var(--c-mastery); }
+.xp-history-row{ border-color: var(--hairline); }
+
+/* ---------- 19 · SHEETS: swap, set type, add exercises, hints ---------- */
+.sub-option{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-card); }
+.sub-option:active{ background: var(--surface-2); }
+.stp-option{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-control); min-height: 60px; }
+.stp-option.on{ border-color: rgba(76,194,255,0.55); background: var(--accent-soft); }
+.stp-name{ font-size: 15px; }
+.stp-desc{ font-size: 12.5px; }
+/* A hint is a callout: a tinted surface with its own colour, no side rail. */
+.ob-hint{ background: var(--accent-soft); border: 1px solid rgba(76,194,255,0.22); border-left-width: 1px; border-radius: var(--r-control); }
+.ob-hint-text{ font-size: 13px; color: var(--text); }
+/* Chart labels drawn in the old data face take the UI face (CSS beats the
+   SVG presentation attribute). */
+svg text[font-family*="JetBrains"]{ font-family: var(--font-ui); font-variant-numeric: tabular-nums; }
+
+/* ---------- 20 · FLOORS: targets and type ----------
+   Every control a thumb can reach is at least 44px in the direction it was
+   short, without moving the line it sits on; no text is drawn under the
+   app's 11px floor. */
+.obj-all, .tr-link{ min-height: 44px; margin-top: -10px; margin-bottom: -10px; }
+.ws-swap-undo{ min-height: 44px; margin-top: -6px; margin-bottom: -6px; border-radius: var(--r-control); border-color: var(--hairline-strong); }
+.xp-fbtn{ min-height: 44px; }
+.ready-chips .pchip{ min-height: 44px; }
+.pbt-select{ min-height: 44px; }
+.pr-callout-icon{ font-size: 11px; }
+
+/* ---------- 21 · LOG CALENDAR & CONSISTENCY ----------
+   A month reads by its training days: a day with no training is quiet
+   ground; a day with training keeps its category tint (D28.1's half-strength
+   outline); today and the selected day keep their rings. History is the
+   progress colour, quieter than the week that met its plan; this week is
+   the action colour. */
+.cal-cell:not([class*="cal-cat-"]):not(.cal-selected):not(.cal-empty){ background: rgba(148,170,205,0.035); border-color: transparent; }
+.cal-cell{ border-radius: 10px; }
+.lc-fill, .pd-wk span{ background: rgba(70,195,142,0.38); }
+.lc-col.on .lc-fill, .pd-wk.on span{ background: var(--grad-progress); }
+.lc-col.now .lc-fill{ background: var(--accent); }
+
+/* The summary's mark is a block: the shared icon rule made it inline-flex, which
+   left it at the left edge under a centred title. */
+.summary-mark{ display: flex; }
+
+/* ---------- 22 · GROUPED LISTS ----------
+   The same grouped-row rule settings use, for every list that used to be a
+   stack of separate cards: achievements and XP history. */
+.achievement-row, .xp-history-row{
+  position: relative; margin-top: 0; border-radius: 0; border-top-width: 0; border-bottom-width: 0;
+  background: var(--surface-1); border-color: var(--hairline);
+}
+:not(.achievement-row) + .achievement-row, .achievement-row:first-child,
+:not(.xp-history-row) + .xp-history-row, .xp-history-row:first-child{
+  margin-top: 10px; border-top-width: 1px; border-top-left-radius: var(--r-card); border-top-right-radius: var(--r-card);
+}
+.achievement-row:not(:has(+ .achievement-row)), .xp-history-row:not(:has(+ .xp-history-row)){
+  border-bottom-width: 1px; border-bottom-left-radius: var(--r-card); border-bottom-right-radius: var(--r-card);
+}
+.achievement-row + .achievement-row::before, .xp-history-row + .xp-history-row::before{
+  content: ''; position: absolute; left: 14px; right: 0; top: 0; height: 1px; background: var(--hairline-strong); pointer-events: none;
+}
+
+/* A locked achievement dims its content, not the group surface it sits in. */
+.achievement-row:not(.unlocked){ opacity: 1; }
+.achievement-row:not(.unlocked) > *{ opacity: 0.55; }
+
+/* ---------- 23 · CALLOUTS ----------
+   A callout is a tinted surface in its own colour with a hairline — never a
+   side rail. Records are progress; a missed session is a warning; a level is
+   the action colour. */
+.pr-callout{ background: linear-gradient(135deg, rgba(70,195,142,0.12), rgba(70,195,142,0.04)), var(--surface-1); border-color: rgba(70,195,142,0.32); border-radius: var(--r-card); padding: 14px 16px; }
+.pr-callout-icon{ color: var(--c-progress); background: var(--c-progress-soft); border-color: rgba(70,195,142,0.6); border-radius: 6px; }
+.pr-callout-title{ font-size: 14px; }
+.pr-callout-sub{ font-size: 12.5px; }
+.prog-missed{ border: 1px solid rgba(232,150,63,0.30); border-left-width: 1px; background: linear-gradient(135deg, rgba(232,150,63,0.10), rgba(232,150,63,0.03)), var(--surface-1); border-radius: var(--r-card); padding: 14px 16px; }
+.prog-missed-label{ color: var(--c-warning); }
+.prog-missed-row{ font-size: 13.5px; color: var(--text); }
+.prog-missed-note{ font-size: 12px; }
+.prog-status-completed{ color: var(--c-progress); background: var(--c-progress-soft); }
+.levelup-banner{ background: linear-gradient(160deg, rgba(76,194,255,0.14), rgba(46,107,255,0.05)), var(--surface-1); border: 1px solid rgba(76,194,255,0.40); border-radius: 20px; box-shadow: var(--elev-2); }
+.levelup-label{ letter-spacing: var(--eyebrow-track); text-transform: uppercase; }
+.levelup-nums{ font-size: 32px; letter-spacing: -0.02em; }
+
+/* ---------- 24 · CHOICE CHIPS ----------
+   A choice in a form (goal, experience, length, category) is a quiet tile;
+   the chosen one takes the action tint, a stronger edge and full-strength
+   text — never colour alone. Category choices keep their category colour. */
+.cat-opt{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-control); color: var(--text-dim); font-size: 13px; }
+.rest-day-opt{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-control); }
+
+/* ---------- 25 · SHEET GRABBER ROOM ----------
+   The grabber sits in the sheet's own top band, so content scrolls under the
+   sheet's edge, never under the grabber. */
+.overlay:not(.overlay-page) > .sheet{ padding-top: 16px; }
+.overlay:not(.overlay-page) > .sheet > .sheet-scroll{ padding-top: 10px; }
+
+/* ---------- 26 · TRAIN QUICK START ---------- */
+.tq-btn{ padding: 12px 12px 12px 10px; gap: 10px; }
+.tq-ic{ width: 30px; height: 30px; }
+.tq-title{ font-size: 14.5px; }
+
+/* ---------- 27 · PAGE GROUND FIXES ----------
+   Pages now stand on the app's ground (--bg), so the pinned rest card's shelf
+   (D59: a solid band under it, down to the dock) is painted in that ground. */
+.stepper-on .ws-current .rest-panel{ box-shadow: 0 3px 10px rgba(0,0,0,0.24), 0 28px 0 4px var(--bg); }
+
+/* ---------- 28 · NARROW PHONES ----------
+   At 320–389 the greeting steps down a size so the day's line stays one line
+   beside the rank chip. */
+@media (max-width: 389px){
+  .today-greet{ font-size: 22px; }
+  .today-sub{ flex-wrap: wrap; row-gap: 2px; }
+  .page-title, .log-hdr .log-title{ font-size: 27px; }
+}
+
+/* ---------- 29 · READINESS ----------
+   The check-in and its summary are one card each; a choice is a quiet tile;
+   Done only folds the card (every answer is saved as it is tapped), so it is
+   a secondary action, not a primary one. */
+.ready-summary, .ready-expand{ background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); box-shadow: var(--elev-1); }
+.ready-summary{ min-height: 52px; padding: 12px 16px; }
+.ready-summary-text{ font-size: 14px; }
+.ready-summary-edit{ font-size: 13.5px; }
+.ready-expand-title{ font-size: 16px; }
+.pchip{ background: var(--surface-1); border-color: var(--hairline); border-radius: var(--r-control); color: var(--text-dim); }
+.pchip.on{ background: var(--accent-soft); border-color: rgba(76,194,255,0.55); color: var(--text); }
+.ready-chips .pchip{ font-size: 13px; }
+.ready-done{ min-height: 48px; border-radius: var(--r-button); background: var(--surface-3); border: 1px solid var(--hairline); color: var(--text); font-size: 15px; }
+
+/* ---------- 30 · PROGRAM PROGRESS ----------
+   How far through the program you are is said in the program colour. */
+.mt-prog-bar{ height: 6px; background: var(--surface-inset); }
+.mt-prog-bar span{ background: var(--grad-program); }
+
+/* ---------- 31 · RHYTHM ----------
+   An add button is followed by a gap, not by the next heading. */
+.tr-add{ margin-bottom: 12px; }
+/* ==== D132 SYSTEM END ==== */
 </style>
 </head>
 <body>
@@ -9082,6 +9936,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 
   <div class="view" id="view-train">
+    <h2 class="page-title" id="trainTitle">Train</h2>
     <!-- D65 — Train is a launcher, not a catalogue. Three ways to start, in the
          order an athlete reaches for them: from nothing, from a workout they
          saved, from their plan. Every Start runs through the functions Today and
@@ -9121,15 +9976,16 @@ html, body{ max-width: 100%; overflow-x: hidden; }
   </div>
 
   <div class="view" id="view-progress">
+    <h2 class="page-title" id="progressTitle">Progress</h2>
 
-    <div class="seg" id="progSeg">
-      <button class="seg-btn active" data-p="overview" onclick="switchProgTab('overview')">Overview</button>
-      <button class="seg-btn" data-p="strength" onclick="switchProgTab('strength')">Strength</button>
-      <button class="seg-btn" data-p="volume" onclick="switchProgTab('volume')">Volume</button>
-      <button class="seg-btn" data-p="muscles" onclick="switchProgTab('muscles')">Mastery</button>
+    <div class="seg" id="progSeg" role="tablist" aria-label="Progress views">
+      <button class="seg-btn active" data-p="overview" role="tab" id="progTab-overview" aria-controls="ppanel-overview" aria-selected="true" onclick="switchProgTab('overview')">Overview</button>
+      <button class="seg-btn" data-p="strength" role="tab" id="progTab-strength" aria-controls="ppanel-strength" aria-selected="false" onclick="switchProgTab('strength')">Strength</button>
+      <button class="seg-btn" data-p="volume" role="tab" id="progTab-volume" aria-controls="ppanel-volume" aria-selected="false" onclick="switchProgTab('volume')">Volume</button>
+      <button class="seg-btn" data-p="muscles" role="tab" id="progTab-muscles" aria-controls="ppanel-muscles" aria-selected="false" onclick="switchProgTab('muscles')">Mastery</button>
     </div>
 
-    <div class="seg-panel" id="ppanel-overview">
+    <div class="seg-panel" id="ppanel-overview" role="tabpanel" aria-labelledby="progTab-overview">
       <div id="progPerf"></div>
     </div>
 
@@ -9137,14 +9993,14 @@ html, body{ max-width: 100%; overflow-x: hidden; }
          It used to sit in the Overview panel, so "All records" on the Strength
          tab toggled a container inside a display:none sibling — a tap that
          visibly did nothing. -->
-    <div class="seg-panel" id="ppanel-strength" style="display:none">
+    <div class="seg-panel" id="ppanel-strength" role="tabpanel" aria-labelledby="progTab-strength" style="display:none">
       <div id="progPBTimeline"></div>
       <div id="progReady"></div>
       <div id="progAllRecords"></div>
       <div id="progExercises"></div>
     </div>
 
-    <div class="seg-panel" id="ppanel-volume" style="display:none">
+    <div class="seg-panel" id="ppanel-volume" role="tabpanel" aria-labelledby="progTab-volume" style="display:none">
       <div id="progVolCompare"></div>
       <div id="progVolChart"></div>
       <div id="progVolMuscle"></div>
@@ -9153,7 +10009,7 @@ html, body{ max-width: 100%; overflow-x: hidden; }
       <div id="progVolLong"></div>
     </div>
 
-    <div class="seg-panel" id="ppanel-muscles" style="display:none">
+    <div class="seg-panel" id="ppanel-muscles" role="tabpanel" aria-labelledby="progTab-muscles" style="display:none">
       <div id="progMuscles"></div>
     </div>
   </div>
@@ -18680,6 +19536,25 @@ const LOOP_UPDATES = [
       'An exercise you added yourself is no longer given a LOOP target when you resume, so your workout history and Session Score stay accurate'
     ],
     bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v10-49',
+    version: 'LOOP 10.49',
+    title: 'A New Look',
+    date: '2026-10-06',
+    swVersion: 'loop-v226',
+    summary: 'LOOP has a new look built around faster training decisions.',
+    newFeatures: [],
+    improvements: [
+      'Pages now share one style of tabs and one style of buttons, and the numbers that matter most are bigger',
+      'During a workout, the set you are on now has a blue ring, and warm-up, failure and AMRAP sets each name their type in their own colour',
+      'Your program now has its own colour, violet, on its phase, its weeks and its progress bar',
+      'Settings and achievements are grouped like the rest of your phone, and small buttons are easier to tap'
+    ],
+    bugFixes: [
+      'The tick at the top of a Workout Summary now sits centred above the title'
+    ],
     changes: []
   }
 ];
@@ -35409,7 +36284,7 @@ let exDetailModel = null;
 function switchProgTab(t){
   progTab = t;
   if(t === 'muscles') masteryPlay = true;   // D94A — the entrance plays when the tab is opened
-  document.querySelectorAll('#progSeg .seg-btn').forEach(b => b.classList.toggle('active', b.dataset.p === t));
+  document.querySelectorAll('#progSeg .seg-btn').forEach(b => { b.classList.toggle('active', b.dataset.p === t); b.setAttribute('aria-selected', b.dataset.p === t ? 'true' : 'false'); });
   ['overview','strength','volume','muscles'].forEach(k => {
     const p = document.getElementById('ppanel-' + k);
     if(p) p.style.display = (k === t) ? 'block' : 'none';
