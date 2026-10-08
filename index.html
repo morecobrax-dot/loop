@@ -19690,6 +19690,22 @@ const LOOP_UPDATES = [
       'When you swap the rest of an exercise you added yourself, neither part is counted as planned sets any more, and the new exercise is no longer shown as “Instead of” the one you added'
     ],
     changes: []
+  },
+  {
+    id: 'v10-55',
+    version: 'LOOP 10.55',
+    title: 'Warm-up Guidance Knows When You’re Training',
+    date: '2026-10-08',
+    swVersion: 'loop-v232',
+    summary: 'Suggested Warm-up now steps aside once you begin an exercise’s working sets.',
+    newFeatures: [],
+    improvements: [
+      'Suggested Warm-up stays up to date until you finish the first working set of an exercise, then steps aside. Untick that set and it comes back with the current advice'
+    ],
+    bugFixes: [
+      'Work you do later in a workout can no longer change the warm-up advice for an exercise you have already started, and an exercise’s own heavier sets no longer bring its full warm-up back'
+    ],
+    changes: []
   }
 ];
 
@@ -57129,6 +57145,14 @@ function refreshSuggestedWarmups(opts){
   document.querySelectorAll('#logExercises .ex-log-row').forEach(exRow => {
     const wrap = exRow.querySelector ? exRow.querySelector('.warmup-wrap') : null;
     if(!wrap) return;
+    /* D136 (E62) — the strip answers a question asked BEFORE an exercise's work: what preparation is still to do. Once a
+       set of that work is done (exerciseWorkBegun, the one boundary D131B already uses) the question has expired, and
+       D47, which reads the session's work and not its order, could only go on answering it from work done after the
+       exercise began, or from the exercise's own. So the strip retires: hidden, out of the accessibility tree, with
+       nothing in its place. It is still derived below, so it returns with D47's current answer the moment no work is
+       done again, and D130's explicit warm-up actions still read their steps from it. Nothing is stored. */
+    const begun = exerciseWorkBegun(exRow);
+    if(wrap.hidden !== begun) wrap.hidden = begun;
     const nameEl = exRow.querySelector('.ex-name-in');
     const html = warmupBoxHtml(nameEl ? nameEl.value.trim() : '', suggestedWarmupAnchor(exRow));
     const was = wrap.innerHTML;

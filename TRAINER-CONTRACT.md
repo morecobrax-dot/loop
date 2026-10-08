@@ -5551,6 +5551,11 @@ Even when granted, the ramp is shortened rather than removed — one acclimation
 set at the top is kept, because the movement-specific half is the part that
 does not transfer. Nothing is persisted; there is no `warmedMuscles` store.
 
+**Applicability (D136, §177).** This is D47's ANSWER. When the athlete sees it
+is its APPLICABILITY: only before the exercise's work has begun. From its first
+working set on, the strip is retired, because D47 reads the session's work and
+not its order.
+
 ### Unilateral warm-ups
 
 Six of the twenty-seven prep movements are timed *and* two-sided, and two of
@@ -19368,7 +19373,66 @@ check holds that 10.54 read back as 10.53 is exactly that text. Its properties r
 - provenance never comes from nothing, and each planned slot keeps its lineage and its count;
 - a workout that never splits hand-added work part-way is exactly 10.53's;
 - every split keeps the done sets and the reps, type and owner of the sets still to do;
-- every resume is exact, the Suggested Warm-up is never stale, and history is never rewritten. Program, own-values, D50B, bodyweight, chained, undo and full-swap classes are identical to 10.53. Every
-hand-added and freeform class loses its manufactured plan and nothing else.
+- every resume is exact, the Suggested Warm-up is never stale, and history is never rewritten.
+
+Program, own-values, D50B, bodyweight, chained, undo and full-swap classes are identical to 10.53. Every hand-added and
+freeform class loses its manufactured plan and nothing else.
+
+**Not proven here.** How it reads on a physical iPhone.
+
+## §177 — THE SUGGESTED WARM-UP IS A DECISION MADE BEFORE THE WORK (D136 · LOOP 10.55 · loop-v232)
+
+**D47's answer and D47's applicability are two different things.**
+- **The answer** is the preparation LOOP would suggest from the active session's facts: `warmupBoxHtml`, from the
+  exercise's anchor (D125) and the session's completed work (`sessionPreparation`, `generalPrepSatisfiedBy`). It is
+  derived, never stored (D131B), and unchanged by D136.
+- **Applicability** is when the athlete is shown it: only before the exercise's work has begun. The question the strip
+  answers is "what preparation do I still need before I start this exercise?". Once the first working set is done, that
+  question has expired.
+
+**Why the answer could not stay on screen.** D47 reads the session's completed work, not its order, and LOOP stores no
+order: no set-completion time, no exercise-start time, no event sequence, no preparation snapshot. Shown after an exercise
+began, the answer could only be rewritten by work done after it began (E62):
+- Bench, under way, read "already prepared" because Incline was worked later and heavier.
+- An exercise's own heavier work removed its own shortening, because D47 refuses an exercise's own work as its preparation.
+Before an exercise begins, every completed set in the session necessarily came before it, so the answer is
+chronologically true without a single timestamp.
+
+**The rule.** `refreshSuggestedWarmups` sets the strip's `hidden` to `exerciseWorkBegun(row)` for every exercise, every
+time it runs. That is D131B's one boundary: a done set of any work type (Working, Drop, Failure, AMRAP). A done warm-up
+is still preparing. The refresh already runs at every event that can change that answer:
+- a set done or undone;
+- a set's type changed into or out of Warm-up;
+- Remove set;
+- a swap or a split;
+- an Undo;
+- a resume, once its sets are back.
+So the strip:
+- retires the moment the first working set is done: hidden, out of the accessibility tree, nothing in its place;
+- returns the moment no work is done (every working set unticked, or the only one made a warm-up), as D47 says at that moment;
+- never shows for an exercise under way, whatever is done later, heavier, out of order, or by the exercise itself;
+- stays fully live for every exercise not yet begun, wherever it sits in the workout.
+
+**What does not change.**
+- **D47's formula:** WARMUP_LIFTS, the movement patterns, the different-exercise rule, the at-least-as-heavy threshold,
+  40 / 60 / 80 %, 5 / 3 / 2 and the rounding.
+- **The strip is still derived while hidden.** D130's explicit actions (Add Set → Warm-up, Working → Warm-up) read
+  LOOP's current steps from it, exactly as before, and do not bring it back.
+- **D131B's reconciliation:** LOOP's own warm-ups follow the strip only before the work. The athlete's are never written.
+- **Resume:** it rebuilds the same retired and live strips (live = resumed).
+- **Storage:** no new DATA_KEY, draft field, timestamp, snapshot or flag. 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow.
+- **Other phases:** D49, D50B, D125, D127, D130, D131A, D132–D135, records, XP, Session Score, Mastery, Recovery and history.
+
+**Proof.** `asOf1054Html(raw)` takes D136's two hunks out and reads back LOOP 10.54 to the byte (`9334d219694d0df4`).
+Contract 255 drives 26 classes through the app's own logger, draft, resume and save, on 10.55 and on 10.54's own refresh
+as it shipped (`REFRESH_1054`, pinned `9d70794f6b85166a`). The classes cover:
+- the order matrix: A → B, B → A, A → C → B, C → A → B, A started → B → back to A, B started → A → back to B,
+  A full → B started → C → back to B, exercise 3 first, and the same work in reverse display order;
+- the own-work flip, a completed warm-up only, untick, set type, three exercises;
+- D130's explicit and athlete-owned warm-ups, D131B's reconciliation;
+- swap, program split and Undo, manual split, bodyweight, D50B, and resume of a started and an upcoming exercise.
+Every strip's derived content, every row, every plan field and every saved record is 10.54's. The only difference is that
+a strip is hidden exactly when its exercise's work has begun. Its properties run over 20 seeded, generated workouts, played
+on both builds and in reverse display order, with mid-workout resumes.
 
 **Not proven here.** How it reads on a physical iPhone.

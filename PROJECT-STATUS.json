@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.54",
+  "version": "10.55",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: in a freeform workout, add an exercise, finish one set, swap the rest. Neither part says Instead of, and the summary shows no planned sets.",
+  "nextAction": "Owner iPhone check: finish Bench, then Incline's first working set. Its Suggested Warm-up steps aside and stays gone after later pressing; untick the set and it returns.",
   "blocker": null,
-  "updatedAt": "2026-10-08T09:49:20Z"
+  "updatedAt": "2026-10-08T15:04:29Z"
 }

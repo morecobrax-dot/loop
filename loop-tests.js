@@ -385,7 +385,7 @@ const D125_EDITS = {
 function asOf1041(name){
   if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
-  for(const [now, then] of (D131B_EDITS[name] || []).concat(D131A_EDITS[name] || [], D130_EDITS[name] || [], D125_EDITS[name] || [])){   // D131B, D131A, then D130, restated: undo them first
+  for(const [now, then] of (D136_EDITS[name] || []).concat(D131B_EDITS[name] || [], D131A_EDITS[name] || [], D130_EDITS[name] || [], D125_EDITS[name] || [])){   // D136 restated: undo D136 first   // D131B, D131A, then D130, restated: undo them first
     if(t.split(now).length !== 2) return null;           // a D131B, D131A, D130 or D125 statement itself moved
     t = t.split(now).join(then);
   }
@@ -439,7 +439,7 @@ const D127_EDITS = {
 function asOf1043(name){
   if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
-  for(const [now, then] of (D131B_EDITS[name] || []).concat(D131A_EDITS[name] || [], D130_EDITS[name] || [], D127_EDITS[name] || [])){   // D131B, D131A, then D130, restated: undo them first
+  for(const [now, then] of (D136_EDITS[name] || []).concat(D131B_EDITS[name] || [], D131A_EDITS[name] || [], D130_EDITS[name] || [], D127_EDITS[name] || [])){   // D136 restated: undo D136 first   // D131B, D131A, then D130, restated: undo them first
     if(t.split(now).length !== 2) return null;           // a D131B, D131A, D130 or D127 statement itself moved
     t = t.split(now).join(then);
   }
@@ -510,13 +510,13 @@ function asOfChain(name, tables){
   }
   return t;
 }
-function asOf1045(name){ return asOfChain(name, [D135_EDITS, D134_EDITS, D129_EDITS]); }   // D134 restated: every asOf chain undoes D134 first
+function asOf1045(name){ return asOfChain(name, [D136_EDITS, D135_EDITS, D134_EDITS, D129_EDITS]); }   // D134 restated: every asOf chain undoes D134 first
 function pinAsOf1045(name){
   const t = asOf1045(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
 }
 /* 10.44 is 10.45 with D128 put back too: the D129 statements come out first, then D128's */
-function asOf1044(name){ return asOfChain(name, [D135_EDITS, D134_EDITS, D129_EDITS, D128_EDITS]); }   // D134 restated
+function asOf1044(name){ return asOfChain(name, [D136_EDITS, D135_EDITS, D134_EDITS, D129_EDITS, D128_EDITS]); }   // D134 restated
 /* the named functions as 10.45 had them, installed in a loaded app for one call (a name 10.45 did not have is left undefined) */
 function withAsOf1045(c, names, fn){
   const vm = require('vm'), keep = names.map(n => c[n]);
@@ -568,7 +568,7 @@ const D130_EDITS = {
     "function seedWarmupTargets(exRow){ if(!exRow || !exRow.querySelectorAll) return 0; const bw = exRow.querySelector('.ex-bw-in'); if(bw && bw.checked) return 0; const steps = suggestedWarmupSteps(exRow); let place = 0, changed = 0; exRow.querySelectorAll('.set-row').forEach(sr => { if(sr.dataset.setType !== SET_TYPES.WARMUP) return; place++; const w = sr.querySelector('.set-weight-in'), r = sr.querySelector('.set-reps-in'); if(sr.classList.contains('completed') || !w || !r || w.disabled) return; const step = steps.length ? steps[Math.min(place, steps.length) - 1] : null; const loops = !w.dataset.userSet && !r.dataset.userSet; const load = step ? step.weight : ''; if(!w.dataset.userSet && (loops || w.value === '') && w.value !== load){ w.value = load; changed++; } if(step && !r.dataset.userSet && (loops || r.value === '') && r.value !== step.reps){ r.value = step.reps; r.dataset.v = step.reps; changed++; } }); return changed; }",
     ""]]
 };
-function asOf1046(name){ return asOfChain(name, [D135_EDITS, D134_EDITS, D131B_EDITS, D131A_EDITS, D130_EDITS]); }   // D134 restated   // D131B, then D131A, restated: undo them first
+function asOf1046(name){ return asOfChain(name, [D136_EDITS, D135_EDITS, D134_EDITS, D131B_EDITS, D131A_EDITS, D130_EDITS]); }   // D134 restated   // D131B, then D131A, restated: undo them first
 function pinAsOf1046(name){
   const t = asOf1046(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -600,7 +600,7 @@ const D131A_EDITS = {
     "(draft.exercises || []).forEach(ex => { const meta = ex.meta || {}; const legacyPlanRow = meta.rxLoad === undefined && !ex.bodyweight && !!(meta.targetReps || ex.effort); const rec = legacyPlanRow ? progressionFor(ex.name, meta.targetReps, meta.recommended) : null; addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, meta); });",
     "(draft.exercises || []).forEach(ex => { const rec = ex.bodyweight ? null : progressionFor(ex.name, ex.meta && ex.meta.targetReps, ex.meta && ex.meta.recommended); addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, ex.meta || {}); });"]]
 };
-function asOf1047(name){ return asOfChain(name, [D135_EDITS, D134_EDITS, D131B_EDITS, D131A_EDITS]); }   // D134 restated   // D131B restated: undo D131B first
+function asOf1047(name){ return asOfChain(name, [D136_EDITS, D135_EDITS, D134_EDITS, D131B_EDITS, D131A_EDITS]); }   // D134 restated   // D131B restated: undo D131B first
 function pinAsOf1047(name){
   const t = asOf1047(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -674,7 +674,7 @@ const D131B_EDITS = {
 };
 /* the twelve functions D131B changed (the three it added have nothing to put back) */
 const D131B_LOGGER = Object.keys(D131B_EDITS).filter(n => D131B_EDITS[n].every(p => p[1] !== ''));
-function asOf1050(name){ return asOfChain(name, [D135_EDITS, D134_EDITS, D131B_EDITS]); }   // D134 restated
+function asOf1050(name){ return asOfChain(name, [D136_EDITS, D135_EDITS, D134_EDITS, D131B_EDITS]); }   // D134 restated
 function pinAsOf1050(name){
   const t = asOf1050(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -741,6 +741,46 @@ const D131B_RAW = [
     "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
    ]
 ];
+/* D136 (LOOP 10.55, E62) — the Suggested Warm-up is shown only before an exercise's work begins. Two hunks: one statement
+   pair in refreshSuggestedWarmups (the strip's hidden follows exerciseWorkBegun) and the What's New entry.
+   asOf1054Html(raw) takes them out and reads back LOOP 10.54 to the byte; every older read-back starts there. D136_EDITS is
+   the same pair on loop-tests' own reading ([now, as of 10.54]); Contract 255 proves what it does. */
+const D136_RAW = [
+ [
+  "    const wrap = exRow.querySelector ? exRow.querySelector('.warmup-wrap') : null;\n    if(!wrap) return;\n    /* D136 (E62) — the strip answers a question asked BEFORE an exercise's work: what preparation is still to do. Once a\n       set of that work is done (exerciseWorkBegun, the one boundary D131B already uses) the question has expired, and\n       D47, which reads the session's work and not its order, could only go on answering it from work done after the\n       exercise began, or from the exercise's own. So the strip retires: hidden, out of the accessibility tree, with\n       nothing in its place. It is still derived below, so it returns with D47's current answer the moment no work is\n       done again, and D130's explicit warm-up actions still read their steps from it. Nothing is stored. */\n    const begun = exerciseWorkBegun(exRow);\n    if(wrap.hidden !== begun) wrap.hidden = begun;\n    const nameEl = exRow.querySelector('.ex-name-in');",
+  "    const wrap = exRow.querySelector ? exRow.querySelector('.warmup-wrap') : null;\n    if(!wrap) return;\n    const nameEl = exRow.querySelector('.ex-name-in');"
+ ],
+ [
+  "    changes: []\n  },\n  {\n    id: 'v10-55',\n    version: 'LOOP 10.55',\n    title: 'Warm-up Guidance Knows When You’re Training',\n    date: '2026-10-08',\n    swVersion: 'loop-v232',\n    summary: 'Suggested Warm-up now steps aside once you begin an exercise’s working sets.',\n    newFeatures: [],\n    improvements: [\n      'Suggested Warm-up stays up to date until you finish the first working set of an exercise, then steps aside. Untick that set and it comes back with the current advice'\n    ],\n    bugFixes: [\n      'Work you do later in a workout can no longer change the warm-up advice for an exercise you have already started, and an exercise’s own heavier sets no longer bring its full warm-up back'\n    ],\n    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)",
+  "    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)"
+ ]
+];
+const D136_WHATSNEW = "  },\n  {\n    id: 'v10-55',\n    version: 'LOOP 10.55',\n    title: 'Warm-up Guidance Knows When You’re Training',\n    date: '2026-10-08',\n    swVersion: 'loop-v232',\n    summary: 'Suggested Warm-up now steps aside once you begin an exercise’s working sets.',\n    newFeatures: [],\n    improvements: [\n      'Suggested Warm-up stays up to date until you finish the first working set of an exercise, then steps aside. Untick that set and it comes back with the current advice'\n    ],\n    bugFixes: [\n      'Work you do later in a workout can no longer change the warm-up advice for an exercise you have already started, and an exercise’s own heavier sets no longer bring its full warm-up back'\n    ],\n    changes: []\n";
+const SHA_1054_HTML = '9334d219694d0df4';   /* index.html of LOOP 10.54 (568d7a5, 75fe7b4), LF */
+function asOf1054Html(raw){
+  let t = raw;
+  for(const [now, then] of D136_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
+}
+const D136_EDITS = {
+ "refreshSuggestedWarmups": [
+  [
+   "const begun = exerciseWorkBegun(exRow); if(wrap.hidden !== begun) wrap.hidden = begun; const nameEl",
+   "const nameEl"
+  ]
+ ]
+};
+function asOf1054(name){ return asOfChain(name, [D136_EDITS]); }
+function pinAsOf1054(name){
+  const t = asOf1054(name);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+/* 10.54's refreshSuggestedWarmups exactly as it shipped (75fe7b4), on loop-tests' own reading. Every replay of 10.54's refresh
+   runs this text, never one derived from the file under test, so no edit to 10.55's can break or reach the 10.54 side.
+   Contract 255, 50b holds that 10.55 read back as 10.54 gives exactly this text. */
+const REFRESH_1054 = "function refreshSuggestedWarmups(opts){ const reconcile = !(opts && opts.reconcile === false); let changed = 0; document.querySelectorAll('#logExercises .ex-log-row').forEach(exRow => { const wrap = exRow.querySelector ? exRow.querySelector('.warmup-wrap') : null; if(!wrap) return; const nameEl = exRow.querySelector('.ex-name-in'); const html = warmupBoxHtml(nameEl ? nameEl.value.trim() : '', suggestedWarmupAnchor(exRow)); const was = wrap.innerHTML; if(was === html) return; wrap.innerHTML = html; if(wrap.innerHTML === was) return; changed++; if(reconcile && !exerciseWorkBegun(exRow)) seedWarmupTargets(exRow); }); return changed; }";
+const REFRESH_1054_PIN = '9d70794f6b85166a';
+function compileRefresh1054(c){ return require('vm').runInContext('(' + REFRESH_1054 + ')', c); }
 /* D135 (LOOP 10.54, E59) — a split divides the plan a row has and never writes one. Three hunks: two statements in
    splitRowForSwap (a hand-added row's two parts get no set count, so no slot follows) and the What's New entry.
    asOf1053Html(raw) takes them out and reads back LOOP 10.53 to the byte; every older read-back starts there. D135_EDITS are
@@ -762,7 +802,8 @@ const D135_RAW = [
 const D135_WHATSNEW = "  },\n  {\n    id: 'v10-54',\n    version: 'LOOP 10.54',\n    title: 'Manual Workouts Stay Manual',\n    date: '2026-10-08',\n    swVersion: 'loop-v231',\n    summary: 'Splitting an exercise you added yourself no longer turns it into part of LOOP’s plan.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [\n      'When you swap the rest of an exercise you added yourself, neither part is counted as planned sets any more, and the new exercise is no longer shown as “Instead of” the one you added'\n    ],\n    changes: []\n";
 const SHA_1053_HTML = '5aba360adbeb0e3a';   /* index.html of LOOP 10.53 (1d8f793), LF */
 function asOf1053Html(raw){
-  let t = raw;
+  let t = asOf1054Html(raw);   // D136 restated: 10.55 reads back as 10.54 first
+  if(t === null) return null;
   for(const [now, then] of D135_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
   return t;
 }
@@ -779,7 +820,7 @@ const D135_EDITS = {
  ]
 };
 const D135_LOGGER = Object.keys(D135_EDITS);
-function asOf1053(name){ return asOfChain(name, [D135_EDITS]); }
+function asOf1053(name){ return asOfChain(name, [D136_EDITS, D135_EDITS]); }   // D136 restated: undo D136 first
 function pinAsOf1053(name){
   const t = asOf1053(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -871,7 +912,7 @@ const D134_EDITS = {
 /* the four functions D134 changed (the two it added have nothing to put back; workoutElapsedSeconds's own pair puts back
    nothing because D134 only ADDED a statement to it) */
 const D134_LOGGER = Object.keys(D134_EDITS).filter(n => !D134_EDITS[n].some(p => p[1] === '' && p[0].indexOf('function ' + n + '(') === 0));
-function asOf1052(name){ return asOfChain(name, [D135_EDITS, D134_EDITS]); }   // D135 restated: undo D135 first
+function asOf1052(name){ return asOfChain(name, [D136_EDITS, D135_EDITS, D134_EDITS]); }   // D135 restated: undo D135 first
 function pinAsOf1052(name){
   const t = asOf1052(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -55369,7 +55410,7 @@ async function testWorkoutRoomD133(){
     const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
     const status = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
     T('26  E56 and E58 stay CLOSED (D131B); E59 and E62 stay OPEN and are not fixed: the split still gives a hand-added exercise and its replacement a plan, and D47 still ignores the order of the work',
-      /CLOSED in D131B/.test(status('E56')) && /CLOSED in D131B/.test(status('E58')) && /· (OPEN|\*\*CLOSED in D135)/.test(status('E59')) /* D135 restated: open in 10.52, closed in 10.54 */ && /OPEN/.test(status('E62')) && !/CLOSED/.test(status('E62')) && same('splitRowForSwap') && same('sessionPreparation') && same('generalPrepSatisfiedBy'));
+      /CLOSED in D131B/.test(status('E56')) && /CLOSED in D131B/.test(status('E58')) && /· (OPEN|\*\*CLOSED in D135)/.test(status('E59')) /* D135 restated: open in 10.52, closed in 10.54 */ && /· (OPEN|\*\*CLOSED in D136)/.test(status('E62')) /* D136 restated: open in 10.52, closed in 10.55 */ && same('splitRowForSwap') && same('sessionPreparation') && same('generalPrepSatisfiedBy'));
     T('27  the other findings D133 was told to leave are all still open (E16 held; E22, E25–E27, E33, E38, E39, E43, E48, E49, E50, E52, E54, E55, E60, E61)',
       /HELD/.test(status('E16')) && ['E22', 'E25', 'E26', 'E27', 'E33', 'E38', 'E39', 'E43', 'E48', 'E49', 'E50', 'E52', 'E54', 'E55', 'E60', 'E61'].every(id => /OPEN|HELD/.test(status(id)) && !/\bCLOSED in D133\b/.test(status(id))), ['E16', 'E22', 'E25', 'E26', 'E27', 'E33'].map(id => status(id).slice(0, 60)));
     const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was);
@@ -55608,7 +55649,7 @@ async function testDurationTruthD134(){
     const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
     const status = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
     T('35–37  E59, E62, E60 and E61 are still open and not fixed (the split, D47’s order, the dense targets, What’s New history), and E63 is closed by this release',
-      ['E62', 'E60', 'E61'].every(id => /· OPEN/.test(status(id))) && /· (OPEN|\*\*CLOSED in D135)/.test(status('E59')) /* D135 restated */ && same('splitRowForSwap') && same('generalPrepSatisfiedBy') && same('renderUpdatesList') && /CLOSED in D134/.test(status('E63')), ['E59', 'E62', 'E60', 'E61', 'E63'].map(id => status(id).slice(-40)));
+      ['E60', 'E61'].every(id => /· OPEN/.test(status(id))) && /· (OPEN|\*\*CLOSED in D136)/.test(status('E62')) /* D136 restated */ && /· (OPEN|\*\*CLOSED in D135)/.test(status('E59')) /* D135 restated */ && same('splitRowForSwap') && same('generalPrepSatisfiedBy') && same('renderUpdatesList') && /CLOSED in D134/.test(status('E63')), ['E59', 'E62', 'E60', 'E61', 'E63'].map(id => status(id).slice(-40)));
     const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '');
     T('38–40  16 DATA_KEYS (the same sixteen), data schema 1, no migration, the trainer 0.1.1-shadow', !!dk && !!dkw && dk[1] === dkw[1] && dk[1].split(',').map(s => s.trim()).filter(Boolean).length === 16 && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /0\.1\.1-shadow/.test(raw));
     const L0 = await mount([]); const exported = await L0.c.allDataKeys();
@@ -55647,12 +55688,13 @@ async function testDurationTruthD134(){
 async function testSplitProvenanceD135(){
   section('CONTRACT 254 — splitting work never writes a plan (D135, E59)');
   const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
-  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  /* D136 restated: D135's claims are about LOOP 10.54, so its source checks read the file as 10.54 (D136's hunks put back) */
+  const raw0 = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n'), raw = asOf1054Html(raw0) || '';
   const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
   const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
   const col = s => String(s).replace(/\s+/g, ' ').trim();
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
-  const was = asOf1053Html(raw);
+  const was = asOf1053Html(raw0);   // D136 restated: the current file, read back to 10.53
   const sameFn = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
   const NOW = '2026-10-04T12:00:00';
   const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r), rir: rir == null ? '' : String(rir), type: type || 'working', completed: true });
@@ -55923,7 +55965,7 @@ async function testSplitProvenanceD135(){
     const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
     const status = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
     T('33  E62 stays OPEN and D47 is unchanged (sessionPreparation, generalPrepSatisfiedBy); E59 is CLOSED by this release; E56/E58 CLOSED; E60/E61 OPEN',
-      /· OPEN/.test(status('E62')) && sameFn('sessionPreparation') && sameFn('generalPrepSatisfiedBy') && /CLOSED in D135/.test(status('E59')) && /CLOSED in D131B/.test(status('E56')) && /CLOSED in D131B/.test(status('E58')) && /· OPEN/.test(status('E60')) && /· OPEN/.test(status('E61')));
+      /· (OPEN|\*\*CLOSED in D136)/.test(status('E62')) /* D136 restated: open in 10.54, closed in 10.55 */ && sameFn('sessionPreparation') && sameFn('generalPrepSatisfiedBy') && /CLOSED in D135/.test(status('E59')) && /CLOSED in D131B/.test(status('E56')) && /CLOSED in D131B/.test(status('E58')) && /· OPEN/.test(status('E60')) && /· OPEN/.test(status('E61')));
     const css = t => t.slice(t.indexOf('<style>'), t.indexOf('</style>'));
     T('34–36  D134’s duration truth, D133’s workout shell and D132 / D132.1 are 10.53’s byte for byte (the stylesheet, workoutElapsedSeconds, workoutSpanLimitSec, activeWorkoutTimeText)', !!was && css(raw) === css(was) && ['workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText', 'renderTodayWorkout'].every(sameFn));
     const ALL = Object.keys(R);
@@ -55947,7 +55989,327 @@ async function testSplitProvenanceD135(){
     T('10.53 replay — 46b  the 10.53 side runs 10.53’s own split: SPLIT_1053 hashes to its 10.53 pin, and 10.54 read back as 10.53 gives exactly that text', sha(SPLIT_1053) === SPLIT_1053_PIN && asOf1053('splitRowForSwap') === SPLIT_1053);
     T('47  the change is the split’s two statements and nothing else in a script: the scripts of both files differ only by them and the What’s New entry', !!was && D135_RAW.length === 3 && col(fnSrc(raw, 'splitRowForSwap')) !== col(fnSrc(was, 'splitRowForSwap')) && /const planned = !!row\.dataset\.targetSets;/.test(fnSrc(raw, 'splitRowForSwap')) && /if\(planned\) row\.dataset\.targetSets = String\(done\.length\);/.test(fnSrc(raw, 'splitRowForSwap')));
     T('48  What’s New v10-54 “Manual Workouts Stay Manual” is LOOP 10.54 / loop-v231, dated in New York, one fix, and sw.js serves loop-v231',
-      /id: 'v10-54',\s*version: 'LOOP 10\.54',\s*title: 'Manual Workouts Stay Manual',\s*date: '2026-10-\d\d',\s*swVersion: 'loop-v231'/.test(raw) && /improvements: \[\],\s*bugFixes: \[\s*'[^']+'\s*\]/.test(D135_WHATSNEW) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v231'") !== -1);
+      /id: 'v10-54',\s*version: 'LOOP 10\.54',\s*title: 'Manual Workouts Stay Manual',\s*date: '2026-10-\d\d',\s*swVersion: 'loop-v231'/.test(raw) && /improvements: \[\],\s*bugFixes: \[\s*'[^']+'\s*\]/.test(D135_WHATSNEW) && /CACHE_VERSION = 'loop-v2(3[1-9]|[4-9]\d)'/.test(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8')));   // D136 restated: sw.js serves the newest release (Contract 255 holds loop-v232)
+  });
+}
+
+/* =========================================================
+   CONTRACT 255 — D136 (LOOP 10.55, E62): THE SUGGESTED WARM-UP IS A DECISION MADE BEFORE THE WORK
+   D47 answers "what preparation is still to do" from the session's completed work, whenever it was done. That answer is
+   only true of an exercise that has not begun: once its first working set is done, later work, or its own, could only
+   rewrite it after the fact (E62). The strip therefore retires the moment exerciseWorkBegun (D131B's one boundary) is true,
+   and comes back, freshly derived, the moment it is false again. D47's answer itself, every row, the draft and history are
+   10.54's. Every class runs on 10.55 (R) and on 10.54's own refreshSuggestedWarmups (Q, REFRESH_1054, pinned), through the
+   app's own logger and handlers.
+   ========================================================= */
+async function testWarmupApplicabilityD136(){
+  section('CONTRACT 255 — the Suggested Warm-up is a decision made before the work (D136, E62)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const was = asOf1054Html(raw);
+  const sameFn = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+  const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
+  const statusOf = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
+  const NOW = '2026-10-04T12:00:00';
+  const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r), rir: rir == null ? '' : String(rir), type: type || 'working', completed: true });
+  const W = (id, date, exs) => ({ id, date, category: 'push', title: 'Push', notes: '', exercises: exs });
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const LOG = ['2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29'].map((d, i) => W('h' + i, d, [E('Bench Press', [S(205, 8, 1), S(205, 6, 1), S(205, 5, 0)])]))
+    .concat(['2026-09-20', '2026-09-27'].map((d, i) => W('d' + i, d, [E('Dumbbell Bench Press', [S(60, 10, 2), S(60, 9, 1), S(60, 8, 1)])])))
+    .concat(['2026-09-10', '2026-09-24'].map((d, i) => W('i' + i, d, [E('Incline Bench Press', [S(135, 10, 2), S(135, 9, 1), S(135, 8, 1)])])))
+    .concat(['2026-09-11', '2026-09-25'].map((d, i) => W('c' + i, d, [E('Close-Grip Bench Press', [S(135, 10, 2), S(135, 9, 1), S(135, 8, 1)])])))
+    .concat(['2026-09-12', '2026-09-26'].map((d, i) => W('p' + i, d, [E('Push-Up', [S('BW', 15, 2), S('BW', 14, 1), S('BW', 12, 1)], true)])));
+  const BENCH = { name: 'Bench Press', sets: 3, reps: '8-12', recommended: '205', effort: '8' }, INC = { name: 'Incline Bench Press', sets: 3, reps: '8-12', recommended: '135', effort: '8' },
+    CG = { name: 'Close-Grip Bench Press', sets: 3, reps: '8-12', recommended: '135', effort: '8' };
+  const TPL = { 'qa-push': [BENCH, INC], 'qa-push-rev': [INC, BENCH], 'qa-three': [BENCH, INC, CG], 'qa-three-rev': [CG, INC, BENCH] };
+  const mount = async o => {
+    o = o || {};
+    const app = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(LOG), onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) });
+    const c = app.ctx; let rel = pinClock(c, NOW); try{ await H.settle(300); for(let t = 0; t < 60 && c.workoutLog.length !== LOG.length; t++) await H.settle(100); } finally { rel(); }
+    const D = miniDomD125(), body = D.el('body');
+    body.innerHTML = '<div id="logOverlay"><div class="sheet-scroll"><div id="logExercises"></div></div></div><div id="coachLive"></div><div id="setTypeOverlay"></div><div id="setTypeBody"></div>';
+    const byId = id => body.querySelector('#' + id), stub = c.document.getElementById.bind(c.document);
+    Object.assign(c.document, { getElementById: id => byId(id) || stub(id), createElement: tag => D.el(tag), querySelectorAll: sel => body.querySelectorAll(sel), querySelector: sel => body.querySelector(sel) });
+    Object.assign(c, { openLogSheet(){ byId('logOverlay').classList.add('open'); }, onWorkoutRowAdded(){}, renderWorkoutStep(){}, confirm(){ return true; } });
+    const like = c.DEFAULT_PLANS.balanced.templates.push[0].exercises[0];
+    const getT = c.getTemplates; c.getTemplates = cat => cat === 'push' ? (getT(cat) || []).concat(Object.entries(TPL).map(([id, ex]) => ({ id, name: 'QA ' + id, exercises: ex.map(x => Object.assign({}, like, x)) }))) : getT(cat);
+    const keep = {};
+    /* the 10.54 side runs 10.54's refresh as it shipped (REFRESH_1054), whatever the file under test holds */
+    if(o.at1054){ keep.refreshSuggestedWarmups = c.refreshSuggestedWarmups; c.refreshSuggestedWarmups = compileRefresh1054(c); }
+    const relNow = pinClock(c, NOW);
+    return { app, c, exs: () => body.querySelectorAll('#logExercises .ex-log-row'), release: () => { relNow(); Object.keys(keep).forEach(n => { c[n] = keep[n]; }); } };
+  };
+  const call = (c, el, attr) => vm.runInContext('(function(){ ' + el.getAttribute(attr) + ' })', c).call(el);
+  const rowsOf = ex => ex.querySelectorAll('.set-row');
+  const type = (c, input, v) => { input.value = String(v); call(c, input, 'oninput'); };
+  const nm = ex => String((ex.querySelector('.ex-name-in') || {}).value || '');
+  const exOf = (L, n) => L.exs().filter(x => nm(x) === n)[0];
+  const A = {
+    set: (n, i, w, reps, rir) => L => { const ex = exOf(L, n), r = rowsOf(ex)[i]; if(w != null && !r.querySelector('.set-weight-in').disabled) type(L.c, r.querySelector('.set-weight-in'), w); if(reps != null) type(L.c, r.querySelector('.set-reps-in'), reps); if(rir != null) call(L.c, r.querySelectorAll('.rir-opt')[rir], 'onclick'); call(L.c, r.querySelector('.set-complete-btn'), 'onclick'); },
+    untick: (n, i) => L => call(L.c, rowsOf(exOf(L, n))[i].querySelector('.set-complete-btn'), 'onclick'),
+    load: (n, w) => L => { rowsOf(exOf(L, n)).forEach(r => { if(r.dataset.setType !== 'warmup' && !r.classList.contains('completed')) type(L.c, r.querySelector('.set-weight-in'), w); }); },
+    toggleType: (n, i) => L => call(L.c, rowsOf(exOf(L, n))[i].querySelector('.set-idx'), 'onclick'),
+    addWarmup: n => L => { const ex = exOf(L, n); call(L.c, ex.querySelector('.add-set-btn'), 'onclick'); call(L.c, rowsOf(ex).slice(-1)[0].querySelector('.set-idx'), 'onclick'); },
+    typeWarmup: (n, w) => L => { const r = rowsOf(exOf(L, n)).filter(x => x.dataset.setType === 'warmup').slice(-1)[0]; type(L.c, r.querySelector('.set-weight-in'), w); },
+    doneWarmup: n => L => { const r = rowsOf(exOf(L, n)).filter(x => x.dataset.setType === 'warmup' && !x.classList.contains('completed'))[0]; call(L.c, r.querySelector('.set-complete-btn'), 'onclick'); },
+    swap: (n, to) => L => { L.c.swapLogExercise(exOf(L, n), to); },
+    undo: n => L => { L.c.undoExerciseSwap(exOf(L, n)); },
+    hand: (n, w) => L => { L.c.addPickedToWorkout([n]); const ex = L.exs().slice(-1)[0]; if(w != null) rowsOf(ex).forEach(r => { if(!r.querySelector('.set-weight-in').disabled) type(L.c, r.querySelector('.set-weight-in'), w); type(L.c, r.querySelector('.set-reps-in'), 10); }); }
+  };
+  const tpl = id => async L => { await L.c.clearActiveDraft(); await L.c.startTemplateLog('push', id); };
+  const free = async L => { await L.c.clearActiveDraft(); await L.c.openFreeformLog(); L.c.pickLogCategory('push'); L.c.document.getElementById('logTitle').value = 'Freeform'; };
+  const setStr = r => { const w = r.querySelector('.set-weight-in'), p = r.querySelector('.set-reps-in'); return (r.dataset.setType === 'warmup' ? 'W' : 'S') + w.value + 'x' + p.value + '@' + r.querySelector('.set-rir-in').value + (r.classList.contains('completed') ? '+' : '') + (w.dataset.userSet ? 'w' : '') + (p.dataset.userSet ? 'r' : ''); };
+  /* an exercise as the athlete sees it: work begun, the strip SHOWN (its text, or — when retired) and the strip DERIVED, its
+     rows and its plan; and the evidence D47 reads */
+  const snap = L => ({ ex: L.exs().map(ex => { const wraps = ex.querySelectorAll('.warmup-wrap'), w = wraps[0]; const internal = w ? col(w.textContent) : ''; const hidden = !!(w && w.hidden === true);
+    return { name: nm(ex), begun: L.c.exerciseWorkBegun(ex), hidden, copies: wraps.length, shown: hidden ? '' : internal, internal, rows: rowsOf(ex).map(setStr).join(' '),
+      plan: [ex.dataset.targetSets || '', ex.dataset.slotName || '', ex.dataset.rxLoad == null ? '' : ex.dataset.rxLoad].join('/') }; }), evidence: JSON.stringify(L.c.sessionPreparation()) });
+  const fresh = (L, ex) => { const t = L.c.document.createElement('div'); t.innerHTML = L.c.warmupBoxHtml(nm(ex).trim(), L.c.suggestedWarmupAnchor(ex)); return col(t.textContent); };
+  const keysOf = o => { const out = new Set(); const walk = (v, p) => { if(v && typeof v === 'object'){ if(Array.isArray(v)) v.forEach(x => walk(x, p + '[]')); else Object.keys(v).forEach(k => { out.add(p + '.' + k); walk(v[k], p + '.' + k); }); } }; walk(o, ''); return [...out].sort(); };
+  const CLASSES = {
+    'M1 A → B': [tpl('qa-push'), A.set('Bench Press', 0, null, 8, 2), A.set('Incline Bench Press', 0, null, 10, 2)],
+    'M2 B → A': [tpl('qa-push'), A.set('Incline Bench Press', 0, null, 10, 2), A.set('Bench Press', 0, null, 8, 2)],
+    'M3 A → C → B': [tpl('qa-three'), A.set('Bench Press', 0, null, 8, 2), A.set('Close-Grip Bench Press', 0, null, 10, 2), A.set('Incline Bench Press', 0, null, 10, 2)],
+    'M4 C → A → B': [tpl('qa-three'), A.load('Close-Grip Bench Press', 225), A.set('Close-Grip Bench Press', 0, null, 6, 1), A.set('Bench Press', 0, null, 8, 2), A.set('Incline Bench Press', 0, null, 10, 2)],
+    'M5 A started → B heavier → return A': [tpl('qa-push'), A.set('Bench Press', 0, null, 8, 2), A.load('Incline Bench Press', 225), A.set('Incline Bench Press', 0, null, 6, 1)],
+    'M6 B started → A → return B': [tpl('qa-push'), A.set('Incline Bench Press', 0, null, 10, 2), A.set('Bench Press', 0, null, 8, 2), A.set('Bench Press', 1, null, 7, 2)],
+    'M7 A full → B started → C heavier → return B': [tpl('qa-three'), A.set('Bench Press', 0, null, 8, 2), A.set('Bench Press', 1, null, 7, 2), A.set('Bench Press', 2, null, 6, 1), A.set('Incline Bench Press', 0, null, 10, 2), A.load('Close-Grip Bench Press', 250), A.set('Close-Grip Bench Press', 0, null, 5, 1)],
+    'M8 exercise 3 first': [tpl('qa-three'), A.set('Close-Grip Bench Press', 0, null, 10, 2), A.set('Bench Press', 0, null, 8, 2), A.set('Incline Bench Press', 0, null, 10, 2)],
+    'O1 M5 with the exercises in reverse order': [tpl('qa-push-rev'), A.set('Bench Press', 0, null, 8, 2), A.load('Incline Bench Press', 225), A.set('Incline Bench Press', 0, null, 6, 1)],
+    'F1 own-work flip (freeform)': [free, A.hand('Bench Press', 205), A.set('Bench Press', 0, null, 8, 2), A.hand('Close-Grip Bench Press', 135), A.set('Close-Grip Bench Press', 0, 225, 6, 1)],
+    'W1 a completed warm-up only': [tpl('qa-push'), A.set('Bench Press', 0, null, 8, 2), A.addWarmup('Incline Bench Press'), A.doneWarmup('Incline Bench Press')],
+    'U1 untick': [tpl('qa-push'), A.set('Bench Press', 0, null, 8, 2), A.set('Incline Bench Press', 0, null, 10, 2), A.untick('Incline Bench Press', 0)],
+    'U2 untick after later heavier work': [tpl('qa-push'), A.set('Incline Bench Press', 0, null, 10, 2), A.set('Bench Press', 0, null, 8, 2), A.untick('Incline Bench Press', 0)],
+    'T1 Working → Warm-up → Working': [tpl('qa-push'), A.set('Bench Press', 0, null, 8, 2), A.set('Incline Bench Press', 0, null, 10, 2), A.toggleType('Incline Bench Press', 0), A.toggleType('Incline Bench Press', 0)],
+    'X1 three exercises, B heavier re-evaluates C': [tpl('qa-three'), A.set('Bench Press', 0, null, 8, 2), A.load('Incline Bench Press', 225), A.set('Incline Bench Press', 0, null, 6, 1)],
+    'D1 Add Set → Warm-up after the work began': [tpl('qa-push'), A.set('Bench Press', 0, null, 8, 2), A.set('Incline Bench Press', 0, null, 10, 2), A.addWarmup('Incline Bench Press')],
+    'D2 an athlete-owned warm-up': [tpl('qa-push'), A.addWarmup('Incline Bench Press'), A.typeWarmup('Incline Bench Press', 95), A.set('Bench Press', 0, null, 8, 2), A.set('Incline Bench Press', 0, null, 10, 2), A.addWarmup('Incline Bench Press')],
+    'D3 a LOOP warm-up follows the strip only before the work': [tpl('qa-push'), A.addWarmup('Incline Bench Press'), A.set('Incline Bench Press', 0, null, 10, 2), A.set('Bench Press', 0, null, 8, 2)],
+    'S1 swap an upcoming exercise, then begin it': [tpl('qa-push'), A.set('Bench Press', 0, null, 8, 2), A.swap('Incline Bench Press', 'Dumbbell Bench Press'), A.set('Dumbbell Bench Press', 0, null, 10, 2)],
+    'S2 program split, then Undo': [tpl('qa-push'), A.set('Bench Press', 0, null, 8, 2), A.swap('Bench Press', 'Dumbbell Bench Press'), A.undo('Dumbbell Bench Press')],
+    'S3 manual split (freeform)': [free, A.hand('Close-Grip Bench Press', 135), A.set('Close-Grip Bench Press', 0, null, 10, 2), A.swap('Close-Grip Bench Press', 'Dumbbell Bench Press')],
+    'B1 bodyweight': [free, A.hand('Push-Up', null), A.set('Push-Up', 0, null, 12, 2), A.hand('Dip', null)],
+    'P1 D50B': [tpl('qa-push'), A.set('Bench Press', 0, null, 5, 0)],
+    'R1 resume, the target started': [tpl('qa-push'), A.set('Bench Press', 0, null, 8, 2), A.set('Incline Bench Press', 0, null, 10, 2)],
+    'R2 resume, the target upcoming (shortened)': [tpl('qa-push'), A.set('Bench Press', 0, null, 8, 2)],
+    'C0 no work': [tpl('qa-three')]
+  };
+  const run = async (name, o) => {
+    o = o || {};
+    const L = await mount(o); const r = { steps: [] };
+    try{
+      for(const s of CLASSES[name]){ await s(L); r.steps.push(snap(L)); }
+      let d = JSON.parse(JSON.stringify(L.c.captureActiveDraft())); r.draftKeys = keysOf(d);
+      if(!o.at1054) for(let k = 0; k < 2; k++){
+        const R2 = await mount(o); const calls = []; const pf = R2.c.progressionFor; R2.c.progressionFor = function(){ calls.push(1); return pf.apply(this, arguments); };
+        try{ R2.c.restoreDraftToSheet(JSON.parse(JSON.stringify(d))); } finally { R2.c.progressionFor = pf; }
+        r['resume' + k] = snap(R2); r['calls' + k] = calls.length; d = JSON.parse(JSON.stringify(R2.c.captureActiveDraft())); R2.release();
+      }
+      const n0 = L.c.workoutLog.length, h0 = sha(JSON.stringify(L.c.workoutLog.slice(0, LOG.length)));
+      L.c.saveLog(); await H.settle(300); try{ L.c.closeSummary(); }catch(e){}
+      const e = L.c.workoutLog.length > n0 ? L.c.workoutLog[L.c.workoutLog.length - 1] : null;
+      r.history = [h0, sha(JSON.stringify(L.c.workoutLog.slice(0, LOG.length)))];
+      if(e){
+        r.savedKeys = keysOf(e); r.saved = sha(JSON.stringify(e.exercises.map(x => [x.name, x.sets, x.rx || null, x.planned || null])));
+        const s = L.c.sessionScore(e), x = L.c.deriveSessionExecution(e); r.score = [s && s.available ? s.score : null, x.prescribedExercises, x.setsPrescribed, x.scored];
+        r.prs = sha(JSON.stringify([L.c.computeAllPREvents().map(v => [v.id, v.exerciseName, v.hits.map(h => h.type + ':' + h.next)]), L.c.computePRs().map(p => [p.name, p.weight, p.reps])]));
+        r.xp = (() => { const tl = L.c.computeXPTimeline(); return [tl.lifetimeXP, tl.prCount]; })();
+        r.mastery = sha(JSON.stringify(L.c.getTopExerciseMastery().map(m => [m.exerciseId, m.points, m.level, m.sessions, m.prs])));
+        r.recovery = sha(JSON.stringify(L.c.computeMuscleRecovery()));
+        r.d49 = [...new Set(e.exercises.map(z => z.name))].map(n => { const p = L.c.progressionFor(n, '8-12', null); return [n, p ? p.tag : null, p ? p.weight : null]; });
+      }
+    } finally { L.release(); }
+    return r;
+  };
+  const R = {}, Q = {};
+  for(const n of Object.keys(CLASSES)){ R[n] = await run(n); Q[n] = await run(n, { at1054: true }); }
+  const ALL = Object.keys(CLASSES);
+  const cell = (cls, i, name, side) => ((side || R)[cls].steps[i].ex.find(e => e.name === name) || {});
+
+  /* ---------------------------------------------------------------- */
+  sub('1–4  E62 on 10.54’s own refresh, and closed');
+  await guard('e62', async () => {
+    const q5 = n => cell('M5 A started → B heavier → return A', 3, n, Q), q2 = cell('M5 A started → B heavier → return A', 2, 'Bench Press', Q);
+    T('10.54 replay — 1  later work rewrites advice on an exercise under way: Bench, begun at its first set, reads “' + q5('Bench Press').shown.slice(0, 48) + '…” once Incline is worked later at 225 (it read the full ramp before)',
+      q5('Bench Press').begun && /already prepared/.test(q5('Bench Press').shown) && /Incline/.test(q5('Bench Press').shown) && /^Suggested warm-up/.test(q2.shown), [q2.shown, q5('Bench Press').shown]);
+    const f3 = cell('F1 own-work flip (freeform)', 3, 'Close-Grip Bench Press', Q), f4 = cell('F1 own-work flip (freeform)', 4, 'Close-Grip Bench Press', Q);
+    T('10.54 replay — 2  own work flips its own advice: Close-Grip reads “already prepared” 110 × 2, then its own set at 225 brings back the full ramp “' + f4.shown.slice(0, 60) + '”',
+      /already prepared/.test(f3.shown) && /110 lb × 2/.test(f3.shown) && f4.begun && /^Suggested warm-up 90 lb × 5 ?135 lb × 3 ?180 lb × 2/.test(f4.shown), [f3.shown, f4.shown]);
+    const b = i => cell('M5 A started → B heavier → return A', i, 'Bench Press');
+    T('3  later work cannot rewrite it now: Bench’s strip is retired from its first working set (step 1) through Incline’s heavier work (step 3); its internal answer is still D47’s, shown nowhere',
+      [1, 2, 3].every(i => b(i).begun && b(i).hidden && b(i).shown === '') && b(3).internal === q5('Bench Press').internal, [1, 2, 3].map(b));
+    const c3 = cell('F1 own-work flip (freeform)', 3, 'Close-Grip Bench Press'), c4 = cell('F1 own-work flip (freeform)', 4, 'Close-Grip Bench Press');
+    T('4  own work cannot flip it now: Close-Grip shows “already prepared” 110 × 2 until its own first set, then the strip retires — nothing obsolete is left to flip',
+      !c3.begun && /already prepared/.test(c3.shown) && c4.begun && c4.hidden && c4.shown === '', [c3, c4]);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('5–9  D47’s answer is unchanged');
+  await guard('answer', async () => {
+    let cells = 0; const moved = [];
+    ALL.forEach(n => R[n].steps.forEach((s, i) => s.ex.forEach((e, j) => { const q = Q[n].steps[i].ex[j]; if(!e.begun){ cells++; if(e.shown !== q.shown || e.hidden) moved.push([n, i, e.name]); } })));
+    T('5  before an exercise’s work begins its Suggested Warm-up is exactly what 10.54 shows, in every class at every step (' + cells + ' exercise-steps)', cells > 60 && moved.length === 0, moved.slice(0, 5));
+    const ramp = c => R['C0 no work'].steps[0].ex.find(e => e.name === c).shown;
+    T('6–9  D47 answers as it always has: Bench at 205 ramps 80 × 5 · 125 × 3 · 165 × 2 and Incline at 135 ramps 55 × 5 · 80 × 3 · 110 × 2; Bench at 205 done shortens Incline to 110 × 2 and Close-Grip, never across patterns, never by lighter work, never by an exercise’s own',
+      /80 lb × 5 ?125 lb × 3 ?165 lb × 2/.test(ramp('Bench Press')) && /55 lb × 5 ?80 lb × 3 ?110 lb × 2/.test(ramp('Incline Bench Press')) &&
+      /already prepared 110 lb × 2/.test(cell('M1 A → B', 1, 'Incline Bench Press').shown) && /already prepared 110 lb × 2/.test(cell('M3 A → C → B', 1, 'Close-Grip Bench Press').shown) &&
+      /^Suggested warm-up/.test(cell('M2 B → A', 1, 'Bench Press').shown) && /^Suggested warm-up/.test(cell('M8 exercise 3 first', 1, 'Bench Press').shown) &&
+      /Suggested warm-up 90 lb × 5/.test(cell('F1 own-work flip (freeform)', 4, 'Close-Grip Bench Press').internal), [ramp('Bench Press'), ramp('Incline Bench Press')]);
+    T('6–9b  D47’s formula is 10.54’s byte for byte: computeWarmupRamp (40 / 60 / 80 %, 5 / 3 / 2 reps, rounding), warmupBoxHtml, sessionPreparation, generalPrepSatisfiedBy (the different-exercise rule, the threshold), movementPatternOf, effectiveWorkingLoad, isWarmupLift, MOVEMENT_PATTERNS, WARMUP_LIFTS',
+      ['computeWarmupRamp', 'warmupBoxHtml', 'sessionPreparation', 'generalPrepSatisfiedBy', 'movementPatternOf', 'effectiveWorkingLoad', 'isWarmupLift', 'suggestedWarmupAnchor', 'exerciseWorkBegun', 'suggestedWarmupSteps', 'seedWarmupTargets'].every(sameFn) &&
+      ['const MOVEMENT_PATTERNS = {', 'const WARMUP_LIFTS = ['].every(k => { const a = raw.indexOf(k), b = (was || '').indexOf(k); return a !== -1 && b !== -1 && raw.slice(a, raw.indexOf('\n', a + 400)) === was.slice(b, was.indexOf('\n', b + 400)); }));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('10–18  when the strip is shown');
+  await guard('applicability', async () => {
+    const w = i => cell('W1 a completed warm-up only', i, 'Incline Bench Press');
+    T('10  a completed warm-up alone does not retire it: Incline with its warm-up done and no working set still shows “' + w(3).shown.slice(0, 44) + '”', !w(3).begun && !w(3).hidden && /already prepared/.test(w(3).shown) && /W\d+x\d+@\d*\+/.test(w(3).rows), w(3));
+    const m = i => cell('M1 A → B', i, 'Incline Bench Press');
+    T('11  the first completed working set retires it: Incline shows “already prepared” 110 × 2, then nothing once its Set 1 is done; its rows are all still there', !m(1).begun && /already prepared/.test(m(1).shown) && m(2).begun && m(2).hidden && m(2).shown === '' && m(2).rows.split(' ').length === 3, [m(1), m(2)]);
+    const reshown = [];
+    ALL.forEach(n => { const seen = {}; R[n].steps.forEach((s, i) => s.ex.forEach(e => { if(e.begun){ seen[e.name] = true; if(!e.hidden && e.internal) reshown.push([n, i, e.name]); } })); });
+    T('12  while an exercise is under way its strip is never shown again — not by later work, heavier work, its own work, a swap elsewhere or a resume (every class, every step)', reshown.length === 0, reshown.slice(0, 5));
+    const u = (c, i) => cell(c, i, 'Incline Bench Press');
+    T('13  unticking all its working sets brings the strip back: Incline shows again the moment no work is done (two classes)', u('U1 untick', 2).hidden && !u('U1 untick', 3).hidden && !u('U2 untick after later heavier work', 3).hidden && !u('U2 untick after later heavier work', 3).begun, [u('U1 untick', 3), u('U2 untick after later heavier work', 3)]);
+    T('14  and it comes back as D47 says NOW, never as it was: Incline began on the full ramp, Bench at 205 was done since, and after the untick it shows “' + u('U2 untick after later heavier work', 3).shown.slice(0, 40) + '” — 10.54’s answer at that moment exactly',
+      /^Suggested warm-up/.test(u('U2 untick after later heavier work', 1).internal) && /already prepared 110 lb × 2/.test(u('U2 untick after later heavier work', 3).shown) && u('U2 untick after later heavier work', 3).shown === cell('U2 untick after later heavier work', 3, 'Incline Bench Press', Q).shown, u('U2 untick after later heavier work', 3));
+    const t = i => cell('T1 Working → Warm-up → Working', i, 'Incline Bench Press');
+    T('15  a set type change moves it with the work: the only done working set made a warm-up shows the strip again, made working again retires it', t(2).hidden && !t(3).begun && !t(3).hidden && /already prepared/.test(t(3).shown) && t(4).begun && t(4).hidden, [t(2), t(3), t(4)].map(x => [x.begun, x.hidden, x.shown.slice(0, 30)]));
+    const x = i => cell('X1 three exercises, B heavier re-evaluates C', i, 'Close-Grip Bench Press');
+    T('16  an upcoming exercise stays live: Close-Grip, not yet begun, follows Bench at 205 and then Incline’s heavier 225 (“' + x(3).shown.slice(-60) + '”), exactly as 10.54', !x(3).begun && /Incline/.test(x(3).shown) && /Bench Press/.test(x(1).shown) && x(3).shown === cell('X1 three exercises, B heavier re-evaluates C', 3, 'Close-Grip Bench Press', Q).shown && cell('X1 three exercises, B heavier re-evaluates C', 3, 'Incline Bench Press').hidden, [x(1).shown, x(3).shown]);
+    const o = (c, i, n) => cell(c, i, n);
+    T('17  out of order: Close-Grip begun first retires only its own strip; Bench and Incline above it stay live until their own work, Bench then shortened by the Close-Grip work done before it began',
+      o('M8 exercise 3 first', 1, 'Close-Grip Bench Press').hidden && !o('M8 exercise 3 first', 1, 'Bench Press').hidden && !o('M8 exercise 3 first', 1, 'Incline Bench Press').hidden &&
+      !o('M4 C → A → B', 2, 'Bench Press').begun && /already prepared 165 lb × 2/.test(o('M4 C → A → B', 2, 'Bench Press').shown) && o('M4 C → A → B', 3, 'Bench Press').hidden);
+    const vis = c => R[c].steps.map(s => s.ex.map(e => [e.name, e.begun, e.hidden]).sort((a, b) => a[0] < b[0] ? -1 : 1));
+    T('18  no order is read from the screen: the same work with the two exercises in reverse order retires exactly the same strips at every step', same(vis('M5 A started → B heavier → return A'), vis('O1 M5 with the exercises in reverse order')), [vis('M5 A started → B heavier → return A'), vis('O1 M5 with the exercises in reverse order')]);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('19–25  resume and storage');
+  await guard('resume', async () => {
+    const off = ALL.filter(n => { const last = R[n].steps[R[n].steps.length - 1]; return !same(R[n].resume0.ex, last.ex) || !same(R[n].resume1.ex, last.ex) || R[n].calls0 || R[n].calls1; });
+    T('19–20  live = resumed: in every class the restored workout shows exactly the strips the live one did (retired ones retired), resuming again changes nothing, and no restore asks progressionFor', off.length === 0, off);
+    const r1 = R['R1 resume, the target started'].resume0.ex, r2 = R['R2 resume, the target upcoming (shortened)'].resume0.ex;
+    T('19b  the started Incline comes back retired; the upcoming Incline comes back shortened, “already prepared” 110 × 2 (E56 stays closed)', r1[1].hidden && r1[1].shown === '' && !r2[1].hidden && /already prepared 110 lb × 2/.test(r2[1].shown), [r1[1], r2[1]]);
+    const keys = ALL.filter(n => !same(R[n].draftKeys, Q[n].draftKeys) || !same(R[n].savedKeys, Q[n].savedKeys));
+    T('21–23  nothing new is stored: in every class the draft and the saved workout carry exactly 10.54’s keys — no strip, no prepared flag, no applicability flag, no work-start or set-completion time', keys.length === 0 && !ALL.some(n => R[n].draftKeys.some(k => /^\.exercises\[\]\..*(warmup|prepared|hidden|begun|strip|snapshot|applicab)/i.test(k) || /completedat|workstartedat|exercisestartedat/i.test(k))), keys);
+    const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '');
+    T('24–25  16 DATA_KEYS, the same sixteen, and data schema 1 — no migration', !!dk && !!dkw && dk[1] === dkw[1] && dk[1].split(',').filter(s => s.trim()).length === 16 && /const DATA_SCHEMA_VERSION = 1;/.test(raw));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('26–30  D130, D131B');
+  await guard('d130', async () => {
+    const d1 = cell('D1 Add Set → Warm-up after the work began', 3, 'Incline Bench Press'), d1q = cell('D1 Add Set → Warm-up after the work began', 3, 'Incline Bench Press', Q);
+    T('26  an explicit Add Set → Warm-up after the work began still takes LOOP’s current step from the retired strip (' + d1.rows.split(' ').slice(-1)[0] + '), exactly as 10.54, and does not bring the strip back', d1.rows === d1q.rows && /^W110x2@/.test(d1.rows.split(' ').slice(-1)[0]) && d1.hidden, [d1.rows, d1q.rows]);
+    const d2 = cell('D2 an athlete-owned warm-up', 5, 'Incline Bench Press');
+    T('27  a warm-up the athlete set is theirs: the typed 95 survives Bench’s work, Incline’s own and another Add Set → Warm-up, every row exactly as 10.54', d2.rows === cell('D2 an athlete-owned warm-up', 5, 'Incline Bench Press', Q).rows && /(^| )W95x\d+@\d*\+?w/.test(d2.rows), d2.rows);
+    const d3 = i => cell('D3 a LOOP warm-up follows the strip only before the work', i, 'Incline Bench Press');
+    T('28  D131B’s reconciliation is unchanged: once Incline’s work began, Bench’s later work moves none of its LOOP warm-ups (the strip changes underneath, hidden), every row exactly as 10.54', d3(3).rows === d3(2).rows && d3(3).rows === cell('D3 a LOOP warm-up follows the strip only before the work', 3, 'Incline Bench Press', Q).rows && d3(3).hidden && d3(3).internal !== d3(2).internal, [d3(2), d3(3)]);
+    const rows = ALL.filter(n => R[n].steps.some((s, i) => s.ex.some((e, j) => e.rows !== Q[n].steps[i].ex[j].rows || e.internal !== Q[n].steps[i].ex[j].internal || e.plan !== Q[n].steps[i].ex[j].plan)));
+    T('28b  every row, every derived strip and every plan field is exactly 10.54’s in every class at every step — only whether a strip is shown changed', rows.length === 0, rows);
+    T('29–30  E56 and E58 stay closed: a resumed shortened strip stays shortened, and an upcoming prescribed exercise is asked again live (Incline shortened the moment Bench’s set is done)',
+      /already prepared/.test(cell('M1 A → B', 1, 'Incline Bench Press').shown) && /CLOSED in D131B/.test(statusOf('E56')) && /CLOSED in D131B/.test(statusOf('E58')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('31–48  protected');
+  await guard('protected', async () => {
+    const s = (c, i, n) => cell(c, i, n);
+    T('31–32  E59 stays closed and D135 is unchanged: the program split keeps its 1 + 2 planned sets and Undo, the manual split writes no plan, the split’s own strips follow each row’s work (original retired, replacement live)',
+      s('S2 program split, then Undo', 2, 'Bench Press').hidden && !s('S2 program split, then Undo', 2, 'Dumbbell Bench Press').hidden && s('S2 program split, then Undo', 2, 'Dumbbell Bench Press').plan.split('/')[0] === '2' &&
+      s('S3 manual split (freeform)', 3, 'Close-Grip Bench Press').hidden && !s('S3 manual split (freeform)', 3, 'Dumbbell Bench Press').hidden && s('S3 manual split (freeform)', 3, 'Dumbbell Bench Press').plan.split('/')[0] === '' &&
+      sameFn('splitRowForSwap') && /CLOSED in D135/.test(statusOf('E59')));
+    T('33–37  E63 stays closed; D134’s duration, D133’s shell, D132’s system and D132.1’s circles are 10.54’s byte for byte (the whole stylesheet, workoutElapsedSeconds, workoutSpanLimitSec, activeWorkoutTimeText)',
+      !!was && raw.slice(raw.indexOf('<style>'), raw.indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')) && ['workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText', 'workoutTimeOf'].every(sameFn) && /CLOSED in D134/.test(statusOf('E63')));
+    const p1 = cell('P1 D50B', 1, 'Bench Press');
+    T('38–39  D49 and D50B are unchanged: the coach’s adapted sets after a hard Set 1 are exactly 10.54’s, the strip anchor stays the prescription, and D49’s next answer is the same in every class',
+      p1.rows === cell('P1 D50B', 1, 'Bench Press', Q).rows && p1.internal === cell('P1 D50B', 1, 'Bench Press', Q).internal && ALL.every(n => same(R[n].d49, Q[n].d49)) && ['progressionFor', 'refreshSetCoach', 'deriveNextSetCoach', 'exerciseSessionHistory'].every(sameFn));
+    const moved = ALL.filter(n => !same([R[n].saved, R[n].score, R[n].prs, R[n].xp, R[n].mastery, R[n].recovery], [Q[n].saved, Q[n].score, Q[n].prs, Q[n].xp, Q[n].mastery, Q[n].recovery]));
+    T('40–44  every saved workout, its Session Score and execution, records, XP, Mastery and Recovery are exactly 10.54’s in every class', moved.length === 0, moved);
+    T('45  history is never rewritten: the workouts already logged hash the same before and after each save, on both builds', ALL.every(n => R[n].history[0] === R[n].history[1] && Q[n].history[0] === Q[n].history[1] && R[n].history[0] === R['C0 no work'].history[0]));
+    T('46  the trainer is 0.1.1-shadow', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(raw) || /0\.1\.1-shadow/.test(raw));
+    T('47–48  E48, E49, E50, E60 and E61 stay OPEN, and E62 is CLOSED by this release', ['E48', 'E49', 'E50', 'E60', 'E61'].every(id => /· OPEN/.test(statusOf(id))) && /CLOSED in D136/.test(statusOf('E62')), ['E48', 'E49', 'E50', 'E60', 'E61', 'E62'].map(id => statusOf(id).slice(-34)));
+    const one = ALL.every(n => R[n].steps.every(st => st.ex.every(e => e.copies === 1)));
+    T('49  one strip per exercise, retired by the hidden attribute itself (no copy, no opacity, no off-screen trick): hidden is true exactly when the work has begun, in every class at every step', one && ALL.every(n => R[n].steps.every(st => st.ex.every(e => e.hidden === e.begun))));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('P1–P23  the properties, over generated workouts (seeded, both builds, both orders)');
+  await guard('properties', async () => {
+    const rng = seed => () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const NAMES = ['Bench Press', 'Close-Grip Bench Press', 'Dumbbell Bench Press', 'Incline Bench Press'];
+    const LOADS = [135, 185, 205, 225, 250];
+    const play = async (seed, o, rev) => {
+      o = o || {};
+      const r = rng(seed), pick = a => a[Math.floor(r() * a.length)];
+      let L = await mount(o); const out = { seed, snaps: [], bad: [], resumes: 0, ops: [] };
+      const check = tag => { const s = snap(L); out.snaps.push(s);
+        L.exs().forEach(ex => { const e = s.ex.find(x => x.name === nm(ex)); if(!e) return;
+          if(e.hidden !== e.begun && !o.at1054) out.bad.push('P3–P11 shown while begun / hidden while not: ' + e.name + ' after ' + tag + ', seed ' + seed);
+          if(!e.hidden && e.internal !== fresh(L, ex)) out.bad.push('P9 a shown strip is not D47 now: ' + e.name + ' after ' + tag + ', seed ' + seed); }); };
+      try{
+        const kind = pick(['three', 'three', 'free']);
+        if(kind === 'free'){ await free(L); const order = ['Bench Press', 'Close-Grip Bench Press', 'Incline Bench Press']; (rev ? order.slice().reverse() : order).forEach((n, i) => A.hand(n, [205, 135, 135][order.indexOf(n)])(L)); }
+        else await tpl(rev ? 'qa-three-rev' : 'qa-three')(L);
+        check('start');
+        const steps = 6 + Math.floor(r() * 6);
+        for(let k = 0; k < steps; k++){
+          const op = pick(['set', 'set', 'set', 'untick', 'type', 'warmup', 'load', 'swap', 'resume']);
+          const present = NAMES.filter(n => exOf(L, n));
+          const n = pick(present); const ex = exOf(L, n); const rs = rowsOf(ex);
+          if(op === 'set'){ const i = rs.findIndex(x => !x.classList.contains('completed')); if(i === -1) continue; if(r() < 0.35) type(L.c, rs[i].querySelector('.set-weight-in'), pick(LOADS)); call(L.c, rs[i].querySelector('.set-complete-btn'), 'onclick'); }
+          else if(op === 'untick'){ const done = rs.map((x, i) => x.classList.contains('completed') ? i : -1).filter(i => i !== -1); if(!done.length) continue; call(L.c, rs[pick(done)].querySelector('.set-complete-btn'), 'onclick'); }
+          else if(op === 'type'){ call(L.c, rs[Math.floor(r() * rs.length)].querySelector('.set-idx'), 'onclick'); }
+          else if(op === 'warmup'){ A.addWarmup(n)(L); }
+          else if(op === 'load'){ const i = rs.findIndex(x => !x.classList.contains('completed') && x.dataset.setType !== 'warmup'); if(i === -1) continue; type(L.c, rs[i].querySelector('.set-weight-in'), pick(LOADS)); }
+          else if(op === 'swap'){ if(exOf(L, 'Dumbbell Bench Press') || n === 'Dumbbell Bench Press' || !rs.some(x => !x.classList.contains('completed'))) continue; L.c.swapLogExercise(ex, 'Dumbbell Bench Press'); }
+          else {   /* resume mid-workout, and carry on in the restored one */
+            const before = snap(L); const d = JSON.parse(JSON.stringify(L.c.captureActiveDraft())); L.release();
+            L = await mount(o); L.c.restoreDraftToSheet(d); out.resumes++;
+            if(!same(snap(L).ex, before.ex)) out.bad.push('P14 the resumed workout differs from the live one, seed ' + seed);
+            const d2 = JSON.parse(JSON.stringify(L.c.captureActiveDraft())); const L2 = await mount(o); L2.c.restoreDraftToSheet(d2);
+            if(!same(snap(L2).ex, before.ex)) out.bad.push('P15 a second resume differs, seed ' + seed); L2.release();
+          }
+          out.ops.push(op + ' ' + n); check(op + ' ' + n);
+        }
+        out.draftKeys = keysOf(JSON.parse(JSON.stringify(L.c.captureActiveDraft())));
+        const h0 = sha(JSON.stringify(L.c.workoutLog.slice(0, LOG.length))); L.c.saveLog(); await H.settle(300); try{ L.c.closeSummary(); }catch(e){}
+        out.history = [h0, sha(JSON.stringify(L.c.workoutLog.slice(0, LOG.length)))];
+      } finally { L.release(); }
+      return out;
+    };
+    const SEEDS = Array.from({ length: 20 }, (_, i) => 1361 + i * 7907);
+    const RP = [], QP = [], VP = [];
+    for(const s of SEEDS){ RP.push(await play(s)); QP.push(await play(s, { at1054: true })); VP.push(await play(s, {}, true)); }
+    const steps = RP.reduce((a, x) => a + x.snaps.length, 0), bad = RP.reduce((a, x) => a.concat(x.bad), []);
+    const retiredSteps = RP.reduce((a, x) => a + x.snaps.filter(s => s.ex.some(e => e.hidden && e.internal)).length, 0);
+    const qShown = QP.reduce((a, x) => a + x.snaps.filter(s => s.ex.some(e => e.begun && e.internal)).length, 0);
+    T('10.54 replay — P0  the generator reaches E62’s ground: on 10.54 an exercise under way still shows its strip at ' + qShown + ' of ' + QP.reduce((a, x) => a + x.snaps.length, 0) + ' steps', qShown > 20);
+    const ans = RP.map((x, i) => [x, QP[i]]).filter(([x, q]) => x.snaps.length !== q.snaps.length || x.snaps.some((s, k) => !same(s.ex.map(e => [e.name, e.begun, e.internal, e.rows, e.plan]), q.snaps[k].ex.map(e => [e.name, e.begun, e.internal, e.rows, e.plan])) || s.evidence !== q.snaps[k].evidence)).map(([x]) => x.seed);
+    T('P1, P2, P9, P12, P18–P21  over ' + RP.length + ' generated workouts (' + steps + ' steps, ' + RP.reduce((a, x) => a + x.resumes, 0) + ' mid-workout resumes): every strip D47 derives, every row, every plan field and the evidence D47 reads are exactly 10.54’s at every step', ans.length === 0, ans);
+    T('P3–P8, P10, P11, P16  at every step a strip is shown exactly when its exercise’s work has not begun (' + retiredSteps + ' steps with a retired strip): the first working set retires it, a warm-up does not, later and heavier work never shows it again, unticking or retyping the work brings it back as D47 says now', bad.filter(b => /^P(3|9)/.test(b)).length === 0, bad.filter(b => /^P(3|9)/.test(b)).slice(0, 6));
+    const ord = RP.map((x, i) => [x, VP[i]]).filter(([x, v]) => x.snaps.length !== v.snaps.length || x.snaps.some((s, k) => !same(s.ex.map(e => [e.name, e.begun, e.hidden]).sort((a, b) => a[0] < b[0] ? -1 : 1), v.snaps[k].ex.map(e => [e.name, e.begun, e.hidden]).sort((a, b) => a[0] < b[0] ? -1 : 1)))).map(([x]) => x.seed);
+    T('P13  display order is irrelevant: the same workouts with the exercises in reverse order retire exactly the same strips at every step', ord.length === 0, ord);
+    T('P14, P15  every mid-workout resume gives back exactly the workout it captured, retired strips included, and a second resume changes nothing', bad.filter(b => /^P1[45]/.test(b)).length === 0, bad.filter(b => /^P1[45]/.test(b)).slice(0, 4));
+    T('P16, P17  nothing new is stored: every generated draft has exactly 10.54’s keys', RP.every((x, i) => same(x.draftKeys, QP[i].draftKeys)));
+    T('P23  history is never rewritten, on either build', RP.concat(QP, VP).every(x => x.history[0] === x.history[1] && x.history[0] === RP[0].history[0]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('50–52  the change and the release');
+  await guard('release', async () => {
+    T('50  every D136 change is where it was written, once — the file reads back as LOOP 10.54 to the byte (index.html of 75fe7b4)', !!was && sha(was) === SHA_1054_HTML, was && sha(was));
+    T('10.54 replay — 50b  the 10.54 side runs 10.54’s own refresh: REFRESH_1054 hashes to its pin, and 10.55 read back as 10.54 gives exactly that text', sha(REFRESH_1054) === REFRESH_1054_PIN && asOf1054('refreshSuggestedWarmups') === REFRESH_1054);
+    T('51  the change is one statement pair in refreshSuggestedWarmups and the What’s New entry: the scripts differ by nothing else', !!was && D136_RAW.length === 2 && /const begun = exerciseWorkBegun\(exRow\);\s*if\(wrap\.hidden !== begun\) wrap\.hidden = begun;/.test(fnSrc(raw, 'refreshSuggestedWarmups')) && col(fnSrc(raw, 'refreshSuggestedWarmups')) !== col(fnSrc(was, 'refreshSuggestedWarmups')));
+    T('52  What’s New v10-55 “Warm-up Guidance Knows When You’re Training” is LOOP 10.55 / loop-v232, dated in New York, and sw.js serves loop-v232',
+      /id: 'v10-55',\s*version: 'LOOP 10\.55',\s*title: 'Warm-up Guidance Knows When You’re Training',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v232'/.test(raw) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v232'") !== -1);
   });
 }
 
@@ -56431,6 +56793,7 @@ async function main(){
   await testWorkoutRoomD133();
   await testDurationTruthD134();
   await testSplitProvenanceD135();
+  await testWarmupApplicabilityD136();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

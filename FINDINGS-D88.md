@@ -2124,7 +2124,23 @@ other 108 sit fully open beneath it.
 (`renderUpdatesList`). D132 is a visual release with zero renderer drift
 (Contract 249, 2–3).
 
-## E62 — Live, D47's preparation ignores the order work was done in, and an exercise's own heavier work removes its own shortening · P4 · PROVEN · OPEN
+## E62 — Live, D47's preparation ignores the order work was done in, and an exercise's own heavier work removes its own shortening · P4 · PROVEN · **CLOSED in D136 (LOOP 10.55)**
+
+> **Closed in D136 (LOOP 10.55), through applicability, not recalibration.** The Suggested Warm-up answers a question asked
+> before an exercise's work: what preparation is still to do. It is now shown only while that is still the question: until
+> the exercise's first working set is done (`exerciseWorkBegun`, D131B's one boundary). From that set on the strip is
+> retired: hidden, out of the accessibility tree, with nothing in its place. Untick that work, or turn it into a warm-up,
+> and the strip returns with D47's answer as it is at that moment.
+> - Later work can no longer change what an exercise under way shows. Measured on 10.54: Bench, under way, read "Warm-up ·
+>   already prepared 165 × 2" once Incline was worked later at 225. Now Bench shows nothing from its first set on.
+> - An exercise's own heavier work can no longer flip its advice. Measured on 10.54: Close-Grip went from "already prepared"
+>   110 × 2 to the full 90 / 135 / 180 after its own set at 225. Now the strip retires at that set.
+> - Exercises not yet begun stay fully live. Work done before an exercise begins is the only work that can shorten what it
+>   shows, so the order is right without LOOP recording one.
+> - D47's formula, patterns, threshold, ramp and different-exercise rule are unchanged. The strip is still derived while
+>   hidden, because D130's explicit warm-up actions read their steps from it. No timestamp, snapshot or flag is stored.
+>
+> See TRAINER-CONTRACT §177 and Contract 255. The original analysis is kept below.
 
 Found by D131B. D47 is unchanged; what is new is that its answer is now shown as it stands, instead of as it stood when a
 row was drawn.
