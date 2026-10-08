@@ -19676,6 +19676,20 @@ const LOOP_UPDATES = [
       'A workout whose start and finish are too far apart to be one session now shows an estimated time instead of a measured one'
     ],
     changes: []
+  },
+  {
+    id: 'v10-54',
+    version: 'LOOP 10.54',
+    title: 'Manual Workouts Stay Manual',
+    date: '2026-10-08',
+    swVersion: 'loop-v231',
+    summary: 'Splitting an exercise you added yourself no longer turns it into part of LOOP’s plan.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'When you swap the rest of an exercise you added yourself, neither part is counted as planned sets any more, and the new exercise is no longer shown as “Instead of” the one you added'
+    ],
+    changes: []
   }
 ];
 
@@ -56404,8 +56418,15 @@ function splitRowForSwap(row){
     rir: '',
     type: sr.dataset.setType
   }));
+  /* D135 (E59) — a split divides the plan the row has; it never writes one. Only a row LOOP planned carries a set
+     count, and only then do the finished part and the rest each take their share of it (and the slot it travels
+     with). A row the athlete added by hand has no set count and no slot, and neither of its two parts gets one:
+     handing the new row a count used to make addLogExerciseRow name a slot after the original, so a workout with no
+     plan was saved as two prescribed exercises. The replacement still takes whatever a swap gives any row (its own
+     prescribed load, from progressionFor), exactly as when nothing was done yet. */
+  const planned = !!row.dataset.targetSets;
   addLogExerciseRow(name.trim(), effort, bw, sets, restSec, null, {
-    targetSets: String(todo.length),
+    targetSets: planned ? String(todo.length) : '',
     targetReps: row.dataset.targetReps || '',
     recommended: row.dataset.recommended || '',
     slotName: exerciseSlotName(row),
@@ -56426,8 +56447,8 @@ function splitRowForSwap(row){
   try{ renumberSets(setsList); }catch(e){}
   /* What the original was asked for is now what it did: its finished sets are
      the whole of its part of the slot, so it reads as complete rather than as
-     an exercise abandoned half-way. */
-  row.dataset.targetSets = String(done.length);
+     an exercise abandoned half-way. Only a planned row has a share to re-scope (D135). */
+  if(planned) row.dataset.targetSets = String(done.length);
   try{ refreshSetCoach(row); }catch(e){}
   try{ syncExerciseCompleteVisual(row); }catch(e){}
   return fresh;

@@ -510,13 +510,13 @@ function asOfChain(name, tables){
   }
   return t;
 }
-function asOf1045(name){ return asOfChain(name, [D134_EDITS, D129_EDITS]); }   // D134 restated: every asOf chain undoes D134 first
+function asOf1045(name){ return asOfChain(name, [D135_EDITS, D134_EDITS, D129_EDITS]); }   // D134 restated: every asOf chain undoes D134 first
 function pinAsOf1045(name){
   const t = asOf1045(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
 }
 /* 10.44 is 10.45 with D128 put back too: the D129 statements come out first, then D128's */
-function asOf1044(name){ return asOfChain(name, [D134_EDITS, D129_EDITS, D128_EDITS]); }   // D134 restated
+function asOf1044(name){ return asOfChain(name, [D135_EDITS, D134_EDITS, D129_EDITS, D128_EDITS]); }   // D134 restated
 /* the named functions as 10.45 had them, installed in a loaded app for one call (a name 10.45 did not have is left undefined) */
 function withAsOf1045(c, names, fn){
   const vm = require('vm'), keep = names.map(n => c[n]);
@@ -568,7 +568,7 @@ const D130_EDITS = {
     "function seedWarmupTargets(exRow){ if(!exRow || !exRow.querySelectorAll) return 0; const bw = exRow.querySelector('.ex-bw-in'); if(bw && bw.checked) return 0; const steps = suggestedWarmupSteps(exRow); let place = 0, changed = 0; exRow.querySelectorAll('.set-row').forEach(sr => { if(sr.dataset.setType !== SET_TYPES.WARMUP) return; place++; const w = sr.querySelector('.set-weight-in'), r = sr.querySelector('.set-reps-in'); if(sr.classList.contains('completed') || !w || !r || w.disabled) return; const step = steps.length ? steps[Math.min(place, steps.length) - 1] : null; const loops = !w.dataset.userSet && !r.dataset.userSet; const load = step ? step.weight : ''; if(!w.dataset.userSet && (loops || w.value === '') && w.value !== load){ w.value = load; changed++; } if(step && !r.dataset.userSet && (loops || r.value === '') && r.value !== step.reps){ r.value = step.reps; r.dataset.v = step.reps; changed++; } }); return changed; }",
     ""]]
 };
-function asOf1046(name){ return asOfChain(name, [D134_EDITS, D131B_EDITS, D131A_EDITS, D130_EDITS]); }   // D134 restated   // D131B, then D131A, restated: undo them first
+function asOf1046(name){ return asOfChain(name, [D135_EDITS, D134_EDITS, D131B_EDITS, D131A_EDITS, D130_EDITS]); }   // D134 restated   // D131B, then D131A, restated: undo them first
 function pinAsOf1046(name){
   const t = asOf1046(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -600,7 +600,7 @@ const D131A_EDITS = {
     "(draft.exercises || []).forEach(ex => { const meta = ex.meta || {}; const legacyPlanRow = meta.rxLoad === undefined && !ex.bodyweight && !!(meta.targetReps || ex.effort); const rec = legacyPlanRow ? progressionFor(ex.name, meta.targetReps, meta.recommended) : null; addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, meta); });",
     "(draft.exercises || []).forEach(ex => { const rec = ex.bodyweight ? null : progressionFor(ex.name, ex.meta && ex.meta.targetReps, ex.meta && ex.meta.recommended); addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, ex.meta || {}); });"]]
 };
-function asOf1047(name){ return asOfChain(name, [D134_EDITS, D131B_EDITS, D131A_EDITS]); }   // D134 restated   // D131B restated: undo D131B first
+function asOf1047(name){ return asOfChain(name, [D135_EDITS, D134_EDITS, D131B_EDITS, D131A_EDITS]); }   // D134 restated   // D131B restated: undo D131B first
 function pinAsOf1047(name){
   const t = asOf1047(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -674,7 +674,7 @@ const D131B_EDITS = {
 };
 /* the twelve functions D131B changed (the three it added have nothing to put back) */
 const D131B_LOGGER = Object.keys(D131B_EDITS).filter(n => D131B_EDITS[n].every(p => p[1] !== ''));
-function asOf1050(name){ return asOfChain(name, [D134_EDITS, D131B_EDITS]); }   // D134 restated
+function asOf1050(name){ return asOfChain(name, [D135_EDITS, D134_EDITS, D131B_EDITS]); }   // D134 restated
 function pinAsOf1050(name){
   const t = asOf1050(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -741,6 +741,55 @@ const D131B_RAW = [
     "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
    ]
 ];
+/* D135 (LOOP 10.54, E59) — a split divides the plan a row has and never writes one. Three hunks: two statements in
+   splitRowForSwap (a hand-added row's two parts get no set count, so no slot follows) and the What's New entry.
+   asOf1053Html(raw) takes them out and reads back LOOP 10.53 to the byte; every older read-back starts there. D135_EDITS are
+   the same two statements on loop-tests' own reading ([now, as of 10.53]); Contract 254 proves what they do. */
+const D135_RAW = [
+ [
+  "  const sets = todo.map(sr => ({\n    weight: '',\n    reps: (sr.querySelector('.set-reps-in') || {}).value || '',\n    rir: '',\n    type: sr.dataset.setType\n  }));\n  /* D135 (E59) — a split divides the plan the row has; it never writes one. Only a row LOOP planned carries a set\n     count, and only then do the finished part and the rest each take their share of it (and the slot it travels\n     with). A row the athlete added by hand has no set count and no slot, and neither of its two parts gets one:\n     handing the new row a count used to make addLogExerciseRow name a slot after the original, so a workout with no\n     plan was saved as two prescribed exercises. The replacement still takes whatever a swap gives any row (its own\n     prescribed load, from progressionFor), exactly as when nothing was done yet. */\n  const planned = !!row.dataset.targetSets;\n  addLogExerciseRow(name.trim(), effort, bw, sets, restSec, null, {\n    targetSets: planned ? String(todo.length) : '',",
+  "  const sets = todo.map(sr => ({\n    weight: '',\n    reps: (sr.querySelector('.set-reps-in') || {}).value || '',\n    rir: '',\n    type: sr.dataset.setType\n  }));\n  addLogExerciseRow(name.trim(), effort, bw, sets, restSec, null, {\n    targetSets: String(todo.length),"
+ ],
+ [
+  "     an exercise abandoned half-way. Only a planned row has a share to re-scope (D135). */\n  if(planned) row.dataset.targetSets = String(done.length);",
+  "     an exercise abandoned half-way. */\n  row.dataset.targetSets = String(done.length);"
+ ],
+ [
+  "    changes: []\n  },\n  {\n    id: 'v10-54',\n    version: 'LOOP 10.54',\n    title: 'Manual Workouts Stay Manual',\n    date: '2026-10-08',\n    swVersion: 'loop-v231',\n    summary: 'Splitting an exercise you added yourself no longer turns it into part of LOOP’s plan.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [\n      'When you swap the rest of an exercise you added yourself, neither part is counted as planned sets any more, and the new exercise is no longer shown as “Instead of” the one you added'\n    ],\n    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)",
+  "    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)"
+ ]
+];
+const D135_WHATSNEW = "  },\n  {\n    id: 'v10-54',\n    version: 'LOOP 10.54',\n    title: 'Manual Workouts Stay Manual',\n    date: '2026-10-08',\n    swVersion: 'loop-v231',\n    summary: 'Splitting an exercise you added yourself no longer turns it into part of LOOP’s plan.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [\n      'When you swap the rest of an exercise you added yourself, neither part is counted as planned sets any more, and the new exercise is no longer shown as “Instead of” the one you added'\n    ],\n    changes: []\n";
+const SHA_1053_HTML = '5aba360adbeb0e3a';   /* index.html of LOOP 10.53 (1d8f793), LF */
+function asOf1053Html(raw){
+  let t = raw;
+  for(const [now, then] of D135_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
+}
+const D135_EDITS = {
+ "splitRowForSwap": [
+  [
+   "const planned = !!row.dataset.targetSets; addLogExerciseRow(name.trim(), effort, bw, sets, restSec, null, { targetSets: planned ? String(todo.length) : '',",
+   "addLogExerciseRow(name.trim(), effort, bw, sets, restSec, null, { targetSets: String(todo.length),"
+  ],
+  [
+   "if(planned) row.dataset.targetSets = String(done.length);",
+   "row.dataset.targetSets = String(done.length);"
+  ]
+ ]
+};
+const D135_LOGGER = Object.keys(D135_EDITS);
+function asOf1053(name){ return asOfChain(name, [D135_EDITS]); }
+function pinAsOf1053(name){
+  const t = asOf1053(name);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+/* 10.53's splitRowForSwap exactly as it shipped (1d8f793), on loop-tests' own reading. Every replay of 10.53's split runs
+   this text, never one derived from the file under test, so no edit to 10.54's split can break or reach the 10.53 side.
+   Contract 254, 46b holds that 10.54 read back as 10.53 gives exactly this text. */
+const SPLIT_1053 = "function splitRowForSwap(row){ const all = row && row.querySelectorAll ? Array.prototype.slice.call(row.querySelectorAll('.set-row')) : []; const done = all.filter(sr => sr.classList && sr.classList.contains('completed')); const todo = all.filter(sr => !(sr.classList && sr.classList.contains('completed'))); const setsList = row && row.querySelector ? row.querySelector('.sets-list') : null; const wrap = document.getElementById('logExercises'); if(!done.length || !todo.length || !setsList || !row.parentNode || !wrap || !wrap.lastElementChild) return row; const name = (row.querySelector('.ex-name-in') || {}).value || ''; const bw = !!((row.querySelector('.ex-bw-in') || {}).checked); const effort = (row.querySelector('.ex-effort-in') || {}).value || ''; const panel = row.querySelector('.rest-panel'); const restSec = panel ? (parseInt(panel.dataset.defaultRest, 10) || 75) : 75; const sets = todo.map(sr => ({ weight: '', reps: (sr.querySelector('.set-reps-in') || {}).value || '', rir: '', type: sr.dataset.setType })); addLogExerciseRow(name.trim(), effort, bw, sets, restSec, null, { targetSets: String(todo.length), targetReps: row.dataset.targetReps || '', recommended: row.dataset.recommended || '', slotName: exerciseSlotName(row), slotKey: row.dataset.slotKey || '' }); const fresh = wrap.lastElementChild; if(!fresh || fresh === row) return row; const moved = fresh.querySelectorAll('.set-row'); todo.forEach((sr, i) => { const r = sr.querySelector('.set-reps-in'); if(r && r.dataset.userSet && moved[i]) markUserSet(moved[i].querySelector('.set-reps-in')); }); row.parentNode.insertBefore(fresh, row.nextSibling); if(row.dataset.rxEffort != null) fresh.dataset.rxEffort = row.dataset.rxEffort; if(row.dataset.slotRecommended) fresh.dataset.slotRecommended = row.dataset.slotRecommended; todo.forEach(sr => sr.remove()); try{ renumberSets(setsList); }catch(e){} row.dataset.targetSets = String(done.length); try{ refreshSetCoach(row); }catch(e){} try{ syncExerciseCompleteVisual(row); }catch(e){} return fresh; }";
+const SPLIT_1053_PIN = '78ed482b25517739';
+function compileSplit1053(c){ return require('vm').runInContext('(' + SPLIT_1053 + ')', c); }
 /* D134 (LOOP 10.53, E63) — a workout's time is presented only while its start → finish span is one a workout can plausibly
    take (workoutSpanLimitSec: four hours, or three times its plan when that is longer). Six hunks: the limit inside D105's own
    predicate (workoutElapsedSeconds) and its helper, the active card's one formatter (activeWorkoutTimeText) and the field
@@ -776,7 +825,8 @@ const D134_RAW = [
 const D134_WHATSNEW = "  },\n  {\n    id: 'v10-53',\n    version: 'LOOP 10.53',\n    title: 'More Honest Workout Time',\n    date: '2026-10-07',\n    swVersion: 'loop-v230',\n    summary: 'LOOP no longer counts a workout left open for hours as hours of training.',\n    newFeatures: [],\n    improvements: [\n      'A workout left unfinished for hours now shows when it was started, instead of a minute count that kept growing'\n    ],\n    bugFixes: [\n      'A workout whose start and finish are too far apart to be one session now shows an estimated time instead of a measured one'\n    ],\n    changes: []\n";
 const SHA_1052_HTML = 'e4f8a1b9da9edbec';   /* index.html of LOOP 10.52 (d74b26e), LF */
 function asOf1052Html(raw){
-  let t = raw;
+  let t = asOf1053Html(raw);   // D135 restated: 10.54 reads back as 10.53 first
+  if(t === null) return null;
   for(const [now, then] of D134_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
   return t;
 }
@@ -821,7 +871,7 @@ const D134_EDITS = {
 /* the four functions D134 changed (the two it added have nothing to put back; workoutElapsedSeconds's own pair puts back
    nothing because D134 only ADDED a statement to it) */
 const D134_LOGGER = Object.keys(D134_EDITS).filter(n => !D134_EDITS[n].some(p => p[1] === '' && p[0].indexOf('function ' + n + '(') === 0));
-function asOf1052(name){ return asOfChain(name, [D134_EDITS]); }
+function asOf1052(name){ return asOfChain(name, [D135_EDITS, D134_EDITS]); }   // D135 restated: undo D135 first
 function pinAsOf1052(name){
   const t = asOf1052(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -54585,7 +54635,7 @@ async function testPrescriptionProvenanceD131A(){
     T('40  D130: the warm-up reader and seeder, their callers, the swap, the split and the way back are byte-identical to 10.47',
       /* D131B restated: the callers now ask the Suggested Warm-up again before they fill from it (Contract 251); read at 10.50 */
       pin('suggestedWarmupSteps') === '7e37069140f2527b' && pin('seedWarmupTargets') === '9c048567ff49a1f1' && pinAsOf1050('maybeRefreshWarmup') === 'bf55b39f07a6e2e4' && pinAsOf1050('swapLogExercise') === 'a61e31bb220f312e'
-      && pin('splitRowForSwap') === '78ed482b25517739' && pinAsOf1050('undoExerciseSwap') === '3b31d52d98a26ff8' && pinAsOf1050('toggleSetType') === 'f403d2834abd80ac' && pinAsOf1050('chooseSetType') === '2a72d3ade6f83fd9'
+      && pinAsOf1053('splitRowForSwap') === '78ed482b25517739' && pinAsOf1050('undoExerciseSwap') === '3b31d52d98a26ff8'   /* D135 restated: the split read at 10.53 (Contract 254) */ && pinAsOf1050('toggleSetType') === 'f403d2834abd80ac' && pinAsOf1050('chooseSetType') === '2a72d3ade6f83fd9'
       && pinAsOf1050('removeSetRow') === '7b94b99f9f92bb69' && pin('seedWorkingTarget') === '64ed113f75a5573e' && pinAsOf1050('toggleBW') === '8299f1c082c1e68d');
   });
 
@@ -55070,13 +55120,14 @@ async function testLiveWarmupD131B(){
     const d = capture(c); L.release(); const R = await resumeIn(LOG, d);
     const rx = R.L.exs().map(ex => ex.dataset.rxLoad == null ? null : ex.dataset.rxLoad); R.L.release();
     T('42  D131A holds (E57 closed): resumed, the restore asks progressionFor nothing, the Bodyweight-switched Incline keeps its 135, the hand-added press stays unprescribed', R.calls.length === 0 && same(rx, ['205', '135', null]), JSON.stringify([rx, R.calls]));
-    const e59 = async o => { const L2 = await started(LOG, [T_.BENCH], o), c2 = L2.c; const cgx = cg135(c2, L2); perform(c2, rowsOf(cgx)[0], 8, 2); c2.swapLogExercise(cgx, 'Dumbbell Bench Press');
+    /* D135 restated: E59 held through 10.50–10.53 and closed in 10.54 (Contract 254) — so the hold is read on 10.53's own split */
+    const e59 = async o => { const L2 = await started(LOG, [T_.BENCH], o), c2 = L2.c; c2.splitRowForSwap = compileSplit1053(c2); const cgx = cg135(c2, L2); perform(c2, rowsOf(cgx)[0], 8, 2); c2.swapLogExercise(cgx, 'Dumbbell Bench Press');
       const out = L2.exs().slice(1).map(ex => ({ name: ex.querySelector('.ex-name-in').value, targetSets: ex.dataset.targetSets || null, slotName: ex.dataset.slotName || null, rxLoad: ex.dataset.rxLoad || null })); L2.release(); return out; };
     const s1 = await e59(), s0 = await e59({ at1050: true });
-    T('43  E59 is held, as recorded: a hand-added Close-Grip split by a swap still gives the original targetSets and the replacement a slot, exactly as 10.50', same(s1, s0) && !!s1[0].targetSets && !!s1[1].slotName, JSON.stringify([s1, s0]));
+    T('10.53 replay — 43  E59 is held, as recorded: a hand-added Close-Grip split by a swap still gives the original targetSets and the replacement a slot, exactly as 10.50', same(s1, s0) && !!s1[0].targetSets && !!s1[1].slotName, JSON.stringify([s1, s0]));
     T('44  D125 / D127 / D130 / D131A are 10.50’s: the working-set plan, the coach’s write rule and its load, the working target, the split, the draft capture, the row builder and the set builders',
       pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('coachMayWriteSet') === '0de96792fab27ca4' && pin('coachLoadNow') === '38299e411614887d' && pin('seedWorkingTarget') === '64ed113f75a5573e' &&
-      pin('splitRowForSwap') === '78ed482b25517739' && pin('captureActiveDraft') === '7ed552854d7f4526' && pin('addLogExerciseRow') === 'be4678472bf41b62' && pin('applySetTypeToRow') === '9fab51981238989b' &&
+      pinAsOf1053('splitRowForSwap') === '78ed482b25517739' /* D135 restated */ && pin('captureActiveDraft') === '7ed552854d7f4526' && pin('addLogExerciseRow') === 'be4678472bf41b62' && pin('applySetTypeToRow') === '9fab51981238989b' &&
       pin('appendSetRow') === '61f2b7e061afde48' && pin('renumberSets') === '6a65d511509ef489' && pin('setIdxHtml') === '3614080a0cb6a1f2' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('applyCoachToFutureSets') === '10add8e901495f2d' &&
       pin('startTemplateLog') === 'd2264fc049660e8e' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('capturedPrescription') === '4b741af98b989695' && pin('saveLog') === '66c63714822ef5ee');
     const was = asOf1050Html(raw);
@@ -55318,7 +55369,7 @@ async function testWorkoutRoomD133(){
     const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
     const status = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
     T('26  E56 and E58 stay CLOSED (D131B); E59 and E62 stay OPEN and are not fixed: the split still gives a hand-added exercise and its replacement a plan, and D47 still ignores the order of the work',
-      /CLOSED in D131B/.test(status('E56')) && /CLOSED in D131B/.test(status('E58')) && /OPEN/.test(status('E59')) && !/CLOSED/.test(status('E59')) && /OPEN/.test(status('E62')) && !/CLOSED/.test(status('E62')) && same('splitRowForSwap') && same('sessionPreparation') && same('generalPrepSatisfiedBy'));
+      /CLOSED in D131B/.test(status('E56')) && /CLOSED in D131B/.test(status('E58')) && /· (OPEN|\*\*CLOSED in D135)/.test(status('E59')) /* D135 restated: open in 10.52, closed in 10.54 */ && /OPEN/.test(status('E62')) && !/CLOSED/.test(status('E62')) && same('splitRowForSwap') && same('sessionPreparation') && same('generalPrepSatisfiedBy'));
     T('27  the other findings D133 was told to leave are all still open (E16 held; E22, E25–E27, E33, E38, E39, E43, E48, E49, E50, E52, E54, E55, E60, E61)',
       /HELD/.test(status('E16')) && ['E22', 'E25', 'E26', 'E27', 'E33', 'E38', 'E39', 'E43', 'E48', 'E49', 'E50', 'E52', 'E54', 'E55', 'E60', 'E61'].every(id => /OPEN|HELD/.test(status(id)) && !/\bCLOSED in D133\b/.test(status(id))), ['E16', 'E22', 'E25', 'E26', 'E27', 'E33'].map(id => status(id).slice(0, 60)));
     const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was);
@@ -55398,11 +55449,12 @@ async function testWorkoutRoomD133(){
 async function testDurationTruthD134(){
   section('CONTRACT 253 — a workout left open for hours is not hours of training (D134, E63)');
   const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
-  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  /* D135 restated: D134's claims are about LOOP 10.53, so its source checks read the file as 10.53 (D135's hunks put back) */
+  const raw0 = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n'), raw = asOf1053Html(raw0) || '';
   const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
   const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
   const col = s => String(s).replace(/\s+/g, ' ').trim();
-  const was = asOf1052Html(raw);
+  const was = asOf1052Html(raw0);   // D135 restated: the current file, read back to 10.52
   const same = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
   const iso = local => new Date(local).toISOString();
   /* the app, its logger on miniDomD125 and the real Today / Train elements; at1052 installs 10.52's own functions */
@@ -55556,7 +55608,7 @@ async function testDurationTruthD134(){
     const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
     const status = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
     T('35–37  E59, E62, E60 and E61 are still open and not fixed (the split, D47’s order, the dense targets, What’s New history), and E63 is closed by this release',
-      ['E59', 'E62', 'E60', 'E61'].every(id => /· OPEN/.test(status(id))) && same('splitRowForSwap') && same('generalPrepSatisfiedBy') && same('renderUpdatesList') && /CLOSED in D134/.test(status('E63')), ['E59', 'E62', 'E60', 'E61', 'E63'].map(id => status(id).slice(-40)));
+      ['E62', 'E60', 'E61'].every(id => /· OPEN/.test(status(id))) && /· (OPEN|\*\*CLOSED in D135)/.test(status('E59')) /* D135 restated */ && same('splitRowForSwap') && same('generalPrepSatisfiedBy') && same('renderUpdatesList') && /CLOSED in D134/.test(status('E63')), ['E59', 'E62', 'E60', 'E61', 'E63'].map(id => status(id).slice(-40)));
     const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '');
     T('38–40  16 DATA_KEYS (the same sixteen), data schema 1, no migration, the trainer 0.1.1-shadow', !!dk && !!dkw && dk[1] === dkw[1] && dk[1].split(',').map(s => s.trim()).filter(Boolean).length === 16 && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /0\.1\.1-shadow/.test(raw));
     const L0 = await mount([]); const exported = await L0.c.allDataKeys();
@@ -55584,7 +55636,211 @@ async function testDurationTruthD134(){
     const words = [...code.matchAll(/'([^'\n]*)'/g)].map(m => m[1]).filter(s => /[a-z]{3}/i.test(s) && !/^(en-US|short|numeric)$/.test(s));
     T('42  nothing claims active time: the only words the change can put on screen are ' + JSON.stringify(words) + ', and the release notes say when a workout was started or that its time is estimated — never “active”, never how long anyone trained',
       words.length && words.every(w => /^(Started |h ago|Started yesterday| min| · )$/.test(w)) && !/\bactive\b|trained for|training time/i.test(D134_WHATSNEW) && /started/.test(D134_WHATSNEW) && /estimated/.test(D134_WHATSNEW) &&
-      /id: 'v10-53',\s*version: 'LOOP 10\.53',\s*title: 'More Honest Workout Time',\s*date: '2026-10-0\d',\s*swVersion: 'loop-v230'/.test(raw) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v230'") !== -1);
+      /id: 'v10-53',\s*version: 'LOOP 10\.53',\s*title: 'More Honest Workout Time',\s*date: '2026-10-0\d',\s*swVersion: 'loop-v230'/.test(raw) && /CACHE_VERSION = 'loop-v2(3\d|[4-9]\d)'/.test(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8')));   // D135 restated: sw.js serves the newest release (Contract 254 holds loop-v231)
+  });
+}
+
+/* CONTRACT 254 — D135 (E59). A split divides the plan a row has and never writes one: only a row LOOP planned carries a
+   set count, and only its two parts share it (and the slot it travels with). Every class below is driven through the app's
+   own logger (start, add by hand, type, complete, swap, undo, capture, restore, save) twice: as 10.54 has it, and with
+   10.53's own splitRowForSwap put back (D135_EDITS). */
+async function testSplitProvenanceD135(){
+  section('CONTRACT 254 — splitting work never writes a plan (D135, E59)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const was = asOf1053Html(raw);
+  const sameFn = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+  const NOW = '2026-10-04T12:00:00';
+  const S = (w, r, rir, type) => ({ weight: String(w), reps: String(r), rir: rir == null ? '' : String(rir), type: type || 'working', completed: true });
+  const W = (id, date, exs, cat) => ({ id, date, category: cat || 'push', title: 'Push', notes: '', exercises: exs });
+  const E = (name, sets, bw) => ({ name, effort: '', bodyweight: !!bw, sets });
+  const LOG = ['2026-09-08', '2026-09-15', '2026-09-22', '2026-09-29'].map((d, i) => W('h' + i, d, [E('Bench Press', [S(205, 8, 1), S(205, 6, 1), S(205, 5, 0)])]))
+    .concat(['2026-09-20', '2026-09-27'].map((d, i) => W('d' + i, d, [E('Dumbbell Bench Press', [S(60, 10, 2), S(60, 9, 1), S(60, 8, 1)])])))
+    .concat(['2026-09-10', '2026-09-24'].map((d, i) => W('i' + i, d, [E('Incline Bench Press', [S(135, 10, 2), S(135, 9, 1), S(135, 8, 1)])])))
+    .concat(['2026-09-11', '2026-09-25'].map((d, i) => W('c' + i, d, [E('Close-Grip Bench Press', [S(135, 10, 2), S(135, 9, 1), S(135, 8, 1)])])))
+    .concat(['2026-09-12', '2026-09-26'].map((d, i) => W('p' + i, d, [E('Push-Up', [S('BW', 15, 2), S('BW', 14, 1), S('BW', 12, 1)], true)])));
+  const TPL = { 'qa-bench': [{ name: 'Bench Press', sets: 3, reps: '8-12', recommended: '205', effort: '8' }],
+    'qa-bw': [{ name: 'Push-Up', sets: 3, reps: '10-15', recommended: 'Bodyweight', effort: '8' }] };
+  const mount = async o => {
+    o = o || {};
+    const app = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(LOG), onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) });
+    const c = app.ctx; let rel = pinClock(c, NOW); try{ await H.settle(300); for(let t = 0; t < 60 && c.workoutLog.length !== LOG.length; t++) await H.settle(100); } finally { rel(); }
+    const D = miniDomD125(), body = D.el('body');
+    body.innerHTML = '<div id="logOverlay"><div class="sheet-scroll"><div id="logExercises"></div></div></div><div id="coachLive"></div><div id="setTypeOverlay"></div><div id="setTypeBody"></div>';
+    const byId = id => body.querySelector('#' + id), stub = c.document.getElementById.bind(c.document);
+    Object.assign(c.document, { getElementById: id => byId(id) || stub(id), createElement: tag => D.el(tag), querySelectorAll: sel => body.querySelectorAll(sel), querySelector: sel => body.querySelector(sel) });
+    Object.assign(c, { openLogSheet(){ byId('logOverlay').classList.add('open'); }, onWorkoutRowAdded(){}, renderWorkoutStep(){}, confirm(){ return true; } });
+    const like = c.DEFAULT_PLANS.balanced.templates.push[0].exercises[0];
+    const getT = c.getTemplates; c.getTemplates = cat => cat === 'push' ? (getT(cat) || []).concat(Object.entries(TPL).map(([id, ex]) => ({ id, name: 'QA ' + id, exercises: ex.map(x => Object.assign({}, like, x)) }))) : getT(cat);
+    const keep = {};
+    /* the 10.53 side runs 10.53's split as it shipped (SPLIT_1053), whatever the file under test holds */
+    if(o.at1053){ keep.splitRowForSwap = c.splitRowForSwap; c.splitRowForSwap = compileSplit1053(c); }
+    const relNow = pinClock(c, NOW);
+    return { app, c, exs: () => body.querySelectorAll('#logExercises .ex-log-row'), release: () => { relNow(); Object.keys(keep).forEach(n => { c[n] = keep[n]; }); } };
+  };
+  const call = (c, el, attr) => vm.runInContext('(function(){ ' + el.getAttribute(attr) + ' })', c).call(el);
+  const rowsOf = ex => ex.querySelectorAll('.set-row');
+  const type = (c, input, v) => { input.value = String(v); call(c, input, 'oninput'); };
+  const perform = (c, ex, i, reps, rir) => { const r = rowsOf(ex)[i]; if(reps != null) type(c, r.querySelector('.set-reps-in'), reps); if(rir != null) call(c, r.querySelectorAll('.rir-opt')[rir], 'onclick'); call(c, r.querySelector('.set-complete-btn'), 'onclick'); };
+  const fill = (c, ex, w, reps) => rowsOf(ex).forEach(r => { if(w != null && !r.querySelector('.set-weight-in').disabled) type(c, r.querySelector('.set-weight-in'), w); if(reps != null) type(c, r.querySelector('.set-reps-in'), reps); });
+  const META = ['targetSets', 'targetReps', 'recommended', 'slotName', 'slotRecommended', 'rxLoad', 'rxEffort', 'rxPlan'];
+  /* a row as the athlete has it (values, done, owner, type, RIR) and the plan it carries, apart */
+  const facts = L => L.exs().map(ex => {
+    const d = ex.dataset, plan = {}; META.forEach(k => { if(d[k] != null && d[k] !== '') plan[k] = d[k]; }); if(d.slotKey) plan.slotKey = 'yes';
+    const rows = rowsOf(ex).map(r => { const w = r.querySelector('.set-weight-in'), p = r.querySelector('.set-reps-in');
+      return (r.dataset.setType || 'working') + ' ' + w.value + 'x' + p.value + '@' + r.querySelector('.set-rir-in').value + (r.classList.contains('completed') ? '+' : '') + '/' + (w.dataset.userSet ? 'w' : '') + (p.dataset.userSet ? 'r' : ''); });
+    return { name: (ex.querySelector('.ex-name-in') || {}).value, plan, rx: L.c.capturedPrescription(ex), instead: col(L.c.workoutStepSwapHtml(ex).replace(/<[^>]+>/g, ' ')), rows };
+  });
+  const startTpl = async (L, id) => { await L.c.clearActiveDraft(); await L.c.startTemplateLog('push', id); };
+  const startFree = async L => { await L.c.clearActiveDraft(); await L.c.openFreeformLog(); L.c.pickLogCategory('push'); L.c.document.getElementById('logTitle').value = 'Freeform'; };
+  const byHand = (L, name) => { L.c.addPickedToWorkout([name]); return L.exs().slice(-1)[0]; };
+  const manualSplit = async (L, name, to, w, reps) => { await startFree(L); const ex = byHand(L, name); fill(L.c, ex, w, reps); perform(L.c, ex, 0, null, 2); return { ex, t: L.c.swapLogExercise(ex, to) }; };
+  const CLASSES = {
+    program: async L => { await startTpl(L, 'qa-bench'); perform(L.c, L.exs()[0], 0, 8, 2); L.c.swapLogExercise(L.exs()[0], 'Dumbbell Bench Press'); },
+    programOwn: async L => { await startTpl(L, 'qa-bench'); fill(L.c, L.exs()[0], 215, 9); perform(L.c, L.exs()[0], 0, null, 2); L.c.swapLogExercise(L.exs()[0], 'Dumbbell Bench Press'); },
+    programD50B: async L => { await startTpl(L, 'qa-bench'); perform(L.c, L.exs()[0], 0, 6, 0); L.c.swapLogExercise(L.exs()[0], 'Dumbbell Bench Press'); },
+    programBW: async L => { await startTpl(L, 'qa-bw'); perform(L.c, L.exs()[0], 0, 12, 2); L.c.swapLogExercise(L.exs()[0], 'Dip'); },
+    programChain: async L => { await startTpl(L, 'qa-bench'); perform(L.c, L.exs()[0], 0, 8, 2); const b = L.c.swapLogExercise(L.exs()[0], 'Dumbbell Bench Press'); type(L.c, rowsOf(b)[0].querySelector('.set-weight-in'), 55); perform(L.c, b, 0, 10, 2); L.c.swapLogExercise(b, 'Incline Bench Press'); },
+    programUndo: async L => { await startTpl(L, 'qa-bench'); perform(L.c, L.exs()[0], 0, 8, 2); const t = L.c.swapLogExercise(L.exs()[0], 'Dumbbell Bench Press'); L.c.undoExerciseSwap(t); },
+    programUndoTwice: async L => { await startTpl(L, 'qa-bench'); perform(L.c, L.exs()[0], 0, 8, 2); let t = L.c.swapLogExercise(L.exs()[0], 'Dumbbell Bench Press'); L.c.undoExerciseSwap(t); t = L.c.swapLogExercise(L.exs()[0], 'Dumbbell Bench Press'); L.c.undoExerciseSwap(t); },
+    programFull: async L => { await startTpl(L, 'qa-bench'); L.c.swapLogExercise(L.exs()[0], 'Dumbbell Bench Press'); },
+    manualFull: async L => { await startFree(L); const ex = byHand(L, 'Close-Grip Bench Press'); fill(L.c, ex, 135, 10); L.c.swapLogExercise(ex, 'Dumbbell Bench Press'); },
+    freeform: async L => { await manualSplit(L, 'Close-Grip Bench Press', 'Dumbbell Bench Press', 135, 10); },
+    handInTemplate: async L => { await startTpl(L, 'qa-bench'); const ex = byHand(L, 'Close-Grip Bench Press'); fill(L.c, ex, 135, 10); perform(L.c, ex, 0, null, 2); L.c.swapLogExercise(ex, 'Dumbbell Bench Press'); },
+    swappedFirst: async L => { await startFree(L); let ex = byHand(L, 'Close-Grip Bench Press'); ex = L.c.swapLogExercise(ex, 'Incline Bench Press'); fill(L.c, ex, 135, 10); perform(L.c, ex, 0, null, 2); L.c.swapLogExercise(ex, 'Dumbbell Bench Press'); },
+    manualBW: async L => { await startFree(L); const ex = byHand(L, 'Push-Up'); fill(L.c, ex, null, 12); perform(L.c, ex, 0, null, 2); L.c.swapLogExercise(ex, 'Dip'); },
+    matching: async L => { await manualSplit(L, 'Bench Press', 'Dumbbell Bench Press', 205, 10); },
+    manualChain: async L => { const { t } = await manualSplit(L, 'Close-Grip Bench Press', 'Dumbbell Bench Press', 135, 10); type(L.c, rowsOf(t)[0].querySelector('.set-weight-in'), 55); perform(L.c, t, 0, 10, 2); L.c.swapLogExercise(t, 'Incline Bench Press'); },
+    manualUndo: async L => { const { t } = await manualSplit(L, 'Close-Grip Bench Press', 'Dumbbell Bench Press', 135, 10); L.c.__undo = L.c.undoExerciseSwap(t); },
+    manualBack: async L => { const { t } = await manualSplit(L, 'Close-Grip Bench Press', 'Dumbbell Bench Press', 135, 10); L.c.swapLogExercise(t, 'Close-Grip Bench Press'); },
+    freeformNoSwap: async L => { await startFree(L); const ex = byHand(L, 'Close-Grip Bench Press'); fill(L.c, ex, 135, 10); perform(L.c, ex, 0, null, 2); }
+  };
+  const run = async (name, o) => {
+    const L = await mount(o); const r = {};
+    try{
+      await CLASSES[name](L);
+      r.live = facts(L); r.undoReturned = L.c.__undo === undefined ? 'n/a' : (L.c.__undo === null ? null : 'row');
+      const d = JSON.parse(JSON.stringify(L.c.captureActiveDraft())); r.draftMeta = d.exercises.map(x => x.meta);
+      const R = await mount(o); const calls = []; const pf = R.c.progressionFor; R.c.progressionFor = function(n){ calls.push(n); return pf.apply(this, arguments); };
+      try{ R.c.restoreDraftToSheet(JSON.parse(JSON.stringify(d))); } finally { R.c.progressionFor = pf; }
+      r.resumed = facts(R); r.restoreCalls = calls.length; R.release();
+      const n0 = L.c.workoutLog.length; L.c.saveLog(); await H.settle(300); try{ L.c.closeSummary(); }catch(e){}
+      const e = L.c.workoutLog.length > n0 ? L.c.workoutLog[L.c.workoutLog.length - 1] : null;
+      r.saved = e ? e.exercises.map(x => ({ name: x.name, sets: x.sets.map(s => [s.weight, s.reps, s.rir, s.type || '']), rx: x.rx || null, planned: x.planned || null })) : null;
+      if(e){ const x = L.c.deriveSessionExecution(e); r.exec = { prescribedExercises: x.prescribedExercises, setsPrescribed: x.setsPrescribed, setsCompleted: x.setsCompleted, scored: x.scored };
+        const s = L.c.sessionScore(e); r.score = s && s.available ? s.score : null; r.carried = L.c.sessionCarriedOut(e);
+        r.d49 = [...new Set(e.exercises.map(z => z.name))].map(n => { const h = L.c.exerciseSessionHistory(n, 1)[0]; return [n, h ? h.prescribedSets : 'none']; });
+        r.history = sha(JSON.stringify(L.c.workoutLog.slice(0, LOG.length)));
+        r.prs = sha(JSON.stringify([L.c.computeAllPREvents().map(v => [v.id, v.exerciseName, v.hits.map(h => h.type + ':' + h.next)]), L.c.computePRs().map(p => [p.name, p.weight, p.reps])]));
+        r.xp = (() => { const tl = L.c.computeXPTimeline(); return [tl.lifetimeXP, tl.prCount]; })(); }
+    } finally { L.release(); }
+    return r;
+  };
+  const R = {}, Q = {};
+  for(const n of Object.keys(CLASSES)){ R[n] = await run(n); Q[n] = await run(n, { at1053: true }); }
+  const noPlan = f => !f.plan.targetSets && !f.plan.targetReps && !f.plan.slotName && !f.plan.slotKey && !f.instead;
+  const rowsOnly = rs => rs.map(f => [f.name, f.rows]);
+
+  /* ---------------------------------------------------------------- */
+  sub('1–7  E59 on 10.53’s own split, and closed');
+  await guard('e59', async () => {
+    const pre = await (async () => { const L = await mount(); try{ await startFree(L); const ex = byHand(L, 'Close-Grip Bench Press'); fill(L.c, ex, 135, 10); return facts(L)[0]; } finally { L.release(); } })();
+    T('1  the source is the athlete’s own: Close-Grip Bench Press added by hand to a freeform workout has no set count, no reps target, no slot, no prescribed load and no prescription at all',
+      same(pre.plan, {}) && pre.rx === null && pre.instead === '' && pre.rows.length >= 3, pre);
+    const q = Q.freeform;
+    T('10.53 replay — 2  E59 on 10.53’s own split: Set 1 done, the rest swapped to Dumbbell Bench Press — the finished part is given targetSets 1, the replacement targetSets ' + (q.live[1] && q.live[1].plan.targetSets) + ' and a slot named after Close-Grip, and it reads “Instead of Close-Grip Bench Press”',
+      q.live[0].plan.targetSets === '1' && !!q.live[1].plan.targetSets && q.live[1].plan.slotName === 'Close-Grip Bench Press' && q.live[1].plan.slotKey === 'yes' && /Instead of Close-Grip Bench Press/.test(q.live[1].instead), q.live);
+    T('10.53 replay — 3  …and saves it as a plan: rx.sets on both parts, planned: Close-Grip on the replacement — a workout with no prescription read as ' + q.exec.prescribedExercises + ' prescribed exercises and ' + q.exec.setsPrescribed + ' prescribed sets',
+      q.saved[0].rx && q.saved[0].rx.sets === 1 && q.saved[1].rx && q.saved[1].rx.sets > 0 && q.saved[1].planned && q.saved[1].planned.name === 'Close-Grip Bench Press' && q.exec.prescribedExercises === 2 && q.exec.setsPrescribed > 0, [q.saved, q.exec]);
+    const f = R.freeform, full = R.manualFull;
+    T('4  E59 closed, live: neither part has a set count, a reps target, a slot or an “Instead of” line; the finished Close-Grip has no prescription at all, exactly as before the split', noPlan(f.live[0]) && noPlan(f.live[1]) && f.live[0].rx === null && same(f.live[0].plan, pre.plan), f.live);
+    T('5  …and the replacement is exactly what a full swap of the same manual row gives: its own prescribed load from progressionFor (' + (f.live[1].plan.rxLoad) + '), nothing else', same(f.live[1].plan, full.live[0].plan) && same(f.live[1].rx, full.live[0].rx), [f.live[1].plan, full.live[0].plan]);
+    T('6  saved: no rx.sets and no planned on either part — the finished Close-Grip has no rx, the replacement only the swap’s load ({ load: ' + (f.saved[1].rx && f.saved[1].rx.load) + ' }), as a manual full swap saves',
+      f.saved[0].rx === null && f.saved[0].planned === null && same(f.saved[1].rx, full.saved[0].rx) && f.saved[1].planned === null && !f.saved.some(s => s.rx && s.rx.sets), f.saved);
+    T('7  execution analysis gets no planned-set denominator: 0 prescribed sets (10.53: ' + q.exec.setsPrescribed + '), and the same judgement a manual full swap gets (' + full.exec.prescribedExercises + ' exercise with a load, not scored)',
+      f.exec.setsPrescribed === 0 && f.exec.prescribedExercises === full.exec.prescribedExercises && f.exec.scored === full.exec.scored && f.score === full.score, [f.exec, q.exec, full.exec]);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('8–12  the work itself is untouched');
+  await guard('rows', async () => {
+    const MAN = ['freeform', 'handInTemplate', 'swappedFirst', 'manualBW', 'matching', 'manualChain'];
+    const rowsSame = MAN.filter(n => !same(rowsOnly(R[n].live), rowsOnly(Q[n].live)));
+    T('8–11  every manual split keeps its rows exactly as 10.53 does — each set’s load, reps, RIR, type, completion and whose value it is (6 classes)', rowsSame.length === 0, rowsSame);
+    const f = R.freeform;
+    T('12  the finished part keeps its done set and the replacement carries every set still to do, in order (1 + ' + f.live[1].rows.length + ')', f.live[0].rows.length === 1 && /\+\//.test(f.live[0].rows[0]) && f.live[1].rows.every(r => !/\+\//.test(r)) && f.live[1].rows.length === Q.freeform.live[1].rows.length && f.saved[0].sets.length + f.saved[1].sets.length === Q.freeform.saved[0].sets.length + Q.freeform.saved[1].sets.length, f.live);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('13–19  real plans and full swaps are exactly 10.53’s');
+  await guard('program', async () => {
+    const PROG = ['program', 'programOwn', 'programD50B', 'programBW', 'programChain', 'programFull', 'manualFull', 'freeformNoSwap'];
+    const key = r => [r.live, r.saved, r.exec, r.score, r.carried, r.d49];
+    const moved = PROG.filter(n => !same(key(R[n]), key(Q[n])));
+    T('13–16  a planned split is exactly 10.53’s: the finished part keeps 1 of the 3 planned sets, the replacement 2, the reps target and the slot travel, and the execution denominator is the same 3 (program, the athlete’s own values, D50B-adapted, bodyweight, a chain of two splits)',
+      moved.filter(n => /^program(?!Full)/.test(n)).length === 0 && R.program.live[0].plan.targetSets === '1' && R.program.live[1].plan.targetSets === '2' && R.program.live[1].plan.targetReps === '8-12' && R.program.live[1].plan.slotName === 'Bench Press' && R.program.exec.setsPrescribed === 3, moved);
+    T('17–19  full swaps are exactly 10.53’s — the program row keeps its slot and set count, the manual row gets only the swap’s prescribed load — and so is a freeform row nobody swapped', moved.filter(n => /Full|NoSwap/.test(n)).length === 0, moved);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('20–28  resume, undo, repetition, look-alikes, the coach, bodyweight');
+  await guard('flows', async () => {
+    const exact = n => same(R[n].live, R[n].resumed) && R[n].restoreCalls === 0;
+    T('20  a manual split resumes exactly: the same rows and the same (absent) plan on both parts, and progressionFor is asked nothing — on 10.53 the resume itself gave the finished part a slot', exact('freeform') && exact('handInTemplate') && exact('swappedFirst') && exact('manualChain') && !same(Q.freeform.live, Q.freeform.resumed), [R.freeform.resumed, Q.freeform.resumed]);
+    T('21  a planned split resumes exactly too, as on 10.53', exact('program') && exact('programChain') && exact('programD50B'));
+    const u = R.manualUndo;
+    T('22  manual: there is no plan to go back to, so no “Instead of” and no plan Undo is offered (as for a manual full swap); undoExerciseSwap changes nothing — and on 10.53 that Undo only renamed the replacement, leaving two rows with a manufactured plan',
+      u.undoReturned === null && same(u.live, R.freeform.live) && u.live.every(f => f.instead === '') && Q.manualUndo.live.length === 2 && Q.manualUndo.live[1].plan.targetSets && Q.manualUndo.live[1].plan.slotName === 'Close-Grip Bench Press', [u.live, Q.manualUndo.live]);
+    const b = R.manualBack;
+    T('22b  swapping the replacement back to Close-Grip through Swap leaves the athlete’s rows and no plan residue: no set count, no slot on either', b.live.every(f => !f.plan.targetSets && !f.plan.slotName && !f.plan.slotKey && !f.instead) && b.live.length === 2, b.live);
+    T('23–24  planned: Undo puts the slot back together exactly as 10.53 does (one Bench Press row, 3 planned sets), and split → undo → split → undo is stable',
+      same(R.programUndo.live, Q.programUndo.live) && R.programUndo.live.length === 1 && R.programUndo.live[0].plan.targetSets === '3' && same(R.programUndoTwice.live, R.programUndo.live), R.programUndo.live);
+    T('25  a manual row whose values match a plan (3 × 205 × 10 of Bench Press) stays manual — provenance is never inferred from values', R.matching.live.every(f => !f.plan.targetSets && !f.plan.slotName) && R.matching.saved.every(s => !(s.rx && s.rx.sets) && !s.planned), R.matching.live);
+    T('26  the coach: a D50B-adapted program row splits exactly as 10.53, the prescription (205) stays the record and the adapted row values stay values', same(R.programD50B.live, Q.programD50B.live) && R.programD50B.live[0].plan.rxLoad === '205' && same(R.programD50B.saved, Q.programD50B.saved), R.programD50B.live);
+    T('27–28  bodyweight: by hand it stays fully manual (no rx at all on either part, nothing prescribed); planned, its target structure divides exactly as 10.53',
+      R.manualBW.saved.every(s => s.rx === null && s.planned === null) && R.manualBW.exec.setsPrescribed === 0 && same(R.programBW.saved, Q.programBW.saved) && R.programBW.live[1].plan.targetSets === '2', [R.manualBW.saved, R.programBW.saved]);
+    const chain = R.manualChain;
+    T('28b  chained manual splits (Close-Grip → Dumbbell → Incline) write no chain of plans: no set count, no slot on any of the three, and no rx.sets saved', chain.live.length === 3 && chain.live.every(f => !f.plan.targetSets && !f.plan.slotName) && chain.saved.every(s => !(s.rx && s.rx.sets) && !s.planned), chain.live);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('29–42  protected, and what changes downstream');
+  await guard('protected', async () => {
+    T('29–30  D131A: every draft records its rows’ prescription exactly (meta.rxLoad written for every row), and no restore asks progressionFor', Object.keys(R).every(n => R[n].restoreCalls === 0 && R[n].draftMeta.every(m => 'rxLoad' in m)));
+    T('31–32  D131B: the derived Suggested Warm-up, D130’s fill and the swap are 10.53’s byte for byte, and E56 and E58 stay CLOSED',
+      ['refreshSuggestedWarmups', 'suggestedWarmupAnchor', 'exerciseWorkBegun', 'warmupBoxHtml', 'seedWarmupTargets', 'suggestedWarmupSteps', 'swapLogExercise', 'undoExerciseSwap', 'addLogExerciseRow', 'capturedPrescription', 'captureActiveDraft', 'restoreDraftToSheet', 'saveLog'].every(sameFn));
+    const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
+    const status = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
+    T('33  E62 stays OPEN and D47 is unchanged (sessionPreparation, generalPrepSatisfiedBy); E59 is CLOSED by this release; E56/E58 CLOSED; E60/E61 OPEN',
+      /· OPEN/.test(status('E62')) && sameFn('sessionPreparation') && sameFn('generalPrepSatisfiedBy') && /CLOSED in D135/.test(status('E59')) && /CLOSED in D131B/.test(status('E56')) && /CLOSED in D131B/.test(status('E58')) && /· OPEN/.test(status('E60')) && /· OPEN/.test(status('E61')));
+    const css = t => t.slice(t.indexOf('<style>'), t.indexOf('</style>'));
+    T('34–36  D134’s duration truth, D133’s workout shell and D132 / D132.1 are 10.53’s byte for byte (the stylesheet, workoutElapsedSeconds, workoutSpanLimitSec, activeWorkoutTimeText)', !!was && css(raw) === css(was) && ['workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText', 'renderTodayWorkout'].every(sameFn));
+    const ALL = Object.keys(R);
+    T('37–38  records and XP are exactly 10.53’s in every class — the split’s plan was never evidence for them', ALL.every(n => R[n].prs === Q[n].prs && same(R[n].xp, Q[n].xp)), ALL.filter(n => R[n].prs !== Q[n].prs || !same(R[n].xp, Q[n].xp)));
+    const E59C = ['freeform', 'handInTemplate', 'swappedFirst', 'manualBW', 'matching', 'manualChain', 'manualUndo', 'manualBack'];
+    const scoreMoved = ALL.filter(n => R[n].score !== Q[n].score || !same(R[n].exec, Q[n].exec));
+    T('39  Session Score and the execution analysis change only where E59 had written a plan (' + scoreMoved.join(', ') + ') — every planned class and control is 10.53’s', scoreMoved.every(n => E59C.includes(n)) && scoreMoved.includes('freeform'), scoreMoved);
+    const d49Moved = ALL.filter(n => !same(R[n].d49, Q[n].d49) || R[n].carried !== Q[n].carried);
+    T('40  D49’s per-session evidence changes only where a false rx.sets is gone (a hand-added lift now has no prescribed set count): ' + d49Moved.join(', ') + ' — and D49 itself is 10.53’s byte for byte',
+      d49Moved.every(n => E59C.includes(n)) && R.freeform.d49.every(([, p]) => p === null) && ['exerciseSessionHistory', 'progressionFor', 'applyPhaseProgressionPolicy', 'sessionCarriedOut'].every(sameFn), [d49Moved, R.freeform.d49, Q.freeform.d49]);
+    T('41–42  history is never rewritten: in every class the workouts already logged hash the same after the new one is saved, on both builds', ALL.every(n => R[n].history === Q[n].history && R[n].history === R.freeformNoSwap.history));
+    const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '');
+    T('43–45  16 DATA_KEYS (the same sixteen), data schema 1, no migration, the trainer 0.1.1-shadow — and the draft keeps the same meta keys', !!dk && !!dkw && dk[1] === dkw[1] && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /0\.1\.1-shadow/.test(raw) &&
+      same(Object.keys(R.freeform.draftMeta[0]).sort(), Object.keys(Q.freeform.draftMeta[0]).sort()));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('46–48  the change and the release');
+  await guard('release', async () => {
+    T('46  every D135 change is where it was written, once — the file reads back as LOOP 10.53 to the byte (index.html of 1d8f793)', !!was && sha(was) === SHA_1053_HTML, was && sha(was));
+    T('10.53 replay — 46b  the 10.53 side runs 10.53’s own split: SPLIT_1053 hashes to its 10.53 pin, and 10.54 read back as 10.53 gives exactly that text', sha(SPLIT_1053) === SPLIT_1053_PIN && asOf1053('splitRowForSwap') === SPLIT_1053);
+    T('47  the change is the split’s two statements and nothing else in a script: the scripts of both files differ only by them and the What’s New entry', !!was && D135_RAW.length === 3 && col(fnSrc(raw, 'splitRowForSwap')) !== col(fnSrc(was, 'splitRowForSwap')) && /const planned = !!row\.dataset\.targetSets;/.test(fnSrc(raw, 'splitRowForSwap')) && /if\(planned\) row\.dataset\.targetSets = String\(done\.length\);/.test(fnSrc(raw, 'splitRowForSwap')));
+    T('48  What’s New v10-54 “Manual Workouts Stay Manual” is LOOP 10.54 / loop-v231, dated in New York, one fix, and sw.js serves loop-v231',
+      /id: 'v10-54',\s*version: 'LOOP 10\.54',\s*title: 'Manual Workouts Stay Manual',\s*date: '2026-10-\d\d',\s*swVersion: 'loop-v231'/.test(raw) && /improvements: \[\],\s*bugFixes: \[\s*'[^']+'\s*\]/.test(D135_WHATSNEW) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v231'") !== -1);
   });
 }
 
@@ -55624,7 +55880,7 @@ async function testProductExperienceD132(){
     T('1  every D132 change is where it was written, once — the file reads back as LOOP 10.48', wasRaw !== null);
     T('2  …and that read-back is LOOP 10.48 to the byte (index.html of 4948cc7): no engine, no renderer, no handler, no record, no rule outside the system block moved', !!wasRaw && sha(wasRaw) === SHA_1048_HTML, wasRaw && sha(wasRaw));
     const PINS = {"deriveSessionExecution":"0498f3f2c0dd3c2c","sessionScore":"842e5699f8ac0835","computeAllPREvents":"94af217dbcf1f9ed","computePRs":"ff1f540c2ae3b46a","computeXPEvents":"cec5fa2cffc42db5","getCurrentProgression":"bf3a7572296c620c","computeMuscleRecovery":"d3589033bdb54c67","recoveryStripHtml":"6eb427476c25e796","progressionFor":"a992f11698e3e9e7","getProgramWorkoutForDate":"496d8572d640dc24","objectiveProgress":"e0889920b620163e","syncObjectives":"406ea6f01ae1b62e","deriveWorkingSetPlan":"b5c00dac1e00d09b","coachMayWriteSet":"0de96792fab27ca4","seedWarmupTargets":"9c048567ff49a1f1","suggestedWarmupSteps":"7e37069140f2527b","maybeRefreshWarmup":"bf55b39f07a6e2e4","splitRowForSwap":"78ed482b25517739","captureActiveDraft":"7ed552854d7f4526","restoreDraftToSheet":"33f0e4de3ce21e63","addLogExerciseRow":"be4678472bf41b62","appendSetRow":"61f2b7e061afde48","toggleSetComplete":"ed4187ee4b7b5e61","saveLog":"66c63714822ef5ee","openWorkoutSummary":"58c0ec576bb1bad2","renderSummaryScore":"be7971b69696ae40","openMasteryExercise":"d5ed0205fd603c1c","deriveExerciseDetail":"2e7f87f1c8567b0a","masteryPodiumCardHtml":"0c85f5f236685801","masteryViewHtml":"cfeb04f7ef9796a6","renderWeeklyReview":"b8e25f3b77b18cb5","renderToday":"4eddd61a7575f0e7","renderTodayWorkout":"7957f591c99febed","switchTab":"de35ef75d197810e","renderProgress":"45badcbf3a0defd5","renderExDetail":"752755306eaa5a44","renderProgramDetail":"2b47b25b6540176e","renderSettingsSocialRow":"4cd1dbb1731fbca4","computeConsistencyData":"5bfe9ebbb27ff11e","paintTabIcons":"db23ee85cb7633b8","tabIconSvg":"2386e6e0cddb2e3a"};
-    const moved = Object.keys(PINS).filter(n => (D134_EDITS[n] ? pinAsOf1052(n) : D131B_EDITS[n] ? pinAsOf1050(n) : pin(n)) !== PINS[n]);   // D134 restated: renderTodayWorkout read at 10.52 (Contract 253)   // D131B restated: toggleSetComplete, restoreDraftToSheet and maybeRefreshWarmup read at 10.50 (Contract 251)
+    const moved = Object.keys(PINS).filter(n => (D135_EDITS[n] ? pinAsOf1053(n) : D134_EDITS[n] ? pinAsOf1052(n) : D131B_EDITS[n] ? pinAsOf1050(n) : pin(n)) !== PINS[n]);   // D135 restated: the split read at 10.53 (Contract 254)   // D134 restated: renderTodayWorkout read at 10.52 (Contract 253)   // D131B restated: toggleSetComplete, restoreDraftToSheet and maybeRefreshWarmup read at 10.50 (Contract 251)
     T('3  the engines and surfaces it must not move are byte-identical to 10.48 — Session Score and the execution analysis, PRs, XP and level, recovery, D49, programs, objectives, D125’s plan, D127’s write boundary, D130’s warm-ups, D131A’s draft, E56/E58/E59 as recorded, the summary, Mastery (D128/D129), Exercise Detail, Weekly Review, Today — ' + Object.keys(PINS).length + ' pins',
       moved.length === 0, moved.join(','));
     T('3  the one statement D132 added to a function is switchProgTab’s aria-selected — and that function is otherwise 10.48’s',
@@ -55838,10 +56094,11 @@ async function testProductExperienceD132(){
       const ex = body.querySelectorAll('#logExercises .ex-log-row')[0], s1 = ex.querySelectorAll('.set-row')[0];
       const w = s1.querySelector('.set-weight-in'), r = s1.querySelector('.set-reps-in');
       w.value = '50'; call(w, 'oninput'); r.value = '10'; call(r, 'oninput'); call(s1.querySelector('.set-complete-btn'), 'onclick');
+      k.splitRowForSwap = compileSplit1053(k);   // D135 restated: E59 held through 10.53, closed in 10.54 (Contract 254) — read on 10.53's own split
       k.swapLogExercise(ex, 'Dumbbell Bench Press');
       rows = body.querySelectorAll('#logExercises .ex-log-row').map(x => [(x.querySelector('.ex-name-in') || {}).value, x.dataset.targetSets || '', x.dataset.slotName || '']);
     } finally { rel2(); }
-    T('40  E59 is held, not quietly fixed: an exercise added by hand, one set done, then swapped, still splits into a row asked for 1 set and a replacement asked for 2, slotted under the original (FINDINGS E59)',
+    T('10.53 replay — 40  E59 is held, not quietly fixed: an exercise added by hand, one set done, then swapped, still splits into a row asked for 1 set and a replacement asked for 2, slotted under the original (FINDINGS E59)',
       JSON.stringify(rows) === JSON.stringify([['Incline Dumbbell Press', '1', ''], ['Dumbbell Bench Press', '2', 'Incline Dumbbell Press']]), JSON.stringify(rows));
   });
 }
@@ -56066,6 +56323,7 @@ async function main(){
   await testLiveWarmupD131B();
   await testWorkoutRoomD133();
   await testDurationTruthD134();
+  await testSplitProvenanceD135();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

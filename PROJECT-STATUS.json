@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.53",
+  "version": "10.54",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: leave a workout open for 4+ hours. Today and Train say when it was started, and finishing it shows an estimated time, not hours.",
+  "nextAction": "Owner iPhone check: in a freeform workout, add an exercise, finish one set, swap the rest. Neither part says Instead of, and the summary shows no planned sets.",
   "blocker": null,
-  "updatedAt": "2026-10-08T01:20:50Z"
+  "updatedAt": "2026-10-08T09:49:20Z"
 }

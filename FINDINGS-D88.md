@@ -2047,7 +2047,23 @@ D47 itself is byte-identical: the ramp, the pattern rule, the different-exercise
 - A warm-up the athlete set, a working set and the prescription are never written.
 - Contract 251 (5, 14–34) and the browser QA at ten sizes measure it.
 
-## E59 — A swap part-way through an exercise added by hand gives it, and its replacement, a plan · P3 · PROVEN · OPEN
+## E59 — A swap part-way through an exercise added by hand gives it, and its replacement, a plan · P3 · PROVEN · **CLOSED in D135 (LOOP 10.54)**
+
+> **Closed in D135 (LOOP 10.54).** `splitRowForSwap` now divides only a plan the row already has. A row with a planned set
+> count (`targetSets`) splits exactly as before: finished part re-scoped to the sets done, replacement given the sets still to
+> do and the original's slot. A row without one (added by hand, freeform, or a manual full swap) gets no set count on either
+> part. `addLogExerciseRow` derives a slot only from a set count, so no slot follows: no slotName, no "Instead of … · Undo",
+> no `rx.sets`, no `planned`.
+> - Measured on 10.53: freeform Close-Grip Bench Press, Set 1 done, swapped to Dumbbell Bench Press, analysed as
+>   2 prescribed exercises and 4 prescribed sets (Session Score 100). Now: 0 prescribed sets, not scored. That is the same
+>   analysis as a freeform workout where Close-Grip was fully swapped.
+> - The replacement keeps the load a manual swap already gives it (`rxLoad`, saved as `rx.load`). That is exactly what a
+>   manual full swap does, so a manual swap now means one thing whether it happens before Set 1 or after it.
+> - A manual split offers no plan Undo, as a manual full swap offers none. A program split and its Undo are byte-for-byte
+>   10.53.
+> - No new field, no stored workout rewritten. 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow.
+>
+> See TRAINER-CONTRACT §176 and Contract 254. The original analysis is kept below.
 
 Found by D131A while mapping where an exercise's prescription comes from.
 

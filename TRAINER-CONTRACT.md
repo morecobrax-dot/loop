@@ -19329,3 +19329,41 @@ not built).
 Contract 253 drives the app's own start, draft, resume, render and save, and replays 10.52 from its own functions.
 
 **Not proven here.** How it reads on a physical iPhone.
+
+## §176 — A SPLIT DIVIDES THE PLAN A ROW HAS; IT NEVER WRITES ONE (D135 · LOOP 10.54 · loop-v231)
+
+**The rule.** A swap part-way through an exercise (`splitRowForSwap`) divides the plan the row already has, and only that.
+Whether a row is planned is read from the provenance it already carries: its planned set count, `dataset.targetSets`. That is
+the field every plan path writes (a template, a program slot, a full swap that inherits a slot). It is also the field
+`addLogExerciseRow` turns into a slot. Closes E59.
+- **A planned row** splits exactly as 10.53: the finished part keeps `targetSets` = the sets done, the replacement gets
+  `targetSets` = the sets still to do, the original's slotName and slotKey, its reps and recommended load, and "Instead of …
+  · Undo". The program Undo merges them back as before.
+- **A row with no planned set count** keeps none on either part. The finished part keeps everything it had (a manual full
+  swap's `rxLoad`, its effort, its sets). The replacement is made exactly as a manual full swap makes one: its own name, the
+  remaining sets with the athlete's values, the `rxLoad` a manual swap gives it, and no slot. So it shows no "Instead of", and
+  saves no `rx.sets` and no `planned`.
+
+**Why targetSets and nothing new.** No other signal is safe:
+- slotName is derived from targetSets;
+- `rxLoad` is also written by a manual full swap;
+- recommended and rxPlan are absent for the athlete's own values;
+- matching values (a hand-added 3 × 205 × 10 that equals a plan) say nothing about where they came from.
+The set count is the provenance the plan wrote, so the rule needs no new field and rewrites nothing stored.
+
+**What follows, unchanged in code.** `capturedPrescription`, `deriveSessionExecution`, Session Score, D49's
+`exerciseSessionHistory`, `refreshSetCoach`, `sessionCarriedOut`, the draft and the resume read what they always read; there
+is simply no manufactured set count for them to find. A freeform workout split mid-exercise is analysed as 0 prescribed sets
+and is not scored, as when the same swap happens before Set 1. A program split is analysed as before.
+
+**Never.** No new stored field, no history rewrite, no migration. 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow.
+D131A (restore never re-plans), D131B (the live warm-up; E56 and E58 closed), E62 (open), D132–D134, PR, XP, rank, Mastery,
+Recovery and volume are untouched.
+
+**Proof.** `asOf1053Html(raw)` takes D135's three hunks out and reads back LOOP 10.53 to the byte (`5aba360adbeb0e3a`).
+Contract 254 drives 18 classes through the app's own logger, draft, resume, save and analysis, on 10.54 and on a 10.53
+replay of the split. The replay runs 10.53's split as it shipped (`SPLIT_1053`, pinned `78ed482b25517739`), and a source
+check holds that 10.54 read back as 10.53 is exactly that text. Program, own-values, D50B, bodyweight, chained, undo and full-swap classes are identical to 10.53. Every
+hand-added and freeform class loses its manufactured plan and nothing else.
+
+**Not proven here.** How it reads on a physical iPhone.
