@@ -19290,3 +19290,42 @@ what must not move. The real geometry (ten sizes, portrait and landscape, the de
 re-entry, a simulated keyboard) is the QA rig's, reported with the release.
 
 **Not proven here.** How it reads on a physical iPhone.
+
+## §175 — A WORKOUT'S TIME IS SHOWN ONLY WHILE IT IS PLAUSIBLE (D134 · LOOP 10.53 · loop-v230)
+
+**The rule.** LOOP has no active time. A workout's start → finish span (startedAt when the sheet was opened, endedAt when it
+was saved, both epoch timestamps) is presented as the workout's time only while it is at most `workoutSpanLimitSec(entry)`:
+four hours, or three times the workout's own plannedMinutes when that is longer. A plan that is not a positive number counts
+as none, so a workout with no plan gets the four hours. A span exactly at the limit is shown; one second past it is not.
+
+**Why these numbers.** Every plan LOOP builds is 70 minutes or less: 156 library workouts (15–60 min) and 2,304 generated
+program sessions (25–70 min, the "75+ min" length included). Time Mode offers up to 90. So four hours is more than three
+times the longest of them. Three times the plan applies only to a custom workout planned past 80 minutes. The study
+(LOOP-planned sessions at 0.25–4× their plan, freeform workouts at the same multiples of LOOP's own estimate) found:
+- 43 of 25,740 spans at up to 3× their own expected time land past the limit. All are freeform, so they have no plan, and
+  their logged sets estimate 96 minutes or more.
+- Every span of four hours or less reads exactly as it did in 10.52.
+
+**Where it applies.** Inside D105's own predicate, `workoutElapsedSeconds`, so every surface that reads a finished
+workout's time agrees: the Summary, the Log day card, Day Detail and Weekly Review (including Timed training).
+- Past the limit, `workoutTimeOf` takes D105.1's existing branch: `{ kind: 'estimate', min: estimateLoggedDuration }`,
+  shown as "~N Est. minutes" or "~N min".
+- A workout in progress (Today's hero, Train's row: one formatter, `activeWorkoutTimeText`) shows its minutes exactly as
+  before while under the same limit. Past it, it says when it was started, in the words Friends uses for time:
+  "Started 8h ago" (the same day), "Started yesterday", "Started Aug 28".
+- The span is epoch milliseconds. "Yesterday" is the phone's own calendar.
+- Crossing midnight is not a reason on its own: 23:30 → 00:40 is a measured 1:10:00.
+
+**Never.** No new field: no activeSeconds, no pausedSeconds, no saved duration. No visibility, page-hide or focus listener,
+and no timer. startedAt and endedAt are never rewritten, and no stored workout changes. Session Score, volume, records, XP,
+rank, Mastery, Recovery, D49, D50B and the trainer do not read time; Contract 253 holds them identical with every third
+workout stretched to eight hours. 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow.
+
+**What this does not know.** A workout left open over a two-hour lunch and finished the same afternoon is under four hours,
+so its whole span still reads as its time. Only active time could tell, and LOOP does not have it (E63's options C and D,
+not built).
+
+**Proof.** `asOf1052Html(raw)` takes D134's six hunks out and reads back LOOP 10.52 to the byte (`e4f8a1b9da9edbec`).
+Contract 253 drives the app's own start, draft, resume, render and save, and replays 10.52 from its own functions.
+
+**Not proven here.** How it reads on a physical iPhone.

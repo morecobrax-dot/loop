@@ -19660,6 +19660,22 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-53',
+    version: 'LOOP 10.53',
+    title: 'More Honest Workout Time',
+    date: '2026-10-07',
+    swVersion: 'loop-v230',
+    summary: 'LOOP no longer counts a workout left open for hours as hours of training.',
+    newFeatures: [],
+    improvements: [
+      'A workout left unfinished for hours now shows when it was started, instead of a minute count that kept growing'
+    ],
+    bugFixes: [
+      'A workout whose start and finish are too far apart to be one session now shows an estimated time instead of a measured one'
+    ],
+    changes: []
   }
 ];
 
@@ -30305,7 +30321,7 @@ function renderTodayWorkout(){
       <div class="tw tw-wi wi-c-${wid.colorId} tw-${cat === 'rest' ? 'fullbody' : cat} tw-active">
         <div class="tw-label">Workout in progress</div>
         <div class="tw-title has-wi">${title}</div>
-        <div class="tw-meta">${info.mins ? info.mins + ' min · ' : ''}${info.summary}</div>
+        <div class="tw-meta">${info.time ? info.time + ' · ' : ''}${info.summary}</div>
         <button class="tw-cta" onclick="resumeActiveWorkout()">Resume</button>
         <button class="tw-discard" onclick="discardActiveWorkout()">Discard workout</button>
       </div>`;
@@ -31429,7 +31445,7 @@ function renderTrainResume(){
       <div class="tr-resume-main">
         <span class="tr-resume-k">Workout in progress</span>
         <span class="tr-resume-title">${escapeHtml(info.title)}</span>
-        ${info.summary ? `<span class="tr-resume-sub">${info.mins ? info.mins + ' min · ' : ''}${info.summary}</span>` : ''}
+        ${info.summary ? `<span class="tr-resume-sub">${info.time ? info.time + ' · ' : ''}${info.summary}</span>` : ''}
       </div>
       <button type="button" class="tl-start is-next" onclick="resumeActiveWorkout()"
         aria-label="${escapeAttr('Resume ' + info.title)}">Resume</button>
@@ -31748,7 +31764,34 @@ function workoutElapsedSeconds(entry){
   /* D105.1 — under half a second rounds to nothing, and nothing is not a
      duration: it would read 0:00. */
   const sec = Math.round(ms / 1000);
+  /* D134 (E63) — and only while the span is one a workout can plausibly take.
+     Past that, the pair still says when the sheet was opened and when it was
+     saved, but not how long anyone trained, so it is not a duration. */
+  if(sec > workoutSpanLimitSec(entry)) return null;
   return sec >= 1 ? sec : null;
+}
+
+/* D134 (E63) — THE LONGEST START → FINISH SPAN LOOP PRESENTS AS A WORKOUT'S TIME.
+   LOOP has no active time: no pause, nothing that notices a locked phone, a
+   closed app or a workout left open over lunch or overnight. startedAt is when
+   the sheet was opened and endedAt when it was saved, so a forgotten workout
+   finished hours later read as hours of training: "492 min" on Resume, and
+   8:12:00 as the Summary's Duration.
+   This does not measure training. It only says when the span is too long to
+   be one: four hours, or three times the workout's own plan when that is
+   longer. Every plan LOOP builds is 70 minutes or less (156 library workouts,
+   2,304 generated program sessions; Time Mode tops out at 90), so four hours
+   is well over three times the longest. A big custom workout planned past 80
+   minutes gets three times its plan. A workout with no plan gets the four
+   hours. plannedMinutes is context, never a duration. Nothing here is stored,
+   and startedAt and endedAt are never rewritten. Over the limit, a finished
+   workout reads as D105.1's estimate, and one in progress says when it was
+   started (activeWorkoutTimeText). */
+function workoutSpanLimitSec(entry){
+  const FLOOR_MINUTES = 240, PLAN_MULTIPLE = 3;
+  const planned = Number(entry && entry.plannedMinutes);
+  const plan = isFinite(planned) && planned > 0 ? planned : 0;
+  return Math.max(FLOOR_MINUTES, PLAN_MULTIPLE * plan) * 60;
 }
 
 /* D105.1 — the ONE reading of a logged workout's time, for every surface that
@@ -55103,6 +55146,26 @@ function draftSummaryLine(draft){
   return `${escapeHtml(last.name)} · ${totalDone}/${totalSets} sets completed`;
 }
 
+/* D134 (E63) — the time on a workout still in progress, for Today's hero and
+   Train's row alike. While the time since it was opened is one a workout can
+   plausibly take (workoutSpanLimitSec, the same limit its Summary will use),
+   it is the minutes, exactly as before. Past it, LOOP no longer knows how long
+   anyone has been training, only when the workout was started, so that is
+   what it says, in the words Friends already uses for time: "Started 8h ago",
+   "Started yesterday", "Started Aug 28". Epoch milliseconds for the span; the
+   phone's own calendar for "yesterday". */
+function activeWorkoutTimeText(draft, nowMs){
+  const start = Date.parse((draft && draft.startedAt) || '');
+  if(!isFinite(start)) return '';
+  const now = nowMs == null ? Date.now() : nowMs;
+  const ms = now - start;
+  if(Math.round(ms / 1000) <= workoutSpanLimitSec(draft)) return Math.max(1, Math.round(ms / 60000)) + ' min';
+  const startDay = localDateStr(new Date(start)), today = localDateStr(new Date(now));
+  if(startDay === today) return 'Started ' + Math.floor(ms / 3600000) + 'h ago';
+  if(startDay === addDaysISO(today, -1)) return 'Started yesterday';
+  return 'Started ' + new Date(start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 /* ONE workout hero (D24). This used to render a full "Workout in progress"
    card here AND let renderTodayWorkout() draw a second full card underneath
    whose button was also Resume — the same workout twice, two Resumes, half a
@@ -55134,6 +55197,8 @@ async function renderResumeBanner(){
       activeDraftInfo = {
         title: draft.title || CAT_LABEL[draft.category] || 'Workout',
         mins: started ? Math.max(1, Math.round((new Date() - started) / 60000)) : null,
+        /* D134 (E63) — what Today and Train show for it: the minutes, or when it was started */
+        time: activeWorkoutTimeText(draft),
         summary: draftSummaryLine(draft),
         identity: workoutIdentity(draft, draft.category)
       };

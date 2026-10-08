@@ -2133,7 +2133,18 @@ So, live:
 told not to retune D47. For the owner: should preparation count only work done before an exercise starts, and should an
 exercise already under way keep the strip it started with?
 
-## E63 — An active workout's time is the wall clock since it was opened, so one left open reads "492 min" and saves those hours as training time · P3 · PROVEN · OPEN
+## E63 — An active workout's time is the wall clock since it was opened, so one left open reads "492 min" and saves those hours as training time · P3 · PROVEN · **CLOSED in D134 (LOOP 10.53)**
+
+> **Closed in D134 (LOOP 10.53).** A workout's start → finish span is shown as its time only while it is at most four
+> hours, or three times its plan when that is longer (`workoutSpanLimitSec`, inside D105's `workoutElapsedSeconds`). Past
+> that, a finished workout reads as D105.1's estimate on every surface. A workout in progress says when it was started
+> ("Started 8h ago", "Started yesterday", "Started Aug 28"), on Today and Train alike.
+> - Nothing is stored and no timestamp is rewritten.
+> - Every span of four hours or less reads as before.
+> - The 492-minute workout now reads "Started 8h ago" while open, and "~N Est. minutes" once finished.
+>
+> Options A and B, as recommended. C and D (active time, a workout pause) are not built. See TRAINER-CONTRACT §175 and
+> Contract 253. The original analysis is kept below.
 
 Found by D133, from the owner's iPhone view of the Resume card ("492 min").
 

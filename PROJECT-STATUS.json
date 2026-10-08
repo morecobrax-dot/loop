@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.52",
+  "version": "10.53",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: open a workout. Only the home-indicator space sits below Previous / Skip / Next, more sets show, and Today / Train / Progress / Log return on exit.",
+  "nextAction": "Owner iPhone check: leave a workout open for 4+ hours. Today and Train say when it was started, and finishing it shows an estimated time, not hours.",
   "blocker": null,
-  "updatedAt": "2026-10-07T19:50:33Z"
+  "updatedAt": "2026-10-08T01:20:50Z"
 }

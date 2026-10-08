@@ -510,13 +510,13 @@ function asOfChain(name, tables){
   }
   return t;
 }
-function asOf1045(name){ return asOfChain(name, [D129_EDITS]); }
+function asOf1045(name){ return asOfChain(name, [D134_EDITS, D129_EDITS]); }   // D134 restated: every asOf chain undoes D134 first
 function pinAsOf1045(name){
   const t = asOf1045(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
 }
 /* 10.44 is 10.45 with D128 put back too: the D129 statements come out first, then D128's */
-function asOf1044(name){ return asOfChain(name, [D129_EDITS, D128_EDITS]); }
+function asOf1044(name){ return asOfChain(name, [D134_EDITS, D129_EDITS, D128_EDITS]); }   // D134 restated
 /* the named functions as 10.45 had them, installed in a loaded app for one call (a name 10.45 did not have is left undefined) */
 function withAsOf1045(c, names, fn){
   const vm = require('vm'), keep = names.map(n => c[n]);
@@ -568,7 +568,7 @@ const D130_EDITS = {
     "function seedWarmupTargets(exRow){ if(!exRow || !exRow.querySelectorAll) return 0; const bw = exRow.querySelector('.ex-bw-in'); if(bw && bw.checked) return 0; const steps = suggestedWarmupSteps(exRow); let place = 0, changed = 0; exRow.querySelectorAll('.set-row').forEach(sr => { if(sr.dataset.setType !== SET_TYPES.WARMUP) return; place++; const w = sr.querySelector('.set-weight-in'), r = sr.querySelector('.set-reps-in'); if(sr.classList.contains('completed') || !w || !r || w.disabled) return; const step = steps.length ? steps[Math.min(place, steps.length) - 1] : null; const loops = !w.dataset.userSet && !r.dataset.userSet; const load = step ? step.weight : ''; if(!w.dataset.userSet && (loops || w.value === '') && w.value !== load){ w.value = load; changed++; } if(step && !r.dataset.userSet && (loops || r.value === '') && r.value !== step.reps){ r.value = step.reps; r.dataset.v = step.reps; changed++; } }); return changed; }",
     ""]]
 };
-function asOf1046(name){ return asOfChain(name, [D131B_EDITS, D131A_EDITS, D130_EDITS]); }   // D131B, then D131A, restated: undo them first
+function asOf1046(name){ return asOfChain(name, [D134_EDITS, D131B_EDITS, D131A_EDITS, D130_EDITS]); }   // D134 restated   // D131B, then D131A, restated: undo them first
 function pinAsOf1046(name){
   const t = asOf1046(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -600,7 +600,7 @@ const D131A_EDITS = {
     "(draft.exercises || []).forEach(ex => { const meta = ex.meta || {}; const legacyPlanRow = meta.rxLoad === undefined && !ex.bodyweight && !!(meta.targetReps || ex.effort); const rec = legacyPlanRow ? progressionFor(ex.name, meta.targetReps, meta.recommended) : null; addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, meta); });",
     "(draft.exercises || []).forEach(ex => { const rec = ex.bodyweight ? null : progressionFor(ex.name, ex.meta && ex.meta.targetReps, ex.meta && ex.meta.recommended); addLogExerciseRow(ex.name, ex.effort, ex.bodyweight, ex.sets, ex.restSec, rec, ex.meta || {}); });"]]
 };
-function asOf1047(name){ return asOfChain(name, [D131B_EDITS, D131A_EDITS]); }   // D131B restated: undo D131B first
+function asOf1047(name){ return asOfChain(name, [D134_EDITS, D131B_EDITS, D131A_EDITS]); }   // D134 restated   // D131B restated: undo D131B first
 function pinAsOf1047(name){
   const t = asOf1047(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -674,7 +674,7 @@ const D131B_EDITS = {
 };
 /* the twelve functions D131B changed (the three it added have nothing to put back) */
 const D131B_LOGGER = Object.keys(D131B_EDITS).filter(n => D131B_EDITS[n].every(p => p[1] !== ''));
-function asOf1050(name){ return asOfChain(name, [D131B_EDITS]); }
+function asOf1050(name){ return asOfChain(name, [D134_EDITS, D131B_EDITS]); }   // D134 restated
 function pinAsOf1050(name){
   const t = asOf1050(name);
   return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
@@ -741,12 +741,112 @@ const D131B_RAW = [
     "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
    ]
 ];
+/* D134 (LOOP 10.53, E63) — a workout's time is presented only while its start → finish span is one a workout can plausibly
+   take (workoutSpanLimitSec: four hours, or three times its plan when that is longer). Six hunks: the limit inside D105's own
+   predicate (workoutElapsedSeconds) and its helper, the active card's one formatter (activeWorkoutTimeText) and the field
+   renderResumeBanner fills from it, the two lines Today's hero and Train's row show it on, and the What's New entry.
+   asOf1052Html(raw) takes them out and reads back LOOP 10.52 to the byte; every older read-back starts there. D134_EDITS
+   are the same statements on loop-tests' own reading of each function ([now, as of 10.52]); Contract 253 proves them. */
+const D134_RAW = [
+ [
+  "     duration: it would read 0:00. */\n  const sec = Math.round(ms / 1000);\n  /* D134 (E63) — and only while the span is one a workout can plausibly take.\n     Past that, the pair still says when the sheet was opened and when it was\n     saved, but not how long anyone trained, so it is not a duration. */\n  if(sec > workoutSpanLimitSec(entry)) return null;\n  return sec >= 1 ? sec : null;\n}\n\n/* D134 (E63) — THE LONGEST START → FINISH SPAN LOOP PRESENTS AS A WORKOUT'S TIME.\n   LOOP has no active time: no pause, nothing that notices a locked phone, a\n   closed app or a workout left open over lunch or overnight. startedAt is when\n   the sheet was opened and endedAt when it was saved, so a forgotten workout\n   finished hours later read as hours of training: \"492 min\" on Resume, and\n   8:12:00 as the Summary's Duration.\n   This does not measure training. It only says when the span is too long to\n   be one: four hours, or three times the workout's own plan when that is\n   longer. Every plan LOOP builds is 70 minutes or less (156 library workouts,\n   2,304 generated program sessions; Time Mode tops out at 90), so four hours\n   is well over three times the longest. A big custom workout planned past 80\n   minutes gets three times its plan. A workout with no plan gets the four\n   hours. plannedMinutes is context, never a duration. Nothing here is stored,\n   and startedAt and endedAt are never rewritten. Over the limit, a finished\n   workout reads as D105.1's estimate, and one in progress says when it was\n   started (activeWorkoutTimeText). */\nfunction workoutSpanLimitSec(entry){\n  const FLOOR_MINUTES = 240, PLAN_MULTIPLE = 3;\n  const planned = Number(entry && entry.plannedMinutes);\n  const plan = isFinite(planned) && planned > 0 ? planned : 0;\n  return Math.max(FLOOR_MINUTES, PLAN_MULTIPLE * plan) * 60;\n}\n\n/* D105.1 — the ONE reading of a logged workout's time, for every surface that",
+  "     duration: it would read 0:00. */\n  const sec = Math.round(ms / 1000);\n  return sec >= 1 ? sec : null;\n}\n\n/* D105.1 — the ONE reading of a logged workout's time, for every surface that"
+ ],
+ [
+  "  if(!last) return `${totalDone}/${totalSets} sets completed`;\n  return `${escapeHtml(last.name)} · ${totalDone}/${totalSets} sets completed`;\n}\n\n/* D134 (E63) — the time on a workout still in progress, for Today's hero and\n   Train's row alike. While the time since it was opened is one a workout can\n   plausibly take (workoutSpanLimitSec, the same limit its Summary will use),\n   it is the minutes, exactly as before. Past it, LOOP no longer knows how long\n   anyone has been training, only when the workout was started, so that is\n   what it says, in the words Friends already uses for time: \"Started 8h ago\",\n   \"Started yesterday\", \"Started Aug 28\". Epoch milliseconds for the span; the\n   phone's own calendar for \"yesterday\". */\nfunction activeWorkoutTimeText(draft, nowMs){\n  const start = Date.parse((draft && draft.startedAt) || '');\n  if(!isFinite(start)) return '';\n  const now = nowMs == null ? Date.now() : nowMs;\n  const ms = now - start;\n  if(Math.round(ms / 1000) <= workoutSpanLimitSec(draft)) return Math.max(1, Math.round(ms / 60000)) + ' min';\n  const startDay = localDateStr(new Date(start)), today = localDateStr(new Date(now));\n  if(startDay === today) return 'Started ' + Math.floor(ms / 3600000) + 'h ago';\n  if(startDay === addDaysISO(today, -1)) return 'Started yesterday';\n  return 'Started ' + new Date(start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });\n}\n\n/* ONE workout hero (D24).",
+  "  if(!last) return `${totalDone}/${totalSets} sets completed`;\n  return `${escapeHtml(last.name)} · ${totalDone}/${totalSets} sets completed`;\n}\n\n/* ONE workout hero (D24)."
+ ],
+ [
+  "        mins: started ? Math.max(1, Math.round((new Date() - started) / 60000)) : null,\n        /* D134 (E63) — what Today and Train show for it: the minutes, or when it was started */\n        time: activeWorkoutTimeText(draft),\n",
+  "        mins: started ? Math.max(1, Math.round((new Date() - started) / 60000)) : null,\n"
+ ],
+ [
+  "        <div class=\"tw-meta\">${info.time ? info.time + ' · ' : ''}${info.summary}</div>",
+  "        <div class=\"tw-meta\">${info.mins ? info.mins + ' min · ' : ''}${info.summary}</div>"
+ ],
+ [
+  "        ${info.summary ? `<span class=\"tr-resume-sub\">${info.time ? info.time + ' · ' : ''}${info.summary}</span>` : ''}",
+  "        ${info.summary ? `<span class=\"tr-resume-sub\">${info.mins ? info.mins + ' min · ' : ''}${info.summary}</span>` : ''}"
+ ],
+ [
+  "    changes: []\n  },\n  {\n    id: 'v10-53',\n    version: 'LOOP 10.53',\n    title: 'More Honest Workout Time',\n    date: '2026-10-07',\n    swVersion: 'loop-v230',\n    summary: 'LOOP no longer counts a workout left open for hours as hours of training.',\n    newFeatures: [],\n    improvements: [\n      'A workout left unfinished for hours now shows when it was started, instead of a minute count that kept growing'\n    ],\n    bugFixes: [\n      'A workout whose start and finish are too far apart to be one session now shows an estimated time instead of a measured one'\n    ],\n    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)",
+  "    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)"
+ ]
+];
+const D134_WHATSNEW = "  },\n  {\n    id: 'v10-53',\n    version: 'LOOP 10.53',\n    title: 'More Honest Workout Time',\n    date: '2026-10-07',\n    swVersion: 'loop-v230',\n    summary: 'LOOP no longer counts a workout left open for hours as hours of training.',\n    newFeatures: [],\n    improvements: [\n      'A workout left unfinished for hours now shows when it was started, instead of a minute count that kept growing'\n    ],\n    bugFixes: [\n      'A workout whose start and finish are too far apart to be one session now shows an estimated time instead of a measured one'\n    ],\n    changes: []\n";
+const SHA_1052_HTML = 'e4f8a1b9da9edbec';   /* index.html of LOOP 10.52 (d74b26e), LF */
+function asOf1052Html(raw){
+  let t = raw;
+  for(const [now, then] of D134_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
+}
+const D134_EDITS = {
+ "workoutElapsedSeconds": [
+  [
+   "if(sec > workoutSpanLimitSec(entry)) return null; ",
+   ""
+  ]
+ ],
+ "renderResumeBanner": [
+  [
+   "time: activeWorkoutTimeText(draft), ",
+   ""
+  ]
+ ],
+ "renderTodayWorkout": [
+  [
+   "info.time ? info.time + ' · ' ",
+   "info.mins ? info.mins + ' min · ' "
+  ]
+ ],
+ "renderTrainResume": [
+  [
+   "info.time ? info.time + ' · ' ",
+   "info.mins ? info.mins + ' min · ' "
+  ]
+ ],
+ "workoutSpanLimitSec": [
+  [
+   "function workoutSpanLimitSec(entry){ const FLOOR_MINUTES = 240, PLAN_MULTIPLE = 3; const planned = Number(entry && entry.plannedMinutes); const plan = isFinite(planned) && planned > 0 ? planned : 0; return Math.max(FLOOR_MINUTES, PLAN_MULTIPLE * plan) * 60; }",
+   ""
+  ]
+ ],
+ "activeWorkoutTimeText": [
+  [
+   "function activeWorkoutTimeText(draft, nowMs){ const start = Date.parse((draft && draft.startedAt) || ''); if(!isFinite(start)) return ''; const now = nowMs == null ? Date.now() : nowMs; const ms = now - start; if(Math.round(ms / 1000) <= workoutSpanLimitSec(draft)) return Math.max(1, Math.round(ms / 60000)) + ' min'; const startDay = localDateStr(new Date(start)), today = localDateStr(new Date(now)); if(startDay === today) return 'Started ' + Math.floor(ms / 3600000) + 'h ago'; if(startDay === addDaysISO(today, -1)) return 'Started yesterday'; return 'Started ' + new Date(start).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }); }",
+   ""
+  ]
+ ]
+};
+/* the four functions D134 changed (the two it added have nothing to put back; workoutElapsedSeconds's own pair puts back
+   nothing because D134 only ADDED a statement to it) */
+const D134_LOGGER = Object.keys(D134_EDITS).filter(n => !D134_EDITS[n].some(p => p[1] === '' && p[0].indexOf('function ' + n + '(') === 0));
+function asOf1052(name){ return asOfChain(name, [D134_EDITS]); }
+function pinAsOf1052(name){
+  const t = asOf1052(name);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+/* one function as 10.52 had it, compiled into a loaded app (an async one stays async; a name 10.52 did not have is undefined) */
+function compileAsOf1052(c, name){
+  const s = asOf1052(name);
+  if(s === null) throw new Error(name + ' cannot be read back as 10.52: a D134 statement moved');   // never a silent hole in a replay
+  if(!s) return undefined;
+  const isAsync = require('fs').readFileSync(H.APP_PATH, 'utf8').indexOf('async function ' + name + '(') !== -1;
+  return require('vm').runInContext('(' + (isAsync ? 'async ' : '') + s + ')', c);
+}
+/* the named functions as 10.52 had them, installed in a loaded app for one call */
+function withAsOf1052(c, names, fn){
+  const keep = names.map(n => c[n]), compiled = names.map(n => compileAsOf1052(c, n));   // compile all first: a throw leaves the app untouched
+  names.forEach((n, i) => { c[n] = compiled[i]; });
+  try{ return fn(); } finally { names.forEach((n, i) => { c[n] = keep[i]; }); }
+}
 /* D133 (LOOP 10.52) is CSS only: one block at the end of the D132 system block and one What's New entry. Taking both out reads back LOOP 10.51
    to the byte, and every older read-back (10.50, 10.49, 10.48) starts from there. */
 const SHA_1051_HTML = '05f6bafc2b0ba81b';   /* index.html of LOOP 10.51 (3a7265b), LF */
 const D133_CSS = "/* D133 — THE WORKOUT IS ONE SURFACE, EDGE TO EDGE, AND THE SETS COME FIRST.\n   The workout is a page laid over the app (a fixed, full-screen overlay), so the app's tab bar is never in its\n   layout: nothing is reserved for it. What read as a footer was the dock itself. It was a 97px slab — the same\n   height as the tab bar beneath it — in its own lighter surface under a hairline, with the bottom safe area\n   (34px on an iPhone) painted inside it as an empty band: 12px above the buttons, 34px of \"footer\" below them.\n   Now the dock is the page: the same ground as the workout, no rule, a short fade where the sets run under it,\n   and below the buttons only the real inset (8px on a phone that has none). The sets scroll to the dock's edge\n   and end one clear step above the fade, so the last set and Add Set are never covered.\n   The rest of this block takes the room the sets need from above them: the top bar and the first gaps are\n   tighter, and Last time and Note share one row while the note is empty. Every touch target keeps its size, and\n   the set rows themselves are untouched. */\n#logOverlay .ws-nav{\n  position: relative; background: var(--bg); border-top: none;\n  padding-top: var(--space-2); padding-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));\n}\n#logOverlay .ws-nav::before{\n  content: \"\"; position: absolute; left: 0; right: 0; bottom: 100%; height: var(--space-3);\n  background: linear-gradient(to top, var(--bg), transparent); pointer-events: none;\n}\n#logOverlay .ws-rest:not([hidden]) + .ws-nav::before{ display: none; }\n#logOverlay .sheet-actions{\n  background: var(--bg); border-top: none;\n  padding-top: var(--space-2); padding-bottom: max(var(--space-2), env(safe-area-inset-bottom, 0px));\n}\n#logOverlay .workout-topbar{ padding-top: calc(6px + env(safe-area-inset-top, 0px)); padding-bottom: 6px; }\n#logOverlay .workout-topbar + .sheet-scroll{ padding-top: var(--space-2); padding-bottom: var(--space-6); }\n#logOverlay .ws-head{ padding-top: var(--space-2); padding-bottom: 8px; }\n#logOverlay .ws-title{ margin-top: var(--space-2); }\n#logOverlay .ex-actions{ margin-top: 6px; }\n#logOverlay .ex-brief{ margin-top: var(--space-2); display: grid; grid-template-columns: minmax(0, 1fr) auto; }\n#logOverlay .ex-brief > *{ grid-column: 1 / -1; }\n#logOverlay .ex-brief > .ex-context{ grid-column: 1; grid-row: 1; }\n#logOverlay .ex-brief > .ex-note-wrap{ grid-column: 2; grid-row: 1; display: flex; align-items: center; }\n#logOverlay .ex-brief .ex-context-btn{ min-height: 44px; gap: var(--space-2); }\n#logOverlay .ex-brief .ex-note-btn{ width: auto; padding: 0 var(--space-3); justify-content: center; }\n#logOverlay .ex-brief > .ex-note-wrap:has(.ex-note-memory),\n#logOverlay .ex-brief:has(> .ex-context.open) > .ex-note-wrap,\n#logOverlay .ex-brief:has(> .ex-context.is-empty) > .ex-note-wrap{ grid-column: 1 / -1; grid-row: auto; display: block; }\n#logOverlay .ex-brief:has(> .ex-note-wrap .ex-note-memory) > .ex-context,\n#logOverlay .ex-brief:has(> .ex-context.open) > .ex-context{ grid-column: 1 / -1; }\n#logOverlay .ex-brief:has(> .ex-context.open) .ex-note-btn,\n#logOverlay .ex-brief:has(> .ex-context.is-empty) .ex-note-btn{ width: 100%; justify-content: flex-start; }\n@media (max-width: 359px){\n  #logOverlay .ex-brief > .ex-context{ grid-column: 1 / -1; }\n  #logOverlay .ex-brief > .ex-note-wrap{ grid-column: 1 / -1; grid-row: auto; display: block; }\n  #logOverlay .ex-brief .ex-note-btn{ width: 100%; justify-content: flex-start; }\n}\n#logOverlay .ex-brief .warmup-box{ padding: 10px var(--space-3); }\n#logOverlay .ex-brief .warmup-label{ margin-bottom: 6px; }\n#logOverlay .ex-sets-bar{ margin-top: var(--space-2); }\n#logOverlay .ex-log-row .sets-list{ margin-top: 0; }\n";
 const D133_WHATSNEW = "  },\n  {\n    id: 'v10-52',\n    version: 'LOOP 10.52',\n    title: 'More Room to Train',\n    date: '2026-10-07',\n    swVersion: 'loop-v229',\n    summary: 'The workout screen now uses the full height of your phone, with more room for your sets.',\n    newFeatures: [],\n    improvements: [\n      'The workout controls now sit directly above your phone’s safe area, with no empty footer beneath them',\n      'More of your sets show before you scroll: Last time and Note share a row, and the space above your sets is tighter'\n    ],\n    bugFixes: [],\n    changes: []\n";
 function asOf1051Html(raw){
+  raw = asOf1052Html(raw); if(raw === null) return null;   // D134 restated: 10.53 reads back as 10.52 first
   if(raw.split(D133_CSS).length !== 2 || raw.split(D133_WHATSNEW).length !== 2) return null;
   return raw.replace(D133_CSS, () => '').replace(D133_WHATSNEW, () => '');
 }
@@ -43886,8 +43986,12 @@ async function testWorkoutTimeTruthD1051(){
       agree(r.missed) && r.missed.log.kind === 'estimate' && !/3:12/.test(r.missed.meta + r.missed.sub + r.missed.summaryHtml), show(r.missed));
     T('F — over an hour: 2:05:09 on all three, never a minutes-only 125:09', agree(r.twoHours) && r.twoHours.log.value === '2:05:09'
       && !/125:09/.test(r.twoHours.meta + r.twoHours.sub + r.twoHours.summaryHtml), show(r.twoHours));
-    T('G — a timer left running past a day renders safely and identically: 26:13:02, no NaN',
-      agree(r.dayLong) && r.dayLong.log.value === '26:13:02' && !/NaN|undefined|Infinity/.test(r.dayLong.meta + r.dayLong.sub + r.dayLong.summaryHtml), show(r.dayLong));
+    /* D134 restated: a timer left running past a day is past the span LOOP presents as a workout's time (Contract 253): every
+       surface now agrees on the estimate. On 10.52's own predicate it still reads 26:13:02 on all three, no NaN. */
+    let dayLong1052 = null; withAsOf1052(ctx, ['workoutElapsedSeconds'], () => { dayLong1052 = read3(byId('dayLong')); });
+    T('G — a timer left running past a day renders safely and identically: the same estimate on all three (10.52: 26:13:02), no NaN',
+      agree(r.dayLong) && r.dayLong.log.kind === 'estimate' && !/NaN|undefined|Infinity|26:13:02/.test(r.dayLong.meta + r.dayLong.sub + r.dayLong.summaryHtml) &&
+      !!dayLong1052 && agree(dayLong1052) && dayLong1052.log.value === '26:13:02' && !/NaN|undefined|Infinity/.test(dayLong1052.meta + dayLong1052.sub + dayLong1052.summaryHtml), [show(r.dayLong), dayLong1052 && show(dayLong1052)]);
     T('no fake 0:00: a timer under half a second is not a duration, and every surface falls back to the estimate',
       agree(r.blink) && r.blink.log.kind === 'estimate' && !/0:00/.test(r.blink.meta + r.blink.sub + r.blink.summaryHtml), show(r.blink));
     T('no time evidence at all: no time on the Log or Full workout, a dash on the summary — nothing invented',
@@ -44296,7 +44400,8 @@ async function testMasteryTourD106(){
        session now (E30) — never a stale first-of-the-day entry left behind
        once a second session that day is also logged. */
     /* D125 restated: completing a warm-up no longer runs the coach; held at 10.41 by D125_EDITS. */
-    T('the real Today card, the stepper and logging are byte-identical', pin('renderTodayWorkout') === '7957f591c99febed' && pin('renderWorkoutStep') === 'f92999bce55ec36b' && pinAsOf1041('toggleSetComplete') === '46059f0d3306793b');
+    /* D134 restated: Today's hero shows the workout in progress through activeWorkoutTimeText (Contract 253); read at 10.52 */
+    T('the real Today card, the stepper and logging are byte-identical', pinAsOf1052('renderTodayWorkout') === '7957f591c99febed' && pin('renderWorkoutStep') === 'f92999bce55ec36b' && pinAsOf1041('toggleSetComplete') === '46059f0d3306793b');
   });
 }
 
@@ -47286,7 +47391,8 @@ async function testStartupRevealD114(){
      Warm-up asks D47 again, the strips only, Contract 251). It comes out first, then D131A's and D125's as before. */
   const D131B_RESTORE = ["      }\n    }\n  });\n   \n  refreshSuggestedWarmups({ reconcile: false });\n\n  if(draft.sho", "      }\n    }\n  });\n\n  if(draft.sho"];
   T('restoreDraftToSheet carries the one D131B statement, once', fnSrc(raw, 'restoreDraftToSheet').split(D131B_RESTORE[0]).length === 2);
-  const moved = Object.keys(PINS).filter(n => sha(n === 'renderAll' ? fnSrc(raw, n).replace(D118_RENDER_ALL, '') : n === 'restoreDraftToSheet' ? fnSrc(raw, n).split(D131B_RESTORE[0]).join(D131B_RESTORE[1]).split(D131A_RESTORE[0]).join(D131A_RESTORE[1]).split(D125_RESTORE[0]).join(D125_RESTORE[1]) : fnSrc(raw, n)) !== PINS[n]);
+  const moved = Object.keys(PINS).filter(n => sha(D134_EDITS[n] ? fnSrc(asOf1052Html(raw) || '', n) : n === 'renderAll' ?   // D134 restated: renderResumeBanner and renderTodayWorkout read at 10.52 (Contract 253)
+     fnSrc(raw, n).replace(D118_RENDER_ALL, '') : n === 'restoreDraftToSheet' ? fnSrc(raw, n).split(D131B_RESTORE[0]).join(D131B_RESTORE[1]).split(D131A_RESTORE[0]).join(D131A_RESTORE[1]).split(D125_RESTORE[0]).join(D125_RESTORE[1]) : fnSrc(raw, n)) !== PINS[n]);
   T('all 18 startup-adjacent functions are unchanged: boot, both screens, the D106 tour decision and start, the draft load/restore/banner/flush, the update reload, tabs, Today',
     moved.length === 0, moved);
   T('storage is untouched: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow', (() => {
@@ -55065,11 +55171,14 @@ function d133Len(v, tokens, env){
 async function testWorkoutRoomD133(){
   section('CONTRACT 252 — the workout is one full-height surface, and the sets come first (D133)');
   const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
-  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  /* D134 restated: everything D133 claimed is a claim about LOOP 10.52, so this contract reads the file as 10.52 (D134's six
+     hunks put back). The 492-minute reproduction (31–34) is replayed on 10.52's own functions; Contract 253 holds what
+     changed. */
+  const raw0 = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n'), raw = asOf1052Html(raw0) || '';
   const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
   const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
   const col = s => String(s).replace(/\s+/g, ' ').trim();
-  const was = asOf1051Html(raw);
+  const was = asOf1051Html(raw0);   // D134 restated: the current file, read back to 10.51
   const styleOf = t => t ? t.slice(t.indexOf('<style>'), t.indexOf('</style>')) : '';
   const cssNow = styleOf(raw), cssWas = styleOf(was);
   const tokensOf = css => { const root = css.slice(css.indexOf(':root{'), css.indexOf('\n}', css.indexOf(':root{'))); const t = {}; root.slice(root.indexOf('{') + 1).replace(/\/\*[\s\S]*?\*\//g, '').split(';').forEach(d => { const m = /^\s*(--[\w-]+)\s*:\s*([\s\S]+?)\s*$/.exec(d); if(m) t[m[1]] = m[2]; }); return t; };
@@ -55227,6 +55336,7 @@ async function testWorkoutRoomD133(){
     const NOW = '2026-10-04T09:00:00', LATER = '2026-10-04T17:12:00';   /* 8 h 12 min = 492 min */
     const app = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify([]), onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) });
     const c = app.ctx; let rel = pinClock(c, NOW); try{ await H.settle(300); } finally { rel(); }
+    { const compiled = D134_LOGGER.map(n => compileAsOf1052(c, n)); D134_LOGGER.forEach((n, i) => { c[n] = compiled[i]; }); }   // D134 restated: 10.52's own functions
     const D = miniDomD125(), bodyEl = D.el('body');
     bodyEl.innerHTML = '<div id="logOverlay"><div class="sheet-scroll"><div id="logExercises"></div></div></div><div id="coachLive"></div><div id="setTypeOverlay"></div><div id="setTypeBody"></div>';
     const byId = id => bodyEl.querySelector('#' + id), stub = c.document.getElementById.bind(c.document);
@@ -55251,14 +55361,15 @@ async function testWorkoutRoomD133(){
       saved = c.workoutLog.length > before ? c.workoutLog[c.workoutLog.length - 1] : null;
       if(saved){ elapsed = c.workoutElapsedSeconds(saved); time = c.workoutTimeOf(saved); }
     } finally { rel(); }
-    T('31  the clock is the wall clock: the start is stamped once when the workout is opened (startedAt = ' + started0 + ') and the draft keeps that stamp', typeof started0 === 'string' && started0.indexOf('2026-10-04T') === 0 && draft && draft.startedAt === started0, [started0, draft && draft.startedAt]);
-    T('32  REPRODUCED — a workout left open eight hours reads “492 min”: the Resume card draws now − startedAt in whole minutes, nothing else (no pause, no active time, nothing taken off for a locked phone or a closed app)', !!info && info.mins === 492 && /492 min · /.test(banner), [info && info.mins, banner.slice(0, 200)]);
-    T('33  …and resuming does not restart it: the restored workout carries the original start', !!info && info.resumedStart === started0, info && info.resumedStart);
-    T('34  …and finishing it saves that same span as the workout’s measured duration: endedAt − startedAt = 8 h 12 min, read back as an ACTUAL 29,520 s (D105 trusts any span that starts on the workout’s own date) — so an abandoned workout finished the same day records its idle hours as training time',
+    T('10.52 replay — 31  the clock is the wall clock: the start is stamped once when the workout is opened (startedAt = ' + started0 + ') and the draft keeps that stamp', typeof started0 === 'string' && started0.indexOf('2026-10-04T') === 0 && draft && draft.startedAt === started0, [started0, draft && draft.startedAt]);
+    T('10.52 replay — 32  REPRODUCED — a workout left open eight hours reads “492 min”: the Resume card draws now − startedAt in whole minutes, nothing else (no pause, no active time, nothing taken off for a locked phone or a closed app)', !!info && info.mins === 492 && /492 min · /.test(banner), [info && info.mins, banner.slice(0, 200)]);
+    T('10.52 replay — 33  …and resuming does not restart it: the restored workout carries the original start', !!info && info.resumedStart === started0, info && info.resumedStart);
+    T('10.52 replay — 34  …and finishing it saves that same span as the workout’s measured duration: endedAt − startedAt = 8 h 12 min, read back as an ACTUAL 29,520 s (D105 trusts any span that starts on the workout’s own date) — so an abandoned workout finished the same day records its idle hours as training time',
       !!saved && elapsed === 29520 && !!time && time.kind === 'actual' && time.sec === 29520, [saved && [saved.startedAt, saved.endedAt], elapsed, time, info && info.saveErr]);
     const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
-    T('35  it is recorded, not patched: E63 states the reproduction, the current semantics, the product options and a recommendation, and is OPEN',
-      /## E63 — [^\n]*· OPEN/.test(fx) && /492/.test(fx.slice(fx.indexOf('## E63'))) && /Options/.test(fx.slice(fx.indexOf('## E63'))) && /Recommendation/.test(fx.slice(fx.indexOf('## E63'))));
+    /* D134 restated: E63 was recorded OPEN by D133 and is CLOSED by D134 (Contract 253) */
+    T('35  it is recorded, not patched: E63 states the reproduction, the current semantics, the product options and a recommendation (OPEN in 10.52, closed by D134)',
+      /## E63 — [^\n]*· (OPEN|\*\*CLOSED in D134)/.test(fx) && /492/.test(fx.slice(fx.indexOf('## E63'))) && /Options/.test(fx.slice(fx.indexOf('## E63'))) && /Recommendation/.test(fx.slice(fx.indexOf('## E63'))));
     T('36  What’s New says nothing about duration: the release changed none', !/duration|minutes|492|elapsed/i.test(D133_WHATSNEW));
   });
 
@@ -55267,15 +55378,213 @@ async function testWorkoutRoomD133(){
   await guard('release', async () => {
     const sw = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8');
     T('37  What’s New v10-52 “More Room to Train” is LOOP 10.52 / loop-v229, dated in New York, with two improvements that are measured claims and nothing else',
-      /id: 'v10-52',\s*version: 'LOOP 10\.52',\s*title: 'More Room to Train',\s*date: '2026-10-0\d',\s*swVersion: 'loop-v229'/.test(raw) && /improvements: \[\s*'[^']+',\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D133_WHATSNEW) && sw.indexOf("CACHE_VERSION = 'loop-v229'") !== -1);
+      /id: 'v10-52',\s*version: 'LOOP 10\.52',\s*title: 'More Room to Train',\s*date: '2026-10-0\d',\s*swVersion: 'loop-v229'/.test(raw) && /improvements: \[\s*'[^']+',\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D133_WHATSNEW) && /CACHE_VERSION = 'loop-v2(29|[3-9]\d)'/.test(sw));   // D134 restated: sw.js serves the newest release (Contract 253 holds loop-v230)
     const ps = JSON.parse(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'PROJECT-STATUS.json'), 'utf8'));
-    T('38  PROJECT-STATUS says 10.52, needs QA (the owner’s iPhone pass), and its next action is under 200 characters', ps.version === '10.52' && ps.needsQa === true && ps.nextAction.length <= 200 && ps.nextAction.length > 20, [ps.version, ps.nextAction.length]);
+    /* D134 restated: PROJECT-STATUS moves with every release; 10.52 or later */
+    T('38  PROJECT-STATUS says 10.52 (or later), needs QA (the owner’s iPhone pass), and its next action is under 200 characters', /^10\.(5[2-9]|[6-9]\d)$/.test(ps.version) && ps.needsQa === true && ps.nextAction.length <= 200 && ps.nextAction.length > 20, [ps.version, ps.nextAction.length]);
     const tc = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'TRAINER-CONTRACT.md'), 'utf8');
     T('39  TRAINER-CONTRACT §174 records that the workout page is full-height and that D133 touched no engine', /§174|## 174/.test(tc) && /full-height|full height/.test(tc.slice(tc.indexOf('174'))) && /Contract 252/.test(tc));
     T('40  the app shell the service worker precaches is still one page: no new file, no new asset', /index\.html/.test(sw) && (sw.match(/\.(css|js|png|webp|svg)\b/g) || []).length === (fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').match(/\.(css|js|png|webp|svg)\b/g) || []).length);
     const evt = [...raw.matchAll(/id: 'v10-\d+',/g)].map(m => m[0]);
     T('41  What’s New keeps its order: v10-52 is the newest and v10-51 the one before it', evt.length >= 2 && evt[evt.length - 1] === "id: 'v10-52'," && evt[evt.length - 2] === "id: 'v10-51',", evt.slice(-3));
     T('42  the stylesheet block is small and named: one D133 comment, under 70 lines, at the end of the D132 system block, in LOOP’s own tokens', D133_CSS.split('\n').length < 70 && /^\/\* D133 — /.test(D133_CSS) && blockAt > 0);
+  });
+}
+
+/* CONTRACT 253 — D134 (E63). LOOP has no active time, so it no longer passes a span it cannot vouch for as one: past
+   workoutSpanLimitSec (four hours, or three times the workout's own plan when that is longer) a workout in progress says when
+   it was started, and a finished one reads as D105.1's estimate. Every claim below is driven through the app's own start,
+   draft, resume, render and save; 10.52 is replayed from its own functions (D134_EDITS put back). */
+async function testDurationTruthD134(){
+  section('CONTRACT 253 — a workout left open for hours is not hours of training (D134, E63)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const was = asOf1052Html(raw);
+  const same = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+  const iso = local => new Date(local).toISOString();
+  /* the app, its logger on miniDomD125 and the real Today / Train elements; at1052 installs 10.52's own functions */
+  const mount = async (log, o) => {
+    o = o || {};
+    const app = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log || []), onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) });
+    const c = app.ctx; let rel = pinClock(c, o.at || '2026-10-04T08:00:00'); try{ await H.settle(300); } finally { rel(); }
+    const D = miniDomD125(), bodyEl = D.el('body');
+    bodyEl.innerHTML = '<div id="logOverlay"><div class="sheet-scroll"><div id="logExercises"></div></div></div><div id="coachLive"></div><div id="setTypeOverlay"></div><div id="setTypeBody"></div>';
+    const byId = id => bodyEl.querySelector('#' + id), stub = c.document.getElementById.bind(c.document);
+    Object.assign(c.document, { getElementById: id => byId(id) || stub(id), createElement: tag => D.el(tag), querySelectorAll: sel => bodyEl.querySelectorAll(sel), querySelector: sel => bodyEl.querySelector(sel) });
+    Object.assign(c, { openLogSheet(){ byId('logOverlay').classList.add('open'); }, onWorkoutRowAdded(){}, renderWorkoutStep(){}, confirm(){ return true; } });
+    /* every listener the flow registers from here on, on the document and the window */
+    const listened = [];
+    [c.document, c].forEach(t => { const orig = t.addEventListener; t.addEventListener = function(type){ listened.push(String(type)); return typeof orig === 'function' ? orig.apply(this, arguments) : undefined; }; });
+    const like = c.DEFAULT_PLANS.balanced.templates.push[0].exercises[0];
+    const mk = (id, ex) => ({ id, name: 'QA ' + id, exercises: ex.map(x => Object.assign({}, like, x)) });
+    const TPL = [mk('qa-45', [{ name: 'Bench Press', sets: 3, reps: '8-12', recommended: '185', effort: '8' }, { name: 'Incline Bench Press', sets: 3, reps: '8-12', recommended: '135', effort: '8' }]),
+      mk('qa-big', Array.from({ length: 9 }, (x, i) => ({ name: ['Bench Press', 'Incline Bench Press', 'Overhead Press', 'Dumbbell Bench Press', 'Cable Fly', 'Lateral Raise', 'Triceps Pushdown', 'Close-Grip Bench Press', 'Pec Deck'][i], sets: 5, reps: '3-5', recommended: '100', effort: '8' })))];
+    const getT = c.getTemplates; c.getTemplates = cat => cat === 'push' ? (getT(cat) || []).concat(TPL) : getT(cat);
+    const keep = {};
+    if(o.at1052){ const compiled = D134_LOGGER.map(n => compileAsOf1052(c, n)); D134_LOGGER.forEach((n, i) => { keep[n] = c[n]; c[n] = compiled[i]; }); }
+    return { app, c, byId, bodyEl, listened, release: () => Object.keys(keep).forEach(n => { c[n] = keep[n]; }) };
+  };
+  /* start at `start` (a template, or freeform), come back at `back`: what Today and Train say, then finish it there */
+  const scenario = async (start, back, o) => {
+    o = o || {};
+    const L = await mount([], Object.assign({ at: start }, o)), c = L.c;
+    let rel = pinClock(c, start); const r = {};
+    try{ await c.clearActiveDraft(); if(o.freeform){ await c.openFreeformLog(); c.addLogExerciseRow('Bench Press', '', false, [{ weight: '185', reps: '8' }, { weight: '185', reps: '8' }]); c.pickLogCategory('push'); c.document.getElementById('logTitle').value = 'Freeform QA'; }
+      else await c.startTemplateLog('push', o.tpl || 'qa-45');
+      c.persistDraftNow(); await H.settle(100); r.draft0 = await c.loadActiveDraft(); } finally { rel(); }
+    rel = pinClock(c, back);
+    try{
+      L.byId('logOverlay').classList.remove('open'); await c.renderResumeBanner(); r.info = Object.assign({}, c.activeDraftInfo);
+      r.today = (c.document.getElementById('todayWorkout') || {}).innerHTML || ''; r.train = (c.document.getElementById('trainResume') || {}).innerHTML || '';
+      const meta = /<div class="tw-meta">([^<]*)/.exec(r.today); r.todayMeta = meta ? meta[1] : null;
+      const sub = /<span class="tr-resume-sub">([^<]*)/.exec(r.train); r.trainMeta = sub ? sub[1] : null;
+      if(o.finish !== false){
+        L.byId('logOverlay').classList.add('open'); c.restoreDraftToSheet(JSON.parse(JSON.stringify(r.draft0)));
+        L.bodyEl.querySelectorAll('#logExercises .ex-log-row').forEach(ex => ex.querySelectorAll('.set-row').forEach(sr => { sr.querySelector('.set-weight-in').value = sr.querySelector('.set-weight-in').value || '185'; sr.querySelector('.set-reps-in').value = sr.querySelector('.set-reps-in').value || '8'; sr.classList.add('completed'); }));
+        const n0 = c.workoutLog.length; c.saveLog(); await H.settle(300); try{ c.closeSummary(); }catch(e){}
+        r.saved = c.workoutLog.length > n0 ? JSON.parse(JSON.stringify(c.workoutLog[c.workoutLog.length - 1])) : null;
+        if(r.saved){ const e = c.workoutLog[c.workoutLog.length - 1]; r.time = c.workoutTimeOf(e); r.short = c.workoutTimeShort(e); r.stat = c.summaryTimeStat(e); r.est = c.estimateLoggedDuration(e);
+          r.card = c.sdCardHtml(e, 'Sunday, October 4'); try{ c.openDayDetail(e.id); r.detail = (c.document.getElementById('dayDetailSub') || {}).innerHTML || ''; }catch(x){ r.detail = 'threw ' + x.message; }
+          /* Weekly Review reads COMPLETED weeks: read it from the Monday after, when this week is one */
+          const rel2 = pinClock(c, '2026-10-12T12:00:00');
+          try{ const rv = c.deriveWeeklyReview(c.weekKeyOf(e.date)); r.review = rv ? { time: (rv.workoutsList.find(w => w.id === e.id) || {}).time, timed: rv.timed } : null; }catch(x){ r.review = 'threw ' + x.message; } finally { rel2(); }
+          r.storeLog = L.app.store.workoutLog; }
+      }
+    } finally { rel(); L.release(); }
+    r.listened = L.listened.slice();
+    return r;
+  };
+  const metaTime = m => m == null ? null : (/^(\d+ min|Started [^·]+?) · /.exec(m) || [])[1] || '';
+
+  /* ---------------------------------------------------------------- */
+  sub('1–5  the card on Today and Train: minutes while plausible, when it was started after that');
+  await guard('card', async () => {
+    const old = await scenario('2026-10-04T09:00:00', '2026-10-04T17:12:00', { at1052: true, finish: false });
+    T('10.52 replay — 1  E63 on 10.52’s own functions (the four D134 changed, put back): opened at 09:00 and back at 17:12, Today and Train both read “492 min”',
+      JSON.stringify(D134_LOGGER.slice().sort()) === JSON.stringify(['renderResumeBanner', 'renderTodayWorkout', 'renderTrainResume', 'workoutElapsedSeconds']) && metaTime(old.todayMeta) === '492 min' && metaTime(old.trainMeta) === '492 min', [D134_LOGGER, old.todayMeta, old.trainMeta]);
+    const now = await scenario('2026-10-04T09:00:00', '2026-10-04T17:12:00', { finish: false });
+    T('2  E63 closed: the same workout at 17:12 reads “Started 8h ago” on Today and on Train — no minute count, no “492”', metaTime(now.todayMeta) === 'Started 8h ago' && metaTime(now.trainMeta) === 'Started 8h ago' && !/492|\d+ min/.test(now.todayMeta + now.trainMeta), [now.todayMeta, now.trainMeta]);
+    const y = await scenario('2026-10-03T22:00:00', '2026-10-04T08:00:00', { finish: false }), d = await scenario('2026-08-28T22:45:58', '2026-10-07T12:00:00', { finish: false });
+    const two = await scenario('2026-10-02T23:00:00', '2026-10-04T08:00:00', { finish: false });
+    T('3  the words say only what LOOP knows — when it was started, on the phone’s own calendar: same day “Started 8h ago”, the evening before “Started yesterday”, two calendar days back (33 h) “Started Oct 2”, older “Started Aug 28” (the owner’s own unfinished workout); never “active”, “training” or “for”',
+      metaTime(y.todayMeta) === 'Started yesterday' && metaTime(two.todayMeta) === 'Started Oct 2' && metaTime(d.todayMeta) === 'Started Aug 28' && ![now, y, two, d].some(r => /active|train|for \d|elapsed/i.test(metaTime(r.todayMeta))), [y.todayMeta, two.todayMeta, d.todayMeta]);
+    const at = async back => metaTime((await scenario('2026-10-04T09:00:00', back, { finish: false })).todayMeta);
+    const [m30, m90, m240, m241] = [await at('2026-10-04T09:30:00'), await at('2026-10-04T10:30:00'), await at('2026-10-04T13:00:00'), await at('2026-10-04T13:01:00')];
+    T('4  a workout in progress keeps its minutes while they are plausible — 30 min, 90 min, and 240 min at exactly four hours; one minute later it reads “Started 4h ago”', m30 === '30 min' && m90 === '90 min' && m240 === '240 min' && m241 === 'Started 4h ago', [m30, m90, m240, m241]);
+    const sweep = []; for(const back of ['2026-10-04T09:01:00', '2026-10-04T11:59:00', '2026-10-04T12:59:59', '2026-10-04T13:00:30', '2026-10-04T13:00:31', '2026-10-04T21:30:00', '2026-10-05T00:10:00', '2026-10-06T07:00:00']){ const r = await scenario('2026-10-04T09:00:00', back, { finish: false }); sweep.push([back.slice(5), metaTime(r.todayMeta), metaTime(r.trainMeta), r.info.time]); }
+    T('5  Today and Train say the same thing at every moment — one formatter, one field (minutes, the 4-hour edge to the second, the same day, the next day, two days on)', sweep.every(([, a, b, t]) => a === b && a === t && !!a), JSON.stringify(sweep));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('6–14  finished: actual while plausible, D105.1’s estimate after that, the record untouched');
+  await guard('finished', async () => {
+    const r45 = await scenario('2026-10-04T09:00:00', '2026-10-04T09:45:00'), r90 = await scenario('2026-10-04T09:00:00', '2026-10-04T10:30:00');
+    T('6  a 45-minute and a 90-minute workout finished through the app keep their measured Duration (45:00, 1:30:00): the Summary, the Log card and Day Detail all show the clock',
+      r45.time.kind === 'actual' && r45.time.sec === 2700 && r45.stat.label === 'Duration' && r45.stat.num === '45:00' && r90.stat.num === '1:30:00' && /45:00/.test(r45.card) && /45:00/.test(r45.detail) && /1:30:00/.test(r90.detail), [r45.stat, r90.stat]);
+    const r492 = await scenario('2026-10-04T09:00:00', '2026-10-04T17:12:00');
+    T('7  the 492-minute workout finished at 17:12 is not labelled measured anywhere: the Summary reads “~N Est. minutes”, the Log card and Day Detail “~N min”, Weekly Review lists it as an estimate and leaves it out of Timed training — no “8:12:00”',
+      r492.time.kind === 'estimate' && r492.stat.label === 'Est. minutes' && /^~\d+$/.test(r492.stat.num) && /^~\d+ min$/.test(r492.short) && r492.card.indexOf(r492.short) !== -1 && r492.detail.indexOf(r492.short) !== -1 && !/8:12:00/.test(r492.card + r492.detail + JSON.stringify(r492.stat)) &&
+      !!r492.review && r492.review.time && r492.review.time.kind === 'estimate' && r492.review.timed.count === 0, [r492.stat, r492.short, r492.review]);
+    T('8  …and that estimate is D105.1’s own: workoutTimeOf gives { kind: estimate, min: estimateLoggedDuration(entry) }, the branch a re-dated log already took — no second estimate, no duration made up', r492.time.min === r492.est && r492.stat.num === '~' + r492.est, [r492.time, r492.est]);
+    T('9  the timestamps are the facts they always were: startedAt is the 09:00 the workout was opened (kept through the draft and the resume), endedAt the 17:12 it was saved',
+      !!r492.saved && r492.saved.startedAt === iso('2026-10-04T09:00:00') && r492.saved.endedAt === iso('2026-10-04T17:12:00') && r492.draft0.startedAt === iso('2026-10-04T09:00:00'), r492.saved && [r492.saved.startedAt, r492.saved.endedAt]);
+    const stored = JSON.parse(r492.storeLog || '[]').slice(-1)[0];
+    T('10  nothing is rewritten: the stored record carries the same startedAt and endedAt, reading it on every surface wrote nothing back, and the record read after the Summary, the Log, Day Detail and Weekly Review equals the one saved',
+      !!stored && stored.startedAt === r492.saved.startedAt && stored.endedAt === r492.saved.endedAt && JSON.stringify(stored) === JSON.stringify(r492.saved), stored && [stored.startedAt, stored.endedAt]);
+    const keysNow = Object.keys(r492.saved).sort(), old = await scenario('2026-10-04T09:00:00', '2026-10-04T17:12:00', { at1052: true });
+    const draftKeys = Object.keys(r492.draft0).sort(), noTime = k => !/active|pause|duration|elapsed|seconds/i.test(k);
+    T('11–13  no new field: the record saved for this workout carries exactly the keys 10.52 saves for it, and neither the record nor the draft holds a duration, an activeSeconds or a pausedSeconds',
+      JSON.stringify(keysNow) === JSON.stringify(Object.keys(old.saved).sort()) && JSON.stringify(draftKeys) === JSON.stringify(Object.keys(old.draft0).sort()) && keysNow.every(noTime) && draftKeys.every(noTime) &&
+      JSON.stringify(draftKeys) === JSON.stringify(['category', 'categoryChosen', 'date', 'exercises', 'id', 'identity', 'notes', 'origin', 'originProgramId', 'phase', 'plannedMinutes', 'savedAt', 'showCategoryPicker', 'startedAt', 'title', 'version', 'warmupDone']), [keysNow, draftKeys]);
+    T('14a  nothing starts watching the phone: opening, leaving, coming back hours later, resuming and finishing register exactly the listeners 10.52’s own flow registers (' + JSON.stringify([...new Set(r492.listened)]) + ') — no visibility, page-hide or focus listener',
+      JSON.stringify(r492.listened) === JSON.stringify(old.listened) && !r492.listened.some(t => /visibilitychange|pagehide|pageshow|freeze|resume/.test(t)), [r492.listened, old.listened]);
+    T('14  nothing watches the phone: no visibility, page-hide or focus listener, no timer, nothing stored — the change is the limit, its formatter and the two lines that show it',
+      D134_RAW.every(([n]) => !/visibilitychange|document\.hidden|pagehide|pageshow|addEventListener|setInterval|setTimeout|LOOPStore|localStorage|activeSeconds|pausedSeconds/.test(n)) && (raw.match(/visibilitychange/g) || []).length === ((was || '').match(/visibilitychange/g) || []).length);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('15–19  freeform, a big plan, midnight, the clock change, a history');
+  await guard('classes', async () => {
+    const f50 = await scenario('2026-10-04T09:00:00', '2026-10-04T09:50:00', { freeform: true }), f5 = await scenario('2026-10-04T09:00:00', '2026-10-04T14:00:00', { freeform: true });
+    T('15  freeform (no plan): 50 minutes is a measured 50:00, and five hours is an estimate whose card said “Started 5h ago” — no plan never means no measured time', f50.time.kind === 'actual' && f50.stat.num === '50:00' && !f50.saved.plannedMinutes && f5.time.kind === 'estimate' && metaTime(f5.todayMeta) === 'Started 5h ago', [f50.stat, f5.stat, f5.todayMeta]);
+    const big1 = await scenario('2026-10-04T08:00:00', '2026-10-04T12:30:00', { tpl: 'qa-big' }), big2 = await scenario('2026-10-04T08:00:00', '2026-10-04T08:00:00', { tpl: 'qa-big', finish: false });
+    const plan = big1.saved.plannedMinutes, lim = plan * 3;
+    T('16  a planned workout is held to three times its plan when that is longer than four hours: this 45-set plan is ' + plan + ' min, so 4 h 30 min is still a measured 4:30:00 (and its card said “270 min”)',
+      plan > 80 && lim >= 270 && big1.time.kind === 'actual' && big1.stat.num === '4:30:00' && metaTime(big1.todayMeta) === '270 min', [plan, big1.stat, big1.todayMeta, big2.info]);
+    const mid = await scenario('2026-10-04T23:30:00', '2026-10-05T00:40:00'), night = await scenario('2026-10-03T22:00:00', '2026-10-04T08:00:00');
+    T('17  midnight is not a reason: 23:30 → 00:40 is a measured 1:10:00 (its card said “70 min”), and 22:00 → 08:00 is an estimate (its card said “Started yesterday”) because ten hours is past the limit, not because the day changed',
+      mid.time.kind === 'actual' && mid.stat.num === '1:10:00' && metaTime(mid.todayMeta) === '70 min' && night.time.kind === 'estimate' && metaTime(night.todayMeta) === 'Started yesterday', [mid.stat, mid.todayMeta, night.stat]);
+    const c = (await mount([])).c;
+    const E = (s, e, d) => ({ id: 'dst', date: d, category: 'push', title: 'W', exercises: [{ name: 'Bench Press', sets: [{ weight: '100', reps: '8' }] }], startedAt: s, endedAt: e });
+    const fall = c.workoutTimeOf(E('2026-11-01T01:30:00-04:00', '2026-11-01T01:20:00-05:00', '2026-11-01')), spring = c.workoutTimeOf(E('2026-03-08T01:50:00-05:00', '2026-03-08T03:10:00-04:00', '2026-03-08'));
+    const longFall = c.workoutTimeOf(E('2026-10-31T21:50:00-04:00', '2026-11-01T01:50:00-05:00', '2026-10-31'));
+    T('18  the span is epoch time, never clock labels: across the fall-back hour 01:30 EDT → 01:20 EST is 50:00, across spring-forward 01:50 EST → 03:10 EDT is 20:00, and 21:50 → 01:50 across the fall-back is five hours (an estimate), though the clocks show four',
+      fall.kind === 'actual' && fall.sec === 3000 && spring.kind === 'actual' && spring.sec === 1200 && longFall.kind === 'estimate', [fall, spring, longFall]);
+    const hist = d132FixtureHistory().log, now = hist.map(e => c.workoutTimeOf(e));
+    let then = null; withAsOf1052(c, ['workoutElapsedSeconds'], () => { then = hist.map(e => c.workoutTimeOf(e)); });
+    T('19  a real-shaped history reads exactly as it did: the D132 fixture’s ' + hist.length + ' timed workouts (48–69 min, planned 60) are the same measured clocks as on 10.52', hist.length > 40 && JSON.stringify(now) === JSON.stringify(then) && now.every(t => t.kind === 'actual'), now.slice(0, 2));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('20–26  time is not evidence: score, volume, records, XP, rank, Mastery and Recovery');
+  await guard('evidence', async () => {
+    const hist = d132FixtureHistory();
+    const stretched = JSON.parse(JSON.stringify(hist.log)); stretched.forEach((e, i) => { if(i % 3 === 0) e.endedAt = new Date(Date.parse(e.startedAt) + (8 * 60 + 12) * 60000).toISOString(); if(i % 5 === 0){ delete e.startedAt; delete e.endedAt; } });
+    const read = async log => { const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: JSON.stringify(log), programs: JSON.stringify(hist.programs), onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false }) });
+      const c = a.ctx; const rel = pinClock(c, '2026-10-06T12:00:00'); try{ await H.settle(300); for(let t = 0; t < 60 && c.workoutLog.length !== log.length; t++) await H.settle(100);
+        return { score: sha(JSON.stringify(log.map(l => { const s = c.sessionScore(c.workoutLog.find(w => w.id === l.id)); return s && s.available ? [s.score, s.word] : null; }))),
+          volume: sha(JSON.stringify(c.workoutLog.map(l => c.sessionVolume(l)))), prs: sha(JSON.stringify([c.computeAllPREvents().map(e => [e.id, e.exerciseName]), c.computePRs().map(p => [p.name, p.weight, p.reps])])),
+          xp: (() => { const tl = c.computeXPTimeline(); return sha(JSON.stringify([tl.lifetimeXP, tl.prCount])); })(), rank: (() => { const p = c.getCurrentProgression(); return sha(JSON.stringify([p.level, p.rank && (p.rank.name || p.rank)])); })(),
+          mastery: sha(JSON.stringify([c.getTopExerciseMastery().map(m => [m.exerciseId, m.points, m.level]), c.getTopMuscleMastery().map(m => [m.muscleId, m.points])])), recovery: sha(JSON.stringify(c.computeMuscleRecovery())) }; } finally { rel(); } };
+    const A = await read(hist.log), B = await read(stretched);
+    const KEYS = ['score', 'volume', 'prs', 'xp', 'rank', 'mastery', 'recovery'];
+    T('20–26  time is not evidence: a history where every third workout was left open eight hours and every fifth has no timestamps at all gives the same Session Score, volume, records, XP, level and rank, Mastery and Recovery as the real one',
+      KEYS.every(k => A[k] === B[k]), KEYS.filter(k => A[k] !== B[k]));
+    T('20–26b  …and those engines are 10.52’s byte for byte', ['sessionScore', 'deriveSessionExecution', 'sessionVolume', 'computeAllPREvents', 'computePRs', 'computeXPEvents', 'getCurrentProgression', 'getTopExerciseMastery', 'getTopMuscleMastery', 'computeMuscleRecovery'].every(same));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('27–40  protected');
+  await guard('protected', async () => {
+    T('27–33  D49, D50B, D125, D127, D130, D131A and D131B are 10.52’s byte for byte (progressionFor, the coach, the working-set plan, the write boundary, the warm-up fill, the draft’s prescription, the derived Suggested Warm-up)',
+      ['progressionFor', 'applyPhaseProgressionPolicy', 'refreshSetCoach', 'coachMayWriteSet', 'deriveWorkingSetPlan', 'seedWarmupTargets', 'suggestedWarmupSteps', 'captureActiveDraft', 'restoreDraftToSheet', 'refreshSuggestedWarmups', 'suggestedWarmupAnchor', 'exerciseWorkBegun', 'warmupBoxHtml', 'sessionPreparation', 'saveLog', 'startTemplateLog', 'openFreeformLog', 'workoutTimeOf', 'workoutTimeShort', 'summaryTimeStat', 'estimateLoggedDuration'].every(same));
+    const css = t => t.slice(t.indexOf('<style>'), t.indexOf('</style>'));
+    T('34  D133’s full-height workout is untouched: the stylesheet is 10.52’s byte for byte (no footer, the density, Last time and Note, the safe area)', !!was && css(raw) === css(was) && raw.indexOf(D133_CSS) !== -1);
+    const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
+    const status = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
+    T('35–37  E59, E62, E60 and E61 are still open and not fixed (the split, D47’s order, the dense targets, What’s New history), and E63 is closed by this release',
+      ['E59', 'E62', 'E60', 'E61'].every(id => /· OPEN/.test(status(id))) && same('splitRowForSwap') && same('generalPrepSatisfiedBy') && same('renderUpdatesList') && /CLOSED in D134/.test(status('E63')), ['E59', 'E62', 'E60', 'E61', 'E63'].map(id => status(id).slice(-40)));
+    const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '');
+    T('38–40  16 DATA_KEYS (the same sixteen), data schema 1, no migration, the trainer 0.1.1-shadow', !!dk && !!dkw && dk[1] === dkw[1] && dk[1].split(',').map(s => s.trim()).filter(Boolean).length === 16 && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /0\.1\.1-shadow/.test(raw));
+    const L0 = await mount([]); const exported = await L0.c.allDataKeys();
+    const FIXED = ['workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft', 'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog', 'cardioLog', 'cardioDraft', 'gymProfile', 'exerciseNotes', 'programs', 'onboarding', 'objectives'];
+    T('38b  what a backup carries is unchanged: the app’s own export list is these sixteen keys and, after them, only per-plan keys — nothing for a workout’s time',
+      JSON.stringify(exported.slice(0, 16)) === JSON.stringify(FIXED) && exported.slice(16).every(k => /:/.test(k)), exported);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('41–42  the rule, at its edges, and what LOOP claims');
+  await guard('rule', async () => {
+    const c = (await mount([])).c;
+    const L = p => c.workoutSpanLimitSec(p === undefined ? {} : { plannedMinutes: p });
+    const E = (sec, plan) => ({ id: 'b', date: '2026-10-04', category: 'push', title: 'W', exercises: [{ name: 'Bench Press', sets: [{ weight: '100', reps: '8' }] }], startedAt: iso('2026-10-04T09:00:00'), endedAt: new Date(Date.parse(iso('2026-10-04T09:00:00')) + sec * 1000).toISOString(), plannedMinutes: plan });
+    const k = (sec, plan) => c.workoutTimeOf(E(sec, plan)).kind;
+    T('41  the limit is four hours, or three times the plan when that is longer — and a span AT it is measured, one second past it is not: no plan / 45 / 80 → 14,400 s; 81 → 14,580 s; 120 → 21,600 s; a plan that is not a positive number counts as none',
+      L() === 14400 && L(45) === 14400 && L(80) === 14400 && L(81) === 14580 && L(120) === 21600 && L(-5) === 14400 && L('abc') === 14400 && L(null) === 14400 &&
+      k(14400) === 'actual' && k(14401) === 'estimate' && k(14400, 45) === 'actual' && k(14401, 45) === 'estimate' && k(21600, 120) === 'actual' && k(21601, 120) === 'estimate' && k(1) === 'actual' && k(300) === 'actual',
+      [L(), L(81), L(120), k(14401), k(21601, 120)]);
+    const zero = []; for(let s = 1; s <= 14400; s += 61) for(const p of [undefined, 30, 45, 60, 70, 120]){ const e = E(s, p); let then; withAsOf1052(c, ['workoutElapsedSeconds'], () => { then = c.workoutTimeOf(e); }); const now = c.workoutTimeOf(e); if(JSON.stringify(now) !== JSON.stringify(then)) zero.push([s, p]); }
+    T('41b  every span up to four hours, at every plan, reads exactly as on 10.52 (1,416 spans × 6 plans)', zero.length === 0, zero.slice(0, 5));
+    const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8'), tc = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'TRAINER-CONTRACT.md'), 'utf8');
+    T('41c  the rule is written down where the next phase will look: TRAINER-CONTRACT §175 and E63 name the four hours and the three times the plan', /## §175/.test(tc) && /four hours/.test(tc.slice(tc.indexOf('## §175'))) && /three times/.test(tc.slice(tc.indexOf('## §175'))) && /four hours/.test(fx.slice(fx.indexOf('## E63'))));
+    const code = D134_RAW.slice(0, -1).map(([n]) => n).join('\n').replace(/\/\*[\s\S]*?\*\//g, '');
+    const words = [...code.matchAll(/'([^'\n]*)'/g)].map(m => m[1]).filter(s => /[a-z]{3}/i.test(s) && !/^(en-US|short|numeric)$/.test(s));
+    T('42  nothing claims active time: the only words the change can put on screen are ' + JSON.stringify(words) + ', and the release notes say when a workout was started or that its time is estimated — never “active”, never how long anyone trained',
+      words.length && words.every(w => /^(Started |h ago|Started yesterday| min| · )$/.test(w)) && !/\bactive\b|trained for|training time/i.test(D134_WHATSNEW) && /started/.test(D134_WHATSNEW) && /estimated/.test(D134_WHATSNEW) &&
+      /id: 'v10-53',\s*version: 'LOOP 10\.53',\s*title: 'More Honest Workout Time',\s*date: '2026-10-0\d',\s*swVersion: 'loop-v230'/.test(raw) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v230'") !== -1);
   });
 }
 
@@ -55315,7 +55624,7 @@ async function testProductExperienceD132(){
     T('1  every D132 change is where it was written, once — the file reads back as LOOP 10.48', wasRaw !== null);
     T('2  …and that read-back is LOOP 10.48 to the byte (index.html of 4948cc7): no engine, no renderer, no handler, no record, no rule outside the system block moved', !!wasRaw && sha(wasRaw) === SHA_1048_HTML, wasRaw && sha(wasRaw));
     const PINS = {"deriveSessionExecution":"0498f3f2c0dd3c2c","sessionScore":"842e5699f8ac0835","computeAllPREvents":"94af217dbcf1f9ed","computePRs":"ff1f540c2ae3b46a","computeXPEvents":"cec5fa2cffc42db5","getCurrentProgression":"bf3a7572296c620c","computeMuscleRecovery":"d3589033bdb54c67","recoveryStripHtml":"6eb427476c25e796","progressionFor":"a992f11698e3e9e7","getProgramWorkoutForDate":"496d8572d640dc24","objectiveProgress":"e0889920b620163e","syncObjectives":"406ea6f01ae1b62e","deriveWorkingSetPlan":"b5c00dac1e00d09b","coachMayWriteSet":"0de96792fab27ca4","seedWarmupTargets":"9c048567ff49a1f1","suggestedWarmupSteps":"7e37069140f2527b","maybeRefreshWarmup":"bf55b39f07a6e2e4","splitRowForSwap":"78ed482b25517739","captureActiveDraft":"7ed552854d7f4526","restoreDraftToSheet":"33f0e4de3ce21e63","addLogExerciseRow":"be4678472bf41b62","appendSetRow":"61f2b7e061afde48","toggleSetComplete":"ed4187ee4b7b5e61","saveLog":"66c63714822ef5ee","openWorkoutSummary":"58c0ec576bb1bad2","renderSummaryScore":"be7971b69696ae40","openMasteryExercise":"d5ed0205fd603c1c","deriveExerciseDetail":"2e7f87f1c8567b0a","masteryPodiumCardHtml":"0c85f5f236685801","masteryViewHtml":"cfeb04f7ef9796a6","renderWeeklyReview":"b8e25f3b77b18cb5","renderToday":"4eddd61a7575f0e7","renderTodayWorkout":"7957f591c99febed","switchTab":"de35ef75d197810e","renderProgress":"45badcbf3a0defd5","renderExDetail":"752755306eaa5a44","renderProgramDetail":"2b47b25b6540176e","renderSettingsSocialRow":"4cd1dbb1731fbca4","computeConsistencyData":"5bfe9ebbb27ff11e","paintTabIcons":"db23ee85cb7633b8","tabIconSvg":"2386e6e0cddb2e3a"};
-    const moved = Object.keys(PINS).filter(n => (D131B_EDITS[n] ? pinAsOf1050(n) : pin(n)) !== PINS[n]);   // D131B restated: toggleSetComplete, restoreDraftToSheet and maybeRefreshWarmup read at 10.50 (Contract 251)
+    const moved = Object.keys(PINS).filter(n => (D134_EDITS[n] ? pinAsOf1052(n) : D131B_EDITS[n] ? pinAsOf1050(n) : pin(n)) !== PINS[n]);   // D134 restated: renderTodayWorkout read at 10.52 (Contract 253)   // D131B restated: toggleSetComplete, restoreDraftToSheet and maybeRefreshWarmup read at 10.50 (Contract 251)
     T('3  the engines and surfaces it must not move are byte-identical to 10.48 — Session Score and the execution analysis, PRs, XP and level, recovery, D49, programs, objectives, D125’s plan, D127’s write boundary, D130’s warm-ups, D131A’s draft, E56/E58/E59 as recorded, the summary, Mastery (D128/D129), Exercise Detail, Weekly Review, Today — ' + Object.keys(PINS).length + ' pins',
       moved.length === 0, moved.join(','));
     T('3  the one statement D132 added to a function is switchProgTab’s aria-selected — and that function is otherwise 10.48’s',
@@ -55756,6 +56065,7 @@ async function main(){
   await testSetNumberCentringD1321();
   await testLiveWarmupD131B();
   await testWorkoutRoomD133();
+  await testDurationTruthD134();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());
