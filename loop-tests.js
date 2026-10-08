@@ -55808,6 +55808,113 @@ async function testSplitProvenanceD135(){
   });
 
   /* ---------------------------------------------------------------- */
+  sub('P1–P19  the properties, over generated workouts (seeded, both builds)');
+  await guard('properties', async () => {
+    /* A workout is generated from a seed: a template (bench or bodyweight) or a freeform start, exercises added by hand,
+       then four to seven of: a set done, a swap (part-way or whole), an Undo, and a split undone at once. The same seed is
+       played on 10.54 and on 10.53's own split. Invariants are checked at every swap and on every finished workout. */
+    const rng = seed => () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    const POOL = ['Dumbbell Bench Press', 'Incline Bench Press', 'Close-Grip Bench Press', 'Dip', 'Push-Up'];
+    const nm = ex => String((ex.querySelector('.ex-name-in') || {}).value || '');
+    const low = s => String(s || '').trim().toLowerCase();
+    const todoIdx = ex => rowsOf(ex).findIndex(x => !x.classList.contains('completed'));
+    const hasDone = ex => rowsOf(ex).some(x => x.classList.contains('completed'));
+    const planOf = ex => { const d = ex.dataset; return [d.targetSets || '', d.targetReps || '', d.slotName || '', d.slotKey || '', d.recommended || '', d.slotRecommended || '', d.rxLoad == null ? null : String(d.rxLoad)]; };
+    const setStr = x => { const w = x.querySelector('.set-weight-in'), p = x.querySelector('.set-reps-in');
+      return (x.dataset.setType || 'working') + ' ' + w.value + 'x' + p.value + '@' + x.querySelector('.set-rir-in').value + (x.classList.contains('completed') ? '+' : '') + '/' + (w.dataset.userSet ? 'w' : '') + (p.dataset.userSet ? 'r' : ''); };
+    const doneAll = L => L.exs().map(ex => nm(ex) + ':' + rowsOf(ex).filter(x => x.classList.contains('completed')).map(setStr).join('|'));
+    const todoOwn = ex => rowsOf(ex).filter(x => !x.classList.contains('completed')).map(x => (x.dataset.setType || 'working') + ' ' + x.querySelector('.set-reps-in').value + (x.querySelector('.set-reps-in').dataset.userSet ? 'r' : ''));
+    const stale = L => L.exs().filter(ex => { const w = ex.querySelector('.warmup-wrap'); if(!w) return false; const t = L.c.document.createElement('div');
+      t.innerHTML = L.c.warmupBoxHtml(nm(ex).trim(), L.c.suggestedWarmupAnchor(ex)); return col(t.textContent) !== col(w.textContent); }).map(nm);
+    const play = async (seed, o) => {
+      const r = rng(seed), pick = a => a[Math.floor(r() * a.length)];
+      const L = await mount(o); const out = { seed, ops: [], bad: [], pairs: [], manualPartial: false, swaps: 0, splits: 0 };
+      try{
+        const kind = pick(['bench', 'bench', 'bw', 'free', 'free']);
+        if(kind === 'free') await startFree(L); else await startTpl(L, kind === 'bw' ? 'qa-bw' : 'qa-bench');
+        const hands = kind === 'free' ? 1 + Math.floor(r() * 2) : Math.floor(r() * 2);
+        for(let i = 0; i < hands; i++){ const n = pick(['Close-Grip Bench Press', 'Incline Bench Press', 'Push-Up']); if(L.exs().some(x => low(nm(x)) === low(n))) continue;
+          const ex = byHand(L, n); fill(L.c, ex, n === 'Push-Up' ? null : 135, n === 'Push-Up' ? 12 : 10); }
+        const init = {}; L.exs().forEach(ex => { if(ex.dataset.slotKey) init[ex.dataset.slotKey] = { name: ex.dataset.slotName, sets: Number(ex.dataset.targetSets) || 0 }; });
+        out.kind = kind; out.init = init;
+        /* one swap, with the invariants every swap must keep (P12–P15): the done sets stay exactly where they were done, and the sets
+           still to do keep their order, reps, type and whose reps they are — only loads are emptied, by design */
+        const swapChecked = (ex, to) => {
+          const done0 = doneAll(L), own0 = todoOwn(ex), part = hasDone(ex);
+          if(part && !ex.dataset.targetSets) out.manualPartial = true;
+          const t = L.c.swapLogExercise(ex, to); out.swaps++;
+          if(t && t !== ex){ out.splits++;
+            if(!same(doneAll(L).filter(s => !/:$/.test(s)), done0.filter(s => !/:$/.test(s)))) out.bad.push('P12–P15 done sets moved, seed ' + seed);
+            if(!same(todoOwn(t), own0)) out.bad.push('P13/P15 sets to do lost their reps, type or owner, seed ' + seed); }
+          out.ops.push((part ? 'split ' : 'swap ') + nm(t || ex) + ' ← ' + (t && t !== ex ? nm(ex) : '…'));
+          return t;
+        };
+        const steps = 4 + Math.floor(r() * 4);
+        for(let s = 0; s < steps; s++){
+          const live = L.exs().filter(ex => todoIdx(ex) !== -1); if(!live.length) break;
+          const ex = pick(live), op = pick(['set', 'set', 'swap', 'swap', 'undo', 'pair']);
+          if(op === 'set'){ perform(L.c, ex, todoIdx(ex), 6 + Math.floor(r() * 7), Math.floor(r() * 4)); out.ops.push('set ' + nm(ex)); }
+          else if(op === 'swap'){ swapChecked(ex, pick(POOL.concat(ex.dataset.slotName ? [ex.dataset.slotName] : []).filter(n => low(n) !== low(nm(ex))))); }
+          else if(op === 'undo'){ const before = L.exs().map(planOf), back = L.c.undoExerciseSwap(ex); out.ops.push('undo ' + nm(ex));
+            if(!ex.dataset.slotName) out.pairs.push(['manual undo changes nothing', back === null && same(L.exs().map(planOf), before)]); }
+          else {   /* a split undone at once, twice (P9, P11) */
+            if(!hasDone(ex)) perform(L.c, ex, todoIdx(ex), 8, 2);
+            if(todoIdx(ex) === -1) continue;
+            const own = !!ex.dataset.slotName && low(nm(ex)) === low(ex.dataset.slotName), before = planOf(ex), n0 = rowsOf(ex).length + 0;
+            for(let k = 0; k < 2; k++){
+              if(todoIdx(ex) === -1 || !hasDone(ex)) break;
+              const sets0 = rowsOf(ex).length, t = swapChecked(ex, pick(POOL.filter(n => low(n) !== low(nm(ex)))));
+              if(!t || t === ex) break;
+              const back = L.c.undoExerciseSwap(t);
+              if(own) out.pairs.push(['program split undone: the plan comes back exactly', back === ex && same(planOf(ex), before) && rowsOf(ex).length === sets0 && L.exs().indexOf(t) === -1]);
+              else if(!ex.dataset.slotName) out.pairs.push(['manual split: no plan Undo, nothing written', back === null && !t.dataset.slotName && !t.dataset.targetSets && !t.dataset.slotKey]);
+              if(!own) break;
+            }
+            void n0;
+          }
+        }
+        out.live = facts(L); out.stale = stale(L);
+        /* P1, P3, P4, P7 — provenance is only ever the plan's own: a row carries a slot only from a slot the workout started with
+           (same key, same name), and a row without one carries no set count. P6 — each planned slot still adds up to its count. */
+        L.exs().forEach(ex => { const d = ex.dataset;
+          if(d.slotKey){ if(!init[d.slotKey] || d.slotName !== init[d.slotKey].name) out.bad.push('P1/P7 a slot that was never planned: ' + nm(ex) + ' ' + d.slotName + ', seed ' + seed); }
+          else if(d.targetSets || d.slotName) out.bad.push('P1/P3/P4 a set count or slot from nothing: ' + nm(ex) + ', seed ' + seed); });
+        Object.keys(init).forEach(k => { const sum = L.exs().filter(ex => ex.dataset.slotKey === k).reduce((a, ex) => a + (Number(ex.dataset.targetSets) || 0), 0);
+          if(sum !== init[k].sets) out.bad.push('P6 slot ' + init[k].name + ' adds up to ' + sum + ', not ' + init[k].sets + ', seed ' + seed); });
+        const d = JSON.parse(JSON.stringify(L.c.captureActiveDraft()));
+        const R2 = await mount(o); const calls = []; const pf = R2.c.progressionFor; R2.c.progressionFor = function(n){ calls.push(n); return pf.apply(this, arguments); };
+        try{ R2.c.restoreDraftToSheet(JSON.parse(JSON.stringify(d))); } finally { R2.c.progressionFor = pf; }
+        out.resumed = facts(R2); out.restoreCalls = calls.length; out.draftRx = d.exercises.every(x => x.meta && 'rxLoad' in x.meta); R2.release();
+        const h0 = sha(JSON.stringify(L.c.workoutLog.slice(0, LOG.length))), n0 = L.c.workoutLog.length; L.c.saveLog(); await H.settle(300); try{ L.c.closeSummary(); }catch(e){}
+        const e = L.c.workoutLog.length > n0 ? L.c.workoutLog[L.c.workoutLog.length - 1] : null;
+        out.history = [h0, sha(JSON.stringify(L.c.workoutLog.slice(0, LOG.length)))];
+        out.saved = e ? e.exercises.map(x => ({ name: x.name, rx: x.rx || null, planned: x.planned || null })) : [];
+        if(e){ const x = L.c.deriveSessionExecution(e); out.exec = [x.prescribedExercises, x.setsPrescribed, x.scored]; const sc = L.c.sessionScore(e); out.score = sc && sc.available ? sc.score : null; }
+        const planned = Object.keys(init).reduce((a, k) => a + init[k].sets, 0), rxSets = out.saved.reduce((a, x) => a + (x.rx && x.rx.sets > 0 ? x.rx.sets : 0), 0);
+        if(rxSets > planned) out.bad.push('P5 ' + rxSets + ' prescribed sets saved from ' + planned + ' planned, seed ' + seed);
+        if(!planned && out.saved.some(x => (x.rx && x.rx.sets) || x.planned)) out.bad.push('P5 a workout with no plan saved one, seed ' + seed);
+      } finally { L.release(); }
+      return out;
+    };
+    const SEEDS = Array.from({ length: 24 }, (_, i) => 1351 + i * 7919);
+    const RP = [], QP = [];
+    for(const s of SEEDS){ RP.push(await play(s)); QP.push(await play(s, { at1053: true })); }
+    const n = RP.length, splits = RP.reduce((a, x) => a + x.splits, 0), manual = RP.filter(x => x.manualPartial).length, pairs = RP.reduce((a, x) => a.concat(x.pairs), []);
+    const bad = RP.reduce((a, x) => a.concat(x.bad), []);
+    const qBad = QP.filter(x => x.bad.some(b => /^P1\/|^P5 /.test(b))).length;
+    T('10.53 replay — P0  the generator reaches E59: on 10.53’s own split ' + qBad + ' of ' + n + ' generated workouts give a plan to work that had none (' + manual + ' of them split work added by hand part-way)', qBad > 0 && manual > 0, QP.filter(x => x.bad.length).map(x => x.bad[0]));
+    T('P1–P7  over ' + n + ' generated workouts (' + splits + ' splits, ' + manual + ' with hand-added work split part-way): no set count, slot or saved rx.sets ever comes from nothing, every planned slot keeps its lineage and adds up to its planned sets', bad.filter(b => /^P[1-7](\/| )/.test(b)).length === 0, bad.filter(b => /^P[1-7](\/| )/.test(b)).slice(0, 6));
+    const unchanged = RP.map((x, i) => [x, QP[i]]).filter(([x]) => !x.manualPartial);
+    const moved = unchanged.filter(([x, q]) => !same([x.live, x.saved, x.exec, x.score, x.resumed], [q.live, q.saved, q.exec, q.score, q.resumed])).map(([x]) => x.seed);
+    T('P8  every generated workout that never splits hand-added work part-way is exactly 10.53’s — rows, plan, saved record, execution analysis, Session Score and resume (' + unchanged.length + ' workouts, full swaps and program splits included)', unchanged.length > 0 && moved.length === 0, moved);
+    T('P9, P11  a split undone at once gives the plan back exactly, every time (' + pairs.filter(p => /program/.test(p[0])).length + ' program undos); hand-added work has no plan Undo and an Undo writes nothing (' + pairs.filter(p => !/program/.test(p[0])).length + ')', pairs.length > 0 && pairs.every(p => p[1]), pairs.filter(p => !p[1]));
+    T('P10, P16  every generated workout resumes exactly — the same rows, values and plan — and no restore asks progressionFor; every draft records each row’s prescription', RP.every(x => same(x.live, x.resumed) && x.restoreCalls === 0 && x.draftRx), RP.filter(x => !same(x.live, x.resumed) || x.restoreCalls).map(x => x.seed));
+    T('P12–P15  at every one of the ' + RP.reduce((a, x) => a + x.splits, 0) + ' splits the done sets stay exactly where they were done and the sets still to do keep their order, reps, type and owner', bad.filter(b => /^P1[2-5]/.test(b)).length === 0, bad.filter(b => /^P1[2-5]/.test(b)).slice(0, 6));
+    T('P17, P18  the Suggested Warm-up is never stale: after every generated workout each strip is exactly what D47 says now (D131B; E62’s rule unchanged)', RP.every(x => x.stale.length === 0), RP.filter(x => x.stale.length).map(x => [x.seed, x.stale]));
+    T('P19  history is never rewritten: in every generated workout the workouts already logged hash the same before and after the save, on both builds', RP.concat(QP).every(x => x.history[0] === x.history[1] && x.history[0] === RP[0].history[0]));
+  });
+
+  /* ---------------------------------------------------------------- */
   sub('29–42  protected, and what changes downstream');
   await guard('protected', async () => {
     T('29–30  D131A: every draft records its rows’ prescription exactly (meta.rxLoad written for every row), and no restore asks progressionFor', Object.keys(R).every(n => R[n].restoreCalls === 0 && R[n].draftMeta.every(m => 'rxLoad' in m)));

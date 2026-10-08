@@ -19363,7 +19363,12 @@ Recovery and volume are untouched.
 **Proof.** `asOf1053Html(raw)` takes D135's three hunks out and reads back LOOP 10.53 to the byte (`5aba360adbeb0e3a`).
 Contract 254 drives 18 classes through the app's own logger, draft, resume, save and analysis, on 10.54 and on a 10.53
 replay of the split. The replay runs 10.53's split as it shipped (`SPLIT_1053`, pinned `78ed482b25517739`), and a source
-check holds that 10.54 read back as 10.53 is exactly that text. Program, own-values, D50B, bodyweight, chained, undo and full-swap classes are identical to 10.53. Every
+check holds that 10.54 read back as 10.53 is exactly that text. Its properties run over 24 seeded, generated workouts
+(templates, freeform, hand-added work, sets, swaps, Undo, split-and-undo, resume, save):
+- provenance never comes from nothing, and each planned slot keeps its lineage and its count;
+- a workout that never splits hand-added work part-way is exactly 10.53's;
+- every split keeps the done sets and the reps, type and owner of the sets still to do;
+- every resume is exact, the Suggested Warm-up is never stale, and history is never rewritten. Program, own-values, D50B, bodyweight, chained, undo and full-swap classes are identical to 10.53. Every
 hand-added and freeform class loses its manufactured plan and nothing else.
 
 **Not proven here.** How it reads on a physical iPhone.
