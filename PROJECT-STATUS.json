@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.55",
+  "version": "10.56",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: finish Bench, then Incline's first working set. Its Suggested Warm-up steps aside and stays gone after later pressing; untick the set and it returns.",
+  "nextAction": "Owner iPhone check: open a lift LOOP just moved up a weight. Its first set targets build from your last session, one rep lower; a falling lift says declining.",
   "blocker": null,
-  "updatedAt": "2026-10-08T15:04:29Z"
+  "updatedAt": "2026-10-08T19:56:00Z"
 }

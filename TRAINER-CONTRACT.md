@@ -19436,3 +19436,77 @@ a strip is hidden exactly when its exercise's work has begun. Its properties run
 on both builds and in reverse display order, with mid-workout resumes.
 
 **Not proven here.** How it reads on a physical iPhone.
+
+## §178 — PROGRESSION READS THE WHOLE PERFORMANCE (D137 · LOOP 10.56 · loop-v233)
+
+Three findings, three owners, kept apart. D49 decides the load direction. D125 plans the sets at that load. D126 says what
+trend the athlete has shown. D50B adapts inside the session. D49's tiers, thresholds, phase policy and no-RIR policy are
+unchanged; so are D50B, D119 and the four-workout plateau window.
+
+**E48 — a load D49 has just raised (D125, `newLoadProjection`).**
+- When D49 says INCREASE and nothing has been lifted at the new load in D125's window, the plan comes from the athlete's
+  latest ordinary session at the load D49 judged (two working sets there, or one when the program asks for one).
+- Each set is one rep under what was done at the lighter load. A set that reached the program's floor stays on it; a set
+  already under the floor goes one lower, never below 1; none goes past the range's top. The set count is the program's.
+- Order of evidence: a session AT the new load, then this projection, then the program's seed. A deload is never the
+  source, and a deload session plans from the seed as before.
+- It is a plan: read once when the workout starts and kept as the row's rxPlan. It is never written to history and is
+  never evidence until the athlete performs it.
+- Chosen on D126's generated athletes, with LOOP's own D49 choosing every load. New-load error and severe overshoot
+  (three or more reps over):
+  - standard cohort: 2.09 → 0.73 reps, 38.4% → 3.9%;
+  - faster-gaining cohort: 2.17 → 0.77 reps, 18.5% → 1.1%.
+  The rejected rules:
+  - copying the old reps overclaims, overshooting by three or more reps over three times as often (12.8% vs 3.9%;
+    4.0% vs 1.1%);
+  - two reps down, or halfway to the floor;
+  - every variant clamped up to the program's floor (as bad as the seed).
+
+**E49 — one workout's evidence, one comparison (`workoutProgressionEvidence`, `compareProgressionEvidence`).** The evidence
+is read in order, never weighed into a score:
+1. **The top set** (D109, D126): a heavier load beats, and at the same load more reps beat. Nothing below can undo this.
+2. **The reserve at that top set**, only when both workouts recorded it. A missing RIR is unknown, never 0 and never spare.
+3. **The rest of the work**, set for set at the same loads, and only when both workouts did the same number of sets at the
+   same loads: more reps, or the same reps with more recorded reserve. Different loads, a workout stopped short or a set
+   added are incomparable, so a shorter workout cannot look stronger and extra volume counts for nothing.
+
+The answer is better, worse, equivalent or incomparable, with the deciding evidence:
+- HEAVIER_LOAD / LIGHTER_LOAD;
+- MORE_TOP_REPS / WORSE_TOP_REPS;
+- BETTER_MATCHED_RIR / WORSE_MATCHED_RIR;
+- BETTER_BACKOFF / WORSE_BACKOFF;
+- EQUIVALENT / INCOMPARABLE.
+
+No tonnage, estimated 1RM or weighted score. Eligible sets are D121's performances with real reps and load (D96A). The
+plateau test "stalled when none beats the first" now uses this comparison, so a tie at the top with better back-offs or
+more recorded reserve is progress.
+
+**E50 — flat or falling (`detectPlateau`, D49's plateau tier).**
+- **Declining:** the window's last three workouts at one load, each worse than the one before by the same comparison. One
+  bad workout, a fall then a rebound, and a fall then a match stay flat. The window is unchanged.
+- **Holds the load.** A declining plateau keeps tag plateau with trend 'declining' and reads "Performance has declined two
+  sessions running — hold the weight and rebuild, or switch to a similar exercise." Today names it "Declining" in the same
+  warning style, and the workout cards say "declining at W lb". Exercise Detail and Weekly Review show "Hold", with its own
+  reason.
+- **D47's own case.** A decline that has also ground two sessions under the range at 0.5 RIR or less (`grindingBelowRange`,
+  D47's tier 2.5 condition named once) passes on to D47's unchanged reduce. The plateau tier no longer stands in front of
+  it. A flat plateau holds as before, even when it grinds.
+
+**What moved, and why (3,000 generated histories, 10.55 vs 10.56).**
+- **Identical:** 2,455.
+- **E48:** 134. The same INCREASE, now planned from the previous load.
+- **E49:** 317. A former plateau, now answered by D49's existing tiers: build 152, hold 69, insufficient 34, increase 58
+  (44 with the E48 projection), single-dip decline 3, reduce 1.
+- **E50:** 94 (declining hold 90, D47's reduce 4).
+- **Unexpected:** 0. The shadow trainer's answers and the capability's plateau field did not move in any history.
+- **Owner backups:** no lift has a plateau window or an INCREASE, so nothing moves.
+
+**Never.** No new store, workout field, history rewrite or migration. 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow. Records,
+XP, rank, Mastery, Recovery, Session Score and volume are untouched; objectives read D49's answer and move only with it.
+
+**Proof.** `asOf1055Html(raw)` takes D137's thirteen hunks out and reads back LOOP 10.55 to the byte (`4f317d5609d28d60`).
+Every older read-back reads the file as 10.55 (`d120Source`, `asOf1054Html`). Contract 256 runs the brief's fixture matrix
+on 10.56 and on 10.55's own engines as they shipped (`SHIPPED_1055`, pinned). Its properties cover 4,000 random workout
+pairs, and 400 generated histories are attributed.
+
+**Not proven here.** How it reads on a physical iPhone.

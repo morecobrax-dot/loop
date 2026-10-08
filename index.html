@@ -19706,6 +19706,23 @@ const LOOP_UPDATES = [
       'Work you do later in a workout can no longer change the warm-up advice for an exercise you have already started, and an exercise’s own heavier sets no longer bring its full warm-up back'
     ],
     changes: []
+  },
+  {
+    id: 'v10-56',
+    version: 'LOOP 10.56',
+    title: 'Progression Reads the Whole Performance',
+    date: '2026-10-08',
+    swVersion: 'loop-v233',
+    summary: 'LOOP now uses more of what you actually did when judging progress and planning the next session.',
+    newFeatures: [],
+    improvements: [
+      'When you earn a heavier weight you haven’t lifted recently, its set targets now build from your last session at the lighter weight, one rep lower (never below the range where you reached it), instead of every set starting at the bottom of the range',
+      'When your top set is unchanged, stronger later sets at the same weights, or more reps in reserve that you logged, can now count as progress instead of a stall'
+    ],
+    bugFixes: [
+      'A lift LOOP called stalled is now called declining when your performance has dropped two sessions running, and if it has also stayed below the range with nothing left in reserve for two sessions, LOOP now suggests a lighter weight, as it already did for lifts that weren’t stalled'
+    ],
+    changes: []
   }
 ];
 
@@ -23858,6 +23875,15 @@ function progressionEvidence(session, prevSession){
   return out;
 }
 
+/* D47's test, named once (D137): two consecutive sessions at the same weight, both under the bottom of the range, both
+   at 0.5 RIR or less. Tier 2.5 below asks it, and so does the plateau tier, so the two can never disagree. */
+function grindingBelowRange(range, last, prev){
+  return !!(range && last && prev && prev.weight === last.weight
+     && last.topReps < range.min && prev.topReps < range.min
+     && last.avgRir !== null && last.avgRir <= 0.5
+     && prev.avgRir !== null && prev.avgRir <= 0.5);
+}
+
 function buildProgressionRecommendation(exerciseName, templateReps, templateRecommended){
   const range = parseRepRange(templateReps);
   const sessions = exerciseSessionHistory(exerciseName, 5);
@@ -23879,7 +23905,21 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
 
   // Tier 1: repeated plateau (reuses the same detection used on workout cards, for consistency)
   const plateau = detectPlateau(exerciseName);
-  if(plateau){
+  /* D137 (E50) — FLAT IS NOT FALLING. A plateau whose last three workouts each fell short of the one before is a decline,
+     and it is named as one. It still holds the load: the trend describes the evidence, and moving the load is D49's. The
+     one exception is D47's own case: a decline that has also ground two sessions under the range with nothing in
+     reserve is exactly what D47 exists for, and this tier used to stand in front of it. It now passes on to D47 below,
+     whose test is unchanged. A flat plateau holds as it always has, even when it grinds. */
+  if(plateau && plateau.trend === 'declining' && !grindingBelowRange(range, last, sessions[1])){
+    return {
+      weight: w,
+      headline: `${w} lb × ${templateReps}`,
+      why: `Performance has declined two sessions running — hold the weight and rebuild, or switch to a similar exercise.`,
+      tag: 'plateau',
+      trend: 'declining'
+    };
+  }
+  if(plateau && plateau.trend !== 'declining'){
     return {
       weight: w,
       headline: `${w} lb × ${templateReps}`,
@@ -23938,10 +23978,7 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
      the increase uses, so the ladder an athlete climbs is the ladder they come
      back down. It is never a percentage that lands on a weight no gym has. */
   const prevSame = sessions[1];
-  if(range && prevSame && prevSame.weight === w
-     && last.topReps < range.min && prevSame.topReps < range.min
-     && last.avgRir !== null && last.avgRir <= 0.5
-     && prevSame.avgRir !== null && prevSame.avgRir <= 0.5){
+  if(grindingBelowRange(range, last, prevSame)){
     const down = Math.max(progressionIncrement(exerciseName, w),
                           0);                               // never negative
     const lighter = Math.max(0, w - down);
@@ -24139,9 +24176,33 @@ function buildRepIndex(shown, reps, range){
   return k !== -1 && open(k) ? k : -1;
 }
 
+/* D137 (E48) — A LOAD D49 HAS JUST RAISED. Nothing has been lifted at it in the window, so nothing can be read at it,
+   and the program's seed (the range's first number in every set) is the least accurate start there is: measured on
+   generated athletes it overshoots most later sets, which at a new heavier load fall under the range's floor. The
+   athlete's latest ordinary session, at the load D49 judged, is still the best evidence of how this lift goes. Its sets
+   are kept in order, each ONE rep under what was done at the lighter load: the plan never asks more than the athlete has
+   shown, and never claims the lighter load's reps were done at this one. A set that reached the program's floor does
+   not go below it; a set already under it goes one lower, never below one; the range's top still caps every set. It
+   needs a real session at that load (two working sets there, or one when the program asks for one), never a deload;
+   otherwise it is the seed, as ever. Nothing is written to history: it is a plan, read once when the workout starts. */
+function newLoadProjection(log, key, load, n, range){
+  for(let i = 0; i < log.length; i++){
+    if(isDeloadWorkout(log[i])) continue;
+    const seq = workingSetSequenceOf(log[i], key);
+    if(!seq) continue;
+    const top = Math.max(...seq.map(s => s.load));
+    if(!(top < load)) return null;
+    const at = seq.filter(s => s.load === top);
+    if(at.length < Math.min(n, PROGRESSION_EVIDENCE.minSetsWithoutRx)) return null;
+    return at.map(s => { const r = Math.floor(s.reps); return Object.assign({}, s, { load, reps: r >= range.min ? Math.max(range.min, r - 1) : r - 1 }); });
+  }
+  return null;
+}
+
 /* The plan for one exercise: { source, reps, load, tag }. `reps` holds one string
    per working set; `source` is 'program' (the seed), 'history' (the latest
-   session at this load) or 'history+1' (that, plus BUILD's one rep). */
+   session at this load), 'history+1' (that, plus BUILD's one rep) or
+   'projection' (D137: a new load D49 raised, from the load it judged). */
 function deriveWorkingSetPlan(exerciseName, templateReps, setCount, rec, opts){
   const n = Math.max(1, parseInt(setCount, 10) || 3);
   const seed = programRepSeed(templateReps);
@@ -24168,6 +24229,9 @@ function deriveWorkingSetPlan(exerciseName, templateReps, setCount, rec, opts){
        when the program asks for one). */
     if(at.length >= Math.min(n, PROGRESSION_EVIDENCE.minSetsWithoutRx)){ anchor = at; break; }
   }
+  /* D137 (E48) — a session AT the new load always wins (above); only without one does an increase read the load before */
+  let projected = false;
+  if(!anchor && tag === 'increase'){ anchor = newLoadProjection(log, key, load, n, range); projected = !!anchor; }
   if(!anchor) return fallback;
 
   const reps = [];
@@ -24175,7 +24239,7 @@ function deriveWorkingSetPlan(exerciseName, templateReps, setCount, rec, opts){
     const src = anchor[Math.min(k, anchor.length - 1)];
     reps.push(Math.max(1, Math.min(range.max, Math.floor(src.reps))));
   }
-  let source = 'history';
+  let source = projected ? 'projection' : 'history';
   if(tag === 'build'){
     const k = buildRepIndex(anchor.slice(0, n), reps, range);
     if(k !== -1){ reps[k] += WORKING_SET_PLAN.buildStep; source = 'history+1'; }
@@ -24798,6 +24862,68 @@ function compute1RMTrend(exerciseName){
   return points;
 }
 
+/* =========================================================
+   ONE WORKOUT'S PROGRESSION EVIDENCE, AND HOW TWO COMPARE  (Phase D137 - D88 findings E49, E50)
+   ---------------------------------------------------------
+   A workout's performance of a lift is read in an order, never weighed into a score:
+     1. its TOP SET - the heaviest performed working load and the most reps lifted at it (D109, D126). A heavier load
+        beats a lighter one; at the same load, more reps beat fewer. Nothing below can undo this.
+     2. the RESERVE at that top set - only when both workouts recorded it. A missing RIR is unknown: never 0, never
+        spare capacity, so it orders nothing.
+     3. the REST OF THE WORK - every other performed working set - set for set at the same loads, and only when both
+        workouts did the same number of sets at the same loads: more reps, or the same reps with more recorded reserve.
+        Different loads, a workout stopped short or a set added are not comparable, so a shorter workout cannot look
+        stronger and extra volume counts for nothing. No tonnage, no estimated 1RM, no score.
+   The answer is better, worse, equivalent or incomparable, with the evidence that decided it. Eligible sets are D121's
+   performances (isPerformanceSet) with real reps and a real load (D96A), exactly the sets D126 already read: never a
+   warm-up, never a set marked not done, never a bodyweight row. Pure: no store, no program, no readiness. */
+function workoutProgressionEvidence(entry, key){
+  const rows = workoutExerciseRows(entry, key);
+  if(!rows) return null;
+  const perf = [];
+  rows.forEach(ex => {
+    if(ex.bodyweight) return;
+    (ex.sets || []).forEach(s => {
+      if(!isPerformanceSet(s)) return;
+      const r = performedReps(s.reps); if(r === null) return;
+      const w = performedLoad(s.weight); if(w === null) return;
+      const q = (s.rir === '' || s.rir == null) ? NaN : parseFloat(String(s.rir).replace('+', ''));
+      perf.push({ w, r, rir: Number.isFinite(q) ? q : null });
+    });
+  });
+  if(!perf.length) return null;
+  const topLoad = Math.max(...perf.map(x => x.w));
+  const topReps = Math.max(...perf.filter(x => x.w === topLoad).map(x => x.r));
+  const tops = perf.filter(x => x.w === topLoad && x.r === topReps);
+  const known = tops.filter(x => x.rir !== null);
+  const topRir = known.length ? Math.max(...known.map(x => x.rir)) : null;
+  const topSet = known.length ? known.find(x => x.rir === topRir) : tops[0];
+  const rest = {};
+  perf.forEach(x => { if(x === topSet) return; (rest[String(x.w)] = rest[String(x.w)] || []).push({ r: x.r, rir: x.rir }); });
+  Object.keys(rest).forEach(k => rest[k].sort((p, q) => (q.r - p.r) || ((q.rir === null ? -1 : q.rir) - (p.rir === null ? -1 : p.rir))));
+  return { date: entry.date, topLoad, topReps, topRir, rest };
+}
+/* b against a. verdict: 'better' | 'worse' | 'equivalent' | 'incomparable'; reason: the evidence that decided it. */
+function compareProgressionEvidence(b, a){
+  const out = (verdict, reason) => ({ verdict, reason });
+  if(b.topLoad !== a.topLoad) return b.topLoad > a.topLoad ? out('better', 'HEAVIER_LOAD') : out('worse', 'LIGHTER_LOAD');
+  if(b.topReps !== a.topReps) return b.topReps > a.topReps ? out('better', 'MORE_TOP_REPS') : out('worse', 'WORSE_TOP_REPS');
+  if(b.topRir !== null && a.topRir !== null && b.topRir !== a.topRir)
+    return b.topRir > a.topRir ? out('better', 'BETTER_MATCHED_RIR') : out('worse', 'WORSE_MATCHED_RIR');
+  const loads = Object.keys(b.rest);
+  if(loads.length !== Object.keys(a.rest).length || loads.some(w => !a.rest[w] || a.rest[w].length !== b.rest[w].length))
+    return out('incomparable', 'INCOMPARABLE');
+  let up = 0, down = 0;
+  loads.forEach(w => b.rest[w].forEach((s, i) => {
+    const o = a.rest[w][i];
+    if(s.r !== o.r){ if(s.r > o.r) up++; else down++; }
+    else if(s.rir !== null && o.rir !== null && s.rir !== o.rir){ if(s.rir > o.rir) up++; else down++; }
+  }));
+  if(up && !down) return out('better', 'BETTER_BACKOFF');
+  if(down && !up) return out('worse', 'WORSE_BACKOFF');
+  return up ? out('incomparable', 'INCOMPARABLE') : out('equivalent', 'EQUIVALENT');
+}
+
 /* Plateau detection: weight hasn't increased across last 4 logged sessions */
 function detectPlateau(exerciseName){
   const key = exerciseName.trim().toLowerCase();
@@ -24808,35 +24934,35 @@ function detectPlateau(exerciseName){
        window below is the last four ORDINARY workouts and an older one fills the slot. The workout, its records,
        volume and score are untouched. */
     if(isDeloadWorkout(l)) return;
-    /* D96C-3 — one occurrence per WORKOUT, from every loaded row of the lift in
-       it. Per row, one workout could fill most of the four-session window. */
-    const rows = workoutExerciseRows(l, key);
-    if(!rows) return;
-    const perf = [];
-    rows.forEach(ex => {
-      if(ex.bodyweight) return;
-      /* D122 (E42) - a workout's plateau load is its heaviest PERFORMED working set, read exactly as D49's own
-         evidence reads it (exerciseSessionHistory): a typed warm-up, a set marked not completed and a load with no
-         performed reps are not performance, so none of them can invent a stall or hide one. The window and the
-         test below are the plateau policy, and they are untouched. */
-      (ex.sets || []).forEach(s => { if(!isPerformanceSet(s)) return; const r = performedReps(s.reps); if(r === null) return; const w = performedLoad(s.weight); if(w !== null) perf.push({ w, r }); });   // D96A
-    });
-    /* D126 (E47) - and the reps it was lifted for: the most performed reps AT that heaviest load, the pairing D109
-       gave D49's own evidence. Load and reps come from the same sets, never one set's load with another's reps. */
-    if(perf.length){
-      const top = Math.max(...perf.map(x => x.w));
-      occurrences.push({ date: l.date, weight: top, reps: Math.max(...perf.filter(x => x.w === top).map(x => x.r)) });
-    }
+    /* D96C-3 — one occurrence per WORKOUT, from every loaded row of the lift in it. D122 (E42) - its heaviest
+       PERFORMED working set, read exactly as D49's own evidence reads it. D126 (E47) - and the most performed reps AT
+       that load. D137 - the same sets, now read whole (workoutProgressionEvidence): the top set first, as before. */
+    const ev = workoutProgressionEvidence(l, key);
+    if(ev) occurrences.push(ev);
   });
   if(occurrences.length < 4) return null;
   const last4 = occurrences.slice(-4);
   const first = last4[0];
-  /* D126 (E47) - "stalled when none beats the first", and a workout beats the first by lifting more, or the same load
-     for more reps. A heavier load still beats it and a lighter one never does, exactly as before: reps are compared
-     only at the same load, so no conversion between loads is made. 205 for 6, 7, 8 and 9 reps is not a stall;
-     8, 8, 8 and 8 still is, and so is a run that never gets back above where the window began. */
-  const stuck = last4.every(o => o.weight < first.weight || (o.weight === first.weight && o.reps <= first.reps));
-  return stuck ? { weight: first.weight, sessions: last4.length } : null;
+  /* D126 (E47) - "stalled when none beats the first". D137 (E49) - "beats" is the comparison above: a heavier load or
+     more reps at the same load, exactly as before, and only when the top set is the same, more recorded reserve at it
+     or stronger matching back-off sets. 205 × 8 at 0, 1, 2 then 3 RIR, or 8/6/4 to 8/8/7, is no longer a stall; 8, 8,
+     8 and 8 still is, and so is a run that never gets back above where the window began. */
+  const stuck = last4.every(o => compareProgressionEvidence(o, first).verdict !== 'better');
+  if(!stuck) return null;
+  /* D137 (E50) — FLAT OR FALLING. The last three workouts at one load, each worse than the one before (two falls in
+     a row, by the same comparison), is a decline, not a stall. One bad workout is not: a fall then a rebound, or a fall
+     then a match, stays flat. Same window, same four workouts; nothing older is read. */
+  const a = last4[1], b = last4[2], c = last4[3];
+  const falling = a.topLoad === b.topLoad && b.topLoad === c.topLoad
+    && compareProgressionEvidence(b, a).verdict === 'worse' && compareProgressionEvidence(c, b).verdict === 'worse';
+  return falling ? { weight: first.topLoad, sessions: last4.length, trend: 'declining', load: c.topLoad }
+                 : { weight: first.topLoad, sessions: last4.length };
+}
+/* D137 (E50) — what a workout's flag says about its first flagged lift: stuck when flat, declining when falling. */
+function plateauFlagWords(name, p){
+  return p.trend === 'declining'
+    ? escapeHtml(name) + ' declining at ' + p.load + 'lb'
+    : escapeHtml(name) + ' stuck at ' + p.weight + 'lb for ' + p.sessions + '+ sessions';
 }
 function findPlateauedExercises(t){
   return t.exercises.map(ex => ({ name: ex.name, plateau: detectPlateau(ex.name) })).filter(x => x.plateau);
@@ -30805,16 +30931,19 @@ function renderTodayInsights(){
 
   // Surface at most two actionable exercise states from the existing engines
   const names = getAllLoggedExerciseNames().slice(0, 40);
-  let ready = null, stalled = null;
+  let ready = null, stalled = null, stalledRec = null;
   for(const n of names){
     if(ready && stalled) break;
     const rec = progressionFor(n, repRangeForExercise(n), null);
     if(!rec) continue;
     if(!ready && rec.tag === 'increase') ready = n;
-    if(!stalled && rec.tag === 'plateau') stalled = n;
+    if(!stalled && rec.tag === 'plateau'){ stalled = n; stalledRec = rec; }
   }
   if(ready) rows.push({ tag:'Ready', text:`${ready} — ready for more weight` });
-  if(stalled) rows.push({ tag:'Stalled', text:`${stalled} — progress has flattened` });
+  /* D137 (E50) — a falling lift is named as one, in the same warning colour */
+  if(stalled) rows.push(stalledRec.trend === 'declining'
+    ? { tag:'Declining', cls:'stalled', text:`${stalled} — performance has declined two sessions running` }
+    : { tag:'Stalled', text:`${stalled} — progress has flattened` });
 
   /* D45B — the heading moved inside the render. It used to sit in the static
      markup reading "Momentum", so when Momentum was removed it was left
@@ -30826,7 +30955,7 @@ function renderTodayInsights(){
   el.innerHTML = rows.length
     ? `<div class="sec-head">Worth knowing</div>
        <div class="insight-list">${rows.slice(0,3).map(r => `
-        <div class="insight-row"><span class="insight-tag it-${r.tag.toLowerCase()}">${r.tag}</span><span>${escapeHtml(r.text)}</span></div>`).join('')}</div>`
+        <div class="insight-row"><span class="insight-tag it-${(r.cls || r.tag).toLowerCase()}">${r.tag}</span><span>${escapeHtml(r.text)}</span></div>`).join('')}</div>`
     : '';
 }
 
@@ -31221,7 +31350,7 @@ function templateCardHtml(t, cat, lastWeights){
   const plateaus = findPlateauedExercises(t);
   const plateauHtml = plateaus.length ? `
     <div class="plateau-flag">
-      ${warnIconSvg()} ${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions — try the swap dropdown${plateaus.length > 1 ? ` <span class="plateau-more">+${plateaus.length - 1} more</span>` : ''}
+      ${warnIconSvg()} ${plateauFlagWords(plateaus[0].name, plateaus[0].plateau)} — try the swap dropdown${plateaus.length > 1 ? ` <span class="plateau-more">+${plateaus.length - 1} more</span>` : ''}
     </div>` : '';
   const exercisePreview = t.exercises.slice(0, 8).map(ex =>
     `<div class="tpl-ex-row"><span>${escapeHtml(ex.name)}</span><span>${escapeHtml(String(ex.sets))} × ${escapeHtml(String(ex.reps))}</span></div>`).join('') +
@@ -31649,7 +31778,7 @@ function renderTrainDetail(){
   body.innerHTML = `
     ${programNote ? `<div class="td-note">${escapeHtml(noteDay)}'s session, as your program sets it.</div>` : ''}
     ${timeModeNoteHtml(src)}
-    ${plateaus.length ? `<div class="plateau-flag">${warnIconSvg()} ${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions${plateaus.length > 1 ? ` <span class="plateau-more">+${plateaus.length - 1} more</span>` : ''}</div>` : ''}
+    ${plateaus.length ? `<div class="plateau-flag">${warnIconSvg()} ${plateauFlagWords(plateaus[0].name, plateaus[0].plateau)}${plateaus.length > 1 ? ` <span class="plateau-more">+${plateaus.length - 1} more</span>` : ''}</div>` : ''}
     <div class="td-figure">${bodyDiagramSvg(shown)}</div>
     ${muscleFocusChipsHtml(shown)}
     <h3 class="td-k">Exercises</h3>

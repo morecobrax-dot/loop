@@ -244,7 +244,7 @@ const D121_EDITS = {
 };
 let _d120Src = null;
 function asOf1036(name){
-  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  if(_d120Src === null) _d120Src = d120Source();   // D137 restated: read the file as 10.55
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
   for(const [now, then] of (D121_EDITS[name] || []).concat(D120_EDITS[name] || [])){
     if(t.split(now).length !== 2) return null;           // a D121 or D120 statement itself moved
@@ -253,7 +253,7 @@ function asOf1036(name){
   return t;
 }
 function pinAsOf1037(name){
-  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  if(_d120Src === null) _d120Src = d120Source();   // D137 restated: read the file as 10.55
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
   for(const [now, then] of (D121_EDITS[name] || [])){
     if(t.split(now).length !== 2) return null;
@@ -279,7 +279,7 @@ const D122_EDITS = {
     "(ex.sets || []).forEach(s => { const w = performedLoad(s.weight); if(w !== null) weights.push(w); });"]]
 };
 function pinAsOf1038(name){
-  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  if(_d120Src === null) _d120Src = d120Source();   // D137 restated: read the file as 10.55
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
   for(const [now, then] of (D126_EDITS[name] || []).concat(D123_EDITS[name] || []).concat(D122_EDITS[name] || [])){   // D126 restated: undo D126 first
     if(t.split(now).length !== 2) return null;           // a D126, D123 or D122 statement itself moved
@@ -302,7 +302,7 @@ const D123_EDITS = {
     "forEach(l => { const rows = workoutExerciseRows(l, key);"]]
 };
 function pinAsOf1039(name){
-  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  if(_d120Src === null) _d120Src = d120Source();   // D137 restated: read the file as 10.55
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
   for(const [now, then] of (D126_EDITS[name] || []).concat(D123_EDITS[name] || [])){   // D126 restated: undo D126 first
     if(t.split(now).length !== 2) return null;           // a D126 or D123 statement itself moved
@@ -383,7 +383,7 @@ const D125_EDITS = {
     "exRow.classList.remove('ex-complete'); try{ refreshSetCoach(exRow); }catch(e){} }"]]
 };
 function asOf1041(name){
-  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  if(_d120Src === null) _d120Src = d120Source();   // D137 restated: read the file as 10.55
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
   for(const [now, then] of (D136_EDITS[name] || []).concat(D131B_EDITS[name] || [], D131A_EDITS[name] || [], D130_EDITS[name] || [], D125_EDITS[name] || [])){   // D136 restated: undo D136 first   // D131B, D131A, then D130, restated: undo them first
     if(t.split(now).length !== 2) return null;           // a D131B, D131A, D130 or D125 statement itself moved
@@ -407,7 +407,7 @@ const D126_EDITS = {
     "if(!rows) return; const weights = []; rows.forEach(ex => { if(ex.bodyweight) return; (ex.sets || []).forEach(s => { if(!isPerformanceSet(s) || performedReps(s.reps) === null) return; const w = performedLoad(s.weight); if(w !== null) weights.push(w); }); }); if(weights.length) occurrences.push({ date: l.date, weight: Math.max(...weights) }); }); if(occurrences.length < 4) return null; const last4 = occurrences.slice(-4); const first = last4[0].weight; const stuck = last4.every(o => o.weight <= first); return stuck ? { weight: first, sessions: last4.length }"]]
 };
 function asOf1042(name){
-  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  if(_d120Src === null) _d120Src = d120Source();   // D137 restated: read the file as 10.55
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
   for(const [now, then] of (D126_EDITS[name] || [])){
     if(t.split(now).length !== 2) return null;           // a D126 statement itself moved
@@ -437,7 +437,7 @@ const D127_EDITS = {
     "if(w && !w.disabled && !w.dataset.userSet && !started && rowWorkingLoad(exRow) !== null) w.value = String(exRow.dataset.rxLoad);"]]
 };
 function asOf1043(name){
-  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  if(_d120Src === null) _d120Src = d120Source();   // D137 restated: read the file as 10.55
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
   for(const [now, then] of (D136_EDITS[name] || []).concat(D131B_EDITS[name] || [], D131A_EDITS[name] || [], D130_EDITS[name] || [], D127_EDITS[name] || [])){   // D136 restated: undo D136 first   // D131B, D131A, then D130, restated: undo them first
     if(t.split(now).length !== 2) return null;           // a D131B, D131A, D130 or D127 statement itself moved
@@ -502,7 +502,7 @@ function asOf1045Art(text){
   return s.split(D129_ART[0]).length === 2 ? s.split(D129_ART[0]).join(D129_ART[1]) : null;   // null: the D129 block itself moved
 }
 function asOfChain(name, tables){
-  if(_d120Src === null) _d120Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  if(_d120Src === null) _d120Src = d120Source();   // D137 restated: read the file as 10.55
   let t = fnSrc(_d120Src, name).replace(/\s+/g, ' ').trim();
   for(const table of tables) for(const [now, then] of (table[name] || [])){
     if(t.split(now).length !== 2) return null;           // a statement of that phase itself moved
@@ -741,6 +741,168 @@ const D131B_RAW = [
     "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
    ]
 ];
+/* D137 (LOOP 10.56, E48 + E49 + E50) — progression reads the whole performance. Thirteen hunks: D47's test named once
+   (grindingBelowRange), the plateau tier telling flat from falling, D125's new-load projection, one workout's evidence and one
+   comparison, detectPlateau reading through them, the declining words on Today and the workout cards, and the What's New
+   entry. asOf1055Html(raw) takes them out and reads back LOOP 10.55 to the byte. Every older read-back starts there: the HTML
+   chain through asOf1054Html, and every function chain through d120Source, which hands them the file as 10.55. D137_EDITS
+   are whole-function pairs on loop-tests' own reading ([now, as of 10.55]; an added function as absent); Contract 256
+   proves what they do. */
+const D137_RAW = [
+ [
+  "/* D47's test, named once (D137): two consecutive sessions at the same weight, both under the bottom of the range, both\n   at 0.5 RIR or less. Tier 2.5 below asks it, and so does the plateau tier, so the two can never disagree. */\nfunction grindingBelowRange(range, last, prev){\n  return !!(range && last && prev && prev.weight === last.weight\n     && last.topReps < range.min && prev.topReps < range.min\n     && last.avgRir !== null && last.avgRir <= 0.5\n     && prev.avgRir !== null && prev.avgRir <= 0.5);\n}\n\nfunction buildProgressionRecommendation(exerciseName, templateReps, templateRecommended){",
+  "function buildProgressionRecommendation(exerciseName, templateReps, templateRecommended){"
+ ],
+ [
+  "  const plateau = detectPlateau(exerciseName);\n  /* D137 (E50) — FLAT IS NOT FALLING. A plateau whose last three workouts each fell short of the one before is a decline,\n     and it is named as one. It still holds the load: the trend describes the evidence, and moving the load is D49's. The\n     one exception is D47's own case: a decline that has also ground two sessions under the range with nothing in\n     reserve is exactly what D47 exists for, and this tier used to stand in front of it. It now passes on to D47 below,\n     whose test is unchanged. A flat plateau holds as it always has, even when it grinds. */\n  if(plateau && plateau.trend === 'declining' && !grindingBelowRange(range, last, sessions[1])){\n    return {\n      weight: w,\n      headline: `${w} lb × ${templateReps}`,\n      why: `Performance has declined two sessions running — hold the weight and rebuild, or switch to a similar exercise.`,\n      tag: 'plateau',\n      trend: 'declining'\n    };\n  }\n  if(plateau && plateau.trend !== 'declining'){\n    return {",
+  "  const plateau = detectPlateau(exerciseName);\n  if(plateau){\n    return {"
+ ],
+ [
+  "  const prevSame = sessions[1];\n  if(grindingBelowRange(range, last, prevSame)){",
+  "  const prevSame = sessions[1];\n  if(range && prevSame && prevSame.weight === w\n     && last.topReps < range.min && prevSame.topReps < range.min\n     && last.avgRir !== null && last.avgRir <= 0.5\n     && prevSame.avgRir !== null && prevSame.avgRir <= 0.5){"
+ ],
+ [
+  "/* D137 (E48) — A LOAD D49 HAS JUST RAISED. Nothing has been lifted at it in the window, so nothing can be read at it,\n   and the program's seed (the range's first number in every set) is the least accurate start there is: measured on\n   generated athletes it overshoots most later sets, which at a new heavier load fall under the range's floor. The\n   athlete's latest ordinary session, at the load D49 judged, is still the best evidence of how this lift goes. Its sets\n   are kept in order, each ONE rep under what was done at the lighter load: the plan never asks more than the athlete has\n   shown, and never claims the lighter load's reps were done at this one. A set that reached the program's floor does\n   not go below it; a set already under it goes one lower, never below one; the range's top still caps every set. It\n   needs a real session at that load (two working sets there, or one when the program asks for one), never a deload;\n   otherwise it is the seed, as ever. Nothing is written to history: it is a plan, read once when the workout starts. */\nfunction newLoadProjection(log, key, load, n, range){\n  for(let i = 0; i < log.length; i++){\n    if(isDeloadWorkout(log[i])) continue;\n    const seq = workingSetSequenceOf(log[i], key);\n    if(!seq) continue;\n    const top = Math.max(...seq.map(s => s.load));\n    if(!(top < load)) return null;\n    const at = seq.filter(s => s.load === top);\n    if(at.length < Math.min(n, PROGRESSION_EVIDENCE.minSetsWithoutRx)) return null;\n    return at.map(s => { const r = Math.floor(s.reps); return Object.assign({}, s, { load, reps: r >= range.min ? Math.max(range.min, r - 1) : r - 1 }); });\n  }\n  return null;\n}\n\n/* The plan for one exercise: { source, reps, load, tag }. `reps` holds one string\n   per working set; `source` is 'program' (the seed), 'history' (the latest\n   session at this load), 'history+1' (that, plus BUILD's one rep) or\n   'projection' (D137: a new load D49 raised, from the load it judged). */",
+  "/* The plan for one exercise: { source, reps, load, tag }. `reps` holds one string\n   per working set; `source` is 'program' (the seed), 'history' (the latest\n   session at this load) or 'history+1' (that, plus BUILD's one rep). */"
+ ],
+ [
+  "  /* D137 (E48) — a session AT the new load always wins (above); only without one does an increase read the load before */\n  let projected = false;\n  if(!anchor && tag === 'increase'){ anchor = newLoadProjection(log, key, load, n, range); projected = !!anchor; }\n  if(!anchor) return fallback;\n\n  const reps = [];\n  for(let k = 0; k < n; k++){\n    const src = anchor[Math.min(k, anchor.length - 1)];\n    reps.push(Math.max(1, Math.min(range.max, Math.floor(src.reps))));\n  }\n  let source = projected ? 'projection' : 'history';",
+  "  if(!anchor) return fallback;\n\n  const reps = [];\n  for(let k = 0; k < n; k++){\n    const src = anchor[Math.min(k, anchor.length - 1)];\n    reps.push(Math.max(1, Math.min(range.max, Math.floor(src.reps))));\n  }\n  let source = 'history';"
+ ],
+ [
+  "/* =========================================================\n   ONE WORKOUT'S PROGRESSION EVIDENCE, AND HOW TWO COMPARE  (Phase D137 - D88 findings E49, E50)\n   ---------------------------------------------------------\n   A workout's performance of a lift is read in an order, never weighed into a score:\n     1. its TOP SET - the heaviest performed working load and the most reps lifted at it (D109, D126). A heavier load\n        beats a lighter one; at the same load, more reps beat fewer. Nothing below can undo this.\n     2. the RESERVE at that top set - only when both workouts recorded it. A missing RIR is unknown: never 0, never\n        spare capacity, so it orders nothing.\n     3. the REST OF THE WORK - every other performed working set - set for set at the same loads, and only when both\n        workouts did the same number of sets at the same loads: more reps, or the same reps with more recorded reserve.\n        Different loads, a workout stopped short or a set added are not comparable, so a shorter workout cannot look\n        stronger and extra volume counts for nothing. No tonnage, no estimated 1RM, no score.\n   The answer is better, worse, equivalent or incomparable, with the evidence that decided it. Eligible sets are D121's\n   performances (isPerformanceSet) with real reps and a real load (D96A), exactly the sets D126 already read: never a\n   warm-up, never a set marked not done, never a bodyweight row. Pure: no store, no program, no readiness. */\nfunction workoutProgressionEvidence(entry, key){\n  const rows = workoutExerciseRows(entry, key);\n  if(!rows) return null;\n  const perf = [];\n  rows.forEach(ex => {\n    if(ex.bodyweight) return;\n    (ex.sets || []).forEach(s => {\n      if(!isPerformanceSet(s)) return;\n      const r = performedReps(s.reps); if(r === null) return;\n      const w = performedLoad(s.weight); if(w === null) return;\n      const q = (s.rir === '' || s.rir == null) ? NaN : parseFloat(String(s.rir).replace('+', ''));\n      perf.push({ w, r, rir: Number.isFinite(q) ? q : null });\n    });\n  });\n  if(!perf.length) return null;\n  const topLoad = Math.max(...perf.map(x => x.w));\n  const topReps = Math.max(...perf.filter(x => x.w === topLoad).map(x => x.r));\n  const tops = perf.filter(x => x.w === topLoad && x.r === topReps);\n  const known = tops.filter(x => x.rir !== null);\n  const topRir = known.length ? Math.max(...known.map(x => x.rir)) : null;\n  const topSet = known.length ? known.find(x => x.rir === topRir) : tops[0];\n  const rest = {};\n  perf.forEach(x => { if(x === topSet) return; (rest[String(x.w)] = rest[String(x.w)] || []).push({ r: x.r, rir: x.rir }); });\n  Object.keys(rest).forEach(k => rest[k].sort((p, q) => (q.r - p.r) || ((q.rir === null ? -1 : q.rir) - (p.rir === null ? -1 : p.rir))));\n  return { date: entry.date, topLoad, topReps, topRir, rest };\n}\n/* b against a. verdict: 'better' | 'worse' | 'equivalent' | 'incomparable'; reason: the evidence that decided it. */\nfunction compareProgressionEvidence(b, a){\n  const out = (verdict, reason) => ({ verdict, reason });\n  if(b.topLoad !== a.topLoad) return b.topLoad > a.topLoad ? out('better', 'HEAVIER_LOAD') : out('worse', 'LIGHTER_LOAD');\n  if(b.topReps !== a.topReps) return b.topReps > a.topReps ? out('better', 'MORE_TOP_REPS') : out('worse', 'WORSE_TOP_REPS');\n  if(b.topRir !== null && a.topRir !== null && b.topRir !== a.topRir)\n    return b.topRir > a.topRir ? out('better', 'BETTER_MATCHED_RIR') : out('worse', 'WORSE_MATCHED_RIR');\n  const loads = Object.keys(b.rest);\n  if(loads.length !== Object.keys(a.rest).length || loads.some(w => !a.rest[w] || a.rest[w].length !== b.rest[w].length))\n    return out('incomparable', 'INCOMPARABLE');\n  let up = 0, down = 0;\n  loads.forEach(w => b.rest[w].forEach((s, i) => {\n    const o = a.rest[w][i];\n    if(s.r !== o.r){ if(s.r > o.r) up++; else down++; }\n    else if(s.rir !== null && o.rir !== null && s.rir !== o.rir){ if(s.rir > o.rir) up++; else down++; }\n  }));\n  if(up && !down) return out('better', 'BETTER_BACKOFF');\n  if(down && !up) return out('worse', 'WORSE_BACKOFF');\n  return up ? out('incomparable', 'INCOMPARABLE') : out('equivalent', 'EQUIVALENT');\n}\n\n/* Plateau detection: weight hasn't increased across last 4 logged sessions */\nfunction detectPlateau(exerciseName){",
+  "/* Plateau detection: weight hasn't increased across last 4 logged sessions */\nfunction detectPlateau(exerciseName){"
+ ],
+ [
+  "    /* D96C-3 — one occurrence per WORKOUT, from every loaded row of the lift in it. D122 (E42) - its heaviest\n       PERFORMED working set, read exactly as D49's own evidence reads it. D126 (E47) - and the most performed reps AT\n       that load. D137 - the same sets, now read whole (workoutProgressionEvidence): the top set first, as before. */\n    const ev = workoutProgressionEvidence(l, key);\n    if(ev) occurrences.push(ev);\n  });\n  if(occurrences.length < 4) return null;\n  const last4 = occurrences.slice(-4);\n  const first = last4[0];\n  /* D126 (E47) - \"stalled when none beats the first\". D137 (E49) - \"beats\" is the comparison above: a heavier load or\n     more reps at the same load, exactly as before, and only when the top set is the same, more recorded reserve at it\n     or stronger matching back-off sets. 205 × 8 at 0, 1, 2 then 3 RIR, or 8/6/4 to 8/8/7, is no longer a stall; 8, 8,\n     8 and 8 still is, and so is a run that never gets back above where the window began. */\n  const stuck = last4.every(o => compareProgressionEvidence(o, first).verdict !== 'better');\n  if(!stuck) return null;\n  /* D137 (E50) — FLAT OR FALLING. The last three workouts at one load, each worse than the one before (two falls in\n     a row, by the same comparison), is a decline, not a stall. One bad workout is not: a fall then a rebound, or a fall\n     then a match, stays flat. Same window, same four workouts; nothing older is read. */\n  const a = last4[1], b = last4[2], c = last4[3];\n  const falling = a.topLoad === b.topLoad && b.topLoad === c.topLoad\n    && compareProgressionEvidence(b, a).verdict === 'worse' && compareProgressionEvidence(c, b).verdict === 'worse';\n  return falling ? { weight: first.topLoad, sessions: last4.length, trend: 'declining', load: c.topLoad }\n                 : { weight: first.topLoad, sessions: last4.length };",
+  "    /* D96C-3 — one occurrence per WORKOUT, from every loaded row of the lift in\n       it. Per row, one workout could fill most of the four-session window. */\n    const rows = workoutExerciseRows(l, key);\n    if(!rows) return;\n    const perf = [];\n    rows.forEach(ex => {\n      if(ex.bodyweight) return;\n      /* D122 (E42) - a workout's plateau load is its heaviest PERFORMED working set, read exactly as D49's own\n         evidence reads it (exerciseSessionHistory): a typed warm-up, a set marked not completed and a load with no\n         performed reps are not performance, so none of them can invent a stall or hide one. The window and the\n         test below are the plateau policy, and they are untouched. */\n      (ex.sets || []).forEach(s => { if(!isPerformanceSet(s)) return; const r = performedReps(s.reps); if(r === null) return; const w = performedLoad(s.weight); if(w !== null) perf.push({ w, r }); });   // D96A\n    });\n    /* D126 (E47) - and the reps it was lifted for: the most performed reps AT that heaviest load, the pairing D109\n       gave D49's own evidence. Load and reps come from the same sets, never one set's load with another's reps. */\n    if(perf.length){\n      const top = Math.max(...perf.map(x => x.w));\n      occurrences.push({ date: l.date, weight: top, reps: Math.max(...perf.filter(x => x.w === top).map(x => x.r)) });\n    }\n  });\n  if(occurrences.length < 4) return null;\n  const last4 = occurrences.slice(-4);\n  const first = last4[0];\n  /* D126 (E47) - \"stalled when none beats the first\", and a workout beats the first by lifting more, or the same load\n     for more reps. A heavier load still beats it and a lighter one never does, exactly as before: reps are compared\n     only at the same load, so no conversion between loads is made. 205 for 6, 7, 8 and 9 reps is not a stall;\n     8, 8, 8 and 8 still is, and so is a run that never gets back above where the window began. */\n  const stuck = last4.every(o => o.weight < first.weight || (o.weight === first.weight && o.reps <= first.reps));\n  return stuck ? { weight: first.weight, sessions: last4.length } : null;"
+ ],
+ [
+  "/* D137 (E50) — what a workout's flag says about its first flagged lift: stuck when flat, declining when falling. */\nfunction plateauFlagWords(name, p){\n  return p.trend === 'declining'\n    ? escapeHtml(name) + ' declining at ' + p.load + 'lb'\n    : escapeHtml(name) + ' stuck at ' + p.weight + 'lb for ' + p.sessions + '+ sessions';\n}\nfunction findPlateauedExercises(t){",
+  "function findPlateauedExercises(t){"
+ ],
+ [
+  "${plateauFlagWords(plateaus[0].name, plateaus[0].plateau)} — try the swap dropdown",
+  "${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions — try the swap dropdown"
+ ],
+ [
+  "${plateauFlagWords(plateaus[0].name, plateaus[0].plateau)}${plateaus.length",
+  "${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions${plateaus.length"
+ ],
+ [
+  "  let ready = null, stalled = null, stalledRec = null;\n  for(const n of names){\n    if(ready && stalled) break;\n    const rec = progressionFor(n, repRangeForExercise(n), null);\n    if(!rec) continue;\n    if(!ready && rec.tag === 'increase') ready = n;\n    if(!stalled && rec.tag === 'plateau'){ stalled = n; stalledRec = rec; }\n  }\n  if(ready) rows.push({ tag:'Ready', text:`${ready} — ready for more weight` });\n  /* D137 (E50) — a falling lift is named as one, in the same warning colour */\n  if(stalled) rows.push(stalledRec.trend === 'declining'\n    ? { tag:'Declining', cls:'stalled', text:`${stalled} — performance has declined two sessions running` }\n    : { tag:'Stalled', text:`${stalled} — progress has flattened` });",
+  "  let ready = null, stalled = null;\n  for(const n of names){\n    if(ready && stalled) break;\n    const rec = progressionFor(n, repRangeForExercise(n), null);\n    if(!rec) continue;\n    if(!ready && rec.tag === 'increase') ready = n;\n    if(!stalled && rec.tag === 'plateau') stalled = n;\n  }\n  if(ready) rows.push({ tag:'Ready', text:`${ready} — ready for more weight` });\n  if(stalled) rows.push({ tag:'Stalled', text:`${stalled} — progress has flattened` });"
+ ],
+ [
+  "<span class=\"insight-tag it-${(r.cls || r.tag).toLowerCase()}\">${r.tag}</span>",
+  "<span class=\"insight-tag it-${r.tag.toLowerCase()}\">${r.tag}</span>"
+ ],
+ [
+  "    changes: []\n  },\n  {\n    id: 'v10-56',\n    version: 'LOOP 10.56',\n    title: 'Progression Reads the Whole Performance',\n    date: '2026-10-08',\n    swVersion: 'loop-v233',\n    summary: 'LOOP now uses more of what you actually did when judging progress and planning the next session.',\n    newFeatures: [],\n    improvements: [\n      'When you earn a heavier weight you haven’t lifted recently, its set targets now build from your last session at the lighter weight, one rep lower (never below the range where you reached it), instead of every set starting at the bottom of the range',\n      'When your top set is unchanged, stronger later sets at the same weights, or more reps in reserve that you logged, can now count as progress instead of a stall'\n    ],\n    bugFixes: [\n      'A lift LOOP called stalled is now called declining when your performance has dropped two sessions running, and if it has also stayed below the range with nothing left in reserve for two sessions, LOOP now suggests a lighter weight, as it already did for lifts that weren’t stalled'\n    ],\n    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)",
+  "    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)"
+ ]
+];
+const D137_WHATSNEW = "  },\n  {\n    id: 'v10-56',\n    version: 'LOOP 10.56',\n    title: 'Progression Reads the Whole Performance',\n    date: '2026-10-08',\n    swVersion: 'loop-v233',\n    summary: 'LOOP now uses more of what you actually did when judging progress and planning the next session.',\n    newFeatures: [],\n    improvements: [\n      'When you earn a heavier weight you haven’t lifted recently, its set targets now build from your last session at the lighter weight, one rep lower (never below the range where you reached it), instead of every set starting at the bottom of the range',\n      'When your top set is unchanged, stronger later sets at the same weights, or more reps in reserve that you logged, can now count as progress instead of a stall'\n    ],\n    bugFixes: [\n      'A lift LOOP called stalled is now called declining when your performance has dropped two sessions running, and if it has also stayed below the range with nothing left in reserve for two sessions, LOOP now suggests a lighter weight, as it already did for lifts that weren’t stalled'\n    ],\n    changes: []\n";
+const SHA_1055_HTML = '4f317d5609d28d60';   /* index.html of LOOP 10.55 (eccb086), LF */
+function asOf1055Html(raw){
+  let t = raw;
+  for(const [now, then] of D137_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
+}
+/* the source every older function read-back starts from: the file as 10.55 (or as it is, when a D137 hunk moved) */
+function d120Source(){
+  const raw = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  return asOf1055Html(raw) || raw;
+}
+const D137_EDITS = {
+ "buildProgressionRecommendation": [
+  [
+   "function buildProgressionRecommendation(exerciseName, templateReps, templateRecommended){ const range = parseRepRange(templateReps); const sessions = exerciseSessionHistory(exerciseName, 5); if(sessions.length === 0){ const startWeight = (templateRecommended && templateRecommended !== '—' && templateRecommended !== 'Bodyweight') ? firstNumber(templateRecommended) : null; return { weight: startWeight, headline: startWeight ? `${startWeight} lb × ${templateReps}` : `${templateReps} reps`, why: startWeight ? 'Starting weight from your plan.' : 'No history yet — log this one to start tracking.', tag: 'new' }; } const last = sessions[0]; const w = last.weight; const prPeak = computePRs().find(p => p.name.trim().toLowerCase() === exerciseName.trim().toLowerCase() && !p.isBW); const plateau = detectPlateau(exerciseName); if(plateau && plateau.trend === 'declining' && !grindingBelowRange(range, last, sessions[1])){ return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Performance has declined two sessions running — hold the weight and rebuild, or switch to a similar exercise.`, tag: 'plateau', trend: 'declining' }; } if(plateau && plateau.trend !== 'declining'){ return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Performance has stalled for ${plateau.sessions} sessions — hold the weight, or switch to a similar exercise.`, tag: 'plateau' }; } const ev = progressionEvidence(last, sessions[1]); const atTop = range && last.topReps >= range.max; const hasHeadroom = ev.headroom; if(atTop && hasHeadroom && ev.complete && !ev.loadJustChanged){ const newWeight = w + progressionIncrement(exerciseName, w); const rirNote = last.avgRir != null ? ` with ~${Math.round(last.avgRir)} RIR` : ''; const prNote = prPeak && newWeight >= prPeak.weight ? ' — this would match or beat your best.' : ''; return { weight: newWeight, headline: `${newWeight} lb × ${templateReps}`, why: `You hit ${last.topReps} reps last session${rirNote} — ready for a small increase.${prNote}`, tag: 'increase' }; } const prevSame = sessions[1]; if(grindingBelowRange(range, last, prevSame)){ const down = Math.max(progressionIncrement(exerciseName, w), 0); const lighter = Math.max(0, w - down); if(lighter > 0){ return { weight: lighter, headline: `${lighter} lb × ${templateReps}`, why: `Two sessions under ${range.min} reps with nothing left in reserve — drop to ${lighter} lb and rebuild the range.`, tag: 'reduce' }; } } const prev = sessions[1]; if(prev && prev.weight === w && last.topReps < prev.topReps - 1){ return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Fewer reps than last time (${last.topReps} vs ${prev.topReps}) — hold this weight and rebuild.`, tag: 'decline' }; } if(range && last.topReps < range.max && ev.complete){ const nextGoal = Math.min(range.max, last.topReps + 1); return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Beat last session — aim for ${nextGoal} reps at ${w} lb.`, tag: 'build' }; } if(range && !ev.complete){ const shortfall = last.prescribedSets ? `${last.workingSets} of ${last.prescribedSets} sets logged last time` : 'only one set logged last time'; return { weight: w, headline: `${w} lb × ${templateReps}`, why: `${shortfall} — keep ${w} lb and work inside ${range.min}–${range.max} reps.`, tag: 'insufficient' }; } return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Keep ${w} lb and match your previous ${last.topReps} reps.`, tag: 'hold' }; }",
+   "function buildProgressionRecommendation(exerciseName, templateReps, templateRecommended){ const range = parseRepRange(templateReps); const sessions = exerciseSessionHistory(exerciseName, 5); if(sessions.length === 0){ const startWeight = (templateRecommended && templateRecommended !== '—' && templateRecommended !== 'Bodyweight') ? firstNumber(templateRecommended) : null; return { weight: startWeight, headline: startWeight ? `${startWeight} lb × ${templateReps}` : `${templateReps} reps`, why: startWeight ? 'Starting weight from your plan.' : 'No history yet — log this one to start tracking.', tag: 'new' }; } const last = sessions[0]; const w = last.weight; const prPeak = computePRs().find(p => p.name.trim().toLowerCase() === exerciseName.trim().toLowerCase() && !p.isBW); const plateau = detectPlateau(exerciseName); if(plateau){ return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Performance has stalled for ${plateau.sessions} sessions — hold the weight, or switch to a similar exercise.`, tag: 'plateau' }; } const ev = progressionEvidence(last, sessions[1]); const atTop = range && last.topReps >= range.max; const hasHeadroom = ev.headroom; if(atTop && hasHeadroom && ev.complete && !ev.loadJustChanged){ const newWeight = w + progressionIncrement(exerciseName, w); const rirNote = last.avgRir != null ? ` with ~${Math.round(last.avgRir)} RIR` : ''; const prNote = prPeak && newWeight >= prPeak.weight ? ' — this would match or beat your best.' : ''; return { weight: newWeight, headline: `${newWeight} lb × ${templateReps}`, why: `You hit ${last.topReps} reps last session${rirNote} — ready for a small increase.${prNote}`, tag: 'increase' }; } const prevSame = sessions[1]; if(range && prevSame && prevSame.weight === w && last.topReps < range.min && prevSame.topReps < range.min && last.avgRir !== null && last.avgRir <= 0.5 && prevSame.avgRir !== null && prevSame.avgRir <= 0.5){ const down = Math.max(progressionIncrement(exerciseName, w), 0); const lighter = Math.max(0, w - down); if(lighter > 0){ return { weight: lighter, headline: `${lighter} lb × ${templateReps}`, why: `Two sessions under ${range.min} reps with nothing left in reserve — drop to ${lighter} lb and rebuild the range.`, tag: 'reduce' }; } } const prev = sessions[1]; if(prev && prev.weight === w && last.topReps < prev.topReps - 1){ return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Fewer reps than last time (${last.topReps} vs ${prev.topReps}) — hold this weight and rebuild.`, tag: 'decline' }; } if(range && last.topReps < range.max && ev.complete){ const nextGoal = Math.min(range.max, last.topReps + 1); return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Beat last session — aim for ${nextGoal} reps at ${w} lb.`, tag: 'build' }; } if(range && !ev.complete){ const shortfall = last.prescribedSets ? `${last.workingSets} of ${last.prescribedSets} sets logged last time` : 'only one set logged last time'; return { weight: w, headline: `${w} lb × ${templateReps}`, why: `${shortfall} — keep ${w} lb and work inside ${range.min}–${range.max} reps.`, tag: 'insufficient' }; } return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Keep ${w} lb and match your previous ${last.topReps} reps.`, tag: 'hold' }; }"
+  ]
+ ],
+ "deriveWorkingSetPlan": [
+  [
+   "function deriveWorkingSetPlan(exerciseName, templateReps, setCount, rec, opts){ const n = Math.max(1, parseInt(setCount, 10) || 3); const seed = programRepSeed(templateReps); const tag = rec ? rec.tag : null; const fallback = { source: 'program', reps: Array(n).fill(seed), load: null, tag }; const range = parseRepRange(templateReps); const load = rec && rec.weight != null ? performedLoad(rec.weight) : null; if(!range || load === null || load <= 0 || (opts && opts.deload) || typeof exerciseName !== 'string') return fallback; let id = null; try{ id = resolveExerciseId(exerciseName); }catch(e){ id = null; } if(substitutionIsHold(id, exerciseName)) return fallback; const key = loggedExerciseKey(exerciseName); const log = sortedLog(); let anchor = null; for(let i = 0, seen = 0; i < log.length && seen < WORKING_SET_PLAN.window; i++){ if(isDeloadWorkout(log[i])) continue; const seq = workingSetSequenceOf(log[i], key); if(!seq) continue; seen++; const at = seq.filter(s => s.load === load); if(at.length >= Math.min(n, PROGRESSION_EVIDENCE.minSetsWithoutRx)){ anchor = at; break; } } let projected = false; if(!anchor && tag === 'increase'){ anchor = newLoadProjection(log, key, load, n, range); projected = !!anchor; } if(!anchor) return fallback; const reps = []; for(let k = 0; k < n; k++){ const src = anchor[Math.min(k, anchor.length - 1)]; reps.push(Math.max(1, Math.min(range.max, Math.floor(src.reps)))); } let source = projected ? 'projection' : 'history'; if(tag === 'build'){ const k = buildRepIndex(anchor.slice(0, n), reps, range); if(k !== -1){ reps[k] += WORKING_SET_PLAN.buildStep; source = 'history+1'; } } return { source, reps: reps.map(String), load, tag }; }",
+   "function deriveWorkingSetPlan(exerciseName, templateReps, setCount, rec, opts){ const n = Math.max(1, parseInt(setCount, 10) || 3); const seed = programRepSeed(templateReps); const tag = rec ? rec.tag : null; const fallback = { source: 'program', reps: Array(n).fill(seed), load: null, tag }; const range = parseRepRange(templateReps); const load = rec && rec.weight != null ? performedLoad(rec.weight) : null; if(!range || load === null || load <= 0 || (opts && opts.deload) || typeof exerciseName !== 'string') return fallback; let id = null; try{ id = resolveExerciseId(exerciseName); }catch(e){ id = null; } if(substitutionIsHold(id, exerciseName)) return fallback; const key = loggedExerciseKey(exerciseName); const log = sortedLog(); let anchor = null; for(let i = 0, seen = 0; i < log.length && seen < WORKING_SET_PLAN.window; i++){ if(isDeloadWorkout(log[i])) continue; const seq = workingSetSequenceOf(log[i], key); if(!seq) continue; seen++; const at = seq.filter(s => s.load === load); if(at.length >= Math.min(n, PROGRESSION_EVIDENCE.minSetsWithoutRx)){ anchor = at; break; } } if(!anchor) return fallback; const reps = []; for(let k = 0; k < n; k++){ const src = anchor[Math.min(k, anchor.length - 1)]; reps.push(Math.max(1, Math.min(range.max, Math.floor(src.reps)))); } let source = 'history'; if(tag === 'build'){ const k = buildRepIndex(anchor.slice(0, n), reps, range); if(k !== -1){ reps[k] += WORKING_SET_PLAN.buildStep; source = 'history+1'; } } return { source, reps: reps.map(String), load, tag }; }"
+  ]
+ ],
+ "detectPlateau": [
+  [
+   "function detectPlateau(exerciseName){ const key = exerciseName.trim().toLowerCase(); const occurrences = []; sortedLog().slice().reverse().forEach(l => { if(isDeloadWorkout(l)) return; const ev = workoutProgressionEvidence(l, key); if(ev) occurrences.push(ev); }); if(occurrences.length < 4) return null; const last4 = occurrences.slice(-4); const first = last4[0]; const stuck = last4.every(o => compareProgressionEvidence(o, first).verdict !== 'better'); if(!stuck) return null; const a = last4[1], b = last4[2], c = last4[3]; const falling = a.topLoad === b.topLoad && b.topLoad === c.topLoad && compareProgressionEvidence(b, a).verdict === 'worse' && compareProgressionEvidence(c, b).verdict === 'worse'; return falling ? { weight: first.topLoad, sessions: last4.length, trend: 'declining', load: c.topLoad } : { weight: first.topLoad, sessions: last4.length }; }",
+   "function detectPlateau(exerciseName){ const key = exerciseName.trim().toLowerCase(); const occurrences = []; sortedLog().slice().reverse().forEach(l => { if(isDeloadWorkout(l)) return; const rows = workoutExerciseRows(l, key); if(!rows) return; const perf = []; rows.forEach(ex => { if(ex.bodyweight) return; (ex.sets || []).forEach(s => { if(!isPerformanceSet(s)) return; const r = performedReps(s.reps); if(r === null) return; const w = performedLoad(s.weight); if(w !== null) perf.push({ w, r }); }); }); if(perf.length){ const top = Math.max(...perf.map(x => x.w)); occurrences.push({ date: l.date, weight: top, reps: Math.max(...perf.filter(x => x.w === top).map(x => x.r)) }); } }); if(occurrences.length < 4) return null; const last4 = occurrences.slice(-4); const first = last4[0]; const stuck = last4.every(o => o.weight < first.weight || (o.weight === first.weight && o.reps <= first.reps)); return stuck ? { weight: first.weight, sessions: last4.length } : null; }"
+  ]
+ ],
+ "renderTodayInsights": [
+  [
+   "function renderTodayInsights(){ const el = document.getElementById('todayInsights'); if(!el) return; const rows = []; const insight = getTopCoachInsight(); if(insight) rows.push({ tag:'Trend', text: insight.text }); const names = getAllLoggedExerciseNames().slice(0, 40); let ready = null, stalled = null, stalledRec = null; for(const n of names){ if(ready && stalled) break; const rec = progressionFor(n, repRangeForExercise(n), null); if(!rec) continue; if(!ready && rec.tag === 'increase') ready = n; if(!stalled && rec.tag === 'plateau'){ stalled = n; stalledRec = rec; } } if(ready) rows.push({ tag:'Ready', text:`${ready} — ready for more weight` }); if(stalled) rows.push(stalledRec.trend === 'declining' ? { tag:'Declining', cls:'stalled', text:`${stalled} — performance has declined two sessions running` } : { tag:'Stalled', text:`${stalled} — progress has flattened` }); el.innerHTML = rows.length ? `<div class=\"sec-head\">Worth knowing</div> <div class=\"insight-list\">${rows.slice(0,3).map(r => ` <div class=\"insight-row\"><span class=\"insight-tag it-${(r.cls || r.tag).toLowerCase()}\">${r.tag}</span><span>${escapeHtml(r.text)}</span></div>`).join('')}</div>` : ''; }",
+   "function renderTodayInsights(){ const el = document.getElementById('todayInsights'); if(!el) return; const rows = []; const insight = getTopCoachInsight(); if(insight) rows.push({ tag:'Trend', text: insight.text }); const names = getAllLoggedExerciseNames().slice(0, 40); let ready = null, stalled = null; for(const n of names){ if(ready && stalled) break; const rec = progressionFor(n, repRangeForExercise(n), null); if(!rec) continue; if(!ready && rec.tag === 'increase') ready = n; if(!stalled && rec.tag === 'plateau') stalled = n; } if(ready) rows.push({ tag:'Ready', text:`${ready} — ready for more weight` }); if(stalled) rows.push({ tag:'Stalled', text:`${stalled} — progress has flattened` }); el.innerHTML = rows.length ? `<div class=\"sec-head\">Worth knowing</div> <div class=\"insight-list\">${rows.slice(0,3).map(r => ` <div class=\"insight-row\"><span class=\"insight-tag it-${r.tag.toLowerCase()}\">${r.tag}</span><span>${escapeHtml(r.text)}</span></div>`).join('')}</div>` : ''; }"
+  ]
+ ],
+ "templateCardHtml": [
+  [
+   "function templateCardHtml(t, cat, lastWeights){ const profile = computeWorkoutProfile(t); const duration = computeWorkoutDuration(t); const plateaus = findPlateauedExercises(t); const plateauHtml = plateaus.length ? ` <div class=\"plateau-flag\"> ${warnIconSvg()} ${plateauFlagWords(plateaus[0].name, plateaus[0].plateau)} — try the swap dropdown${plateaus.length > 1 ? ` <span class=\"plateau-more\">+${plateaus.length - 1} more</span>` : ''} </div>` : ''; const exercisePreview = t.exercises.slice(0, 8).map(ex => `<div class=\"tpl-ex-row\"><span>${escapeHtml(ex.name)}</span><span>${escapeHtml(String(ex.sets))} × ${escapeHtml(String(ex.reps))}</span></div>`).join('') + (t.exercises.length > 8 ? `<div class=\"tpl-ex-more\">+ ${t.exercises.length - 8} more</div>` : ''); return ` <div class=\"tpl-card${cat ? ' cat-' + cat : ''}\"> <div class=\"tpl-name has-wi\">${workoutIdentityHtml(t, cat, 'sm')}<span>${escapeHtml(t.name)}</span></div> ${tplEmphasisLine(t)} <div class=\"tpl-meta-row\"> <span class=\"tpl-meta\">${t.exercises.length} exercises</span> <span class=\"tpl-duration\">${clockIconSvg()}~${duration} min</span> </div> ${plateauHtml} <div class=\"tpl-body\"> <div class=\"tpl-muscle-col\">${bodyDiagramSvg(t)}</div> </div> <button class=\"tpl-start\" onclick='startTemplateLog(${JSON.stringify(cat)}, ${JSON.stringify(t.id)})'>Start This Workout</button> <details class=\"tpl-details\"> <summary>Details</summary> <div class=\"tpl-ex-list\">${exercisePreview}</div> <div class=\"tpl-radar-col\">${radarSvg(profile)}</div> ${muscleFocusHtml(t)} <div class=\"tpl-manage\"> <button class=\"tpl-edit\" onclick='openEditTemplate(${JSON.stringify(cat)}, ${JSON.stringify(t.id)})' aria-label=\"Edit workout\">${pencilIconSvg()} Edit workout</button> <button class=\"tpl-del\" onclick=\"deleteTemplate('${cat}','${t.id}')\" aria-label=\"Delete workout\">${closeIconSvg(13)} Delete</button> </div> </details> </div> `; }",
+   "function templateCardHtml(t, cat, lastWeights){ const profile = computeWorkoutProfile(t); const duration = computeWorkoutDuration(t); const plateaus = findPlateauedExercises(t); const plateauHtml = plateaus.length ? ` <div class=\"plateau-flag\"> ${warnIconSvg()} ${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions — try the swap dropdown${plateaus.length > 1 ? ` <span class=\"plateau-more\">+${plateaus.length - 1} more</span>` : ''} </div>` : ''; const exercisePreview = t.exercises.slice(0, 8).map(ex => `<div class=\"tpl-ex-row\"><span>${escapeHtml(ex.name)}</span><span>${escapeHtml(String(ex.sets))} × ${escapeHtml(String(ex.reps))}</span></div>`).join('') + (t.exercises.length > 8 ? `<div class=\"tpl-ex-more\">+ ${t.exercises.length - 8} more</div>` : ''); return ` <div class=\"tpl-card${cat ? ' cat-' + cat : ''}\"> <div class=\"tpl-name has-wi\">${workoutIdentityHtml(t, cat, 'sm')}<span>${escapeHtml(t.name)}</span></div> ${tplEmphasisLine(t)} <div class=\"tpl-meta-row\"> <span class=\"tpl-meta\">${t.exercises.length} exercises</span> <span class=\"tpl-duration\">${clockIconSvg()}~${duration} min</span> </div> ${plateauHtml} <div class=\"tpl-body\"> <div class=\"tpl-muscle-col\">${bodyDiagramSvg(t)}</div> </div> <button class=\"tpl-start\" onclick='startTemplateLog(${JSON.stringify(cat)}, ${JSON.stringify(t.id)})'>Start This Workout</button> <details class=\"tpl-details\"> <summary>Details</summary> <div class=\"tpl-ex-list\">${exercisePreview}</div> <div class=\"tpl-radar-col\">${radarSvg(profile)}</div> ${muscleFocusHtml(t)} <div class=\"tpl-manage\"> <button class=\"tpl-edit\" onclick='openEditTemplate(${JSON.stringify(cat)}, ${JSON.stringify(t.id)})' aria-label=\"Edit workout\">${pencilIconSvg()} Edit workout</button> <button class=\"tpl-del\" onclick=\"deleteTemplate('${cat}','${t.id}')\" aria-label=\"Delete workout\">${closeIconSvg(13)} Delete</button> </div> </details> </div> `; }"
+  ]
+ ],
+ "renderTrainDetail": [
+  [
+   "function renderTrainDetail(){ const key = trainDetailKey; if(!key) return; const pick = key.date ? resolveStartWorkout(key.cat, key.id, key.date) : null; const t = key.date ? (pick && pick.template) : trainDetailTemplateOf(key.cat, key.id); if(!t){ closeTrainDetail(); return; } const saved = isSavedWorkoutId(t.id); const src = key.date ? t : trainStartSource(key.cat, t, trainTodayProgram()); const noteDay = key.date ? relativeDayLabel(JS_DAY_TO_KEY[new Date(key.date + 'T00:00:00').getDay()]) : 'Today'; const programNote = key.date ? !!(pick && pick.scheduled) : src !== t; const shown = trainShown(src); const exercises = shown.exercises || []; let dur = null; try{ dur = computeWorkoutDuration(shown); }catch(e){ dur = null; } let plateaus = []; try{ plateaus = findPlateauedExercises(t); }catch(e){ plateaus = []; } const plan = selectedPlanId ? DEFAULT_PLANS[selectedPlanId] : null; const set = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; }; set('trainDetailKicker', (saved ? 'My workout' : 'Plan workout') + ' · ' + (CAT_LABEL[key.cat] || key.cat)); set('trainDetailTitle', t.name || 'Workout'); const identity = document.getElementById('trainDetailIdentity'); if(identity) identity.innerHTML = workoutIdentityHtml(t, key.cat, 'md', { tile: true }); set('trainDetailSub', [exercises.length + ' exercise' + (exercises.length === 1 ? '' : 's'), dur ? '~' + dur + ' min' : null, (!saved && plan) ? plan.name : null].filter(Boolean).join(' · ')); const rename = document.getElementById('trainDetailRename'); if(rename) rename.hidden = !saved; const share = document.getElementById('trainDetailShare'); if(share) share.hidden = !canShareWorkouts(); const body = document.getElementById('trainDetailBody'); if(!body) return; let profile = null; try{ profile = computeWorkoutProfile(shown); }catch(e){ profile = null; } body.innerHTML = ` ${programNote ? `<div class=\"td-note\">${escapeHtml(noteDay)}'s session, as your program sets it.</div>` : ''} ${timeModeNoteHtml(src)} ${plateaus.length ? `<div class=\"plateau-flag\">${warnIconSvg()} ${plateauFlagWords(plateaus[0].name, plateaus[0].plateau)}${plateaus.length > 1 ? ` <span class=\"plateau-more\">+${plateaus.length - 1} more</span>` : ''}</div>` : ''} <div class=\"td-figure\">${bodyDiagramSvg(shown)}</div> ${muscleFocusChipsHtml(shown)} <h3 class=\"td-k\">Exercises</h3> <div class=\"tpl-ex-list\">${exercises.map(ex => `<div class=\"tpl-ex-row\"><span>${escapeHtml(ex.name)}</span><span>${escapeHtml(String(ex.sets))} × ${escapeHtml(String(ex.reps))}</span></div>`).join('')}</div> ${profile ? `<div class=\"tpl-radar-col\">${radarSvg(profile)}</div>` : ''} ${muscleFocusHtml(shown)}`; }",
+   "function renderTrainDetail(){ const key = trainDetailKey; if(!key) return; const pick = key.date ? resolveStartWorkout(key.cat, key.id, key.date) : null; const t = key.date ? (pick && pick.template) : trainDetailTemplateOf(key.cat, key.id); if(!t){ closeTrainDetail(); return; } const saved = isSavedWorkoutId(t.id); const src = key.date ? t : trainStartSource(key.cat, t, trainTodayProgram()); const noteDay = key.date ? relativeDayLabel(JS_DAY_TO_KEY[new Date(key.date + 'T00:00:00').getDay()]) : 'Today'; const programNote = key.date ? !!(pick && pick.scheduled) : src !== t; const shown = trainShown(src); const exercises = shown.exercises || []; let dur = null; try{ dur = computeWorkoutDuration(shown); }catch(e){ dur = null; } let plateaus = []; try{ plateaus = findPlateauedExercises(t); }catch(e){ plateaus = []; } const plan = selectedPlanId ? DEFAULT_PLANS[selectedPlanId] : null; const set = (id, text) => { const el = document.getElementById(id); if(el) el.textContent = text; }; set('trainDetailKicker', (saved ? 'My workout' : 'Plan workout') + ' · ' + (CAT_LABEL[key.cat] || key.cat)); set('trainDetailTitle', t.name || 'Workout'); const identity = document.getElementById('trainDetailIdentity'); if(identity) identity.innerHTML = workoutIdentityHtml(t, key.cat, 'md', { tile: true }); set('trainDetailSub', [exercises.length + ' exercise' + (exercises.length === 1 ? '' : 's'), dur ? '~' + dur + ' min' : null, (!saved && plan) ? plan.name : null].filter(Boolean).join(' · ')); const rename = document.getElementById('trainDetailRename'); if(rename) rename.hidden = !saved; const share = document.getElementById('trainDetailShare'); if(share) share.hidden = !canShareWorkouts(); const body = document.getElementById('trainDetailBody'); if(!body) return; let profile = null; try{ profile = computeWorkoutProfile(shown); }catch(e){ profile = null; } body.innerHTML = ` ${programNote ? `<div class=\"td-note\">${escapeHtml(noteDay)}'s session, as your program sets it.</div>` : ''} ${timeModeNoteHtml(src)} ${plateaus.length ? `<div class=\"plateau-flag\">${warnIconSvg()} ${escapeHtml(plateaus[0].name)} stuck at ${plateaus[0].plateau.weight}lb for ${plateaus[0].plateau.sessions}+ sessions${plateaus.length > 1 ? ` <span class=\"plateau-more\">+${plateaus.length - 1} more</span>` : ''}</div>` : ''} <div class=\"td-figure\">${bodyDiagramSvg(shown)}</div> ${muscleFocusChipsHtml(shown)} <h3 class=\"td-k\">Exercises</h3> <div class=\"tpl-ex-list\">${exercises.map(ex => `<div class=\"tpl-ex-row\"><span>${escapeHtml(ex.name)}</span><span>${escapeHtml(String(ex.sets))} × ${escapeHtml(String(ex.reps))}</span></div>`).join('')}</div> ${profile ? `<div class=\"tpl-radar-col\">${radarSvg(profile)}</div>` : ''} ${muscleFocusHtml(shown)}`; }"
+  ]
+ ],
+ "grindingBelowRange": [
+  [
+   "function grindingBelowRange(range, last, prev){ return !!(range && last && prev && prev.weight === last.weight && last.topReps < range.min && prev.topReps < range.min && last.avgRir !== null && last.avgRir <= 0.5 && prev.avgRir !== null && prev.avgRir <= 0.5); }",
+   ""
+  ]
+ ],
+ "newLoadProjection": [
+  [
+   "function newLoadProjection(log, key, load, n, range){ for(let i = 0; i < log.length; i++){ if(isDeloadWorkout(log[i])) continue; const seq = workingSetSequenceOf(log[i], key); if(!seq) continue; const top = Math.max(...seq.map(s => s.load)); if(!(top < load)) return null; const at = seq.filter(s => s.load === top); if(at.length < Math.min(n, PROGRESSION_EVIDENCE.minSetsWithoutRx)) return null; return at.map(s => { const r = Math.floor(s.reps); return Object.assign({}, s, { load, reps: r >= range.min ? Math.max(range.min, r - 1) : r - 1 }); }); } return null; }",
+   ""
+  ]
+ ],
+ "workoutProgressionEvidence": [
+  [
+   "function workoutProgressionEvidence(entry, key){ const rows = workoutExerciseRows(entry, key); if(!rows) return null; const perf = []; rows.forEach(ex => { if(ex.bodyweight) return; (ex.sets || []).forEach(s => { if(!isPerformanceSet(s)) return; const r = performedReps(s.reps); if(r === null) return; const w = performedLoad(s.weight); if(w === null) return; const q = (s.rir === '' || s.rir == null) ? NaN : parseFloat(String(s.rir).replace('+', '')); perf.push({ w, r, rir: Number.isFinite(q) ? q : null }); }); }); if(!perf.length) return null; const topLoad = Math.max(...perf.map(x => x.w)); const topReps = Math.max(...perf.filter(x => x.w === topLoad).map(x => x.r)); const tops = perf.filter(x => x.w === topLoad && x.r === topReps); const known = tops.filter(x => x.rir !== null); const topRir = known.length ? Math.max(...known.map(x => x.rir)) : null; const topSet = known.length ? known.find(x => x.rir === topRir) : tops[0]; const rest = {}; perf.forEach(x => { if(x === topSet) return; (rest[String(x.w)] = rest[String(x.w)] || []).push({ r: x.r, rir: x.rir }); }); Object.keys(rest).forEach(k => rest[k].sort((p, q) => (q.r - p.r) || ((q.rir === null ? -1 : q.rir) - (p.rir === null ? -1 : p.rir)))); return { date: entry.date, topLoad, topReps, topRir, rest }; }",
+   ""
+  ]
+ ],
+ "compareProgressionEvidence": [
+  [
+   "function compareProgressionEvidence(b, a){ const out = (verdict, reason) => ({ verdict, reason }); if(b.topLoad !== a.topLoad) return b.topLoad > a.topLoad ? out('better', 'HEAVIER_LOAD') : out('worse', 'LIGHTER_LOAD'); if(b.topReps !== a.topReps) return b.topReps > a.topReps ? out('better', 'MORE_TOP_REPS') : out('worse', 'WORSE_TOP_REPS'); if(b.topRir !== null && a.topRir !== null && b.topRir !== a.topRir) return b.topRir > a.topRir ? out('better', 'BETTER_MATCHED_RIR') : out('worse', 'WORSE_MATCHED_RIR'); const loads = Object.keys(b.rest); if(loads.length !== Object.keys(a.rest).length || loads.some(w => !a.rest[w] || a.rest[w].length !== b.rest[w].length)) return out('incomparable', 'INCOMPARABLE'); let up = 0, down = 0; loads.forEach(w => b.rest[w].forEach((s, i) => { const o = a.rest[w][i]; if(s.r !== o.r){ if(s.r > o.r) up++; else down++; } else if(s.rir !== null && o.rir !== null && s.rir !== o.rir){ if(s.rir > o.rir) up++; else down++; } })); if(up && !down) return out('better', 'BETTER_BACKOFF'); if(down && !up) return out('worse', 'WORSE_BACKOFF'); return up ? out('incomparable', 'INCOMPARABLE') : out('equivalent', 'EQUIVALENT'); }",
+   ""
+  ]
+ ],
+ "plateauFlagWords": [
+  [
+   "function plateauFlagWords(name, p){ return p.trend === 'declining' ? escapeHtml(name) + ' declining at ' + p.load + 'lb' : escapeHtml(name) + ' stuck at ' + p.weight + 'lb for ' + p.sessions + '+ sessions'; }",
+   ""
+  ]
+ ]
+};
+let _d137Src = null;
+function asOf1055(name){
+  if(_d137Src === null) _d137Src = require('fs').readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  let t = fnSrc(_d137Src, name).replace(/\s+/g, ' ').trim();
+  for(const [now, then] of (D137_EDITS[name] || [])){ if(t.split(now).length !== 2) return null; t = t.split(now).join(then); }
+  return t;
+}
+function pinAsOf1055(name){
+  const t = asOf1055(name);
+  return t === null ? null : require('crypto').createHash('sha256').update(t).digest('hex').slice(0, 16);
+}
+/* 10.55's three progression engines exactly as they shipped (eccb086), on loop-tests' own reading. Every replay of 10.55 runs
+   these texts, never ones derived from the file under test, so no edit to 10.56 can break or reach the 10.55 side.
+   Contract 256 holds that 10.56 read back as 10.55 gives exactly these texts. */
+const SHIPPED_1055 = {
+ "detectPlateau": "function detectPlateau(exerciseName){ const key = exerciseName.trim().toLowerCase(); const occurrences = []; sortedLog().slice().reverse().forEach(l => { if(isDeloadWorkout(l)) return; const rows = workoutExerciseRows(l, key); if(!rows) return; const perf = []; rows.forEach(ex => { if(ex.bodyweight) return; (ex.sets || []).forEach(s => { if(!isPerformanceSet(s)) return; const r = performedReps(s.reps); if(r === null) return; const w = performedLoad(s.weight); if(w !== null) perf.push({ w, r }); }); }); if(perf.length){ const top = Math.max(...perf.map(x => x.w)); occurrences.push({ date: l.date, weight: top, reps: Math.max(...perf.filter(x => x.w === top).map(x => x.r)) }); } }); if(occurrences.length < 4) return null; const last4 = occurrences.slice(-4); const first = last4[0]; const stuck = last4.every(o => o.weight < first.weight || (o.weight === first.weight && o.reps <= first.reps)); return stuck ? { weight: first.weight, sessions: last4.length } : null; }",
+ "buildProgressionRecommendation": "function buildProgressionRecommendation(exerciseName, templateReps, templateRecommended){ const range = parseRepRange(templateReps); const sessions = exerciseSessionHistory(exerciseName, 5); if(sessions.length === 0){ const startWeight = (templateRecommended && templateRecommended !== '—' && templateRecommended !== 'Bodyweight') ? firstNumber(templateRecommended) : null; return { weight: startWeight, headline: startWeight ? `${startWeight} lb × ${templateReps}` : `${templateReps} reps`, why: startWeight ? 'Starting weight from your plan.' : 'No history yet — log this one to start tracking.', tag: 'new' }; } const last = sessions[0]; const w = last.weight; const prPeak = computePRs().find(p => p.name.trim().toLowerCase() === exerciseName.trim().toLowerCase() && !p.isBW); const plateau = detectPlateau(exerciseName); if(plateau){ return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Performance has stalled for ${plateau.sessions} sessions — hold the weight, or switch to a similar exercise.`, tag: 'plateau' }; } const ev = progressionEvidence(last, sessions[1]); const atTop = range && last.topReps >= range.max; const hasHeadroom = ev.headroom; if(atTop && hasHeadroom && ev.complete && !ev.loadJustChanged){ const newWeight = w + progressionIncrement(exerciseName, w); const rirNote = last.avgRir != null ? ` with ~${Math.round(last.avgRir)} RIR` : ''; const prNote = prPeak && newWeight >= prPeak.weight ? ' — this would match or beat your best.' : ''; return { weight: newWeight, headline: `${newWeight} lb × ${templateReps}`, why: `You hit ${last.topReps} reps last session${rirNote} — ready for a small increase.${prNote}`, tag: 'increase' }; } const prevSame = sessions[1]; if(range && prevSame && prevSame.weight === w && last.topReps < range.min && prevSame.topReps < range.min && last.avgRir !== null && last.avgRir <= 0.5 && prevSame.avgRir !== null && prevSame.avgRir <= 0.5){ const down = Math.max(progressionIncrement(exerciseName, w), 0); const lighter = Math.max(0, w - down); if(lighter > 0){ return { weight: lighter, headline: `${lighter} lb × ${templateReps}`, why: `Two sessions under ${range.min} reps with nothing left in reserve — drop to ${lighter} lb and rebuild the range.`, tag: 'reduce' }; } } const prev = sessions[1]; if(prev && prev.weight === w && last.topReps < prev.topReps - 1){ return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Fewer reps than last time (${last.topReps} vs ${prev.topReps}) — hold this weight and rebuild.`, tag: 'decline' }; } if(range && last.topReps < range.max && ev.complete){ const nextGoal = Math.min(range.max, last.topReps + 1); return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Beat last session — aim for ${nextGoal} reps at ${w} lb.`, tag: 'build' }; } if(range && !ev.complete){ const shortfall = last.prescribedSets ? `${last.workingSets} of ${last.prescribedSets} sets logged last time` : 'only one set logged last time'; return { weight: w, headline: `${w} lb × ${templateReps}`, why: `${shortfall} — keep ${w} lb and work inside ${range.min}–${range.max} reps.`, tag: 'insufficient' }; } return { weight: w, headline: `${w} lb × ${templateReps}`, why: `Keep ${w} lb and match your previous ${last.topReps} reps.`, tag: 'hold' }; }",
+ "deriveWorkingSetPlan": "function deriveWorkingSetPlan(exerciseName, templateReps, setCount, rec, opts){ const n = Math.max(1, parseInt(setCount, 10) || 3); const seed = programRepSeed(templateReps); const tag = rec ? rec.tag : null; const fallback = { source: 'program', reps: Array(n).fill(seed), load: null, tag }; const range = parseRepRange(templateReps); const load = rec && rec.weight != null ? performedLoad(rec.weight) : null; if(!range || load === null || load <= 0 || (opts && opts.deload) || typeof exerciseName !== 'string') return fallback; let id = null; try{ id = resolveExerciseId(exerciseName); }catch(e){ id = null; } if(substitutionIsHold(id, exerciseName)) return fallback; const key = loggedExerciseKey(exerciseName); const log = sortedLog(); let anchor = null; for(let i = 0, seen = 0; i < log.length && seen < WORKING_SET_PLAN.window; i++){ if(isDeloadWorkout(log[i])) continue; const seq = workingSetSequenceOf(log[i], key); if(!seq) continue; seen++; const at = seq.filter(s => s.load === load); if(at.length >= Math.min(n, PROGRESSION_EVIDENCE.minSetsWithoutRx)){ anchor = at; break; } } if(!anchor) return fallback; const reps = []; for(let k = 0; k < n; k++){ const src = anchor[Math.min(k, anchor.length - 1)]; reps.push(Math.max(1, Math.min(range.max, Math.floor(src.reps)))); } let source = 'history'; if(tag === 'build'){ const k = buildRepIndex(anchor.slice(0, n), reps, range); if(k !== -1){ reps[k] += WORKING_SET_PLAN.buildStep; source = 'history+1'; } } return { source, reps: reps.map(String), load, tag }; }"
+};
+const SHIPPED_1055_PIN = {"detectPlateau":"cb642b7c61b1aec9","buildProgressionRecommendation":"e0cc59cfd773d37b","deriveWorkingSetPlan":"b5c00dac1e00d09b"};
+function compileShipped1055(c, name){ return require('vm').runInContext('(' + SHIPPED_1055[name] + ')', c); }
 /* D136 (LOOP 10.55, E62) — the Suggested Warm-up is shown only before an exercise's work begins. Two hunks: one statement
    pair in refreshSuggestedWarmups (the strip's hidden follows exerciseWorkBegun) and the What's New entry.
    asOf1054Html(raw) takes them out and reads back LOOP 10.54 to the byte; every older read-back starts there. D136_EDITS is
@@ -758,7 +920,8 @@ const D136_RAW = [
 const D136_WHATSNEW = "  },\n  {\n    id: 'v10-55',\n    version: 'LOOP 10.55',\n    title: 'Warm-up Guidance Knows When You’re Training',\n    date: '2026-10-08',\n    swVersion: 'loop-v232',\n    summary: 'Suggested Warm-up now steps aside once you begin an exercise’s working sets.',\n    newFeatures: [],\n    improvements: [\n      'Suggested Warm-up stays up to date until you finish the first working set of an exercise, then steps aside. Untick that set and it comes back with the current advice'\n    ],\n    bugFixes: [\n      'Work you do later in a workout can no longer change the warm-up advice for an exercise you have already started, and an exercise’s own heavier sets no longer bring its full warm-up back'\n    ],\n    changes: []\n";
 const SHA_1054_HTML = '9334d219694d0df4';   /* index.html of LOOP 10.54 (568d7a5, 75fe7b4), LF */
 function asOf1054Html(raw){
-  let t = raw;
+  let t = asOf1055Html(raw);   // D137 restated: 10.56 reads back as 10.55 first
+  if(t === null) return null;
   for(const [now, then] of D136_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
   return t;
 }
@@ -41486,7 +41649,7 @@ async function testCanonicalSessionPRD96C2(){
       /const prPeak = computePRs\(\)\.find\(/.test(fnSrc(src, 'buildProgressionRecommendation'))
       && /newWeight >= prPeak\.weight/.test(fnSrc(src, 'buildProgressionRecommendation')));
     T('D49 itself is byte-identical — this phase changed what it reads, not what it decides',
-      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b');
+      pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */);
     T('the 315 × 0 session is not marked, and 2026-09-07 is marked only for the row that did set one',
       marks() === 'z1:barbell squat z2:barbell row z3:barbell squat', marks());
     T('D44 counts three PR days, each of them a canonical record', prDays() === 3, prDays());
@@ -42458,8 +42621,8 @@ async function testWorkoutPerformanceD96C3(){
     const readers = ['computeExercisePREvents', 'computeXPTimeline', 'computePRs', 'prModesByLift', 'getExerciseFullHistory',
       'exerciseSessionHistory', 'getPreviousSets', 'compute1RMTrend', 'detectPlateau', 'perfObservations', 'saveLog'];
     T('every former first-row reader asks the primitive',
-      readers.every(n => /workoutExercisePerformances?\(|workoutExerciseRows\(/.test(fnSrc(src, n))),
-      readers.filter(n => !/workoutExercisePerformances?\(|workoutExerciseRows\(/.test(fnSrc(src, n))).join(','));
+      readers.every(n => /workoutExercisePerformances?\(|workoutExerciseRows\(/.test(fnSrc(src, n === 'detectPlateau' ? 'workoutProgressionEvidence' : n))),   // D137 restated: detectPlateau reads each workout through workoutProgressionEvidence, which asks the primitive
+      readers.filter(n => !/workoutExercisePerformances?\(|workoutExerciseRows\(/.test(fnSrc(src, n === 'detectPlateau' ? 'workoutProgressionEvidence' : n))).join(','));
     T('no first-row reading survives anywhere: no find-by-name, no seen-this-workout skip',
       !/exercises\.find\(e => e\.name/.test(src) && !/seenThisEntry|seenIn\[/.test(src.replace(/\/\*[\s\S]*?\*\//g, '')));
     T('the per-set PR badges search the whole performance, reusing prSetIndexFor unchanged',
@@ -42699,7 +42862,7 @@ async function testWorkoutPerformanceD96C3(){
   sub('everything that must not move');
   await guard('protected', async () => {
     T('D49 is byte-identical: only its evidence can now include a later row',
-      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9');
+      pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionEvidence') === '8ecadbedf9efc0d9');
     T('D50B’s Live Set Coach is byte-identical (it reads no history)', pin('deriveNextSetCoach') === '24da0e0f2d99a2c5');
     T('Session Score is byte-identical, and still judges each prescribed row as it was prescribed',
       pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c');
@@ -43256,7 +43419,7 @@ async function testStartProvenanceD103(){
       && /openTrainDetail\('\$\{escapeAttr\(cat\)\}','\$\{onclickArg\(tpl\.id\)\}','\$\{dateStr\}'\)/.test(fnSrc(src, 'renderOtherDayCard')));
     T('library starts name no day: a Train row and a picker card are unchanged',
       /onclick="startTemplateLog\('\$\{c\}','\$\{id\}'\)"/.test(fnSrc(src, 'trainRowHtml')) && pin('trainRowHtml') === '6cff2aba148f8a14'
-      && pin('templateCardHtml') === '43178b8aeb27a2aa' && pin('trainStartSource') === '6eb3373170cd978a');
+      && pinAsOf1055('templateCardHtml') === '43178b8aeb27a2aa' /* D137 restated */ && pin('trainStartSource') === '6eb3373170cd978a');
     T('no template id is minted: the composer and the program day are byte-identical',
       pin('composeProgramSession') === '0d2f614d7c751d9a' && pin('getProgramWorkoutForDate') === '496d8572d640dc24'
       && pin('dayTemplateFor') === 'b398c8adf2af13fd');
@@ -43578,7 +43741,7 @@ async function testStartProvenanceD103(){
     /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227. */
     T('E16 capability, recovery (as D112 left it), D49 evidence (as D110 left it) and E22 XP/Mastery are untouched',
       pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === 'd3589033bdb54c67'
-      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
+      && pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
       && pin('calculateSetXP') === '625722a99a04e30f' && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
       && pin('masteryPointsFor') === '0c704c40a853d991');
     T('D100/D101 are byte-identical', pin('deriveMuscleSetsBetween') === '6443a76e769a229e' && pin('getMasteryProgress') === '77aca2558d11f3d5'
@@ -43753,7 +43916,7 @@ async function testExerciseCardD104(){
     /* D110 restated: exerciseSessionHistory changed again, for E34 — see Contract 225. */
     /* D112 restated: computeMuscleRecovery changed again, for E35 — see Contract 227. */
     T('progression, records, XP, capability, recovery, Mastery and D100/D101 are byte-identical',
-      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('workoutGroupsOf') === 'f346201c58363ccb'
+      pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionFor') === 'a992f11698e3e9e7' && pin('workoutGroupsOf') === 'f346201c58363ccb'
       && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
       && pin('computeExerciseCapability') === '3a283e02ebdad568' && pin('computeMuscleRecovery') === 'd3589033bdb54c67'
       && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('calculateSetXP') === '625722a99a04e30f' && pin('buildMasteryIndex') === 'f6c1b50e7bd04b79'
@@ -45150,7 +45313,7 @@ async function testRealSetPairingD109(){
       /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(code));
     T('32 — D50B\'s coach constants are the same values', /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(code));
     T('33 — the policy, the evidence judge, the phase policy, the increment ladder and plateau detection are byte-identical',
-      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
+      pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
       && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e' && pinAsOf1038('detectPlateau') === '5328b907ce3432c7'
       && pin('parseRepRange') === '4e2721b469db24ef' && pin('effortToRir') === '60ad26f861c0c426');
   });
@@ -45415,7 +45578,7 @@ async function testFiniteRepEligibilityD110(){
     T('24 — D49\'s thresholds are the same values: 2 sets without a prescription, +1 over target, 1.5 absolute, 1 settle',
       /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(stripComments(src)));
     T('25 — the policy, the evidence judge, the phase policy, the increment ladder and plateau detection are byte-identical',
-      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
+      pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
       && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e' && pinAsOf1038('detectPlateau') === '5328b907ce3432c7'
       && pin('parseRepRange') === '4e2721b469db24ef' && pin('effortToRir') === '60ad26f861c0c426');
   });
@@ -46003,7 +46166,7 @@ async function testRecoveryLayoutD111(){
     T('51 — D49, by behaviour: 245 × 8 × 2 with effort to spare still earns 245 -> 255, and the E20 layouts give D49 the same evidence on either build (it never read recovery)',
       top.tag === 'increase' && top.weight === 255 && evA === evB && evB === evBBase, [top.tag, top.weight]);
     T('52 — D49 and D50B are byte-identical, and their constants are the same values',
-      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
+      pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('progressionFor') === 'a992f11698e3e9e7'
       && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('capturedPrescription') === '4b741af98b989695'
       && pin('effectiveWorkingLoad') === 'c0d91327f6ac9f76'
       && /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(code)
@@ -46574,7 +46737,7 @@ async function testRecoveryValidityD112(){
     const top = ctx.buildProgressionRecommendation('Bench Press', '6-8', null);
     T('37 — D49, by behaviour: 245 × 8 × 2 with effort to spare still earns 245 -> 255 — recovery never fed this', top.tag === 'increase' && top.weight === 255);
     T('38 — D49, D50B, records and their own constants are byte-identical',
-      pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613'
+      pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613'
       && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pinAsOf1036('computeExercisePREvents') === '4339cc543585bded' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
       && /const PROGRESSION_EVIDENCE = \{\s*minSetsWithoutRx: 2,\s*headroomOverTarget: 1,\s*headroomAbsolute: 1\.5,\s*settleExposures: 1\s*\};/.test(code));
     const t = ctx.effortToRir(8), rx = { sets: 3, reps: '8-10', effort: 8, load: 200 };
@@ -48978,7 +49141,7 @@ async function testExerciseDetailD118(){
       computePRs: '51bd020b4aa2a8a3', getSessionPRs: '2a121bed25bfa6ab', deriveWeeklyReview: '54cedeb502954944', saveLog: '66c63714822ef5ee',
       persistLog: '060c04d3663271ab', deleteLog: 'c285ece4eae2315d' };
     /* D120 restated: the record engines that D120 moved are held at their 10.36 pins by reversal (D120_EDITS). */
-    const moved = Object.keys(PINS).filter(n => (D120_EDITS[n] || D121_EDITS[n] ? pinAsOf1036(n) : D123_EDITS[n] ? pinAsOf1039(n) : pin(n)) !== PINS[n]);
+    const moved = Object.keys(PINS).filter(n => (D120_EDITS[n] || D121_EDITS[n] ? pinAsOf1036(n) : D123_EDITS[n] ? pinAsOf1039(n) : D137_EDITS[n] ? pinAsOf1055(n) : pin(n)) !== PINS[n]);   // D137 restated: a function D137 changed is read as 10.55 (Contract 256)
     T('16  ' + Object.keys(PINS).length + ' engines and routes the sheet reads are unchanged: PRs, timeline, trend, D49, history, identity, mastery, workouts, score, recovery, XP, D44, logging',
       moved.length === 0, moved);
   });
@@ -49292,7 +49455,7 @@ async function testBodyweightProgressionD119(){
     let moved = 0, movedByDeload = 0, movedByD126 = 0, explained = 0;
     const plateauNow = c.detectPlateau, plateau1042 = plateau1042In(c);
     const plateau1039 = (() => { let t = fnSrc(raw, 'detectPlateau').replace(/\s+/g, ' ').trim();
-      for(const [now, then] of D126_EDITS.detectPlateau.concat(D123_EDITS.detectPlateau)) t = t.split(now).join(then);   // D126 restated: undo D126 first
+      for(const [now, then] of D137_EDITS.detectPlateau.concat(D126_EDITS.detectPlateau, D123_EDITS.detectPlateau)) t = t.split(now).join(then);   // D126 restated: undo D126 first
       return require('vm').runInContext('(' + t + ')', c); })();
     for(let h = 0; h < 40; h++){
       const log = [];
@@ -49334,7 +49497,7 @@ async function testBodyweightProgressionD119(){
     T('7  D123 and D126 restated: of those answers, ' + moved + ' moved — ' + movedByDeload + ' by D123, only in the plateau call and only for a lift with a deload workout in its history; ' + movedByD126 + ' by D126, only a plateau lifted — and nothing else',
       moved > 0 && explained === moved && movedByDeload > 0 && movedByD126 > 0, JSON.stringify([moved, movedByDeload, movedByD126, explained]));
     T('7  D49 itself is byte-identical: its engine, evidence, phase policy, history reader, range and buckets',
-      pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' &&
+      pin('progressionFor') === 'a992f11698e3e9e7' && pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionEvidence') === '8ecadbedf9efc0d9' &&
       pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('repRangeForExercise') === '07b3b26014a8e57f' &&
       pin('computeProgressionBuckets') === '87e47e4a883cc140' && pinAsOf1038('detectPlateau') === '5328b907ce3432c7' && pin('progressionIncrement') === '3d77ad004234607e');
     T('7  every other D49 consumer still asks D49 directly — Today, Objectives, Progress, Weekly Review, the live workout and the summary — and none asks the new question',
@@ -49344,7 +49507,7 @@ async function testBodyweightProgressionD119(){
     /* D125 restated: the start, the draft restore and swap changed on purpose (they still ask progressionFor, above);
        held at 10.41 by D125_EDITS. */
     T('7  and each of them is byte-identical to 10.35: the audit held them, so nothing there moved',
-      pin('renderTodayInsights') === '92cb86beae6038eb' && pin('deriveWeeklyReview') === '54cedeb502954944' && pin('computeNextTimeNotes') === '16d50e35392c9180' &&
+      pinAsOf1055('renderTodayInsights') === '92cb86beae6038eb' /* D137 restated */ && pin('deriveWeeklyReview') === '54cedeb502954944' && pin('computeNextTimeNotes') === '16d50e35392c9180' &&
       pinAsOf1041('restoreDraftToSheet') === '2bbd08f689e23bc0' && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52' && pinAsOf1041('swapLogExercise') === '53e0f712db604c13');
   });
 
@@ -49786,7 +49949,7 @@ async function testBodyweightPerformanceD120(){
       }finally{ c.isPerformanceSet = realPerf; c.detectPlateau = realPlateau; }
       /* D126 restated: with the real filter and D126's detectPlateau, every D49 answer that moves from 10.42's is a plateau lifted */
       withClockOn(c, NOW, () => c.getAllLoggedExerciseNames().forEach(nm => { const range = c.repRangeForExercise(nm);
-        const a1 = c.progressionFor(nm, range, null); c.detectPlateau = plateau1042In(c); const a0 = c.progressionFor(nm, range, null); c.detectPlateau = realPlateau;
+        const a1 = (() => { const k = ['detectPlateau', 'buildProgressionRecommendation', 'deriveWorkingSetPlan'].map(n => [n, c[n]]); k.forEach(([n]) => { c[n] = compileShipped1055(c, n); }); try{ return c.progressionFor(nm, range, null); } finally { k.forEach(([n, f]) => { c[n] = f; }); } })(); c.detectPlateau = plateau1042In(c); /* D137 restated: D126's moves are counted on 10.55's own engines */ const a0 = c.progressionFor(nm, range, null); c.detectPlateau = realPlateau;
         if(JSON.stringify(a0) !== JSON.stringify(a1)){ d126Moved++; if(a0.tag === 'plateau' && a1.tag !== 'plateau') d126Lifted++; } }));
       /* bodyweight: D119's answer over histories full of warm-ups, legacy and unfinished sets */
       const bl = [];
@@ -49848,7 +50011,7 @@ async function testBodyweightPerformanceD120(){
   /* ---------------------------------------------------------------- */
   sub('9  protected');
   await guard('protected', async () => {
-    T('9  D49, D50B, D91 and D96A’s boundary are byte-identical', pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' &&
+    T('9  D49, D50B, D91 and D96A’s boundary are byte-identical', pin('progressionFor') === 'a992f11698e3e9e7' && pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ &&
       pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('prModeOf') === 'a0ac7f761228372f' &&
       pin('performedReps') === '0436ff32a1b6eaf1' && pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('isWorkingSet') === '1517c2a5dffcdc55' && pin('setTypeOf') === '6b8c6877109ed9e3');
     T('9  Session Score, Mastery scoring, Recovery and Objectives are byte-identical', pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' &&
@@ -50205,7 +50368,7 @@ async function testLoadedRecordEligibilityD121(){
          10.42's detectPlateau put back (D126_EDITS), and what D126 moves is counted beside it. */
       const realPlateau = c.detectPlateau;
       withClockOn(c, NOW, () => c.getAllLoggedExerciseNames().forEach(nm => { const range = c.repRangeForExercise(nm);
-        const a1 = c.progressionFor(nm, range, null); c.detectPlateau = plateau1042In(c); const a0 = c.progressionFor(nm, range, null); c.detectPlateau = realPlateau;
+        const a1 = (() => { const k = ['detectPlateau', 'buildProgressionRecommendation', 'deriveWorkingSetPlan'].map(n => [n, c[n]]); k.forEach(([n]) => { c[n] = compileShipped1055(c, n); }); try{ return c.progressionFor(nm, range, null); } finally { k.forEach(([n, f]) => { c[n] = f; }); } })(); c.detectPlateau = plateau1042In(c); /* D137 restated: D126's moves are counted on 10.55's own engines */ const a0 = c.progressionFor(nm, range, null); c.detectPlateau = realPlateau;
         if(JSON.stringify(a0) !== JSON.stringify(a1)){ d126Moved++; if(a0.tag === 'plateau' && a1.tag !== 'plateau') d126Lifted++; } }));
       c.detectPlateau = plateau1042In(c);
       try{
@@ -50238,7 +50401,7 @@ async function testLoadedRecordEligibilityD121(){
       coach(RX, [{ weight: 100, reps: 10, rir: 3 }, { weight: 105, reps: 10, rir: 3 }]), coach(Object.assign({ load: 100 }, RX), [{ weight: 105, reps: 10, rir: 3 }])];
     T('6  D50B still coaches every edge as it did (in-workout load is not a record and was not touched)',
       same(coached, ['increase', 'hold', 'reduce', 'hold', 'reduce', 'hold', 'hold', 'hold']), JSON.stringify(coached));
-    T('6  D49, D50B and D119 are byte-identical', pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' &&
+    T('6  D49, D50B and D119 are byte-identical', pin('progressionFor') === 'a992f11698e3e9e7' && pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ &&
       pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' &&
       pin('bodyweightSessionHistory') === '107a63744acb4508');
     /* D49's one record-derived phrase reads the Records card: a 245 warm-up single was "your best", so an increase to 235 was never "a match or beat". */
@@ -50350,7 +50513,7 @@ async function testPlateauEvidenceD122(){
   const fresh = c => { c.invalidateSortedLogCache(); c.invalidateXPTimelineCache(); if(c.invalidateCapabilityCache) c.invalidateCapabilityCache(); if(c.invalidateContextCache) c.invalidateContextCache(); };
   /* 10.38's detectPlateau, compiled from today's source with D122's one statement put back (a no-op on 10.38 itself) */
   const plateau1038 = () => { let t = fnSrc(raw, 'detectPlateau').replace(/\s+/g, ' ').trim();
-    for(const [now, then] of (D126_EDITS.detectPlateau || []).concat(D123_EDITS.detectPlateau || []).concat(D122_EDITS.detectPlateau || [])) t = t.split(now).join(then);   // D123 restated: undo D123, then D122. D126 restated: undo D126 first
+    for(const [now, then] of (D137_EDITS.detectPlateau || []).concat(D126_EDITS.detectPlateau || []).concat(D123_EDITS.detectPlateau || []).concat(D122_EDITS.detectPlateau || [])) t = t.split(now).join(then);   // D123 restated: undo D123, then D122. D126 restated: undo D126 first
     return t; };
   const asOf1038 = c => { c.detectPlateau = vm.runInContext('(' + plateau1038() + ')', c); fresh(c); };
   /* Every surface the plateau signal reaches, read as the athlete meets it — only through functions 10.38 already had. */
@@ -50517,7 +50680,7 @@ async function testPlateauEvidenceD122(){
     let held = null;
     try{ c.deloadActiveToday = () => true; held = withClockOn(c, NOW, () => c.progressionFor('Bench Press', '8-12', null)); } finally { c.deloadActiveToday = real; }
     T('4  the phase policy still turns an increase into a hold during a deload', held && held.tag === 'hold' && held.weight === 200 && /^Deload week — keep 200 lb/.test(held.why), JSON.stringify(held));
-    T('4  D49, D47, the phase policy and the evidence rules are byte-identical', pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7'
+    T('4  D49, D47, the phase policy and the evidence rules are byte-identical', pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionFor') === 'a992f11698e3e9e7'
       && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('progressionIncrement') === '3d77ad004234607e'
       && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('deloadActiveToday') === '700ccd9a7101c3d4' && /const PROGRESSION_EVIDENCE = \{[^}]*minSetsWithoutRx: 2,[^}]*headroomOverTarget: 1,[^}]*headroomAbsolute: 1\.5,[^}]*settleExposures: 1/.test(stripComments(raw).replace(/\s+/g, ' ')));
   });
@@ -50534,8 +50697,8 @@ async function testPlateauEvidenceD122(){
     T('5  the workout card names the working load it is stuck at, never a warm-up’s', Object.keys(at).every(k => !at[k].s.card || /stuck at (185|200)lb/.test(at[k].s.card)), Object.keys(at).map(k => at[k].s.card).filter(Boolean));
     T('5  capability’s plateau field is the same signal (it has no other reader)', Object.keys(at).every(k => at[k].s.capPlateau === (at[k].s.plateau ? at[k].s.plateau[1] : 0)));
     /* D125 restated: the start seeds the set plan now; held at 10.41 by D125_EDITS. */
-    T('5  the readers themselves are byte-identical', pin('computeProgressionBuckets') === '87e47e4a883cc140' && pin('renderTodayInsights') === '92cb86beae6038eb'
-      && pin('computeNextTimeNotes') === '16d50e35392c9180' && pin('templateCardHtml') === '43178b8aeb27a2aa' && pin('computeExerciseCapability') === '3a283e02ebdad568'
+    T('5  the readers themselves are byte-identical', pin('computeProgressionBuckets') === '87e47e4a883cc140' && pinAsOf1055('renderTodayInsights') === '92cb86beae6038eb' /* D137 restated */
+      && pin('computeNextTimeNotes') === '16d50e35392c9180' && pinAsOf1055('templateCardHtml') === '43178b8aeb27a2aa' /* D137 restated */ && pin('computeExerciseCapability') === '3a283e02ebdad568'
       && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5');
   });
 
@@ -50587,7 +50750,7 @@ async function testPlateauEvidenceD122(){
           .filter(v => v !== null);
         const last4 = occ.slice(-4);
         const want = occ.length < 4 ? null : (last4.every(v => v[0] < last4[0][0] || (v[0] === last4[0][0] && v[1] <= last4[0][1])) ? [last4[0][0], 4] : null);
-        const got = withClockOn(c, NOW, () => c.detectPlateau(nm));
+        const got = withClockOn(c, NOW, () => compileShipped1055(c, 'detectPlateau')(nm));   // D137 restated: this stall test is D126's (the top set alone), so it is read against 10.55's detectPlateau; D137's whole-workout comparison, with the same eligibility, is Contract 256's
         sens++; answers.add(want ? 'stall' : 'none');
         if(!same(want, got ? [got.weight, got.sessions] : null)) sensBroken.push(h + ':' + nm);
       });
@@ -50646,7 +50809,7 @@ async function testPlateauEvidenceD122(){
       const c = (await boot(log)).ctx;
       /* D123 restated: these histories hold deload weeks, which D123 sets aside. With D123's skip put back (its statement reversed,
          D122's kept) every one must still be 10.38's exactly — what D122 alone changed in a no-E42 history: nothing. */
-      { let t = fnSrc(raw, 'detectPlateau').replace(/\s+/g, ' ').trim(); for(const [now, then] of (D126_EDITS.detectPlateau || []).concat(D123_EDITS.detectPlateau || [])) t = t.split(now).join(then);   // D126 restated: undo D126 first
+      { let t = fnSrc(raw, 'detectPlateau').replace(/\s+/g, ' ').trim(); for(const [now, then] of (D137_EDITS.detectPlateau || []).concat(D126_EDITS.detectPlateau || []).concat(D123_EDITS.detectPlateau || [])) t = t.split(now).join(then);   // D126 restated: undo D126 first
         c.detectPlateau = vm.runInContext('(' + t + ')', c); fresh(c); }
       out.push(JSON.stringify(surfaces(c, 'Bench Press')));
     }
@@ -50785,7 +50948,7 @@ async function testDeloadPlateauEvidenceD123(){
     if(c.invalidateContextCache) c.invalidateContextCache(); if(c.invalidateProgramCache) c.invalidateProgramCache(); };
   /* 10.39's detectPlateau: today's source with D123's one statement put back (a no-op on 10.39 itself) */
   const plateau1039 = () => { let t = col(fnSrc(raw, 'detectPlateau'));
-    for(const [now, then] of (D126_EDITS.detectPlateau || []).concat(D123_EDITS.detectPlateau || [])) t = t.split(now).join(then);   // D126 restated: undo D126 first
+    for(const [now, then] of (D137_EDITS.detectPlateau || []).concat(D126_EDITS.detectPlateau || []).concat(D123_EDITS.detectPlateau || [])) t = t.split(now).join(then);   // D126 restated: undo D126 first
     return t; };
   const asOf1039 = c => { c.detectPlateau = vm.runInContext('(' + plateau1039() + ')', c); fresh(c); };
   /* A real program: Mon push / Wed pull / Fri legs from Mon Aug 3, made active. Options write a deload (the next program
@@ -50937,7 +51100,7 @@ async function testDeloadPlateauEvidenceD123(){
       && pin('isDeloadWorkout') === 'ad99d9e182eb1f22');
     T('1  D49’s history and plateau detection both ask it; plateau detection skips a deload FIRST, before a row is read or a place taken',
       /\(isDeloadWorkout\(l\) \? deloaded : sessions\)\.push\(/.test(esh) && !/'deload'/.test(esh)
-      && /sortedLog\(\)\.slice\(\)\.reverse\(\)\.forEach\(l => \{ if\(isDeloadWorkout\(l\)\) return; const rows = workoutExerciseRows\(l, key\);/.test(dp));
+      && /sortedLog\(\)\.slice\(\)\.reverse\(\)\.forEach\(l => \{ if\(isDeloadWorkout\(l\)\) return; const (rows = workoutExerciseRows|ev = workoutProgressionEvidence)\(l, key\);/.test(dp) /* D137 restated: the workout is now read whole, still after the deload is skipped */);
     T('1  nothing in plateau detection reads a date, a program, a block, a pause or today: there is no second classifier',
       !/'deload'|deloadActiveToday|programDeloadActiveOn|deriveBlockState|getActiveProgram|hasActiveProgram|getProgram|localDateStr|programsStore|pauses|Date\(|origin|programId/.test(dp));
     const save = col(fnSrc(raw, 'saveLog')), start = col(fnSrc(raw, 'startTemplateLog'));
@@ -51085,7 +51248,7 @@ async function testDeloadPlateauEvidenceD123(){
     const during = withClockOn(c, NOW, () => c.progressionFor('Bench Press', '8-12', null));
     T('4  the corrected answer is an increase to 190; with a deload over today the existing phase policy still holds 185 — "Deload week — keep 185 lb"',
       before.tag === 'increase' && before.weight === 190 && during.tag === 'hold' && during.weight === 185 && /^Deload week — keep 185 lb/.test(during.why), JSON.stringify([before, during]));
-    T('4  D49, D47, the phase policy, the block state and D50B are byte-identical', pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7'
+    T('4  D49, D47, the phase policy, the block state and D50B are byte-identical', pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionFor') === 'a992f11698e3e9e7'
       && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('deloadActiveToday') === '700ccd9a7101c3d4' && pin('progressionEvidence') === '8ecadbedf9efc0d9'
       && pin('progressionIncrement') === '3d77ad004234607e' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('programDeloadActiveOn') === '033fa2051cc83189'
       && pin('deriveBlockState') === 'ad3f9380b5262dd7' && pin('applyBlockActionInMemory') === '2c835f57fe625bed'
@@ -51136,7 +51299,7 @@ async function testDeloadPlateauEvidenceD123(){
       && pin('effectiveWorkingLoad') === 'c0d91327f6ac9f76' && /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(stripComments(raw))
       && /if\(rec && rec\.weight != null && !bodyweight\) row\.dataset\.rxLoad = rec\.weight;/.test(col(fnSrc(raw, 'addLogExerciseRow'))));
     T('5  the readers are byte-identical', pin('findPlateauedExercises') === 'dd8083d950bf20eb' && pin('computeProgressionBuckets') === '87e47e4a883cc140'
-      && pin('renderTodayInsights') === '92cb86beae6038eb' && pin('computeNextTimeNotes') === '16d50e35392c9180' && pin('templateCardHtml') === '43178b8aeb27a2aa'
+      && pinAsOf1055('renderTodayInsights') === '92cb86beae6038eb' /* D137 restated */ && pin('computeNextTimeNotes') === '16d50e35392c9180' && pinAsOf1055('templateCardHtml') === '43178b8aeb27a2aa' /* D137 restated */
       && pin('computeExerciseCapability') === '3a283e02ebdad568' && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52' && pin('deriveWeeklyReview') === '54cedeb502954944');   // D125 restated: held at 10.41
     const keep = E44.map(k => untouched(at[k].c));
     T('5  records, PR XP, XP, level, rank, session and weekly volume, Session Score, Mastery and Recovery of every E44 history are 10.39’s exactly — a deload’s own records and tonnage still count (a digest frozen from 10.39)',
@@ -51195,7 +51358,7 @@ async function testDeloadPlateauEvidenceD123(){
           .filter(v => v !== null);
         const last4 = occ.slice(-4);
         const want = occ.length < 4 ? null : (last4.every(v => v[0] < last4[0][0] || (v[0] === last4[0][0] && v[1] <= last4[0][1])) ? [last4[0][0], 4] : null);
-        const got = withClockOn(c, NOW, () => c.detectPlateau(nm));
+        const got = withClockOn(c, NOW, () => compileShipped1055(c, 'detectPlateau')(nm));   // D137 restated: this stall test is D126's (the top set alone), so it is read against 10.55's detectPlateau; D137's whole-workout comparison, with the same eligibility, is Contract 256's
         sens++; answers.add(want ? 'stall' : 'none');
         if(!same(want, got ? [got.weight, got.sessions] : null)) sensBroken.push(h + ':' + nm);
       });
@@ -51466,7 +51629,7 @@ async function testPbtTouchTargetsD124(){
     T('4  Exercise Detail, Progress → Strength, records, XP, plateau, D49, D50B and the bodyweight model are byte-identical',
       pin('deriveExerciseDetail') === '2e7f87f1c8567b0a' && pin('renderProgStrength') === 'd442d15c036246a1' && pin('computeExercisePREvents') === '222267c3066ab2bf' && pin('canonicalPRIndex') === 'b30db7e31fad5051'
       && pin('computeXPTimeline') === '4eb287033499d612' && pinAsOf1042('detectPlateau') === '8a54bd2201dda81f' && pin('exerciseSessionHistory') === '0947083a50c4e8b7' && pin('isDeloadWorkout') === 'ad99d9e182eb1f22'
-      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc');
+      && pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc');
     T('4  E38, E39 and E43 are untouched', pin('setChipHtml') === '350b4e34eb582056' && pin('substitutionIsHold') === '049ba50329c76db3' && pin('calculateWorkoutXP') === '91b8fca789942c50' && pin('calculateSetXP') === '625722a99a04e30f');
     const cx = cards[6].c;
     const answers = withClockOn(cx, NOW, () => ({ xp: ['weight', 'reps_at_weight', '1rm', 'volume', 'reps'].map(t => cx.calculatePRXP(t)),
@@ -51960,7 +52123,7 @@ async function testWorkingSetPlanD125(){
       && /sets\.push\(\{ weight: weightVal, reps: plan \? plan\.reps\[i\] : repVal \}\);/.test(col(fnSrc(raw, 'startTemplateLog'))), JSON.stringify(own));
     T('17  one source: deriveWorkingSetPlan is called once, by the start, per loaded exercise — nothing else lays out reps, and nothing re-runs it after the first set',
       (raw.match(/deriveWorkingSetPlan\(/g) || []).length === 2 && /deriveWorkingSetPlan\(ex\.name, ex\.reps, setCount, rec, \{ deload: deloadSession \}\)/.test(fnSrc(raw, 'startTemplateLog'))
-      && (raw.match(/workingSetSequenceOf\(/g) || []).length === 2 && (raw.match(/buildRepIndex\(/g) || []).length === 2);
+      && (raw.match(/workingSetSequenceOf\(/g) || []).length === 3 && /workingSetSequenceOf\(/.test(fnSrc(raw, 'newLoadProjection')) && (raw.match(/newLoadProjection\(/g) || []).length === 2 && /newLoadProjection\(/.test(fnSrc(raw, 'deriveWorkingSetPlan')) && (raw.match(/buildRepIndex\(/g) || []).length === 2);   // D137 restated: the sequence reader's third caller is D125's own new-load projection, which only deriveWorkingSetPlan calls
     T('18  it reads the real sequence: 8@2 / 6@1 / 5@0 last time at 205, BUILD → 9 / 6 / 5 (one rep, on the set that had two in reserve)', same(own.plan.reps, ['9', '6', '5']) && own.plan.source === 'history+1', JSON.stringify(own.plan));
     /* 16 — the program: set count and range for each fixture */
     const prog = [[3, '8-12'], [4, '6-10'], [2, '5-8'], [3, '10-15'], [5, '4-6']].map(([n, r]) => {
@@ -52016,7 +52179,10 @@ async function testWorkingSetPlanD125(){
       [b1, b2, own].every(x => x.plan.reps.reduce((n, r, i, a) => n + (+r), 0) === 1 + [b1, b2, own].indexOf(x) * 0 + (x === b1 ? 20 : x === b2 ? 20 : 19)));
     /* 26 — INCREASE */
     const inc = planOf(c, [BP('a', '2026-09-19', [S(200, 12, 3), S(200, 12, 3), S(200, 12, 3)]), BP('b', '2026-09-26', [S(200, 12, 3), S(200, 12, 2), S(200, 12, 2)])], 3, '8-12');
-    T('26  INCREASE to a new load (Scenario 4): nothing at 205 to read, so the program’s seed (8 / 8 / 8) — never 200’s 12s', inc.rec.tag === 'increase' && inc.rec.weight === 205 && same(inc.plan.reps, ['8', '8', '8']) && inc.plan.source === 'program', JSON.stringify(inc));
+    /* D137 restated: E48 was held through 10.55 and closed in 10.56 (Contract 256) — the seed is 10.55's own D125, replayed */
+    const inc1055 = (() => { const live = c.deriveWorkingSetPlan; c.deriveWorkingSetPlan = compileShipped1055(c, 'deriveWorkingSetPlan'); try{ return planOf(c, [BP('a', '2026-09-19', [S(200, 12, 3), S(200, 12, 3), S(200, 12, 3)]), BP('b', '2026-09-26', [S(200, 12, 3), S(200, 12, 2), S(200, 12, 2)])], 3, '8-12'); } finally { c.deriveWorkingSetPlan = live; } })();
+    T('10.55 replay — 26  INCREASE to a new load (Scenario 4): nothing at 205 to read, so the program’s seed (8 / 8 / 8) — never 200’s 12s', inc1055.rec.tag === 'increase' && inc1055.rec.weight === 205 && same(inc1055.plan.reps, ['8', '8', '8']) && inc1055.plan.source === 'program', JSON.stringify(inc1055));
+    T('26b  D137 restated (E48 closed): 10.56 plans the new load from 200’s 12s, one rep under — 11 / 11 / 11 — never the 12s themselves', inc.rec.tag === 'increase' && inc.rec.weight === 205 && same(inc.plan.reps, ['11', '11', '11']) && inc.plan.source === 'projection', JSON.stringify(inc));
     const back = planOf(c, [BP('a', '2026-09-12', [S(200, 7, 0), S(200, 6, 0), S(200, 5, 0)]), BP('b', '2026-09-19', [S(195, 12, 3), S(195, 12, 3), S(195, 12, 3)]), BP('c', '2026-09-26', [S(195, 12, 3), S(195, 12, 3), S(195, 12, 3)])], 3, '8-12');
     T('26  INCREASE back to a load trained within the window reads that session at that load: 195 → 200, and 200 was 7 / 6 / 5', back.rec.tag === 'increase' && back.rec.weight === 200 && same(back.plan.reps, ['7', '6', '5']), JSON.stringify(back));
     /* 27 — HOLD / PLATEAU: repeat, no rep added */
@@ -52145,7 +52311,7 @@ async function testWorkingSetPlanD125(){
     T('37–39  D119 / D120 / D121 / D122 / D123 are byte-identical',
       pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' && pin('progressionRecommendationFor') === '4be672abd167121a'
       && pin('isPerformanceSet') === 'af02c77cf98e70ef' && pin('performedReps') === '0436ff32a1b6eaf1' && pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('isDeloadWorkout') === 'ad99d9e182eb1f22' && pinAsOf1038('detectPlateau') === '5328b907ce3432c7' && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613'
-      && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97');
+      && pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97');
     /* outputs, against a digest frozen from 10.41 on the same fixture */
     const FIX = [
       W('f1', '2026-08-29', [E('Bench Press', [WU(95, 10), S(185, 8, 2), S(185, 7, 1), S(185, 6, 1)]), E('Pull-Up', [S('BW', 9), S('BW', 8), S('BW', 7)], true)]),
@@ -52218,7 +52384,9 @@ async function testWorkingSetPlanD125(){
 async function testRepAwarePlateauD126(){
   section('CONTRACT 243 — rep-aware plateau evidence: rep gains at the same load are not a stall (D126, E47)');
   const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
-  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  /* D137 restated: the D126 contract is about the plateau before D137 (Contract 256 holds what D137 changed), so it reads the
+     file as 10.55 and runs 10.55's own detectPlateau, buildProgressionRecommendation and deriveWorkingSetPlan (SHIPPED_1055) */
+  const raw0 = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n'), raw = asOf1055Html(raw0) || '';
   const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
   const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
   const col = s => String(s).replace(/\s+/g, ' ').trim();
@@ -52244,6 +52412,7 @@ async function testRepAwarePlateauD126(){
   const fresh = c => ['invalidateSortedLogCache', 'invalidateWorkoutGroups', 'invalidatePRCaches', 'invalidatePRSetCache', 'invalidateXPTimelineCache', 'invalidateRepRangeCache', 'invalidateRecoveryCache',
     'invalidateCapabilityCache', 'invalidateContextCache', 'invalidateAllMasteryCaches', 'invalidateProgramCache', 'invalidateConsistencyCache'].forEach(k => { if(typeof c[k] === 'function') try{ c[k](); }catch(e){} });
   const app = await boot([]); const c = app.ctx;
+  ['detectPlateau', 'buildProgressionRecommendation', 'deriveWorkingSetPlan'].forEach(n => { c[n] = compileShipped1055(c, n); });   // D137 restated
   const use = log => { c.workoutLog = JSON.parse(JSON.stringify(log)); fresh(c); };
   const plateauOf = (log, name) => { use(log); const p = withClockOn(c, NOW, () => c.detectPlateau(name || 'Bench Press')); return p ? [p.weight, p.sessions] : null; };
   /* Contract 240's reader, plus the Profile's Stalling count and the D125 plan a started workout gets */
@@ -52353,7 +52522,7 @@ async function testRepAwarePlateauD126(){
   sub('19–21  D49’s tiers, D47 and the phase policy are untouched, and work again where the false stall hid them');
   await guard('tiers', async () => {
     T('19–21  D49 is byte-identical: its engine, evidence, phase policy, history reader, increment, range and buckets',
-      pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97'
+      pin('progressionFor') === 'a992f11698e3e9e7' && pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97'
       && pinAsOf1039('exerciseSessionHistory') === 'ffef0621fac8e613' && pin('progressionIncrement') === '3d77ad004234607e' && pin('repRangeForExercise') === '07b3b26014a8e57f' && pin('computeProgressionBuckets') === '87e47e4a883cc140'
       && /const plateau = detectPlateau\(exerciseName\);\s*if\(plateau\)\{/.test(fnSrc(raw, 'buildProgressionRecommendation')));
     /* D47: a gain, then two grinding sessions under the range */
@@ -52446,7 +52615,7 @@ async function testRepAwarePlateauD126(){
     /* D127 (E46) — restated by reversal: D125's Warm-up → Working seeding and D50B's writer are held as of 10.43, their
        D127 statements put back from D127_EDITS (Contract 244 holds the change). */
     T('30  D125’s policy is byte-identical: the plan, its sequence reader, BUILD’s one rep, the seed, the Warm-up → Working seeding, its constants',
-      pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('workingSetSequenceOf') === '653c9a9c0b1227af'
+      pinAsOf1055('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' /* D137 restated */ && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('workingSetSequenceOf') === '653c9a9c0b1227af'
       && pin('programRepSeed') === '7636574536a06e86' && pinAsOf1043('seedWorkingTarget') === '3b78cb0da8752502' && /const WORKING_SET_PLAN = \{\s*window: 5,\s*buildStep: 1\s*\};/.test(stripComments(raw)));
     T('33  D50B is byte-identical: the coach, its constants, its evidence, its writer, its card, the ownership mark',
       pin('deriveNextSetCoach') === '24da0e0f2d99a2c5' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('liveSetEvidence') === 'f7ff87b1e49c93df' && pinAsOf1043('applyCoachToFutureSets') === '3983abe34667dc86'
@@ -52949,7 +53118,7 @@ async function testWarmupWriteBoundaryD127(){
       && pinAsOf1043('applyCoachToFutureSets') === '3983abe34667dc86'
       && /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(stripComments(raw)));
     T('33  D125 is byte-identical: the plan, its reader, BUILD’s rep, the seed, the row helpers, Add Set, the type toggle and picker, propagation, the stepper, the strip, renumbering, the draft; its Warm-up → Working seeding differs from 10.43 by the one after-work statement',
-      pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('workingSetSequenceOf') === '653c9a9c0b1227af' && pin('programRepSeed') === '7636574536a06e86'
+      pinAsOf1055('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' /* D137 restated */ && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('workingSetSequenceOf') === '653c9a9c0b1227af' && pin('programRepSeed') === '7636574536a06e86'
       && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pinAsOf1043('seedWorkingTarget') === '3b78cb0da8752502'
       /* D130 restated: the type toggle and picker and the strip's refresh now also fill the warm-ups LOOP may fill (Contract 247); held at 10.46 by D130_EDITS */
       && pinAsOf1050('addSetRow') === '095f10f06e006dd3' && pinAsOf1046('toggleSetType') === '4f62b7d1782bc899' && pinAsOf1046('chooseSetType') === 'f81cad3ec750ee4d' && pin('applySetTypeToRow') === '9fab51981238989b' /* D131B restated: it now also asks the Suggested Warm-up again (Contract 251); read at 10.50 */
@@ -52958,7 +53127,7 @@ async function testWarmupWriteBoundaryD127(){
       && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44'   // D131A restated: read at 10.47
       && /const WORKING_SET_PLAN = \{\s*window: 5,\s*buildStep: 1\s*\};/.test(stripComments(raw)));
     T('34–37  D126’s plateau, D49, the phase policy, D119 / D120 and D121–D123’s evidence are byte-identical',
-      pin('detectPlateau') === 'cb642b7c61b1aec9' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97'
+      pinAsOf1055('detectPlateau') === 'cb642b7c61b1aec9' /* D137 restated */ && pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97'
       && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' && pin('progressionRecommendationFor') === '4be672abd167121a' && pin('isPerformanceSet') === 'af02c77cf98e70ef'
       && pin('performedReps') === '0436ff32a1b6eaf1' && pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('isDeloadWorkout') === 'ad99d9e182eb1f22');
     T('36  bodyweight: the writer still writes nothing to a bodyweight exercise, and the role change asks nothing of one', /const bw = exRow\.querySelector\('\.ex-bw-in'\); if\(bw && bw\.checked\) return 0;/.test(col(fnSrc(raw, 'applyCoachToFutureSets'))) && /if\(ev\.bodyweight\) return null;/.test(col(fnSrc(raw, 'coachLoadNow'))));
@@ -52999,14 +53168,15 @@ async function testWarmupWriteBoundaryD127(){
       && pin('calculateRankFromLevel') === '868fd909074da898' && pin('getCurrentProgression') === 'bf3a7572296c620c' && pin('sessionVolume') === '4ddcaadccc1dfa80');
     /* the held findings, by behaviour as well as by pin */
     const held = async (log, fn) => { const a = await boot(log); return withClockOn(a.ctx, NOW, () => fn(a.ctx)); };
+    const held1055 = async (log, fn) => { const a = await boot(log); ['detectPlateau', 'buildProgressionRecommendation', 'deriveWorkingSetPlan'].forEach(n => { a.ctx[n] = compileShipped1055(a.ctx, n); }); return withClockOn(a.ctx, NOW, () => fn(a.ctx)); };   // D137 restated: E48, E49 and E50 were held through 10.55 and closed in 10.56 (Contract 256)
     const wk = (items, setsOf) => items.map((x, i) => W('e' + i, ['2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'][i], [E('Bench Press', setsOf(x))]));
-    const e48 = await held(STALL, hc => { const p = hc.deriveWorkingSetPlan('Bench Press', '8-12', 3, { tag: 'increase', weight: 210 }, {}); return p.source + ' ' + p.reps.join('/'); });
-    const e49a = await held(wk([[8, 6, 4], [8, 7, 5], [8, 8, 6], [8, 8, 7]], s => s.map(r => S(205, r))), hc => { const p = hc.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
-    const e49b = await held(wk([0, 1, 2, 3], r => [S(205, 8, r), S(205, 8, r)]), hc => { const p = hc.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
-    const e50 = await held(wk([9, 8, 7, 6], x => [S(205, x, 0), S(205, x - 1, 0)]), hc => { const r = hc.progressionFor('Bench Press', '8-12', null); return r ? r.tag : null; });
-    T('44–46  E48, E49 and E50 are still open, by behaviour: a new load (210) still gets the program’s seed 8 / 8 / 8; the same top set with better back-offs, and the same reps with more in reserve, still read as a stall at 205; a pure decline at 0 in reserve is still a plateau ahead of D47',
+    const e48 = await held1055(STALL, hc => { const p = hc.deriveWorkingSetPlan('Bench Press', '8-12', 3, { tag: 'increase', weight: 210 }, {}); return p.source + ' ' + p.reps.join('/'); });
+    const e49a = await held1055(wk([[8, 6, 4], [8, 7, 5], [8, 8, 6], [8, 8, 7]], s => s.map(r => S(205, r))), hc => { const p = hc.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
+    const e49b = await held1055(wk([0, 1, 2, 3], r => [S(205, 8, r), S(205, 8, r)]), hc => { const p = hc.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
+    const e50 = await held1055(wk([9, 8, 7, 6], x => [S(205, x, 0), S(205, x - 1, 0)]), hc => { const r = hc.progressionFor('Bench Press', '8-12', null); return r ? r.tag : null; });
+    T('10.55 replay — 44–46  E48, E49 and E50 are still open, by behaviour: a new load (210) still gets the program’s seed 8 / 8 / 8; the same top set with better back-offs, and the same reps with more in reserve, still read as a stall at 205; a pure decline at 0 in reserve is still a plateau ahead of D47',
       e48 === 'program 8/8/8' && same(e49a, [205, 4]) && same(e49b, [205, 4]) && e50 === 'plateau', JSON.stringify([e48, e49a, e49b, e50]));
-    T('44–48  E48 (D125’s new-load seed), E49 / E50 (plateau), E43 (working-set XP copy), E38 and E39 are untouched', pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('detectPlateau') === 'cb642b7c61b1aec9'
+    T('44–48  E48 (D125’s new-load seed), E49 / E50 (plateau), E43 (working-set XP copy), E38 and E39 are untouched', pinAsOf1055('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' /* D137 restated */ && pinAsOf1055('detectPlateau') === 'cb642b7c61b1aec9' /* D137 restated */
       && pin('setChipHtml') === '350b4e34eb582056' && pin('substitutionIsHold') === '049ba50329c76db3' && /working set/.test(raw));
     T('49  history is never rewritten: the save path and the captured prescription are byte-identical', pin('saveLog') === '66c63714822ef5ee' && pin('capturedPrescription') === '4b741af98b989695');
     T('50  storage: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow; the new rule and the role change name no storage', (() => { const a = H.loadApp(); return a.ctx.DATA_KEYS.length === 16 && a.ctx.DATA_SCHEMA_VERSION === 1 && a.ctx.TRAINER_ENGINE_VERSION === '0.1.1-shadow'; })()
@@ -53323,10 +53493,10 @@ async function testExerciseMasteryArtD128(){
   sub('56–62  the training systems and the held findings, untouched');
   await guard('protected', async () => {
     T('56  D49, D50B, D119–D123, D125, D126 and D127 are byte-identical: the progression engine and its evidence, the live coach and its write rule, the plateau, the working-set plan, the warm-up seeding',
-      pin('progressionFor') === 'a992f11698e3e9e7' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5'
+      pin('progressionFor') === 'a992f11698e3e9e7' && pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5'
       && pin('liveSetEvidence') === 'f7ff87b1e49c93df' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('coachMayWriteSet') === '0de96792fab27ca4' && pin('coachLoadNow') === '38299e411614887d' && pin('applyCoachToFutureSets') === '10add8e901495f2d'
       /* D130 restated: the warm-up seeding gained D130's statement (a warm-up joining the work, Contract 247); held at 10.46 by D130_EDITS */
-      && pinAsOf1046('seedWorkingTarget') === '8c90172bdd9f25a8' && pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('detectPlateau') === 'cb642b7c61b1aec9'
+      && pinAsOf1046('seedWorkingTarget') === '8c90172bdd9f25a8' && pinAsOf1055('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' /* D137 restated */ && pin('buildRepIndex') === 'a128d7863fe0b075' && pinAsOf1055('detectPlateau') === 'cb642b7c61b1aec9' /* D137 restated */
       && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' && pin('progressionRecommendationFor') === '4be672abd167121a' && pin('isPerformanceSet') === 'af02c77cf98e70ef' && pin('isDeloadWorkout') === 'ad99d9e182eb1f22');
     T('57  the logger is untouched: Add Set, the type toggle and picker, the stepper, the draft, the swap, the completion path',
       /* D130 restated: the type toggle and picker and the swap now also fill the warm-ups LOOP may fill (Contract 247); held at 10.46 by D130_EDITS */
@@ -53338,12 +53508,12 @@ async function testExerciseMasteryArtD128(){
       && /\.ex-thumb\{\s*flex-shrink: 0; width: 44px; height: 44px; padding: 2px;/.test(cssNC));
     T('59  Exercise Detail is untouched: its mastery block, its hero art and its header still build as they did',
       pin('exerciseMasteryHtml') === '260962f41258c62d' && pinAsOf1045('renderExDetail') === 'eb7694712d47a723' && pinAsOf1045('openExDetail') === '22fe8c8539f20564');
-    const app2 = await boot([]), c2 = app2.ctx; const held = (log, fn) => { c2.workoutLog = JSON.parse(JSON.stringify(log)); fresh(c2); return withClockOn(c2, NOW, () => fn(c2)); };
+    const app2 = await boot([]), c2 = app2.ctx; ['detectPlateau', 'buildProgressionRecommendation', 'deriveWorkingSetPlan'].forEach(n => { c2[n] = compileShipped1055(c2, n); });   /* D137 restated: E48, E49 and E50 held through 10.55, probed on its own engines */ const held = (log, fn) => { c2.workoutLog = JSON.parse(JSON.stringify(log)); fresh(c2); return withClockOn(c2, NOW, () => fn(c2)); };
     const W = (id, date, ex) => ({ id, date, category: 'push', title: 'Push', notes: '', exercises: [E('Bench Press', ex)] });
     const e48 = held([], x => { const p = x.deriveWorkingSetPlan('Bench Press', '8-12', 3, { tag: 'increase', weight: 210 }, {}); return p.source + ' ' + p.reps.join('/'); });
     const e49 = held(['2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'].map((d, i) => W('e' + i, d, [[8, 6, 4], [8, 7, 5], [8, 8, 6], [8, 8, 7]][i].map(r => S(205, r)))), x => { const p = x.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
     const e50 = held(['2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'].map((d, i) => W('f' + i, d, [9, 8, 7, 6].slice(i, i + 1).concat([Math.max(1, [9, 8, 7, 6][i] - 1)]).map(r => Object.assign(S(205, r), { rir: '0' })))), x => { const r = x.progressionFor('Bench Press', '8-12', null); return r ? r.tag : null; });
-    T('60  E48, E49 and E50 are still open, by behaviour: a new load still gets the program’s seed; better back-offs behind the same top set still read as a stall; a pure decline at 0 in reserve is still a plateau ahead of D47',
+    T('10.55 replay — 60  E48, E49 and E50 are still open, by behaviour: a new load still gets the program’s seed; better back-offs behind the same top set still read as a stall; a pure decline at 0 in reserve is still a plateau ahead of D47',
       e48 === 'program 8/8/8' && same(e49, [205, 4]) && e50 === 'plateau', [e48, e49, e50]);
     /* D130 restated: E51 was untouched by D128 and is closed by D130 (Contract 247), so this check no longer names it */
     T('61  E43, E38 and E39 are untouched: the "working sets" XP count and copy, the history chip, the hold rule (E51, untouched by D128, is closed by D130: Contract 247)',
@@ -53653,7 +53823,7 @@ async function testExerciseIdentityD129(){
     T('40  PRs, PR XP, XP, level, rank, volume, Session Score, Recovery, D49 and the plateau are 10.45’s on the same history (the digest Contract 245 holds, frozen from 10.44 and unmoved)', un === 'e745be4ce2fc7e23', un);
     const pins41 = ['buildMasteryIndex', 'masteryPointsFor', 'masteryPRCounts', 'getExerciseMastery', 'getTopExerciseMastery', 'getExerciseMasteryByName', 'getMasteryProgress', 'getExerciseFullHistory', 'getAllLoggedExerciseNames', 'compute1RMTrend', 'computePersonalBestTimeline',
         'exerciseBestSet', 'computeAllPREvents', 'computeExercisePREvents', 'prModeOf', 'progressionFor', 'progressionRecommendationFor', 'buildProgressionRecommendation', 'detectPlateau', 'deriveExerciseDetail', 'exDetailMetaHtml', 'exDetailFactsHtml', 'exDetailNextHtml', 'exDetailTrendHtml',
-        'exDetailRecordsHtml', 'exDetailHistoryHtml', 'exerciseMasteryHtml', 'exDetailSessionRowHtml', 'deriveWorkingSetPlan', 'applyCoachToFutureSets', 'coachMayWriteSet'].map(pin).join();
+        'exDetailRecordsHtml', 'exDetailHistoryHtml', 'exerciseMasteryHtml', 'exDetailSessionRowHtml', 'deriveWorkingSetPlan', 'applyCoachToFutureSets', 'coachMayWriteSet'].map(n => D137_EDITS[n] ? pinAsOf1055(n) : pin(n)).join();   // D137 restated: D49, the plateau and D125's plan read as 10.55
     T('41  the engines that decide identity, history and records are byte-identical to 10.45: the Mastery index and its scoring, the PR engines, the history readers, the trend, the personal bests, D49, the plateau, and the Exercise Detail derivation and zones', pins41 === 'f6c1b50e7bd04b79,0c704c40a853d991,f77664c53b2ea14a,5b22dba43d65ca1f,0a12248b469490da,f6d29e745f362ec4,77aca2558d11f3d5,bafaa82dea8653a3,91e7cc45f1748b8c,5350b7aa13581ec8,e41926dcb1cfa844,db21dab40f5e0763,94af217dbcf1f9ed,222267c3066ab2bf,a0ac7f761228372f,a992f11698e3e9e7,4be672abd167121a,e0cc59cfd773d37b,cb642b7c61b1aec9,2e7f87f1c8567b0a,a6bc9b1f5a83b191,bbdc5e76a8996081,f1359d06aaa683f8,ce453c479ded8baf,e84f1a3b39b50701,df3c55ec06b3f597,260962f41258c62d,4a91227367ff979b,b5c00dac1e00d09b,10add8e901495f2d,0de96792fab27ca4', pins41);
     const pins42 = ['renderProgStrength', 'weeklyReviewBodyHtml', 'renderExerciseHistoryList', 'closeExDetail', 'exDetailShowMore', 'exDetailShowAllBests'].map(pin).join();
     T('42  the places that open Exercise Detail from anywhere else - Strength (twice), Weekly Review, Log → Browse by exercise - are byte-identical to 10.45, so they open a lift under its own name exactly as before', pins42 === 'd442d15c036246a1,5ee1e161258baa6d,e88231b45dda1e26,e5fed334a339cdb9,ccfbd0443f6f53e7,3b59d1aa4a24c333', pins42);
@@ -54119,7 +54289,7 @@ async function testWarmupSeedingD130(){
   sub('36–39  D125, D127, D126 / D49 and D128 / D129 are untouched');
   await guard('pins', async () => {
     T('36  D125: the plan, its reader, BUILD’s rep, the seed, the row helpers, Add Set, the set row, the type writer, renumbering, propagation, the stepper, the start, the strip and the draft are byte-identical',
-      pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('workingSetSequenceOf') === '653c9a9c0b1227af' && pin('programRepSeed') === '7636574536a06e86'
+      pinAsOf1055('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' /* D137 restated */ && pin('buildRepIndex') === 'a128d7863fe0b075' && pin('workingSetSequenceOf') === '653c9a9c0b1227af' && pin('programRepSeed') === '7636574536a06e86'
       && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pinAsOf1050('addSetRow') /* D131B restated: read at 10.50 */ === '095f10f06e006dd3' && pin('appendSetRow') === '61f2b7e061afde48'
       && pin('applySetTypeToRow') === '9fab51981238989b' && pin('renumberSets') === '6a65d511509ef489' && pin('propagateSetValueForward') === '60f12adf15eda793' && pin('stepValue') === '8e79af408daacf1d'
       && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44' && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('computeWarmupRamp') === 'b826d1445f153d77'
@@ -54129,7 +54299,7 @@ async function testWarmupSeedingD130(){
       && pin('liveSetEvidence') === 'f7ff87b1e49c93df' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('markUserSet') === '557fba41fff1a079' && pinAsOf1046('seedWorkingTarget') === '8c90172bdd9f25a8'
       && /const SET_COACH = \{\s*easyOverTarget: 2,\s*hardMissWithoutRir: 2,\s*hardRir: 0\.5,\s*maxChangesPerExercise: 1,\s*maxIncrementsFromRx: 1\s*\};/.test(stripComments(raw)));
     T('38  D126 / D49: the plateau, the progression engine, its evidence and the phase policy are byte-identical',
-      pin('detectPlateau') === 'cb642b7c61b1aec9' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97'
+      pinAsOf1055('detectPlateau') === 'cb642b7c61b1aec9' /* D137 restated */ && pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97'
       && pin('isPerformanceSet') === 'af02c77cf98e70ef' && pin('performedReps') === '0436ff32a1b6eaf1' && pin('performedLoad') === 'e0c1ed8aeba460d7' && pin('isDeloadWorkout') === 'ad99d9e182eb1f22'
       && pin('bodyweightProgressionFor') === '01baa4ff8a6d88cc' && pin('progressionRecommendationFor') === '4be672abd167121a');
     T('39  D128 / D129: Mastery’s cards and rows, the tap and its target, Exercise Detail’s header and the drawings are byte-identical',
@@ -54177,11 +54347,12 @@ async function testWarmupSeedingD130(){
   sub('46–50  the held findings, history, storage');
   await guard('held', async () => {
     const held = async (log, fn) => { const a = await boot(log); return withClockOn(a.ctx, NOW, () => fn(a.ctx)); };
+    const held1055 = async (log, fn) => { const a = await boot(log); ['detectPlateau', 'buildProgressionRecommendation', 'deriveWorkingSetPlan'].forEach(n => { a.ctx[n] = compileShipped1055(a.ctx, n); }); return withClockOn(a.ctx, NOW, () => fn(a.ctx)); };   // D137 restated: E48, E49 and E50 were held through 10.55 and closed in 10.56 (Contract 256)
     const wk = (items, setsOf) => items.map((x, i) => W('e' + i, ['2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'][i], [E('Bench Press', setsOf(x))]));
-    const e48 = await held(STALL, hc => { const p = hc.deriveWorkingSetPlan('Bench Press', '8-12', 3, { tag: 'increase', weight: 210 }, {}); return p.source + ' ' + p.reps.join('/'); });
-    const e49 = await held(wk([[8, 6, 4], [8, 7, 5], [8, 8, 6], [8, 8, 7]], s => s.map(r => S(205, r))), hc => { const p = hc.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
-    const e50 = await held(wk([9, 8, 7, 6], x => [S(205, x, 0), S(205, x - 1, 0)]), hc => { const r = hc.progressionFor('Bench Press', '8-12', null); return r ? r.tag : null; });
-    T('46  E48, E49 and E50 are still open, by behaviour: a new load still gets the program’s seed 8 / 8 / 8; better back-offs behind the same top set still read as a stall; a pure decline at 0 in reserve is still a plateau',
+    const e48 = await held1055(STALL, hc => { const p = hc.deriveWorkingSetPlan('Bench Press', '8-12', 3, { tag: 'increase', weight: 210 }, {}); return p.source + ' ' + p.reps.join('/'); });
+    const e49 = await held1055(wk([[8, 6, 4], [8, 7, 5], [8, 8, 6], [8, 8, 7]], s => s.map(r => S(205, r))), hc => { const p = hc.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
+    const e50 = await held1055(wk([9, 8, 7, 6], x => [S(205, x, 0), S(205, x - 1, 0)]), hc => { const r = hc.progressionFor('Bench Press', '8-12', null); return r ? r.tag : null; });
+    T('10.55 replay — 46  E48, E49 and E50 are still open, by behaviour: a new load still gets the program’s seed 8 / 8 / 8; better back-offs behind the same top set still read as a stall; a pure decline at 0 in reserve is still a plateau',
       e48 === 'program 8/8/8' && same(e49, [205, 4]) && e50 === 'plateau', JSON.stringify([e48, e49, e50]));
     T('47  E52, E54 and E55 are untouched: the art table, the drawing lookup, Mastery’s tap and its target are D129’s, byte for byte',
       sha(asOf1045Art(raw.slice(raw.indexOf('LOOP-EXERCISE-ART-BEGIN */'), raw.indexOf('/* LOOP-EXERCISE-ART-END */'))) || '') === 'b5256aca5a4fa09b' && pin('exerciseVisualKey') === 'eeeaad5194ff7779'
@@ -54660,12 +54831,12 @@ async function testPrescriptionProvenanceD131A(){
     const inc = fact(c, L.ex(1)); const prep = c.generalPrepSatisfiedBy('Incline Bench Press', c.sessionPreparation()); L.release();
     T('35  E58, held here and closed by D131B: after Bench Press at 205, the prescribed Incline Bench Press shows what D47 says, “already prepared” 110 × 2', same(inc.strip, ['110 lb × 2']) && !!prep, JSON.stringify([inc.strip, prep]));
     T('36  D125: the plan, its reader, the row helpers, Add Set, the type writer, renumbering, propagation, the stepper and the strip are byte-identical; the draft, its restore and the row are 10.47’s with D131A’s statements put back, the start 10.41’s',
-      pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pinAsOf1050('addSetRow') /* D131B restated: read at 10.50 */ === '095f10f06e006dd3' && pin('appendSetRow') === '61f2b7e061afde48'
+      pinAsOf1055('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' /* D137 restated */ && pin('rowWorkingLoad') === 'bda1a27ed7a916e8' && pin('plannedRepsFor') === 'ba11ac7e5bec6eff' && pinAsOf1050('addSetRow') /* D131B restated: read at 10.50 */ === '095f10f06e006dd3' && pin('appendSetRow') === '61f2b7e061afde48'
       && pin('applySetTypeToRow') === '9fab51981238989b' && pin('renumberSets') === '6a65d511509ef489' && pin('propagateSetValueForward') === '60f12adf15eda793' && pin('stepValue') === '8e79af408daacf1d'
       && pin('warmupBoxHtml') === '12ed1e93107dbc78' && pin('computeWarmupRamp') === 'b826d1445f153d77' && pinAsOf1041('startTemplateLog') === '5c14f8e6f7f41f52'
       && pinAsOf1047('captureActiveDraft') === '42dabe95ca8963a0' && pinAsOf1047('restoreDraftToSheet') === '1b1ae98544966e44' && pinAsOf1047('addLogExerciseRow') === '81931805d69abc1d');
     T('37  D126 / D49: the plateau, the progression engine, its evidence, the phase policy and the history readers are byte-identical',
-      pin('detectPlateau') === 'cb642b7c61b1aec9' && pin('buildProgressionRecommendation') === 'e0cc59cfd773d37b' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97'
+      pinAsOf1055('detectPlateau') === 'cb642b7c61b1aec9' /* D137 restated */ && pinAsOf1055('buildProgressionRecommendation') === 'e0cc59cfd773d37b' /* D137 restated */ && pin('progressionFor') === 'a992f11698e3e9e7' && pin('applyPhaseProgressionPolicy') === '4aa6c2f75b086b97'
       && pin('progressionEvidence') === '8ecadbedf9efc0d9' && pin('exerciseSessionHistory') === '0947083a50c4e8b7' && pin('bodyweightSessionHistory') === '107a63744acb4508' && pin('deloadActiveToday') === '700ccd9a7101c3d4');
     T('38  D127 / D50B: the coach, its write rule, its writer, coachLoadNow, the evidence it reads and its refresh are byte-identical',
       pin('coachMayWriteSet') === '0de96792fab27ca4' && pin('applyCoachToFutureSets') === '10add8e901495f2d' && pin('coachLoadNow') === '38299e411614887d' && pin('deriveNextSetCoach') === '24da0e0f2d99a2c5'
@@ -54713,11 +54884,12 @@ async function testPrescriptionProvenanceD131A(){
   sub('47–54  the held findings, history, storage, old drafts, no re-planning');
   await guard('storage', async () => {
     const held = async (log, fn) => { const a = await boot(log); return withClockOn(a.ctx, NOW, () => fn(a.ctx)); };
+    const held1055 = async (log, fn) => { const a = await boot(log); ['detectPlateau', 'buildProgressionRecommendation', 'deriveWorkingSetPlan'].forEach(n => { a.ctx[n] = compileShipped1055(a.ctx, n); }); return withClockOn(a.ctx, NOW, () => fn(a.ctx)); };   // D137 restated: E48, E49 and E50 were held through 10.55 and closed in 10.56 (Contract 256)
     const wk = (items, setsOf) => items.map((x, i) => W('e' + i, ['2026-09-05', '2026-09-12', '2026-09-19', '2026-09-26'][i], [E('Bench Press', setsOf(x))]));
-    const e48 = await held(STALL, hc => { const p = hc.deriveWorkingSetPlan('Bench Press', '8-12', 3, { tag: 'increase', weight: 210 }, {}); return p.source + ' ' + p.reps.join('/'); });
-    const e49 = await held(wk([[8, 6, 4], [8, 7, 5], [8, 8, 6], [8, 8, 7]], s => s.map(r => S(205, r))), hc => { const p = hc.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
-    const e50 = await held(wk([9, 8, 7, 6], x => [S(205, x, 0), S(205, x - 1, 0)]), hc => { const r = hc.progressionFor('Bench Press', '8-12', null); return r ? r.tag : null; });
-    T('47  E48, E49 and E50 are still open, by behaviour: a new load still gets the program’s seed 8 / 8 / 8; better back-offs behind the same top set still read as a stall; a pure decline at 0 in reserve is still a plateau',
+    const e48 = await held1055(STALL, hc => { const p = hc.deriveWorkingSetPlan('Bench Press', '8-12', 3, { tag: 'increase', weight: 210 }, {}); return p.source + ' ' + p.reps.join('/'); });
+    const e49 = await held1055(wk([[8, 6, 4], [8, 7, 5], [8, 8, 6], [8, 8, 7]], s => s.map(r => S(205, r))), hc => { const p = hc.detectPlateau('Bench Press'); return p ? [p.weight, p.sessions] : null; });
+    const e50 = await held1055(wk([9, 8, 7, 6], x => [S(205, x, 0), S(205, x - 1, 0)]), hc => { const r = hc.progressionFor('Bench Press', '8-12', null); return r ? r.tag : null; });
+    T('10.55 replay — 47  E48, E49 and E50 are still open, by behaviour: a new load still gets the program’s seed 8 / 8 / 8; better back-offs behind the same top set still read as a stall; a pure decline at 0 in reserve is still a plateau',
       e48 === 'program 8/8/8' && same(e49, [205, 4]) && e50 === 'plateau', JSON.stringify([e48, e49, e50]));
     T('48  E52, E54 and E55 are untouched: the art table, the drawing lookup, Mastery’s tap and its target are D129’s, byte for byte',
       sha(asOf1045Art(raw.slice(raw.indexOf('LOOP-EXERCISE-ART-BEGIN */'), raw.indexOf('/* LOOP-EXERCISE-ART-END */'))) || '') === 'b5256aca5a4fa09b' && pin('exerciseVisualKey') === 'eeeaad5194ff7779'
@@ -55167,7 +55339,7 @@ async function testLiveWarmupD131B(){
     const s1 = await e59(), s0 = await e59({ at1050: true });
     T('10.53 replay — 43  E59 is held, as recorded: a hand-added Close-Grip split by a swap still gives the original targetSets and the replacement a slot, exactly as 10.50', same(s1, s0) && !!s1[0].targetSets && !!s1[1].slotName, JSON.stringify([s1, s0]));
     T('44  D125 / D127 / D130 / D131A are 10.50’s: the working-set plan, the coach’s write rule and its load, the working target, the split, the draft capture, the row builder and the set builders',
-      pin('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' && pin('coachMayWriteSet') === '0de96792fab27ca4' && pin('coachLoadNow') === '38299e411614887d' && pin('seedWorkingTarget') === '64ed113f75a5573e' &&
+      pinAsOf1055('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' /* D137 restated */ && pin('coachMayWriteSet') === '0de96792fab27ca4' && pin('coachLoadNow') === '38299e411614887d' && pin('seedWorkingTarget') === '64ed113f75a5573e' &&
       pinAsOf1053('splitRowForSwap') === '78ed482b25517739' /* D135 restated */ && pin('captureActiveDraft') === '7ed552854d7f4526' && pin('addLogExerciseRow') === 'be4678472bf41b62' && pin('applySetTypeToRow') === '9fab51981238989b' &&
       pin('appendSetRow') === '61f2b7e061afde48' && pin('renumberSets') === '6a65d511509ef489' && pin('setIdxHtml') === '3614080a0cb6a1f2' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('applyCoachToFutureSets') === '10add8e901495f2d' &&
       pin('startTemplateLog') === 'd2264fc049660e8e' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('capturedPrescription') === '4b741af98b989695' && pin('saveLog') === '66c63714822ef5ee');
@@ -55412,7 +55584,7 @@ async function testWorkoutRoomD133(){
     T('26  E56 and E58 stay CLOSED (D131B); E59 and E62 stay OPEN and are not fixed: the split still gives a hand-added exercise and its replacement a plan, and D47 still ignores the order of the work',
       /CLOSED in D131B/.test(status('E56')) && /CLOSED in D131B/.test(status('E58')) && /· (OPEN|\*\*CLOSED in D135)/.test(status('E59')) /* D135 restated: open in 10.52, closed in 10.54 */ && /· (OPEN|\*\*CLOSED in D136)/.test(status('E62')) /* D136 restated: open in 10.52, closed in 10.55 */ && same('splitRowForSwap') && same('sessionPreparation') && same('generalPrepSatisfiedBy'));
     T('27  the other findings D133 was told to leave are all still open (E16 held; E22, E25–E27, E33, E38, E39, E43, E48, E49, E50, E52, E54, E55, E60, E61)',
-      /HELD/.test(status('E16')) && ['E22', 'E25', 'E26', 'E27', 'E33', 'E38', 'E39', 'E43', 'E48', 'E49', 'E50', 'E52', 'E54', 'E55', 'E60', 'E61'].every(id => /OPEN|HELD/.test(status(id)) && !/\bCLOSED in D133\b/.test(status(id))), ['E16', 'E22', 'E25', 'E26', 'E27', 'E33'].map(id => status(id).slice(0, 60)));
+      /HELD/.test(status('E16')) && ['E22', 'E25', 'E26', 'E27', 'E33', 'E38', 'E39', 'E43', 'E48', 'E49', 'E50', 'E52', 'E54', 'E55', 'E60', 'E61'].every(id => (/OPEN|HELD/.test(status(id)) || (['E48', 'E49', 'E50'].includes(id) && /CLOSED in D137/.test(status(id)))) && !/\bCLOSED in D133\b/.test(status(id)))   /* D137 restated: E48–E50 open in 10.52, closed in 10.56 */, ['E16', 'E22', 'E25', 'E26', 'E27', 'E33'].map(id => status(id).slice(0, 60)));
     const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was);
     T('28  nothing is stored for a layout: 16 DATA_KEYS (the same sixteen), data schema 1, no migration, the trainer 0.1.1-shadow', !!dk && !!dkw && dk[1] === dkw[1] && dk[1].split(',').map(s => s.trim()).filter(Boolean).length === 16 && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /0\.1\.1-shadow/.test(raw) && !/localStorage|LOOPStore|DATA_KEY/.test(D133_CSS));
     T('29  D132’s rendered system is untouched: the block sits inside it after D132.1’s two rules, and the stylesheet outside the block is 10.51’s',
@@ -56235,7 +56407,7 @@ async function testWarmupApplicabilityD136(){
     T('40–44  every saved workout, its Session Score and execution, records, XP, Mastery and Recovery are exactly 10.54’s in every class', moved.length === 0, moved);
     T('45  history is never rewritten: the workouts already logged hash the same before and after each save, on both builds', ALL.every(n => R[n].history[0] === R[n].history[1] && Q[n].history[0] === Q[n].history[1] && R[n].history[0] === R['C0 no work'].history[0]));
     T('46  the trainer is 0.1.1-shadow', /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(raw) || /0\.1\.1-shadow/.test(raw));
-    T('47–48  E48, E49, E50, E60 and E61 stay OPEN, and E62 is CLOSED by this release', ['E48', 'E49', 'E50', 'E60', 'E61'].every(id => /· OPEN/.test(statusOf(id))) && /CLOSED in D136/.test(statusOf('E62')), ['E48', 'E49', 'E50', 'E60', 'E61', 'E62'].map(id => statusOf(id).slice(-34)));
+    T('47–48  E48, E49, E50, E60 and E61 stay OPEN, and E62 is CLOSED by this release', ['E60', 'E61'].every(id => /· OPEN/.test(statusOf(id))) && ['E48', 'E49', 'E50'].every(id => /· (OPEN|\*\*CLOSED in D137)/.test(statusOf(id))) /* D137 restated: open in 10.55, closed in 10.56 */ && /CLOSED in D136/.test(statusOf('E62')), ['E48', 'E49', 'E50', 'E60', 'E61', 'E62'].map(id => statusOf(id).slice(-34)));
     const one = ALL.every(n => R[n].steps.every(st => st.ex.every(e => e.copies === 1)));
     T('49  one strip per exercise, retired by the hidden attribute itself (no copy, no opacity, no off-screen trick): hidden is true exactly when the work has begun, in every class at every step', one && ALL.every(n => R[n].steps.every(st => st.ex.every(e => e.hidden === e.begun))));
   });
@@ -56309,7 +56481,223 @@ async function testWarmupApplicabilityD136(){
     T('10.54 replay — 50b  the 10.54 side runs 10.54’s own refresh: REFRESH_1054 hashes to its pin, and 10.55 read back as 10.54 gives exactly that text', sha(REFRESH_1054) === REFRESH_1054_PIN && asOf1054('refreshSuggestedWarmups') === REFRESH_1054);
     T('51  the change is one statement pair in refreshSuggestedWarmups and the What’s New entry: the scripts differ by nothing else', !!was && D136_RAW.length === 2 && /const begun = exerciseWorkBegun\(exRow\);\s*if\(wrap\.hidden !== begun\) wrap\.hidden = begun;/.test(fnSrc(raw, 'refreshSuggestedWarmups')) && col(fnSrc(raw, 'refreshSuggestedWarmups')) !== col(fnSrc(was, 'refreshSuggestedWarmups')));
     T('52  What’s New v10-55 “Warm-up Guidance Knows When You’re Training” is LOOP 10.55 / loop-v232, dated in New York, and sw.js serves loop-v232',
-      /id: 'v10-55',\s*version: 'LOOP 10\.55',\s*title: 'Warm-up Guidance Knows When You’re Training',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v232'/.test(raw) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v232'") !== -1);
+      /id: 'v10-55',\s*version: 'LOOP 10\.55',\s*title: 'Warm-up Guidance Knows When You’re Training',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v232'/.test(raw) && /CACHE_VERSION = 'loop-v2(3[2-9]|[4-9]\d)'/.test(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8')));   // D137 restated: sw.js serves the newest release (Contract 256 holds loop-v233)
+  });
+}
+
+/* =========================================================
+   CONTRACT 256 — D137 (LOOP 10.56, E48 + E49 + E50): PROGRESSION READS THE WHOLE PERFORMANCE
+   Three findings, three owners, kept apart. D125 (E48) plans a load D49 has just raised from the load D49 judged, one rep
+   under it, instead of the program's seed. D126 (E49) reads a workout whole — top set, then its recorded reserve, then the
+   matching back-off sets — through one comparison, so a tie at the top can still be progress and nothing below the top can
+   undo it. D126 (E50) tells a flat plateau from a falling one; a falling one holds, unless D47's own grinding test is met,
+   when D47's reduce now reaches it. D49's tiers and thresholds are unchanged. Every fixture runs on 10.56 (R) and on 10.55's
+   own detectPlateau, buildProgressionRecommendation and deriveWorkingSetPlan (Q, SHIPPED_1055, pinned).
+   ========================================================= */
+async function testProgressionEvidenceD137(){
+  section('CONTRACT 256 — progression reads the whole performance (D137, E48 + E49 + E50)');
+  const fs = require('fs'), crypto = require('crypto');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  const was = asOf1055Html(raw);
+  const sameFn = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+  const fxText = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8');
+  const statusOf = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fxText); return m ? m[0] : ''; };
+  const NOW = '2026-10-08T12:00:00';
+  const FIX = [{"id":"E48-A strong prior, new load","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[200,9,2,"working"],[200,8,2,"working"],[200,8,2,"working"]],[[200,10,2,"working"],[200,9,2,"working"],[200,9,2,"working"]],[[200,10,2,"working"],[200,10,2,"working"],[200,9,2,"working"]]]},{"id":"E48-B mixed prior, new load","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[200,9,2,"working"],[200,8,2,"working"],[200,7,2,"working"]],[[200,10,2,"working"],[200,8,2,"working"],[200,7,2,"working"]]]},{"id":"E48-C exact history at the new load","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]],[[200,9,2,"working"],[200,8,2,"working"],[200,8,2,"working"]],[[200,10,2,"working"],[200,10,2,"working"],[200,9,2,"working"]]]},{"id":"E48-D exact history 5 sessions back","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[200,8,2,"working"],[200,8,2,"working"],[200,7,2,"working"]],[[200,9,2,"working"],[200,8,2,"working"],[200,8,2,"working"]],[[200,9,2,"working"],[200,9,2,"working"],[200,8,2,"working"]],[[200,10,2,"working"],[200,10,2,"working"],[200,9,2,"working"]]]},{"id":"E48-D2 exact history 6 sessions back (outside the window)","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[200,7,2,"working"],[200,7,2,"working"],[200,7,2,"working"]],[[200,8,2,"working"],[200,8,2,"working"],[200,7,2,"working"]],[[200,9,2,"working"],[200,8,2,"working"],[200,8,2,"working"]],[[200,9,2,"working"],[200,9,2,"working"],[200,8,2,"working"]],[[200,10,2,"working"],[200,10,2,"working"],[200,9,2,"working"]]]},{"id":"E48-E no usable prior sequence (one set at the top load)","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[200,10,2,"working"],[185,10,2,"working"],[185,10,2,"working"]]]},{"id":"E48-F HOLD","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[200,9,1,"working"],[200,8,1,"working"],[200,8,0,"working"]],[[200,10,1,"working"],[200,9,1,"working"],[200,8,0,"working"]]]},{"id":"E48-G REDUCE","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[200,5,0,"working"],[200,5,0,"working"],[200,4,0,"working"]],[[200,5,0,"working"],[200,4,0,"working"],[200,4,0,"working"]]]},{"id":"E48-H PLATEAU","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[200,8,1,"working"],[200,8,1,"working"],[200,7,1,"working"]],[[200,8,1,"working"],[200,7,1,"working"],[200,7,1,"working"]],[[200,8,1,"working"],[200,8,1,"working"],[200,6,1,"working"]],[[200,8,1,"working"],[200,7,1,"working"],[200,6,1,"working"]]]},{"id":"E48-I deload: the prior session was a deload","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[200,10,2,"working"],[200,10,2,"working"],[200,9,2,"working"]],{"deload":true,"sets":[[160,10,4,"working"],[160,10,4,"working"],[160,10,4,"working"]]}]},{"id":"E48-J D50B-adapted prior (a set lowered mid-session)","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[200,10,2,"working"],[200,10,2,"working"],[195,10,2,"working"]]]},{"id":"E48-K bodyweight","group":"E48","lift":"Push-Up","reps":"8-12","sets":3,"sessions":[[[0,15,2,"working"],[0,14,2,"working"],[0,12,2,"working"]]],"bw":true},{"id":"E48-M sets at and under the floor","group":"E48","lift":"Bench Press","reps":"6-10","sets":3,"sessions":[[[200,10,2,"working"],[200,6,2,"working"],[200,5,2,"working"]]]},{"id":"E48-L four sets, 4-6 range, heavy (a 10 lb jump)","group":"E48","lift":"Bench Press","reps":"4-6","sets":4,"sessions":[[[230,5,2,"working"],[230,5,2,"working"],[230,5,2,"working"],[230,4,2,"working"]],[[230,6,2,"working"],[230,6,2,"working"],[230,6,2,"working"],[230,5,2,"working"]]]},{"id":"E49-1 same top, better back-offs (8/6/4 → 8/8/7)","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,null,"working"],[205,6,null,"working"],[205,4,null,"working"]],[[205,8,null,"working"],[205,7,null,"working"],[205,5,null,"working"]],[[205,8,null,"working"],[205,8,null,"working"],[205,6,null,"working"]],[[205,8,null,"working"],[205,8,null,"working"],[205,7,null,"working"]]]},{"id":"E49-2 same reps, more in reserve (RIR 0 → 3)","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,0,"working"],[205,8,0,"working"],[205,8,0,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]],[[205,8,2,"working"],[205,8,2,"working"],[205,8,2,"working"]],[[205,8,3,"working"],[205,8,3,"working"],[205,8,3,"working"]]]},{"id":"E49-3 better top, worse back-off","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]],[[205,9,1,"working"],[205,6,1,"working"],[205,6,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]]]},{"id":"E49-4 worse top, better back-off","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,9,1,"working"],[205,6,1,"working"],[205,6,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]]]},{"id":"E49-4b same top reached on a later set, better back-offs (a tie, not a regression)","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,9,1,"working"],[205,6,1,"working"],[205,6,1,"working"]],[[205,8,1,"working"],[205,9,1,"working"],[205,9,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]],[[205,9,1,"working"],[205,6,1,"working"],[205,6,1,"working"]]]},{"id":"E49-5 same top, one side without RIR","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]],[[205,8,null,"working"],[205,8,null,"working"],[205,8,null,"working"]],[[205,8,null,"working"],[205,8,null,"working"],[205,8,null,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]]]},{"id":"E49-6 back-offs at different loads","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,1,"working"],[185,8,1,"working"],[185,8,1,"working"]],[[205,8,1,"working"],[175,10,1,"working"],[175,10,1,"working"]],[[205,8,1,"working"],[165,12,1,"working"],[165,12,1,"working"]],[[205,8,1,"working"],[175,10,1,"working"],[175,10,1,"working"]]]},{"id":"E49-7 same top and reps, less in reserve (worse quality)","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,3,"working"],[205,8,3,"working"],[205,8,3,"working"]],[[205,8,3,"working"],[205,8,3,"working"],[205,8,3,"working"]],[[205,8,2,"working"],[205,8,2,"working"],[205,8,2,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]]]},{"id":"E49-8 lighter back-offs, more reps (the brief: 185 × 8 → 185 × 10)","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,1,"working"],[185,8,1,"working"],[185,7,0,"working"]],[[205,8,1,"working"],[185,8,1,"working"],[185,7,0,"working"]],[[205,8,1,"working"],[185,8,1,"working"],[185,7,0,"working"]],[[205,8,1,"working"],[185,10,1,"working"],[185,9,1,"working"]]]},{"id":"E49-9 stopped early: two strong sets vs three","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"]]]},{"id":"E49-10 a junk extra set","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,7,1,"working"],[205,5,1,"working"]]]},{"id":"E49-11 reserve first logged in the fourth workout (unknown before)","group":"E49","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,null,"working"],[205,8,null,"working"],[205,8,null,"working"]],[[205,8,null,"working"],[205,8,null,"working"],[205,8,null,"working"]],[[205,8,null,"working"],[205,8,null,"working"],[205,8,null,"working"]],[[205,8,2,"working"],[205,8,2,"working"],[205,8,2,"working"]]]},{"id":"E50-A 8 → 8 → 8 (flat)","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]],[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]],[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]],[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]]]},{"id":"E50-B 9 → 8 → 7 (falling)","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]],[[205,7,1,"working"],[205,6,1,"working"],[205,5,1,"working"]]]},{"id":"E50-B2 10 → 9 → 8 → 7 (falling for four)","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,10,1,"working"],[205,9,1,"working"],[205,8,1,"working"]],[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]],[[205,7,1,"working"],[205,6,1,"working"],[205,5,1,"working"]]]},{"id":"E50-C 7 → 8 → 7 (not sustained)","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]],[[205,7,1,"working"],[205,6,1,"working"],[205,5,1,"working"]],[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]],[[205,7,1,"working"],[205,6,1,"working"],[205,5,1,"working"]]]},{"id":"E50-D 9 → 7 → 9 (not decline)","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,7,1,"working"],[205,6,1,"working"],[205,5,1,"working"]],[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]]]},{"id":"E50-E 10 → 9 → 9","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,10,1,"working"],[205,9,1,"working"],[205,8,1,"working"]],[[205,10,1,"working"],[205,9,1,"working"],[205,8,1,"working"]],[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]]]},{"id":"E50-F same reps, RIR 2 → 1 → 0","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,2,"working"],[205,8,2,"working"],[205,8,2,"working"]],[[205,8,2,"working"],[205,8,2,"working"],[205,8,2,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]],[[205,8,0,"working"],[205,8,0,"working"],[205,8,0,"working"]]]},{"id":"E50-G same top, back-offs fall twice","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]],[[205,8,1,"working"],[205,8,1,"working"],[205,8,1,"working"]],[[205,8,1,"working"],[205,7,1,"working"],[205,7,1,"working"]],[[205,8,1,"working"],[205,6,1,"working"],[205,6,1,"working"]]]},{"id":"E50-H top falls, RIR rises","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,9,0,"working"],[205,8,0,"working"],[205,7,0,"working"]],[[205,9,0,"working"],[205,8,0,"working"],[205,7,0,"working"]],[[205,8,2,"working"],[205,7,2,"working"],[205,6,2,"working"]],[[205,7,3,"working"],[205,6,3,"working"],[205,5,3,"working"]]]},{"id":"E50-I one bad session after improvement","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]],[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,10,1,"working"],[205,9,1,"working"],[205,8,1,"working"]],[[205,7,1,"working"],[205,6,1,"working"],[205,5,1,"working"]]]},{"id":"E50-J the finding: 8/7/6 → 5/5/4 at 0 RIR (D47 criteria met)","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,8,0,"working"],[205,7,0,"working"],[205,6,0,"working"]],[[205,7,0,"working"],[205,6,0,"working"],[205,5,0,"working"]],[[205,6,0,"working"],[205,5,0,"working"],[205,5,0,"working"]],[[205,5,0,"working"],[205,5,0,"working"],[205,4,0,"working"]]]},{"id":"E50-K falling inside the range, RIR unknown","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,12,null,"working"],[205,11,null,"working"],[205,10,null,"working"]],[[205,11,null,"working"],[205,10,null,"working"],[205,9,null,"working"]],[[205,10,null,"working"],[205,9,null,"working"],[205,8,null,"working"]],[[205,9,null,"working"],[205,8,null,"working"],[205,7,null,"working"]]]},{"id":"E50-L rebound after two falls","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]],[[205,7,1,"working"],[205,6,1,"working"],[205,5,1,"working"]],[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]]]},{"id":"E50-M falling, last workout a deload (skipped)","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,10,1,"working"],[205,9,1,"working"],[205,8,1,"working"]],[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]],[[205,8,1,"working"],[205,7,1,"working"],[205,6,1,"working"]],[[205,7,1,"working"],[205,6,1,"working"],[205,5,1,"working"]],{"deload":true,"sets":[[165,10,3,"working"],[165,10,3,"working"],[165,10,3,"working"]]}]},{"id":"E50-N one session only","group":"E50","lift":"Bench Press","reps":"8-12","sets":3,"sessions":[[[205,9,1,"working"],[205,8,1,"working"],[205,7,1,"working"]]]}];
+  const app = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), workoutLog: '[]', onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) });
+  const c = app.ctx; await H.settle(300);
+  const pad = n => String(n).padStart(2, '0');
+  const logOf = f => f.sessions.map((s, i) => { const d = new Date(2026, 9, 6, 12); d.setDate(d.getDate() - (f.sessions.length - 1 - i) * 3);
+    const sets = (Array.isArray(s) ? s : s.sets).map(([w, r, rir, type]) => ({ weight: f.bw ? '' : String(w), reps: String(r), rir: rir == null ? '' : String(rir), type, completed: true }));
+    return Object.assign({ id: 'f' + i, date: d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()), category: 'push', title: 'Push', notes: '', exercises: [Object.assign({ name: f.lift, effort: '8', bodyweight: !!f.bw, sets }, f.rx ? { rx: f.rx } : {})] },
+      !Array.isArray(s) && s.deload ? { origin: 'program', programId: 'p', phase: 'deload' } : {}); });
+  const drop = () => ['invalidateSortedLogCache', 'invalidateCapabilityCache', 'invalidateRepRangeCache', 'invalidateShadowCache', 'invalidateXPTimelineCache', 'invalidateContextCache'].forEach(f => { try{ if(typeof c[f] === 'function') c[f](); }catch(e){} });
+  const SHIP = ['detectPlateau', 'buildProgressionRecommendation', 'deriveWorkingSetPlan'];
+  const live = {}, old = {}; SHIP.forEach(n => { live[n] = c[n]; old[n] = compileShipped1055(c, n); });
+  const as = (side, fn) => { if(side === 'Q') SHIP.forEach(n => { c[n] = old[n]; }); try{ return fn(); } finally { SHIP.forEach(n => { c[n] = live[n]; }); } };
+  const on = (log, side, fn) => { c.workoutLog = log; drop(); const rel = pinClock(c, NOW); try{ return as(side, fn); } finally { rel(); } };
+  const read = (f, side) => on(logOf(f), side, () => {
+    const rec = c.progressionFor(f.lift, f.reps, null), p = c.detectPlateau(f.lift); let plan = null; try{ plan = c.deriveWorkingSetPlan(f.lift, f.reps, f.sets, rec, {}); }catch(e){ plan = null; }
+    return { rec: rec ? { tag: rec.tag, weight: rec.weight, why: rec.why, trend: rec.trend || null } : null, plateau: p ? JSON.parse(JSON.stringify(p)) : null,
+      plan: plan ? { source: plan.source, reps: plan.reps.join('/'), load: plan.load } : null, logSha: sha(JSON.stringify(c.workoutLog)) }; });
+  const R = {}, Q = {}; FIX.forEach(f => { R[f.id] = read(f, 'R'); Q[f.id] = read(f, 'Q'); });
+  const fx = id => FIX.find(f => f.id.indexOf(id + ' ') === 0);
+  const r = id => R[fx(id).id], q = id => Q[fx(id).id];
+  const priorOf = id => { const s = fx(id).sessions.filter(x => Array.isArray(x)).slice(-1)[0]; const top = Math.max(...s.map(z => z[0])); return s.filter(z => z[0] === top).map(z => z[1]); };
+
+  /* ---------------------------------------------------------------- */
+  sub('1–3  the three findings on 10.55’s own engines');
+  await guard('repro', async () => {
+    T('10.55 replay — 1  E48: D49 earns 205 after 200 × 10 / 10 / 9 and D125 starts every set at the program’s seed (' + q('E48-A').plan.reps + ')', q('E48-A').rec.tag === 'increase' && q('E48-A').rec.weight === 205 && q('E48-A').plan.source === 'program' && q('E48-A').plan.reps === '6/6/6', q('E48-A'));
+    T('10.55 replay — 2  E49: better back-offs (8/6/4 → 8/8/7), more reserve (RIR 0 → 3) and stronger lighter back-offs each still read “stalled”', ['E49-1', 'E49-2', 'E49-8'].every(id => q(id).rec.tag === 'plateau' && /stalled/.test(q(id).rec.why)), ['E49-1', 'E49-2', 'E49-8'].map(id => q(id).rec.tag));
+    T('10.55 replay — 3  E50: every falling run reads as a stall, and the finding’s 8/7/6 → 5/5/4 at 0 RIR stands in front of D47’s reduce', ['E50-B', 'E50-F', 'E50-G', 'E50-K'].every(id => q(id).rec.tag === 'plateau' && /stalled/.test(q(id).rec.why)) && q('E50-J').rec.tag === 'plateau', ['E50-B', 'E50-F', 'E50-G', 'E50-J'].map(id => q(id).rec.tag));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4–9  E48: a new load D49 has just raised');
+  await guard('e48', async () => {
+    T('4  exact history at the new load still wins, exactly as 10.55: 205 lifted 3 and 5 sessions back gives 8/7/6 and 9/8/7', ['E48-C', 'E48-D'].every(id => same(r(id), q(id)) && r(id).plan.source === 'history') && r('E48-C').plan.reps === '8/7/6' && r('E48-D').plan.reps === '9/8/7');
+    const proj = ['E48-A', 'E48-B', 'E48-D2', 'E48-I', 'E48-J', 'E48-L', 'E48-M'];
+    T('5  with none, the plan is built from the athlete’s own latest sequence at the load D49 judged: 10/10/9 → 9/9/8, 10/8/7 → 9/7/6, 10/10 (a lowered set ignored) → 9/9/9, 6/6/6/5 in 4–6 → 5/5/5/4, 10/6/5 in 6–10 → 9/6/4',
+      proj.every(id => r(id).plan.source === 'projection') && r('E48-A').plan.reps === '9/9/8' && r('E48-B').plan.reps === '9/7/6' && r('E48-J').plan.reps === '9/9/9' && r('E48-L').plan.reps === '5/5/5/4' && r('E48-M').plan.reps === '9/6/4', proj.map(id => r(id).plan));
+    const rule = (p, lo, hi) => Math.max(1, Math.min(hi, p >= lo ? Math.max(lo, p - 1) : p - 1));
+    const conservative = proj.every(id => { const pr = priorOf(id), [lo, hi] = fx(id).reps.split('-').map(Number); return r(id).plan.reps.split('/').map(Number).every((x, k) => x === rule(pr[Math.min(k, pr.length - 1)], lo, hi) && x <= Math.max(pr[Math.min(k, pr.length - 1)], lo)); });
+    T('6  conservative, set for set: one rep under what was done at the lighter load; a set that reached the program’s floor stays on it, one already under it goes one lower — never more than the athlete has shown', conservative, proj.map(id => [r(id).plan.reps, priorOf(id).join('/')]));
+    T('7  in bounds: never above the range’s top, never below 1, and never below the floor where the lighter set reached it', proj.every(id => { const [lo, hi] = fx(id).reps.split('-').map(Number); return r(id).plan.reps.split('/').map(Number).every(x => x >= 1 && x <= hi) && r(id).plan.reps.split('/').length === fx(id).sets; }));
+    T('8  nothing is fabricated: deriving the plan leaves the log byte-identical, and the plan says it is a projection, never history at the new load', proj.every(id => r(id).logSha === q(id).logSha && r(id).plan.source === 'projection'));
+    T('9  D49’s answer is unchanged in every E48 fixture — the same load, the same tag, the same reason', FIX.filter(f => f.group === 'E48').every(f => same(R[f.id].rec, Q[f.id].rec)));
+    T('9b  no usable session at the old load (one set there) and the deload: the seed, and the deload’s sets are never the source (the ordinary session before it is)', r('E48-E').plan.source === 'program' && r('E48-I').plan.reps === '9/9/8');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('10–16  E49: one comparison, the top set first');
+  await guard('e49', async () => {
+    const ev = (load, reps, rir, rest) => ({ topLoad: load, topReps: reps, topRir: rir, rest: rest || {} });
+    const cmp = (b, a) => c.compareProgressionEvidence(b, a);
+    const k = (b, a) => { const x = cmp(b, a); return x.verdict + ':' + x.reason; };
+    T('10–11  a heavier top load beats, and at the same load more top reps beat — whatever the rest says', k(ev(210, 5, 0), ev(205, 9, 3, { 205: [{ r: 9, rir: 3 }] })) === 'better:HEAVIER_LOAD' && k(ev(205, 9, null), ev(205, 8, 3)) === 'better:MORE_TOP_REPS' && k(ev(200, 12, 4), ev(205, 5, 0)) === 'worse:LIGHTER_LOAD');
+    T('12  better back-offs break a tie at the top: 8/6/4 → 8/8/7 is progress — Beat last session, aim for 9', r('E49-1').rec.tag === 'build' && !r('E49-1').plateau && k(ev(205, 8, null, { 205: [{ r: 8, rir: null }, { r: 7, rir: null }] }), ev(205, 8, null, { 205: [{ r: 6, rir: null }, { r: 4, rir: null }] })) === 'better:BETTER_BACKOFF', r('E49-1').rec);
+    T('13  but never undo a worse top set: 9/6/6 → 8/8/8 is worse, and a lift whose top fell stays stalled', k(ev(205, 8, 1, { 205: [{ r: 8, rir: 1 }, { r: 8, rir: 1 }] }), ev(205, 9, 1, { 205: [{ r: 6, rir: 1 }, { r: 6, rir: 1 }] })) === 'worse:WORSE_TOP_REPS' && r('E49-4').rec.tag === 'plateau' && same(r('E49-4'), q('E49-4')));
+    T('14  recorded reserve at the same top set breaks a tie: 205 × 8 at 0, 1, 2 then 3 RIR is progress', r('E49-2').rec.tag === 'build' && k(ev(205, 8, 2), ev(205, 8, 1)) === 'better:BETTER_MATCHED_RIR' && k(ev(205, 8, 1), ev(205, 8, 2)) === 'worse:WORSE_MATCHED_RIR');
+    T('15  a missing RIR orders nothing: one side unrecorded is equivalent, and that lift stays stalled exactly as 10.55', k(ev(205, 8, null), ev(205, 8, 3)) === 'equivalent:EQUIVALENT' && k(ev(205, 8, 3), ev(205, 8, null)) === 'equivalent:EQUIVALENT' && same(r('E49-5'), q('E49-5')));
+    /* the log's own unrecorded RIR, through the reader every surface uses: unknown — never 0, never spare */
+    const blank = c.workoutProgressionEvidence({ date: '2026-10-01', exercises: [{ name: 'Bench Press', bodyweight: false, sets: [{ weight: '205', reps: '8', rir: '', type: 'working', completed: true }, { weight: '205', reps: '7', type: 'working', completed: true }] }] }, 'bench press');
+    T('15b  an RIR the athlete never logged is read as unknown from the log itself (not 0, not spare): a lift whose reserve is first logged in its fourth workout is still stalled, exactly as 10.55',
+      !!blank && blank.topRir === null && (blank.rest['205'] || []).length === 1 && blank.rest['205'].every(s => s.rir === null) && r('E49-11').rec.tag === 'plateau' && !r('E49-11').rec.trend && same(r('E49-11'), q('E49-11')), [blank, r('E49-11').rec]);
+    T('16  incomparable work orders nothing: back-offs at other loads, a workout stopped short, a junk extra set — each stays stalled exactly as 10.55',
+      ['E49-6', 'E49-9', 'E49-10'].every(id => same(r(id), q(id)) && r(id).rec.tag === 'plateau') && k(ev(205, 8, 1, { 175: [{ r: 10, rir: 1 }] }), ev(205, 8, 1, { 185: [{ r: 8, rir: 1 }] })) === 'incomparable:INCOMPARABLE'
+      && k(ev(205, 8, 1, { 205: [{ r: 9, rir: 1 }] }), ev(205, 8, 1, { 205: [{ r: 8, rir: 1 }, { r: 8, rir: 1 }] })) === 'incomparable:INCOMPARABLE');
+    T('16b  stronger lighter back-offs at the same load are progress (185 × 8 / 7 → 185 × 10 / 9); a better top set still wins exactly as before', r('E49-8').rec.tag === 'build' && same(r('E49-3'), q('E49-3')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('17–20  E50: flat or falling');
+  await guard('e50', async () => {
+    const flat = ['E50-A', 'E50-C', 'E50-D', 'E50-E', 'E50-L'], falling = ['E50-B', 'E50-B2', 'E50-F', 'E50-G', 'E50-H', 'E50-K', 'E50-M', 'E49-7'];
+    T('17  flat stays a plateau, exactly as 10.55: 8/8/8, 7 → 8 → 7, 9 → 7 → 9, 10 → 9 → 9 and a rebound', flat.every(id => same(r(id), q(id)) && r(id).rec.tag === 'plateau' && !r(id).plateau.trend));
+    T('18  falling twice running is a decline: tag plateau, trend declining, the load held, the reason “declined two sessions running” (reps, reserve or back-offs; a lighter top always counts first)',
+      falling.every(id => r(id).plateau.trend === 'declining' && r(id).rec.tag === 'plateau' && r(id).rec.trend === 'declining' && r(id).rec.weight === q(id).rec.weight && /declined two sessions running/.test(r(id).rec.why)), falling.map(id => r(id).rec));
+    T('19  one bad workout is not a decline: after a climb, 7 is D49’s single dip exactly as 10.55; with one fall in the window, still flat', same(r('E50-I'), q('E50-I')) && r('E50-I').rec.tag === 'decline' && !r('E50-D').plateau.trend);
+    T('20  a rebound cancels it: 9 → 8 → 7 → 8 is flat', r('E50-L').plateau && !r('E50-L').plateau.trend && r('E50-L').rec.why === q('E50-L').rec.why);
+    T('20b  a decline that also ground two sessions under the range at 0 RIR reaches D47: “drop to 200 lb” — D47’s own answer, unchanged', r('E50-J').rec.tag === 'reduce' && r('E50-J').rec.weight === 200 && /drop to 200 lb/.test(r('E50-J').rec.why) && q('E50-J').rec.tag === 'plateau', r('E50-J').rec);
+    T('20c  a one-session history and a three-session one are never a plateau, as before (the window is still four ordinary workouts)', !r('E50-N').plateau && same(r('E50-N'), q('E50-N')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('21–30  D49, D125, D50B, deload, bodyweight');
+  await guard('protect', async () => {
+    const bpr = col(fnSrc(raw, 'buildProgressionRecommendation')), bpw = col(fnSrc(was || '', 'buildProgressionRecommendation'));
+    const tier = (src, a, b) => src.slice(src.indexOf(a), src.indexOf(b, src.indexOf(a)));
+    T('21  D49’s increase tier is 10.55’s statement for statement (top of the range, owned, with headroom, the load not just moved; progressionIncrement)',
+      tier(bpr, 'const atTop', "tag: 'increase'") === tier(bpw, 'const atTop', "tag: 'increase'") && ['progressionIncrement', 'progressionEvidence', 'exerciseSessionHistory'].every(sameFn));
+    T('22  D47’s reduce test is the one 10.55 had, named once: grindingBelowRange is exactly 10.55’s tier 2.5 condition, and the reduce’s answer is unchanged',
+      /if\(range && prevSame && prevSame\.weight === w && last\.topReps < range\.min && prevSame\.topReps < range\.min && last\.avgRir !== null && last\.avgRir <= 0\.5 && prevSame\.avgRir !== null && prevSame\.avgRir <= 0\.5\)/.test(bpw)
+      && /prev\.weight === last\.weight && last\.topReps < range\.min && prev\.topReps < range\.min && last\.avgRir !== null && last\.avgRir <= 0\.5 && prev\.avgRir !== null && prev\.avgRir <= 0\.5/.test(col(fnSrc(raw, 'grindingBelowRange')))
+      && tier(bpr, 'const down', "tag: 'reduce'") === tier(bpw, 'const down', "tag: 'reduce'") && same(r('E48-G'), q('E48-G')));
+    T('23–24  the phase policy and the no-RIR policy are 10.55’s (applyPhaseProgressionPolicy, deloadActiveToday, progressionEvidence, PROGRESSION_EVIDENCE)', ['applyPhaseProgressionPolicy', 'deloadActiveToday', 'progressionEvidence', 'progressionFor'].every(sameFn)
+      && raw.slice(raw.indexOf('const PROGRESSION_EVIDENCE = {'), raw.indexOf('};', raw.indexOf('const PROGRESSION_EVIDENCE = {'))) === (was || '').slice((was || '').indexOf('const PROGRESSION_EVIDENCE = {'), (was || '').indexOf('};', (was || '').indexOf('const PROGRESSION_EVIDENCE = {'))));
+    /* D85's phase policy, run: inside a deload only an INCREASE becomes a hold, at the weight last trained; every other answer passes through */
+    const inDeload = id => on(logOf(fx(id)), 'R', () => { const real = c.deloadActiveToday; c.deloadActiveToday = () => true;
+      try{ const x = c.progressionFor(fx(id).lift, fx(id).reps, null); return { tag: x.tag, weight: x.weight, why: x.why }; } finally { c.deloadActiveToday = real; } });
+    const dA = inDeload('E48-A'), through = ['E49-1', 'E50-B', 'E50-J', 'E48-F', 'E48-G', 'E50-N'].map(id => [id, inDeload(id), r(id).rec]);
+    T('23b  run inside a deload: an INCREASE becomes a hold at the weight last trained (200 lb, “Deload week”), and every other answer — build, plateau, declining, D47’s reduce, hold — reaches the athlete unchanged',
+      dA.tag === 'hold' && dA.weight === 200 && /^Deload week/.test(dA.why) && through.every(([id, x, y]) => x.tag === y.tag && x.weight === y.weight && x.why === y.why), [dA, through.map(([id, x]) => id + ':' + x.tag)]);
+    T('25–26  D125’s HOLD, REDUCE and PLATEAU plans are exactly 10.55’s', ['E48-F', 'E48-G', 'E48-H'].every(id => same(r(id), q(id))));
+    T('27  D50B is 10.55’s byte for byte (refreshSetCoach, deriveNextSetCoach, liveSetEvidence, applyCoachToFutureSets, coachLoadNow, coachMayWriteSet)', ['refreshSetCoach', 'deriveNextSetCoach', 'liveSetEvidence', 'applyCoachToFutureSets', 'coachLoadNow', 'coachMayWriteSet'].every(sameFn));
+    T('28  the plateau window is still the last four ordinary workouts: a deload is skipped (the falling run before it is still read), and fewer than four is never a plateau', r('E50-M').plateau && r('E50-M').plateau.sessions === 4 && !r('E50-N').plateau);
+    const dl = on(logOf(fx('E48-A')), 'R', () => c.deriveWorkingSetPlan('Bench Press', '6-10', 3, c.progressionFor('Bench Press', '6-10', null), { deload: true }));
+    T('29  a deload session plans from the seed as before, and no deload is ever the source of a projection', dl.source === 'program' && dl.reps.join('/') === '6/6/6' && r('E48-I').plan.reps === r('E48-A').plan.reps);
+    T('30  bodyweight is D119’s, untouched', same(r('E48-K'), q('E48-K')) && ['bodyweightProgressionFor', 'bodyweightSessionHistory'].every(sameFn));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('31–49  protected');
+  await guard('protected', async () => {
+    T('31–32  D131A and D131B are 10.55’s byte for byte (the draft, the restore, the live warm-up)', ['captureActiveDraft', 'restoreDraftToSheet', 'refreshSuggestedWarmups', 'seedWarmupTargets', 'warmupBoxHtml', 'sessionPreparation', 'generalPrepSatisfiedBy'].every(sameFn));
+    T('33–35  E59, E62 and E63 stay CLOSED and their code is 10.55’s (the split, the warm-up applicability, the duration)', /CLOSED in D135/.test(statusOf('E59')) && /CLOSED in D136/.test(statusOf('E62')) && /CLOSED in D134/.test(statusOf('E63'))
+      && ['splitRowForSwap', 'workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText'].every(sameFn));
+    T('36–37  D133’s shell, D132’s system and D132.1’s circles: the whole stylesheet is 10.55’s byte for byte', !!was && raw.slice(raw.indexOf('<style>'), raw.indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')));
+    const all = FIX.filter(f => !f.bw).map(f => logOf(f).map((e, i) => Object.assign({}, e, { id: f.id.slice(0, 6) + '-' + i, date: e.date }))).reduce((a, x) => a.concat(x), []);
+    const reads = side => on(all, side, () => ({ prs: sha(JSON.stringify([c.computeAllPREvents().map(v => [v.id, v.exerciseName, v.hits.map(h => h.type + ':' + h.next)]), c.computePRs().map(p => [p.name, p.weight, p.reps])])),
+      xp: (() => { const tl = c.computeXPTimeline(); return [tl.lifetimeXP, tl.prCount]; })(), score: sha(JSON.stringify(all.map(l => { const s = c.sessionScore(l); return s && s.available ? s.score : null; }))),
+      mastery: sha(JSON.stringify(c.getTopExerciseMastery().map(m => [m.exerciseId, m.points, m.level, m.sessions, m.prs]))), recovery: sha(JSON.stringify(c.computeMuscleRecovery())),
+      volume: sha(JSON.stringify(all.map(l => c.sessionVolume(l)))), history: sha(JSON.stringify(c.workoutLog)) }));
+    const rr = reads('R'), qq = reads('Q');
+    T('38–42, 45  over every fixture’s workouts together: records, XP, Session Score, Mastery, Recovery, volume and the history itself are exactly 10.55’s', same(rr, qq), [rr, qq]);
+    T('43–44  objectives and programs are 10.55’s code (they read D49’s answer, which moves only where E49 / E50 move it)', ['objectiveDailyCandidates', 'getProgramWorkoutForDate', 'computeProgramProgress'].filter(n => fnSrc(raw, n)).every(sameFn));
+    const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '');
+    T('46–48  16 DATA_KEYS (the same sixteen), data schema 1, the trainer 0.1.1-shadow; no new workout field', !!dk && !!dkw && dk[1] === dkw[1] && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(raw));
+    const STORES = ['workoutLog', 'dismissedMissed', 'lastSeenUpdateId', 'selectedPlan', 'activeWorkoutDraft', 'athleteProfile', 'exercisePrefs', 'dailyReadiness', 'trainerLog', 'cardioLog', 'cardioDraft', 'gymProfile', 'exerciseNotes', 'programs', 'onboarding', 'objectives'];
+    T('46b  the running app keeps the same sixteen stores, in the same order, and its data version is 1 — nothing new is stored for progression', same(Array.from(c.DATA_KEYS || []), STORES) && String(c.DATA_SCHEMA_VERSION) === '1', [c.DATA_KEYS, c.DATA_SCHEMA_VERSION]);
+    T('49  E48, E49 and E50 are CLOSED by this release; E60 and E61 stay OPEN', ['E48', 'E49', 'E50'].every(id => /CLOSED in D137/.test(statusOf(id))) && ['E60', 'E61'].every(id => /· OPEN/.test(statusOf(id))), ['E48', 'E49', 'E50', 'E60', 'E61'].map(id => statusOf(id).slice(-34)));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the words');
+  await guard('words', async () => {
+    const tplHtml = id => on(logOf(fx(id)), 'R', () => c.templateCardHtml({ name: 'QA', exercises: [{ name: 'Bench Press', sets: 3, reps: '8-12' }] }, 'push', {}));
+    T('a falling lift’s workout card says “declining at 205lb”; a flat one still says “stuck at 205lb for 4+ sessions”', /Bench Press declining at 205lb/.test(tplHtml('E50-B')) && !/stuck at/.test(tplHtml('E50-B')) && /Bench Press stuck at 205lb for 4\+ sessions/.test(tplHtml('E50-A')));
+    const today = id => on(logOf(fx(id)), 'R', () => { const el = { innerHTML: '' }; const g = c.document.getElementById; c.document.getElementById = k => k === 'todayInsights' ? el : g.call(c.document, k); try{ c.renderTodayInsights(); } finally { c.document.getElementById = g; } return el.innerHTML; });
+    T('Today names it: “Declining — Bench Press — performance has declined two sessions running”, in the same warning style as Stalled; a flat lift is still “Stalled”', /it-stalled">Declining</.test(today('E50-B')) && /performance has declined two sessions running/.test(today('E50-B')) && /it-stalled">Stalled</.test(today('E50-A')));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('P1–P23, 50  properties and attribution over generated histories');
+  await guard('properties', async () => {
+    const rng = seed => () => { seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+    /* the comparison, on random evidence */
+    const R1 = rng(256); const pick = a => a[Math.floor(R1() * a.length)];
+    const rnd = () => { const load = pick([185, 195, 205]), reps = pick([6, 7, 8, 9]), rir = pick([null, 0, 1, 2, 3]); const rest = {}; const bl = pick([load, 175]); const n = pick([0, 1, 2]);
+      if(n) rest[bl] = Array.from({ length: n }, () => ({ r: pick([5, 6, 7, 8]), rir: pick([null, 1, 2]) })).sort((x, y) => (y.r - x.r) || ((y.rir === null ? -1 : y.rir) - (x.rir === null ? -1 : x.rir))); return { topLoad: load, topReps: reps, topRir: rir, rest }; };
+    let pairs = 0, bad = [];
+    for(let i = 0; i < 4000; i++){ const a = rnd(), b = rnd(); const ab = c.compareProgressionEvidence(b, a), ba = c.compareProgressionEvidence(a, b); pairs++;
+      const flip = { better: 'worse', worse: 'better', equivalent: 'equivalent', incomparable: 'incomparable' };
+      if(ba.verdict !== flip[ab.verdict]) bad.push('P0 antisymmetry ' + JSON.stringify([a, b]));
+      if(b.topLoad > a.topLoad && ab.verdict !== 'better') bad.push('P1 heavier ' + JSON.stringify([a, b]));
+      if(b.topLoad === a.topLoad && b.topReps > a.topReps && ab.verdict !== 'better') bad.push('P2 more reps');
+      if((b.topLoad !== a.topLoad || b.topReps !== a.topReps) && !/LOAD|TOP_REPS/.test(ab.reason)) bad.push('P3/P4 the top did not decide');
+      if(b.topLoad === a.topLoad && b.topReps === a.topReps && (b.topRir === null || a.topRir === null) && /MATCHED_RIR/.test(ab.reason)) bad.push('P6 missing RIR ordered');
+      if(/BACKOFF/.test(ab.reason) && (b.topLoad !== a.topLoad || b.topReps !== a.topReps)) bad.push('P7 back-off decided over the top');
+      if(/BACKOFF/.test(ab.reason) && same(Object.keys(b.rest).map(k => [k, b.rest[k].length]).sort(), Object.keys(a.rest).map(k => [k, a.rest[k].length]).sort()) === false) bad.push('P8 incomparable back-offs ordered');
+      if(c.compareProgressionEvidence(a, a).verdict !== 'equivalent') bad.push('P0 a workout is not its own equal'); }
+    T('P1–P8  over ' + pairs + ' random pairs of workouts: heavier always beats, more reps at the same load always beat, the top set decides whenever it differs, recorded reserve only breaks a tie at the top and only when both recorded it, back-offs only when their loads and counts match — and the comparison is antisymmetric', bad.length === 0, bad.slice(0, 4));
+    /* generated histories, both builds, attributed */
+    const LIFTS = [['Bench Press', 5], ['Back Squat', 10], ['Dumbbell Bench Press', 10], ['Lateral Raise', 2.5]], RANGES = ['8-12', '6-10', '5-8', '4-6', '10-15'];
+    const gen = seed => { const G = rng(seed), p = a => a[Math.floor(G() * a.length)], int = (lo, hi) => lo + Math.floor(G() * (hi - lo + 1));
+      const [lift, step] = p(LIFTS), reps = p(RANGES), [lo, hi] = reps.split('-').map(Number), sets = p([2, 3, 4]), trend = p(['up', 'flat', 'down', 'noise', 'rir-up', 'rir-down', 'backoff-up', 'backoff-down']), rirMode = p(['all', 'none', 'partial']);
+      let load = /Lateral/.test(lift) ? p([15, 20]) : p([95, 135, 185, 205, 225]), top = int(lo, hi + 1), rir = int(0, 3), back = Math.max(1, top - int(0, 2)); const sessions = [];
+      for(let s = 0, n = int(1, 7); s < n; s++){ const deload = s > 0 && G() < 0.08;
+        if(!deload){ if(trend === 'up'){ if(top >= hi && G() < 0.6){ load += step; top = Math.max(lo, top - int(1, 3)); } else top += G() < 0.7 ? 1 : 0; } else if(trend === 'down') top = Math.max(1, top - (G() < 0.8 ? 1 : 0)); else if(trend === 'noise') top = Math.max(1, top + int(-2, 2)); else if(trend === 'rir-up') rir = Math.min(4, rir + (G() < 0.7 ? 1 : 0)); else if(trend === 'rir-down') rir = Math.max(0, rir - (G() < 0.7 ? 1 : 0)); else if(trend === 'backoff-up') back = Math.min(top, back + (G() < 0.7 ? 1 : 0)); else back = Math.max(1, back - (G() < 0.7 ? 1 : 0)); }
+        const L = deload ? Math.round(load * 0.8 / 5) * 5 : load, done = G() < 0.1 ? Math.max(1, sets - 1) : sets; const ss = [];
+        for(let k = 0; k < done; k++){ const known = rirMode === 'all' || (rirMode === 'partial' && G() < 0.5); ss.push([L, k === 0 ? top : Math.max(1, back), known ? rir : null, 'working']); }
+        sessions.push(deload ? { deload: true, sets: ss } : ss); }
+      return { id: 'p' + seed, lift, reps, sets, sessions }; };
+    const counts = { identical: 0, E48: 0, E49: 0, E50: 0, unexpected: 0 }; const unexpected = [];
+    let projBad = 0, holdBad = 0;
+    for(let i = 0; i < 400; i++){ const f = gen(25600 + i); const a = read(f, 'R'), b = read(f, 'Q');
+      if(a.plan && a.plan.source === 'projection'){ const [lo, hi] = f.reps.split('-').map(Number); if(a.plan.reps.split('/').some(x => +x < 1 || +x > hi) || a.plan.reps.split('/').length !== f.sets || a.rec.tag !== 'increase') projBad++; }
+      if(a.rec && b.rec && a.rec.tag === b.rec.tag && ['hold', 'reduce', 'insufficient', 'decline', 'new'].includes(a.rec.tag) && same(a.plateau, b.plateau) && !same(a.plan, b.plan)) holdBad++;
+      if(same([a.rec, a.plateau, a.plan], [b.rec, b.plateau, b.plan])){ counts.identical++; continue; }
+      let cause = 'unexpected';
+      if(same(a.rec, b.rec) && same(a.plateau, b.plateau) && b.plan.source === 'program' && a.plan.source === 'projection') cause = 'E48';
+      else if(b.plateau && !b.plateau.trend && a.plateau && a.plateau.trend === 'declining' && (a.rec.trend === 'declining' || a.rec.tag === 'reduce')) cause = 'E50';
+      else if(b.plateau && !a.plateau) cause = 'E49';
+      counts[cause]++; if(cause === 'unexpected') unexpected.push(f.id); }
+    T('P9–P21, 50  over 400 generated histories on both builds: every difference is E48, E49 or E50, none unexpected (' + JSON.stringify(counts) + '); every projection is an INCREASE, in bounds, with the program’s set count; HOLD, REDUCE, INSUFFICIENT, single-dip and NEW plans never move', counts.unexpected === 0 && counts.E48 + counts.E49 + counts.E50 > 0 && projBad === 0 && holdBad === 0, unexpected.slice(0, 5));
+    T('P23  history is never rewritten: after D49, D126 and D125 have read every fixture, its log is byte-identical to the one built for it, on both builds', FIX.every(f => R[f.id].logSha === sha(JSON.stringify(logOf(f))) && Q[f.id].logSha === R[f.id].logSha));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the change and the release');
+  await guard('release', async () => {
+    T('every D137 change is where it was written, once — the file reads back as LOOP 10.55 to the byte (index.html of eccb086)', !!was && sha(was) === SHA_1055_HTML, was && sha(was));
+    T('10.55 replay — the 10.55 side runs 10.55’s own engines: each SHIPPED_1055 text hashes to its pin, and 10.56 read back as 10.55 gives exactly those texts', SHIP.every(n => sha(SHIPPED_1055[n]) === SHIPPED_1055_PIN[n] && asOf1055(n) === SHIPPED_1055[n]));
+    T('What’s New v10-56 “Progression Reads the Whole Performance” is LOOP 10.56 / loop-v233, dated in New York, and sw.js serves loop-v233',
+      /id: 'v10-56',\s*version: 'LOOP 10\.56',\s*title: 'Progression Reads the Whole Performance',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v233'/.test(raw) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v233'") !== -1);
   });
 }
 
@@ -56349,7 +56737,7 @@ async function testProductExperienceD132(){
     T('1  every D132 change is where it was written, once — the file reads back as LOOP 10.48', wasRaw !== null);
     T('2  …and that read-back is LOOP 10.48 to the byte (index.html of 4948cc7): no engine, no renderer, no handler, no record, no rule outside the system block moved', !!wasRaw && sha(wasRaw) === SHA_1048_HTML, wasRaw && sha(wasRaw));
     const PINS = {"deriveSessionExecution":"0498f3f2c0dd3c2c","sessionScore":"842e5699f8ac0835","computeAllPREvents":"94af217dbcf1f9ed","computePRs":"ff1f540c2ae3b46a","computeXPEvents":"cec5fa2cffc42db5","getCurrentProgression":"bf3a7572296c620c","computeMuscleRecovery":"d3589033bdb54c67","recoveryStripHtml":"6eb427476c25e796","progressionFor":"a992f11698e3e9e7","getProgramWorkoutForDate":"496d8572d640dc24","objectiveProgress":"e0889920b620163e","syncObjectives":"406ea6f01ae1b62e","deriveWorkingSetPlan":"b5c00dac1e00d09b","coachMayWriteSet":"0de96792fab27ca4","seedWarmupTargets":"9c048567ff49a1f1","suggestedWarmupSteps":"7e37069140f2527b","maybeRefreshWarmup":"bf55b39f07a6e2e4","splitRowForSwap":"78ed482b25517739","captureActiveDraft":"7ed552854d7f4526","restoreDraftToSheet":"33f0e4de3ce21e63","addLogExerciseRow":"be4678472bf41b62","appendSetRow":"61f2b7e061afde48","toggleSetComplete":"ed4187ee4b7b5e61","saveLog":"66c63714822ef5ee","openWorkoutSummary":"58c0ec576bb1bad2","renderSummaryScore":"be7971b69696ae40","openMasteryExercise":"d5ed0205fd603c1c","deriveExerciseDetail":"2e7f87f1c8567b0a","masteryPodiumCardHtml":"0c85f5f236685801","masteryViewHtml":"cfeb04f7ef9796a6","renderWeeklyReview":"b8e25f3b77b18cb5","renderToday":"4eddd61a7575f0e7","renderTodayWorkout":"7957f591c99febed","switchTab":"de35ef75d197810e","renderProgress":"45badcbf3a0defd5","renderExDetail":"752755306eaa5a44","renderProgramDetail":"2b47b25b6540176e","renderSettingsSocialRow":"4cd1dbb1731fbca4","computeConsistencyData":"5bfe9ebbb27ff11e","paintTabIcons":"db23ee85cb7633b8","tabIconSvg":"2386e6e0cddb2e3a"};
-    const moved = Object.keys(PINS).filter(n => (D135_EDITS[n] ? pinAsOf1053(n) : D134_EDITS[n] ? pinAsOf1052(n) : D131B_EDITS[n] ? pinAsOf1050(n) : pin(n)) !== PINS[n]);   // D135 restated: the split read at 10.53 (Contract 254)   // D134 restated: renderTodayWorkout read at 10.52 (Contract 253)   // D131B restated: toggleSetComplete, restoreDraftToSheet and maybeRefreshWarmup read at 10.50 (Contract 251)
+    const moved = Object.keys(PINS).filter(n => (D135_EDITS[n] ? pinAsOf1053(n) : D134_EDITS[n] ? pinAsOf1052(n) : D131B_EDITS[n] ? pinAsOf1050(n) : D137_EDITS[n] ? pinAsOf1055(n) : pin(n)) !== PINS[n]);   // D137 restated: a function D137 changed is read as 10.55 (Contract 256)   // D135 restated: the split read at 10.53 (Contract 254)   // D134 restated: renderTodayWorkout read at 10.52 (Contract 253)   // D131B restated: toggleSetComplete, restoreDraftToSheet and maybeRefreshWarmup read at 10.50 (Contract 251)
     T('3  the engines and surfaces it must not move are byte-identical to 10.48 — Session Score and the execution analysis, PRs, XP and level, recovery, D49, programs, objectives, D125’s plan, D127’s write boundary, D130’s warm-ups, D131A’s draft, E56/E58/E59 as recorded, the summary, Mastery (D128/D129), Exercise Detail, Weekly Review, Today — ' + Object.keys(PINS).length + ' pins',
       moved.length === 0, moved.join(','));
     T('3  the one statement D132 added to a function is switchProgTab’s aria-selected — and that function is otherwise 10.48’s',
@@ -56794,6 +57182,7 @@ async function main(){
   await testDurationTruthD134();
   await testSplitProvenanceD135();
   await testWarmupApplicabilityD136();
+  await testProgressionEvidenceD137();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

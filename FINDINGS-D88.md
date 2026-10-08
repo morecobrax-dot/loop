@@ -1705,7 +1705,25 @@ Measured on frozen 10.42 vs 10.43, Bench Press 205 for 6, 7, 8 and 9 reps
 
 Contract 243, §165.
 
-## E48 — After D126, D125 falls back to its program seed far more often · P4 · PROVEN · OPEN
+## E48 — After D126, D125 falls back to its program seed far more often · P4 · PROVEN · **CLOSED in D137 (LOOP 10.56)**
+
+> **Closed in D137 (LOOP 10.56).** When D49 raises the load and nothing has been lifted at the new load in D125's window,
+> D125 no longer falls back to the seed. It plans the new load from the athlete's latest ordinary session at the load D49
+> judged (`newLoadProjection`):
+> - Each set is one rep under what was done at the lighter load.
+> - A set that reached the program's floor stays on it; a set already under the floor goes one lower, never below 1.
+> - No set goes above the range's top.
+>
+> A session at the new load in the window still wins. With no usable session at the old load (two working sets there, or
+> one when the program asks for one), or only a deload, the plan is still the seed. Nothing is written to history.
+>
+> The rule was chosen on D126's generated athletes, with LOOP's own D49 choosing every load:
+> - **Standard cohort:** new-load error fell from 2.09 to 0.73 reps, and severe overshoot from 38.4% to 3.9%.
+> - **Faster-gaining cohort:** error fell from 2.17 to 0.77 reps, and severe overshoot from 18.5% to 1.1%.
+> - **Rejected:** copying the old reps (overshoots more), stepping down two, moving halfway to the floor, and every
+>   variant clamped up to the program floor (as bad as the seed, because later sets at a new load fall under it).
+>
+> See TRAINER-CONTRACT §178 and Contract 256. The original analysis is kept below.
 
 Found by D126's calibration replay (the D125 study re-run unchanged against
 the corrected D49). Recorded, not fixed.
@@ -1732,7 +1750,23 @@ every load; D125's rule unchanged):
 ("INCREASE must not copy lower-load reps"); D126 was told not to retune D125.
 A better first plan at a new load needs its own rule and its own study.
 
-## E49 — D49 reads one set per workout, so back-off and reserve gains read as a stall · P4 · PROVEN · OPEN
+## E49 — D49 reads one set per workout, so back-off and reserve gains read as a stall · P4 · PROVEN · **CLOSED in D137 (LOOP 10.56)**
+
+> **Closed in D137 (LOOP 10.56).** The plateau test ("stalled when none beats the first") now compares whole workouts
+> through one ordered comparison (`workoutProgressionEvidence`, `compareProgressionEvidence`):
+> 1. The top set first: a heavier load beats, and at the same load more reps beat. Nothing below can undo this.
+> 2. Then the reserve at that top set, only when both workouts recorded it. A missing RIR orders nothing.
+> 3. Then the other working sets, set for set at the same loads, only when both workouts did the same number at the same
+>    loads.
+>
+> There is no score, no tonnage and no estimated 1RM.
+> - 205: 8/6/4 → 8/8/7, and 205 × 8 at 0 → 3 RIR, now read "Beat last session".
+> - A worse top set, a missing RIR, back-offs at other loads, a workout stopped short and a junk extra set all still read
+>   as a stall.
+>
+> D49's tiers and thresholds are unchanged. Where the plateau no longer masks them, D49's own increase, reduce and
+> "insufficient" answers now apply: 59 of 3,000 generated histories moved load (58 up, 1 down), all by D49's existing
+> tiers. See TRAINER-CONTRACT §178 and Contract 256. The original analysis is kept below.
 
 Found by D126's matrix. Recorded, not fixed.
 
@@ -1749,7 +1783,20 @@ for 4 sessions":
 sets or RIR would change what a "session's performance" means for every D49
 tier, not just plateau. That is a decision for its own phase.
 
-## E50 — A decline from the window's first workout still reads as a stall, ahead of D47 · P4 · PROVEN · OPEN
+## E50 — A decline from the window's first workout still reads as a stall, ahead of D47 · P4 · PROVEN · **CLOSED in D137 (LOOP 10.56)**
+
+> **Closed in D137 (LOOP 10.56).** A plateau whose last three workouts at one load each fell short of the one before (two
+> falls in a row, by E49's comparison) is a decline, not a stall. It is named "declining" on Today and on the workout
+> cards, and its reason reads "Performance has declined two sessions running". It still holds the load (tag plateau,
+> trend declining): the trend describes the evidence, and moving the load is D49's job.
+> - The one exception is D47's own case. A decline that has also ground two sessions under the range with nothing in
+>   reserve now reaches D47's unchanged reduce (`grindingBelowRange`). The finding's 8/7/6 → 5/5/4 at 0 RIR reads
+>   "drop to 200 lb".
+> - One bad workout, a fall then a rebound, and a fall then a match stay flat.
+> - A flat plateau holds as before, even when it grinds.
+> - Same four-workout window.
+>
+> See TRAINER-CONTRACT §178 and Contract 256. The original analysis is kept below.
 
 Found by D126 while proving D47 works again. Recorded, not fixed.
 
