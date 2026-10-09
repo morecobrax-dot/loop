@@ -19575,3 +19575,40 @@ in memory. Copy (or Share) puts the whole report on the clipboard.
 
 **Removal.** The E64 fix deletes the whole block (from its header comment to `installViewportDiagnostics`) and the flag; nothing else
 depends on it.
+
+
+## §181 — THE INSTALLED APP'S WORKOUT USES THE WHOLE SCREEN (D138.2 · LOOP 10.58 · loop-v235)
+
+E64 fix candidate. Not closed: only the owner's iPhone can close it.
+
+**What the phone measured** (D138.1, installed app, display-mode standalone). Screen 912px. Large viewport: 100lvh = 100vh = 912.
+Settled layout viewport: 844 — innerHeight, html.clientHeight, the visual viewport (offsetTop 0), a fixed 100%, 100dvh, 100svh and
+-webkit-fill-available. Overlay, sheet and dock all ended at 844: screen.height − dock.bottom = 68, visual-viewport bottom − dock.bottom
+= 0. The safe area was top 68, bottom 34; the dock already paid the 34. The workout opened at 912 and settled to 844, and again
+after each rotation. The keyboard left no residue.
+
+**Why D133 and D138 passed automation.** They measured the dock against the layout viewport (innerHeight, then the visual viewport).
+On the phone that viewport is itself the short one, so "dock bottom = viewport bottom" held while the glass extended 68px further.
+Headless Edge has no difference between its large, small and layout viewports, so no headless test can show it.
+
+**Two states, one rule each** (CSS only, inside the D132 system block, only under `@media (display-mode: standalone)`):
+- **Full canvas, at rest.** `#logOverlay`: top 0 (from .overlay), `bottom: auto`, `height: 100vh; height: 100lvh`. The sheet fills
+  the overlay (D138), the dock is its last row, and the bottom inset is paid once by the dock's `max(8px, env(safe-area-inset-bottom))`.
+  The top bar keeps `env(safe-area-inset-top)`.
+- **Keyboard, while typing.** When the overlay contains a focused input of a typing type (none, text, number, search, email, tel,
+  url, password; not read-only), a focused textarea or a focused contenteditable, it returns to `bottom: 0; height: auto`: the inset: 0
+  of 10.57, which follows the viewport the keyboard shrinks. A checkbox, button, set circle, date picker or select does not.
+  When focus leaves, the full canvas returns. Nothing is stored and nothing listens.
+- **`--loop-shell`** (full | keyboard) names the state for the D138.1 readout's SHELL MODE line (LAYOUT outside the installed app).
+  Nothing reads it for layout. It is registered with `@property` as not inherited, so a change of state costs nothing below the
+  overlay (inherited, it tripled the cost of a focus change in Edge: about 1.5 ms per focus and blur against 0.46 ms).
+
+**Never.** No 68px, no 912px, no safe-area-top on the bottom, no 100dvh, 100svh or 100% as the at-rest height, no JS, no polling.
+Outside the installed app (a browser tab, Android Chrome, desktop) nothing changes. The body lock (D138) is unchanged.
+
+**What the phone should now report** at rest: overlay, sheet and dock bottom 912; screen − dock 0; safe bottom 34; visual-viewport
+bottom − dock ≈ −68 (expected, not a fault); SHELL MODE FULL. While typing: SHELL MODE KEYBOARD, the dock above the keyboard.
+After: FULL again.
+
+**Proof here.** Contract 259 reads the cascade (the at-rest height is the large viewport, only under standalone) and the rules' text.
+The browser rig drives the two states in a copy of the page with the standalone gate opened. Neither can show the phone's 68px.

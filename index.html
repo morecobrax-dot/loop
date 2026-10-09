@@ -9916,6 +9916,28 @@ svg text[font-family*="JetBrains"]{ font-family: var(--font-ui); font-variant-nu
      tab bar, the page behind and every other sheet are as they were. */
 #logOverlay .sheet.sheet-page{ position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: auto; height: auto; max-height: none; }
 html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padding-bottom: 0; }
+/* D138.2 — E64: THE INSTALLED APP'S WORKOUT USES THE WHOLE SCREEN, AND CONTRACTS ONLY WHILE YOU TYPE.
+   Measured by D138.1 on the owner's iPhone, running as an installed app (display-mode standalone, navigator.standalone):
+   the screen is 912px tall and so is the large viewport (100lvh, 100vh); once the app settles, its layout viewport is
+   844px — innerHeight, the html box, the visual viewport, a fixed 100%, 100dvh, 100svh and -webkit-fill-available are all
+   844. Every box pinned with inset: 0 (the overlay, and since D138 the sheet inside it) followed the 844, so the dock
+   ended 68px above the bottom of the glass and the page's ground showed beneath it. The workout opened at 912 for a moment
+   before the viewport settled, and did again after each rotation. The keyboard was not the cause: E64 was there before any
+   field was touched, and after the keyboard closed the visual viewport was back to 844 at offsetTop 0.
+   · At rest the installed workout takes its height from the large viewport: top 0, height 100lvh (100vh where lvh is not
+     known), bottom left to follow. The sheet still fills the overlay, the dock is still its last row, and the inset below
+     the buttons is still paid once, by the dock. No length is added: 68px is this phone's difference, not the model.
+   · While a field that types has focus — a weight, reps, an exercise name, the title or the notes — the overlay goes back
+     to inset: 0, so it follows the viewport the keyboard shrinks and the dock stays above the keyboard, as in 10.57. When
+     the field loses focus it returns to the full canvas. A checkbox, a button, a set circle or a picker changes nothing.
+   · Only the installed app (display-mode: standalone). In a browser tab the workout keeps 10.57's geometry.
+   --loop-shell names the state for the D138.1 readout; nothing reads it for layout. It is registered as not inherited, so
+   naming the state costs nothing below the overlay when it changes (inherited, it tripled the cost of a focus change). */
+@property --loop-shell{ syntax: '*'; inherits: false; }
+@media (display-mode: standalone){
+  #logOverlay.overlay-page{ --loop-shell: full; bottom: auto; height: 100vh; height: 100lvh; }
+  #logOverlay.overlay-page:has(input:is(:not([type]), [type="text"], [type="number"], [type="search"], [type="email"], [type="tel"], [type="url"], [type="password"]):not([readonly]):focus, textarea:not([readonly]):focus, [contenteditable="true"]:focus){ --loop-shell: keyboard; bottom: 0; height: auto; }
+}
 /* ==== D132 SYSTEM END ==== */
 </style>
 </head>
@@ -19754,6 +19776,20 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-58',
+    version: 'LOOP 10.58',
+    title: 'Full-Screen Workout Layout',
+    date: '2026-10-09',
+    swVersion: 'loop-v235',
+    summary: 'When LOOP runs from your Home Screen, the workout screen now uses the full app canvas whenever you’re not typing.',
+    newFeatures: [],
+    improvements: [
+      'While you’re entering a weight, reps or a note, the workout still fits above the keyboard, and goes back to the full canvas when you’re done'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -23158,7 +23194,7 @@ function vpDiagMeasure(){
     ua: navigator.userAgent, platform: navigator.platform,
     vv: vv ? { width: vpDiagNum(vv.width), height: vpDiagNum(vv.height), offsetLeft: vpDiagNum(vv.offsetLeft), offsetTop: vpDiagNum(vv.offsetTop), pageLeft: vpDiagNum(vv.pageLeft), pageTop: vpDiagNum(vv.pageTop), scale: vpDiagNum(vv.scale), bottom: vpDiagNum(vv.offsetTop + vv.height) } : null,
     safe: vpDiagSafeArea(), units: vpDiagUnits(),
-    workoutOpen: !!(ov && ov.classList.contains('open')),
+    workoutOpen: !!(ov && ov.classList.contains('open')), shellMode: vpDiagShellMode(ov),
     rects: { overlay: vpDiagRect(ov), sheet: vpDiagRect(sheet), topbar: vpDiagRect(q('#logOverlay .workout-topbar')), scroll: vpDiagRect(q('#logOverlay .sheet-scroll')),
       dock: vpDiagRect(nav), previous: vpDiagRect(q('#wsNav .ws-nav-btn')), forward: vpDiagRect(fwd), finishBar: vpDiagRect(fin), rest: shown(rest) ? vpDiagRect(rest) : null,
       tabbar: vpDiagRect(q('.tabbar')), body: vpDiagRect(b), html: vpDiagRect(de) },
@@ -23188,6 +23224,9 @@ function vpDiagGaps(m){
     H: g(r.scroll && r.scroll.bottom, d.top)
   };
 }
+/* D138.2 — which shell the workout is in, as the stylesheet names it (--loop-shell): FULL at rest in the installed app,
+   KEYBOARD while a field types, LAYOUT in a browser tab (no full-canvas rule applies). Read only. */
+function vpDiagShellMode(ov){ const v = ov ? getComputedStyle(ov).getPropertyValue('--loop-shell').trim() : ''; return v ? v.toUpperCase() : 'LAYOUT'; }
 function vpDiagStandalone(m){
   const nav = m.mode.navigatorStandalone, dm = m.mode.displayModeStandalone;
   return (nav === true || dm ? 'YES' : 'NO') + ' (nav ' + nav + ', dm ' + (dm ? 'yes' : 'no') + ')';
@@ -23265,7 +23304,7 @@ function vpDiagSnapLine(s){
   return s.label + ' @' + m.t + 'ms: innerH ' + m.window.innerHeight + ' clientH ' + m.html.clientHeight + ' vvH ' + (m.vv ? m.vv.height : 'n/a') + ' vvTop ' + (m.vv ? m.vv.offsetTop : 'n/a') +
     ' vvBottom ' + (m.vv ? m.vv.bottom : 'n/a') + ' screenH ' + m.screen.height + ' dock ' + (m.dockRect ? m.dockRect.top + '–' + m.dockRect.bottom : 'none') +
     ' | inner-dock ' + g.A + ' client-dock ' + g.B + ' visual-dock ' + g.C + ' screen-dock ' + g.D + ' sheet-dock ' + g.E + ' overlay-dock ' + g.F + ' body-dock ' + g.G + ' scroll-docktop ' + g.H +
-    ' | focus ' + (m.focus ? m.focus.tag + '.' + m.focus.cls : 'none') + ' | ' + (m.orientation.portrait ? 'portrait' : 'landscape');
+    ' | focus ' + (m.focus ? m.focus.tag + '.' + m.focus.cls : 'none') + ' | ' + (m.orientation.portrait ? 'portrait' : 'landscape') + ' | shell ' + m.shellMode;
 }
 function vpDiagReport(m, st){
   st = st || vpDiag;
@@ -23298,7 +23337,7 @@ function vpDiagReport(m, st){
   L.push('safeArea:');
   L.push('  top: ' + m.safe.top + ' · right: ' + m.safe.right + ' · bottom: ' + m.safe.bottom + ' · left: ' + m.safe.left);
   L.push('');
-  L.push('workout: ' + (m.workoutOpen ? 'open' : 'not open') + ' · dock: ' + m.dockKind + ' · forward button: ' + m.forwardKind);
+  L.push('workout: ' + (m.workoutOpen ? 'open' : 'not open') + ' · shell: ' + m.shellMode + ' · dock: ' + m.dockKind + ' · forward button: ' + m.forwardKind);
   [['overlay', r.overlay], ['sheet', r.sheet], ['topbar', r.topbar], ['scroll', r.scroll], ['dock (#wsNav)', r.dock], ['previous', r.previous], ['forward', r.forward], ['finish bar', r.finishBar], ['rest', r.rest], ['tabbar', r.tabbar], ['body', r.body], ['html', r.html]]
     .forEach(([k, v]) => L.push('  ' + k + ': ' + vpDiagFmtRect(v)));
   L.push('styles:');
@@ -23334,7 +23373,7 @@ function vpDiagReport(m, st){
 const VP_DIAG_HUD_ROWS = [
   ['SCREEN H', m => m.screen.height], ['INNER H', m => m.window.innerHeight], ['VV H', m => m.vv ? m.vv.height : 'n/a'], ['VV TOP', m => m.vv ? m.vv.offsetTop : 'n/a'],
   ['VV BOTTOM', m => m.vv ? m.vv.bottom : 'n/a'], ['OVERLAY BOTTOM', m => m.rects.overlay ? m.rects.overlay.bottom : 'n/a'], ['SHEET BOTTOM', m => m.rects.sheet ? m.rects.sheet.bottom : 'n/a'],
-  ['DOCK BOTTOM', m => m.dockRect ? m.dockRect.bottom : 'none'], ['SAFE BOTTOM', m => m.safe.bottom], ['SCREEN − DOCK', m => m.gaps.D], ['VV BOTTOM − DOCK', m => m.gaps.C], ['STANDALONE', m => vpDiagStandalone(m)]
+  ['DOCK BOTTOM', m => m.dockRect ? m.dockRect.bottom : 'none'], ['SAFE BOTTOM', m => m.safe.bottom], ['SCREEN − DOCK', m => m.gaps.D], ['VV BOTTOM − DOCK', m => m.gaps.C], ['STANDALONE', m => vpDiagStandalone(m)], ['SHELL MODE', m => m.shellMode]
 ];
 function vpDiagButton(label, fn){
   const btn = document.createElement('button');

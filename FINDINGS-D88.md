@@ -2262,7 +2262,19 @@ counts as training time, and what an old unfinished workout should say.
 presenting an implausible span as measured. Both need no new storage, and neither invents pausing. Leave C and D until the
 owner decides what "workout time" means.
 
-## E64 — On a physical iPhone the workout's Previous / Skip row stood well above the bottom edge, which the headless geometry tests could not see · P3 · PROVEN (by the owner's screenshot) · **OPEN — 10.57 did not fix it on the owner's iPhone; device measurements requested (D138.1)**
+## E64 — On a physical iPhone the workout's Previous / Skip row stood well above the bottom edge, which the headless geometry tests could not see · P3 · PROVEN (by the owner's screenshot) · **FIX CANDIDATE — awaiting the owner's iPhone confirmation (D138.2, LOOP 10.58)**
+
+> **D138.2 — fix candidate, NOT closed.** D138.1's readout, run on the owner's installed iPhone app (display-mode standalone,
+> navigator.standalone true, DPR 3, safe area top 68 / bottom 34), measured the cause. The screen is 912px tall and so is the
+> large viewport (100lvh and 100vh = 912), but the settled layout viewport is 844: innerHeight, html.clientHeight, the visual
+> viewport (offsetTop 0), a fixed 100%, 100dvh, 100svh and -webkit-fill-available are all 844. The overlay, the sheet and the
+> dock all ended at 844, so screen.height − dock.bottom = 68 while visual-viewport bottom − dock.bottom = 0. The workout opened
+> at 912 for a moment and then settled to 844, and did so again after each rotation. The keyboard was not the cause: the gap was
+> there before any field was touched, and after the keyboard closed the viewport was back to 844 with offsetTop 0.
+> 10.58 sizes the installed workout from the large viewport at rest (height 100lvh, 100vh where lvh is unknown) and returns to
+> inset: 0 only while a field that types has focus (TRAINER-CONTRACT §181). No length is added. It closes only when the owner's
+> phone shows the band gone: screen − dock ≈ 0 at rest, the safe bottom ≈ 34, the keyboard usable, and the full canvas back
+> after the keyboard closes and after rotation.
 
 > **D138.1 — still open.** A new screenshot from the owner's iPhone, taken on 10.57, still shows Previous / Skip well above the
 > physical bottom with a large dark band beneath. D138's change did not fix it on the phone; its CSS stays (it moved nothing in any browser

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.57",
+  "version": "10.58",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "E64 awaiting physical iPhone measurements: Settings, tap the version 7 times, turn Measure the workout on, open the Core workout, screenshot, then Copy diagnostics.",
+  "nextAction": "E64 fix candidate: iPhone, Settings, 7 taps, Measure ON, open the Core workout, Capture A + screenshot. Expect shell FULL, screen − dock 0, safe bottom 34; then keyboard B, C.",
   "blocker": null,
-  "updatedAt": "2026-10-09T08:38:03Z"
+  "updatedAt": "2026-10-09T12:35:34Z"
 }
