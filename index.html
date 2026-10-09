@@ -9916,28 +9916,6 @@ svg text[font-family*="JetBrains"]{ font-family: var(--font-ui); font-variant-nu
      tab bar, the page behind and every other sheet are as they were. */
 #logOverlay .sheet.sheet-page{ position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: auto; height: auto; max-height: none; }
 html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padding-bottom: 0; }
-/* D138.2 — E64: THE INSTALLED APP'S WORKOUT USES THE WHOLE SCREEN, AND CONTRACTS ONLY WHILE YOU TYPE.
-   Measured by D138.1 on the owner's iPhone, running as an installed app (display-mode standalone, navigator.standalone):
-   the screen is 912px tall and so is the large viewport (100lvh, 100vh); once the app settles, its layout viewport is
-   844px — innerHeight, the html box, the visual viewport, a fixed 100%, 100dvh, 100svh and -webkit-fill-available are all
-   844. Every box pinned with inset: 0 (the overlay, and since D138 the sheet inside it) followed the 844, so the dock
-   ended 68px above the bottom of the glass and the page's ground showed beneath it. The workout opened at 912 for a moment
-   before the viewport settled, and did again after each rotation. The keyboard was not the cause: E64 was there before any
-   field was touched, and after the keyboard closed the visual viewport was back to 844 at offsetTop 0.
-   · At rest the installed workout takes its height from the large viewport: top 0, height 100lvh (100vh where lvh is not
-     known), bottom left to follow. The sheet still fills the overlay, the dock is still its last row, and the inset below
-     the buttons is still paid once, by the dock. No length is added: 68px is this phone's difference, not the model.
-   · While a field that types has focus — a weight, reps, an exercise name, the title or the notes — the overlay goes back
-     to inset: 0, so it follows the viewport the keyboard shrinks and the dock stays above the keyboard, as in 10.57. When
-     the field loses focus it returns to the full canvas. A checkbox, a button, a set circle or a picker changes nothing.
-   · Only the installed app (display-mode: standalone). In a browser tab the workout keeps 10.57's geometry.
-   --loop-shell names the state for the D138.1 readout; nothing reads it for layout. It is registered as not inherited, so
-   naming the state costs nothing below the overlay when it changes (inherited, it tripled the cost of a focus change). */
-@property --loop-shell{ syntax: '*'; inherits: false; }
-@media (display-mode: standalone){
-  #logOverlay.overlay-page{ --loop-shell: full; bottom: auto; height: 100vh; height: 100lvh; }
-  #logOverlay.overlay-page:has(input:is(:not([type]), [type="text"], [type="number"], [type="search"], [type="email"], [type="tel"], [type="url"], [type="password"]):not([readonly]):focus, textarea:not([readonly]):focus, [contenteditable="true"]:focus){ --loop-shell: keyboard; bottom: 0; height: auto; }
-}
 /* ==== D132 SYSTEM END ==== */
 </style>
 </head>
@@ -19790,6 +19768,22 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-59',
+    version: 'LOOP 10.59',
+    title: 'Workout Buttons Back in Full View',
+    date: '2026-10-09',
+    swVersion: 'loop-v236',
+    summary: 'On iPhone Home Screen installs, the workout’s Previous, Skip, Next and Finish buttons sit fully on screen again.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'On an installed iPhone, Previous and Skip are no longer cut off at the bottom of the workout screen'
+    ],
+    changes: [
+      'The full-screen workout layout introduced in 10.58 has been withdrawn'
+    ]
   }
 ];
 
@@ -23194,7 +23188,7 @@ function vpDiagMeasure(){
     ua: navigator.userAgent, platform: navigator.platform,
     vv: vv ? { width: vpDiagNum(vv.width), height: vpDiagNum(vv.height), offsetLeft: vpDiagNum(vv.offsetLeft), offsetTop: vpDiagNum(vv.offsetTop), pageLeft: vpDiagNum(vv.pageLeft), pageTop: vpDiagNum(vv.pageTop), scale: vpDiagNum(vv.scale), bottom: vpDiagNum(vv.offsetTop + vv.height) } : null,
     safe: vpDiagSafeArea(), units: vpDiagUnits(),
-    workoutOpen: !!(ov && ov.classList.contains('open')), shellMode: vpDiagShellMode(ov),
+    workoutOpen: !!(ov && ov.classList.contains('open')), shellMode: vpDiagShellMode(ov), clip: vpDiagClipChain(dockEl),
     rects: { overlay: vpDiagRect(ov), sheet: vpDiagRect(sheet), topbar: vpDiagRect(q('#logOverlay .workout-topbar')), scroll: vpDiagRect(q('#logOverlay .sheet-scroll')),
       dock: vpDiagRect(nav), previous: vpDiagRect(q('#wsNav .ws-nav-btn')), forward: vpDiagRect(fwd), finishBar: vpDiagRect(fin), rest: shown(rest) ? vpDiagRect(rest) : null,
       tabbar: vpDiagRect(q('.tabbar')), body: vpDiagRect(b), html: vpDiagRect(de) },
@@ -23223,6 +23217,81 @@ function vpDiagGaps(m){
     G: g(r.body && r.body.bottom, d.bottom),
     H: g(r.scroll && r.scroll.bottom, d.top)
   };
+}
+/* D138.3 — the clip chain, measured on the device. From the dock (or the finish bar) up through its containing blocks to the
+   viewport: each box's bottom and whether it clips (overflow other than visible, a clip-path, a mask, paint containment). The
+   paintable area ends at the lowest of those bottoms. A fixed box's containing block is the viewport unless an ancestor has a
+   transform, filter, backdrop blur, perspective, will-change of those, containment or a container type, so an ancestor that
+   is none of these — the pinned body included — cannot clip it, whatever its overflow. The html element's overflow belongs to the
+   viewport. 10.58 drew the dock to 912 on a phone whose viewport ends at 844: this names which box ended it. Read only.
+   Since D138.3 no rule names a shell, so SHELL MODE reads LAYOUT everywhere; a phone still running 10.58 reads FULL. */
+function vpDiagFixedCB(c){
+  return c.transform !== 'none' || c.filter !== 'none' || (c.backdropFilter || c.webkitBackdropFilter || 'none') !== 'none' || c.perspective !== 'none' ||
+    /paint|layout|strict|content/.test(c.contain || '') || /transform|filter|perspective|contain/.test(c.willChange || '') || (c.containerType || 'normal') !== 'normal';
+}
+function vpDiagClips(c){
+  return c.overflowX !== 'visible' || c.overflowY !== 'visible' || (c.clipPath || 'none') !== 'none' || (c.maskImage || c.webkitMaskImage || 'none') !== 'none' || /paint|strict|content/.test(c.contain || '');
+}
+function vpDiagClipChain(el){
+  if(!el) return null;
+  const de = document.documentElement, name = e => e === de ? 'html' : e.tagName.toLowerCase() + (e.id ? '#' + e.id : (e.classList.length ? '.' + e.classList[0] : ''));
+  const chain = [];
+  for(let x = el, n = 0; x && x !== de && n < 40; n++){
+    const pos = getComputedStyle(x).position; let cb = null;
+    for(let a = x.parentElement; a; a = a.parentElement){
+      const c = getComputedStyle(a);
+      if(pos === 'fixed'){ if(vpDiagFixedCB(c)){ cb = a; break; } continue; }
+      if(pos === 'absolute'){ if(c.position !== 'static' || vpDiagFixedCB(c)){ cb = a; break; } continue; }
+      cb = a; break;
+    }
+    if(!cb || cb === de) break;
+    chain.push({ box: name(cb), bottom: vpDiagNum(cb.getBoundingClientRect().bottom), clips: vpDiagClips(getComputedStyle(cb)) });
+    x = cb;
+  }
+  chain.push({ box: 'viewport', bottom: window.innerHeight, clips: true });
+  const ends = chain.filter(c => c.clips), low = Math.min.apply(null, ends.map(c => c.bottom));
+  const b = getComputedStyle(document.body);
+  return { chain, bottom: low, owner: ends.filter(c => c.bottom === low).map(c => c.box).join(' + '), bodyOnChain: chain.some(c => /^body/.test(c.box)),
+    body: { position: b.position, overflow: b.overflowX + '/' + b.overflowY, holdsFixed: vpDiagFixedCB(b) } };
+}
+/* The readout's CLIP cell, short enough for a 320px phone: the paintable bottom, the box or boxes that set it (vp is the
+   viewport), and where the buttons end. The report has the whole chain and the buttons' top. */
+function vpDiagClipCell(m){
+  const c = m && m.clip;
+  if(!c) return 'n/a';
+  const short = b => b === 'viewport' ? 'vp' : b === 'div.sheet' ? 'sheet' : b === 'div#logOverlay' ? 'overlay' : /^body/.test(b) ? 'body' : b.slice(0, 8);
+  const x = m.rects && (m.rects.previous || m.rects.forward);
+  return c.bottom + ' ' + c.owner.split(' + ').map(short).join('+') + (x ? ' · ' + x.bottom : '');
+}
+/* D138.3 — the paint test. Twelve small labelled bars at four heights — 14px above the viewport's bottom, then 6, 31 and 56px
+   below it (830, 850, 875 and 900 on a phone whose viewport ends at 844) — in three columns, each drawn by a different box:
+   the html element (outside the page), the body, and the workout. A screenshot shows which bars the phone paints. If all three columns stop
+   at the same line, nothing in the page clips there: the web view does. Fixed, out of the hit test, gone after 30 seconds or a
+   second tap. Diagnostics only. */
+function vpDiagPaintClear(){
+  if(!vpDiag.paint) return;
+  clearTimeout(vpDiag.paint.timer);
+  vpDiag.paint.els.forEach(e => e.remove());
+  vpDiag.paint = null;
+}
+function vpDiagPaintTest(){
+  if(vpDiag.paint){ vpDiagPaintClear(); return false; }
+  const H = window.innerHeight, ys = [H - 14, H + 6, H + 31, H + 56];
+  const hosts = [['html', document.documentElement, '#2ee6ff'], ['body', document.body, '#ff4fd8'], ['workout', document.getElementById('logOverlay'), '#ffd23f']];
+  const els = [];
+  hosts.forEach(([k, host, color], i) => {
+    if(!host) return;
+    ys.forEach(y => {
+      const p = document.createElement('div');
+      p.setAttribute('data-vp', 'paint');
+      p.textContent = k + ' ' + Math.round(y);
+      p.style.cssText = 'position:fixed;top:' + y + 'px;left:' + (2 + i * 33) + '%;width:31%;height:12px;margin:0;padding:0 3px;box-sizing:border-box;z-index:2147483002;pointer-events:none;' +
+        'background:' + color + ';color:#000;font:700 9px/12px ui-monospace,Menlo,monospace;overflow:hidden;white-space:nowrap;';
+      host.appendChild(p); els.push(p);
+    });
+  });
+  vpDiag.paint = { ys: ys.map(y => Math.round(y)), els, timer: setTimeout(vpDiagPaintClear, 30000) };
+  return true;
 }
 /* D138.2 — which shell the workout is in, as the stylesheet names it (--loop-shell): FULL at rest in the installed app,
    KEYBOARD while a field types, LAYOUT in a browser tab (no full-canvas rule applies). Read only. */
@@ -23284,6 +23353,7 @@ function vpDiagEnable(on){
   vpDiag.listeners = [];
   clearInterval(vpDiag.timer); vpDiag.timer = null; clearTimeout(vpDiag.settle);
   if(vpDiag.hud){ vpDiag.hud.remove(); vpDiag.hud = null; }
+  vpDiagPaintClear();
   if(!on) return;
   vpDiag.t0 = vpDiagNow(); vpDiag.log = []; vpDiag.snaps = []; vpDiag.letter = 0; vpDiag.pending = null;
   const add = (t, ev, opt) => { if(!t) return; t.addEventListener(ev, vpDiagOnEvent, opt); vpDiag.listeners.push([t, ev, vpDiagOnEvent, opt]); };
@@ -23343,6 +23413,15 @@ function vpDiagReport(m, st){
   L.push('styles:');
   [['overlay', s.overlay], ['sheet', s.sheet], ['scroll', s.scroll], ['dock', s.dock], ['finish bar', s.finishBar], ['body', s.body], ['html', s.html]].forEach(([k, v]) => L.push('  ' + k + ': ' + vpDiagFmtStyle(v)));
   L.push('');
+  L.push('clip chain (D138.3 — from the dock up to the viewport):');
+  if(m.clip){
+    m.clip.chain.forEach(c => L.push('  ' + c.box + ': bottom ' + c.bottom + (c.clips ? ' · clips' : '')));
+    const btn = [r.previous, r.forward].filter(Boolean), bb = btn.length ? Math.max.apply(null, btn.map(x => x.bottom)) : null;
+    L.push('  paintable to: ' + m.clip.bottom + ' (' + m.clip.owner + ') · buttons ' + (btn.length ? Math.min.apply(null, btn.map(x => x.top)) + '–' + bb + ' · inside: ' + (bb <= m.clip.bottom ? 'yes' : 'NO, ' + vpDiagNum(bb - m.clip.bottom) + 'px past it') : 'none'));
+    L.push('  body: ' + m.clip.body.position + ' · overflow ' + m.clip.body.overflow + ' · holds fixed boxes: ' + (m.clip.body.holdsFixed ? 'yes' : 'no') + ' · on the dock’s chain: ' + (m.clip.bodyOnChain ? 'yes' : 'no'));
+  } else L.push('  no dock on screen');
+  L.push('  paint test: ' + (vpDiag.paint ? 'showing bars at ' + vpDiag.paint.ys.join(' / ') + ' in html, body and the workout' : 'not showing'));
+  L.push('');
   L.push('gaps (from the dock' + (m.dockRect ? ' ' + m.dockRect.top + '–' + m.dockRect.bottom : ', none on screen') + '):');
   L.push('  A inner-dock (innerHeight − dock.bottom): ' + g.A);
   L.push('  B client-dock (html.clientHeight − dock.bottom): ' + g.B);
@@ -23373,7 +23452,7 @@ function vpDiagReport(m, st){
 const VP_DIAG_HUD_ROWS = [
   ['SCREEN H', m => m.screen.height], ['INNER H', m => m.window.innerHeight], ['VV H', m => m.vv ? m.vv.height : 'n/a'], ['VV TOP', m => m.vv ? m.vv.offsetTop : 'n/a'],
   ['VV BOTTOM', m => m.vv ? m.vv.bottom : 'n/a'], ['OVERLAY BOTTOM', m => m.rects.overlay ? m.rects.overlay.bottom : 'n/a'], ['SHEET BOTTOM', m => m.rects.sheet ? m.rects.sheet.bottom : 'n/a'],
-  ['DOCK BOTTOM', m => m.dockRect ? m.dockRect.bottom : 'none'], ['SAFE BOTTOM', m => m.safe.bottom], ['SCREEN − DOCK', m => m.gaps.D], ['VV BOTTOM − DOCK', m => m.gaps.C], ['STANDALONE', m => vpDiagStandalone(m)], ['SHELL MODE', m => m.shellMode]
+  ['DOCK BOTTOM', m => m.dockRect ? m.dockRect.bottom : 'none'], ['SAFE BOTTOM', m => m.safe.bottom], ['SCREEN − DOCK', m => m.gaps.D], ['VV BOTTOM − DOCK', m => m.gaps.C], ['STANDALONE', m => vpDiagStandalone(m)], ['SHELL MODE', m => m.shellMode], ['CLIP', m => vpDiagClipCell(m)]
 ];
 function vpDiagButton(label, fn){
   const btn = document.createElement('button');
@@ -23411,6 +23490,8 @@ function vpDiagBuildHud(){
   row.appendChild(vpDiagButton('Copy', b => vpDiagCopy(b)));
   row.appendChild(vpDiagButton('Move', () => { vpDiag.hudPos = vpDiag.hudPos === 'top' ? 'middle' : 'top'; vpDiagRefresh(); }));
   row.appendChild(vpDiagButton('Hide', b => { vpDiag.hudMin = !vpDiag.hudMin; b.textContent = vpDiag.hudMin ? 'Show' : 'Hide'; vpDiagRefresh(); }));
+  row.appendChild(vpDiagButton('Paint', () => { vpDiagPaintTest(); vpDiagRefresh(); }));
+  [...row.children].forEach(x => { x.style.padding = '0 6px'; });   /* D138.3: five buttons on one line at 320px */
   h.appendChild(status); h.appendChild(grid); h.appendChild(row);
   document.documentElement.appendChild(h);
   vpDiag.hud = h;

@@ -19612,3 +19612,55 @@ After: FULL again.
 
 **Proof here.** Contract 259 reads the cascade (the at-rest height is the large viewport, only under standalone) and the rules' text.
 The browser rig drives the two states in a copy of the page with the standalone gate opened. Neither can show the phone's 68px.
+
+
+## §182 — THE WORKOUT FITS THE VIEWPORT THE IPHONE GIVES IT (D138.3 · LOOP 10.59 · loop-v236)
+
+E64 stays open. This release withdraws D138.2's full-screen candidate (§181) and adds clip-chain measurements to the D138.1 readout.
+
+**What the phone showed on 10.58.** Previous and Skip moved to the bottom, and only their top edge was visible. The rest was
+cut off. The layout placed the buttons at 828–878 in an overlay 912px high; the visible area ended at 844.
+
+**The clip chain, measured in the page** (the Core workout at 420×912, installed-app cascade and browser tab):
+
+| Box | Position | Overflow | Holds fixed boxes | On the dock's containing-block chain | Bottom |
+|-----|----------|----------|-------------------|--------------------------------------|--------|
+| `#wsNav` (the dock) | relative | visible | no | starts the chain | the sheet's |
+| `.sheet.sheet-page` | absolute | hidden | yes (transform) | yes, clips | the overlay's |
+| `#logOverlay` | fixed | visible | no | yes, does not clip | 100lvh in 10.58 |
+| `body.scroll-locked` | fixed | hidden | no | **no** | not a clip for the overlay |
+| `html` | static | hidden/auto, which belongs to the viewport | no | no | — |
+| **viewport** | | always clips | | yes | innerHeight (844 on the phone) |
+
+A fixed box's containing block is the viewport unless an ancestor has a transform, filter, backdrop-filter, perspective,
+will-change of those, containment or a container type. So the pinned body's overflow cannot clip the overlay. The only
+boundary at 844 is the viewport. This matches other installed web apps on iOS 26 (WebKit bug 301108, black-translucent status
+bar with viewport-fit=cover): the web view is one status-bar height short, and no CSS paints the strip below it. A 100lvh
+body (the brief's Option A) would not move that boundary, so it was not shipped.
+
+**What 10.59 does.** It removes the D138.2 block, so the stylesheet is 1512ac0's again. The overlay is inset: 0 in every mode,
+the dock ends at the viewport's bottom, and the buttons end max(8px, the inset) above it. On the phone that is 844, where
+10.57 showed both buttons whole. The 68px band below returns. Keyboard behaviour is 10.57's (the overlay follows the
+viewport the keyboard shrinks). Nothing is stored. The body lock (D138) is unchanged.
+
+**The readout (D138.1) gains:**
+- the clip chain in every measurement: the dock's containing blocks, each one's bottom and whether it clips, the lowest
+  bottom ("paintable to"), the boxes that set it, and whether the buttons fit inside it;
+- the body's position, overflow, whether it holds fixed boxes, and whether it is on the dock's chain;
+- one row, CLIP: where the paintable area ends, the box or boxes that end it, and where the buttons end (for example
+  "844 sheet+vp · 810"). It is one short row, and the readout's five buttons share one line at 320px, so the readout is as
+  tall as 10.58's and covers no more of the first set;
+- a Paint button. It draws twelve labelled bars, four heights (viewport bottom − 14, + 6, + 31, + 56) in three columns, drawn
+  by <html>, <body> and the workout. They are fixed, out of the hit test, and gone after 30 s, a second tap, or measuring off.
+- SHELL MODE stays, and now reads LAYOUT on every device. A phone still on 10.58 reads FULL.
+
+**Never.** No 68px, no 912px, no safe-area-top on the bottom, no full-canvas height. Nothing in production layout reads the
+readout.
+
+**Open routes for E64, each the owner's decision:**
+- an opaque status bar. iOS reads it only at install, so the Home Screen app must be backed up, removed, re-added and restored.
+- an iOS update that sizes the web view correctly.
+
+**Proof here.** Contract 260 reads the stylesheet, the clip-chain and paint-test code, and the records. The browser rig checks
+that every button sits inside the viewport at 13 sizes, that the clip chain matches the real boxes, and that the paint test
+is temporary. None of it can show the phone's 68px.

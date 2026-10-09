@@ -741,6 +741,52 @@ const D131B_RAW = [
     "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
    ]
 ];
+/* D138.3 (LOOP 10.59, E64 open) — the workout fits the viewport the iPhone gives it. Eight hunks: D138.2's full-screen
+   block taken out of the D132 system block (the stylesheet is 1512ac0's again), six edits inside D138.1's readout (the
+   measured clip chain, the BUTTONS and CLIP rows, the Paint button and the paint test), and the What's New entry.
+   asOf1058Html(raw) puts them back and reads back LOOP 10.58 (a3ecb78) to the byte. Every older read-back starts there:
+   asOf1057dHtml, and through it the HTML chain and d120Source. Contract 260 holds what the release does. */
+const D1383_RAW = [
+ [
+  "/* ==== D132 SYSTEM END ==== */\n",
+  "/* D138.2 — E64: THE INSTALLED APP'S WORKOUT USES THE WHOLE SCREEN, AND CONTRACTS ONLY WHILE YOU TYPE.\n   Measured by D138.1 on the owner's iPhone, running as an installed app (display-mode standalone, navigator.standalone):\n   the screen is 912px tall and so is the large viewport (100lvh, 100vh); once the app settles, its layout viewport is\n   844px — innerHeight, the html box, the visual viewport, a fixed 100%, 100dvh, 100svh and -webkit-fill-available are all\n   844. Every box pinned with inset: 0 (the overlay, and since D138 the sheet inside it) followed the 844, so the dock\n   ended 68px above the bottom of the glass and the page's ground showed beneath it. The workout opened at 912 for a moment\n   before the viewport settled, and did again after each rotation. The keyboard was not the cause: E64 was there before any\n   field was touched, and after the keyboard closed the visual viewport was back to 844 at offsetTop 0.\n   · At rest the installed workout takes its height from the large viewport: top 0, height 100lvh (100vh where lvh is not\n     known), bottom left to follow. The sheet still fills the overlay, the dock is still its last row, and the inset below\n     the buttons is still paid once, by the dock. No length is added: 68px is this phone's difference, not the model.\n   · While a field that types has focus — a weight, reps, an exercise name, the title or the notes — the overlay goes back\n     to inset: 0, so it follows the viewport the keyboard shrinks and the dock stays above the keyboard, as in 10.57. When\n     the field loses focus it returns to the full canvas. A checkbox, a button, a set circle or a picker changes nothing.\n   · Only the installed app (display-mode: standalone). In a browser tab the workout keeps 10.57's geometry.\n   --loop-shell names the state for the D138.1 readout; nothing reads it for layout. It is registered as not inherited, so\n   naming the state costs nothing below the overlay when it changes (inherited, it tripled the cost of a focus change). */\n@property --loop-shell{ syntax: '*'; inherits: false; }\n@media (display-mode: standalone){\n  #logOverlay.overlay-page{ --loop-shell: full; bottom: auto; height: 100vh; height: 100lvh; }\n  #logOverlay.overlay-page:has(input:is(:not([type]), [type=\"text\"], [type=\"number\"], [type=\"search\"], [type=\"email\"], [type=\"tel\"], [type=\"url\"], [type=\"password\"]):not([readonly]):focus, textarea:not([readonly]):focus, [contenteditable=\"true\"]:focus){ --loop-shell: keyboard; bottom: 0; height: auto; }\n}\n/* ==== D132 SYSTEM END ==== */\n"
+ ],
+ [
+  "workoutOpen: !!(ov && ov.classList.contains('open')), shellMode: vpDiagShellMode(ov), clip: vpDiagClipChain(dockEl),",
+  "workoutOpen: !!(ov && ov.classList.contains('open')), shellMode: vpDiagShellMode(ov),"
+ ],
+ [
+  "/* D138.3 — the clip chain, measured on the device. From the dock (or the finish bar) up through its containing blocks to the\n   viewport: each box's bottom and whether it clips (overflow other than visible, a clip-path, a mask, paint containment). The\n   paintable area ends at the lowest of those bottoms. A fixed box's containing block is the viewport unless an ancestor has a\n   transform, filter, backdrop blur, perspective, will-change of those, containment or a container type, so an ancestor that\n   is none of these — the pinned body included — cannot clip it, whatever its overflow. The html element's overflow belongs to the\n   viewport. 10.58 drew the dock to 912 on a phone whose viewport ends at 844: this names which box ended it. Read only.\n   Since D138.3 no rule names a shell, so SHELL MODE reads LAYOUT everywhere; a phone still running 10.58 reads FULL. */\nfunction vpDiagFixedCB(c){\n  return c.transform !== 'none' || c.filter !== 'none' || (c.backdropFilter || c.webkitBackdropFilter || 'none') !== 'none' || c.perspective !== 'none' ||\n    /paint|layout|strict|content/.test(c.contain || '') || /transform|filter|perspective|contain/.test(c.willChange || '') || (c.containerType || 'normal') !== 'normal';\n}\nfunction vpDiagClips(c){\n  return c.overflowX !== 'visible' || c.overflowY !== 'visible' || (c.clipPath || 'none') !== 'none' || (c.maskImage || c.webkitMaskImage || 'none') !== 'none' || /paint|strict|content/.test(c.contain || '');\n}\nfunction vpDiagClipChain(el){\n  if(!el) return null;\n  const de = document.documentElement, name = e => e === de ? 'html' : e.tagName.toLowerCase() + (e.id ? '#' + e.id : (e.classList.length ? '.' + e.classList[0] : ''));\n  const chain = [];\n  for(let x = el, n = 0; x && x !== de && n < 40; n++){\n    const pos = getComputedStyle(x).position; let cb = null;\n    for(let a = x.parentElement; a; a = a.parentElement){\n      const c = getComputedStyle(a);\n      if(pos === 'fixed'){ if(vpDiagFixedCB(c)){ cb = a; break; } continue; }\n      if(pos === 'absolute'){ if(c.position !== 'static' || vpDiagFixedCB(c)){ cb = a; break; } continue; }\n      cb = a; break;\n    }\n    if(!cb || cb === de) break;\n    chain.push({ box: name(cb), bottom: vpDiagNum(cb.getBoundingClientRect().bottom), clips: vpDiagClips(getComputedStyle(cb)) });\n    x = cb;\n  }\n  chain.push({ box: 'viewport', bottom: window.innerHeight, clips: true });\n  const ends = chain.filter(c => c.clips), low = Math.min.apply(null, ends.map(c => c.bottom));\n  const b = getComputedStyle(document.body);\n  return { chain, bottom: low, owner: ends.filter(c => c.bottom === low).map(c => c.box).join(' + '), bodyOnChain: chain.some(c => /^body/.test(c.box)),\n    body: { position: b.position, overflow: b.overflowX + '/' + b.overflowY, holdsFixed: vpDiagFixedCB(b) } };\n}\n/* The readout's CLIP cell, short enough for a 320px phone: the paintable bottom, the box or boxes that set it (vp is the\n   viewport), and where the buttons end. The report has the whole chain and the buttons' top. */\nfunction vpDiagClipCell(m){\n  const c = m && m.clip;\n  if(!c) return 'n/a';\n  const short = b => b === 'viewport' ? 'vp' : b === 'div.sheet' ? 'sheet' : b === 'div#logOverlay' ? 'overlay' : /^body/.test(b) ? 'body' : b.slice(0, 8);\n  const x = m.rects && (m.rects.previous || m.rects.forward);\n  return c.bottom + ' ' + c.owner.split(' + ').map(short).join('+') + (x ? ' · ' + x.bottom : '');\n}\n/* D138.3 — the paint test. Twelve small labelled bars at four heights — 14px above the viewport's bottom, then 6, 31 and 56px\n   below it (830, 850, 875 and 900 on a phone whose viewport ends at 844) — in three columns, each drawn by a different box:\n   the html element (outside the page), the body, and the workout. A screenshot shows which bars the phone paints. If all three columns stop\n   at the same line, nothing in the page clips there: the web view does. Fixed, out of the hit test, gone after 30 seconds or a\n   second tap. Diagnostics only. */\nfunction vpDiagPaintClear(){\n  if(!vpDiag.paint) return;\n  clearTimeout(vpDiag.paint.timer);\n  vpDiag.paint.els.forEach(e => e.remove());\n  vpDiag.paint = null;\n}\nfunction vpDiagPaintTest(){\n  if(vpDiag.paint){ vpDiagPaintClear(); return false; }\n  const H = window.innerHeight, ys = [H - 14, H + 6, H + 31, H + 56];\n  const hosts = [['html', document.documentElement, '#2ee6ff'], ['body', document.body, '#ff4fd8'], ['workout', document.getElementById('logOverlay'), '#ffd23f']];\n  const els = [];\n  hosts.forEach(([k, host, color], i) => {\n    if(!host) return;\n    ys.forEach(y => {\n      const p = document.createElement('div');\n      p.setAttribute('data-vp', 'paint');\n      p.textContent = k + ' ' + Math.round(y);\n      p.style.cssText = 'position:fixed;top:' + y + 'px;left:' + (2 + i * 33) + '%;width:31%;height:12px;margin:0;padding:0 3px;box-sizing:border-box;z-index:2147483002;pointer-events:none;' +\n        'background:' + color + ';color:#000;font:700 9px/12px ui-monospace,Menlo,monospace;overflow:hidden;white-space:nowrap;';\n      host.appendChild(p); els.push(p);\n    });\n  });\n  vpDiag.paint = { ys: ys.map(y => Math.round(y)), els, timer: setTimeout(vpDiagPaintClear, 30000) };\n  return true;\n}\n/* D138.2 — which shell the workout is in",
+  "/* D138.2 — which shell the workout is in"
+ ],
+ [
+  "  L.push('');\n  L.push('clip chain (D138.3 — from the dock up to the viewport):');\n  if(m.clip){\n    m.clip.chain.forEach(c => L.push('  ' + c.box + ': bottom ' + c.bottom + (c.clips ? ' · clips' : '')));\n    const btn = [r.previous, r.forward].filter(Boolean), bb = btn.length ? Math.max.apply(null, btn.map(x => x.bottom)) : null;\n    L.push('  paintable to: ' + m.clip.bottom + ' (' + m.clip.owner + ') · buttons ' + (btn.length ? Math.min.apply(null, btn.map(x => x.top)) + '–' + bb + ' · inside: ' + (bb <= m.clip.bottom ? 'yes' : 'NO, ' + vpDiagNum(bb - m.clip.bottom) + 'px past it') : 'none'));\n    L.push('  body: ' + m.clip.body.position + ' · overflow ' + m.clip.body.overflow + ' · holds fixed boxes: ' + (m.clip.body.holdsFixed ? 'yes' : 'no') + ' · on the dock’s chain: ' + (m.clip.bodyOnChain ? 'yes' : 'no'));\n  } else L.push('  no dock on screen');\n  L.push('  paint test: ' + (vpDiag.paint ? 'showing bars at ' + vpDiag.paint.ys.join(' / ') + ' in html, body and the workout' : 'not showing'));\n  L.push('');\n  L.push('gaps (from the dock'",
+  "  L.push('');\n  L.push('gaps (from the dock'"
+ ],
+ [
+  "['STANDALONE', m => vpDiagStandalone(m)], ['SHELL MODE', m => m.shellMode], ['CLIP', m => vpDiagClipCell(m)]\n];",
+  "['STANDALONE', m => vpDiagStandalone(m)], ['SHELL MODE', m => m.shellMode]\n];"
+ ],
+ [
+  "  row.appendChild(vpDiagButton('Hide', b => { vpDiag.hudMin = !vpDiag.hudMin; b.textContent = vpDiag.hudMin ? 'Show' : 'Hide'; vpDiagRefresh(); }));\n  row.appendChild(vpDiagButton('Paint', () => { vpDiagPaintTest(); vpDiagRefresh(); }));\n  [...row.children].forEach(x => { x.style.padding = '0 6px'; });   /* D138.3: five buttons on one line at 320px */",
+  "  row.appendChild(vpDiagButton('Hide', b => { vpDiag.hudMin = !vpDiag.hudMin; b.textContent = vpDiag.hudMin ? 'Show' : 'Hide'; vpDiagRefresh(); }));"
+ ],
+ [
+  "  if(vpDiag.hud){ vpDiag.hud.remove(); vpDiag.hud = null; }\n  vpDiagPaintClear();\n  if(!on) return;",
+  "  if(vpDiag.hud){ vpDiag.hud.remove(); vpDiag.hud = null; }\n  if(!on) return;"
+ ],
+ [
+  "    changes: []\n  },\n  {\n    id: 'v10-59',\n    version: 'LOOP 10.59',\n    title: 'Workout Buttons Back in Full View',\n    date: '2026-10-09',\n    swVersion: 'loop-v236',\n    summary: 'On iPhone Home Screen installs, the workout’s Previous, Skip, Next and Finish buttons sit fully on screen again.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [\n      'On an installed iPhone, Previous and Skip are no longer cut off at the bottom of the workout screen'\n    ],\n    changes: [\n      'The full-screen workout layout introduced in 10.58 has been withdrawn'\n    ]\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)",
+  "    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)"
+ ]
+];
+const D1383_WHATSNEW = "  },\n  {\n    id: 'v10-59',\n    version: 'LOOP 10.59',\n    title: 'Workout Buttons Back in Full View',\n    date: '2026-10-09',\n    swVersion: 'loop-v236',\n    summary: 'On iPhone Home Screen installs, the workout’s Previous, Skip, Next and Finish buttons sit fully on screen again.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [\n      'On an installed iPhone, Previous and Skip are no longer cut off at the bottom of the workout screen'\n    ],\n    changes: [\n      'The full-screen workout layout introduced in 10.58 has been withdrawn'\n    ]\n";
+const SHA_1058_HTML = '95bfaeb2f1bcb125';   /* index.html of LOOP 10.58 (a3ecb78), LF */
+function asOf1058Html(raw){
+  let t = raw;
+  for(const [now, then] of D1383_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
+}
 /* D138.2 (LOOP 10.58, E64 fix candidate) — the installed app's workout uses the whole screen. Seven hunks: one CSS block at
    the end of the D132 system block (under display-mode: standalone the overlay takes the large viewport at rest, and inset: 0
    while a field types), five lines in D138.1's readout that name the shell (SHELL MODE), and the What's New entry.
@@ -781,7 +827,8 @@ const D1382_CSS = D1382_RAW[0][0].slice(0, D1382_RAW[0][0].length - D1382_RAW[0]
 const D1382_WHATSNEW = "  },\n  {\n    id: 'v10-58',\n    version: 'LOOP 10.58',\n    title: 'Full-Screen Workout Layout',\n    date: '2026-10-09',\n    swVersion: 'loop-v235',\n    summary: 'When LOOP runs from your Home Screen, the workout screen now uses the full app canvas whenever you’re not typing.',\n    newFeatures: [],\n    improvements: [\n      'While you’re entering a weight, reps or a note, the workout still fits above the keyboard, and goes back to the full canvas when you’re done'\n    ],\n    bugFixes: [],\n    changes: []\n";
 const SHA_1057D_HTML = '087309e869309737';   /* index.html of 1512ac0 (LOOP 10.57 + the D138.1 diagnostics), LF */
 function asOf1057dHtml(raw){
-  let t = raw;
+  let t = asOf1058Html(raw);   // D138.3 restated: 10.59's hunks come out first
+  if(t === null) return null;
   for(const [now, then] of D1382_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
   return t;
 }
@@ -25151,7 +25198,7 @@ async function testWorkoutSheetReachesTheEdge(){
     const saKey = sizing.filter(d => sa(d) && d.selector !== '#logOverlay.overlay-page').map(d => d.prop + ': ' + d.value).join('; ');
     T(label + ': the page is fixed to every edge of the screen and nothing else sizes it — but, in the installed app, D138.2’s large-viewport height at rest and inset: 0 while typing',
       pos.length === 1 && pos[0].value === 'fixed' && !pos[0].media.length &&
-      inset.length === 1 && inset[0].value === '0' && !inset[0].media.length && sizing.filter(d => !sa(d)).length === 0 && saFull === 'bottom: auto; height: 100vh; height: 100lvh' && (saKey === '' || saKey === 'bottom: 0; height: auto'),
+      inset.length === 1 && inset[0].value === '0' && !inset[0].media.length && sizing.filter(d => !sa(d)).length === 0 && (saFull === '' && saKey === '') /* D138.3 restated: D138.2's rules are withdrawn (Contract 260) — nothing sizes the page again */,
       show(pos) + ' / ' + show(inset) + ' / ' + show(sizing));
   });
 
@@ -56584,6 +56631,192 @@ async function testWarmupApplicabilityD136(){
 }
 
 /* =========================================================
+   CONTRACT 260 — D138.3 (LOOP 10.59, E64 still open): THE WORKOUT FITS THE VIEWPORT THE IPHONE GIVES IT
+   On the owner's iPhone, 10.58 moved Previous and Skip down, and only their top edge showed. The buttons were laid out at
+   828–878 in an overlay 912px high; the visible area ended at 844. This contract holds the audit and the response. The
+   dock's containing-block chain is the sheet, the overlay, then the viewport. The pinned body holds no fixed boxes, so its
+   overflow cannot clip the overlay, and the only boundary at 844 is the viewport itself. 10.59 withdraws the full-screen
+   block (the stylesheet is 1512ac0's again), and the D138.1 readout gains a measured clip chain and a paint test so the
+   phone can confirm it. No layout engine runs here, and no headless browser has the phone's short web view. The browser
+   rig checks the structure; the owner's screenshot decides E64.
+   ========================================================= */
+async function testVisibleDockD1383(){
+  section('CONTRACT 260 — the workout fits the viewport the iPhone gives it; the readout names the clip owner (D138.3, E64 open)');
+  const fs = require('fs'), crypto = require('crypto');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const was = asOf1058Html(raw);   /* a3ecb78: LOOP 10.58, the full-screen candidate */
+  const was57 = asOf1057dHtml(raw);   /* 1512ac0: LOOP 10.57 with the D138.1 diagnostics */
+  /* the script as 10.58 had it: only the script hunks put back, so a script reading keeps its baseline when the stylesheet is
+     what changed (the drift checks hold the whole file) */
+  const wasJs = (() => { let t = raw; for(const [now, then] of D1383_RAW.slice(1)){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); } return t; })();
+  const styleOf = t => t ? t.slice(t.indexOf('<style>'), t.indexOf('</style>')) : '';
+  const cssNow = styleOf(raw), css58 = styleOf(was), css57 = styleOf(was57);
+  const diagOf = t => { const a = t ? t.indexOf('/* =========================================================\n   VIEWPORT DIAGNOSTICS') : -1; const b = a === -1 ? -1 : t.indexOf('function backToSettings(fromOverlayId){', a); return a === -1 || b === -1 ? '' : t.slice(a, b); };
+  const DIAG = diagOf(raw), CODE = DIAG.replace(/\/\*[\s\S]*?\*\//g, '');
+  const ADDED = D1383_RAW.slice(1, 7).map(([now, then]) => now.split(then).join('')).join('\n').replace(/\/\*[\s\S]*?\*\//g, '');
+  const read = n => fs.readFileSync(H.APP_PATH.replace(/index\.html$/, n), 'utf8').split('\r\n').join('\n');
+  const fx = read('FINDINGS-D88.md'), tc = read('TRAINER-CONTRACT.md'), ps = JSON.parse(read('PROJECT-STATUS.json'));
+  const e64 = (() => { const a = fx.indexOf('## E64 —'); const b = fx.indexOf('\n## ', a + 5); return a === -1 ? '' : fx.slice(a, b === -1 ? undefined : b); })();
+  const note = e64.indexOf('> **D138.3') === -1 ? '' : e64.slice(e64.indexOf('> **D138.3'), e64.indexOf('> **D138.2'));
+  const s182 = (() => { const a = tc.indexOf('## §182'); const b = tc.indexOf('\n## ', a + 5); return a === -1 ? '' : tc.slice(a, b === -1 ? undefined : b); })();
+  const status = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
+  const CN = d133Cascade(cssNow), C58 = d133Cascade(css58);
+  const { html, body, page, sheet } = D133_CASCADE_CHAINS;
+  const el = (tag, id, classes) => ({ tag, id: id || null, classes: classes || [] });
+  const ov = [html, body, page], sh = [html, body, page, sheet];
+  const dockChain = [html, body, page, sheet, el('div', 'wsNav', ['ws-nav'])];
+  const barChain = [html, body, page, sheet, el('div', 'wsFinishBar', ['sheet-actions'])];
+  const topChain = [html, body, page, sheet, el('div', null, ['workout-topbar'])];
+  const SA = m => /^@media \(display-mode: standalone\)$/.test(m);
+  const LAND = m => /orientation:\s*landscape/.test(m) && /max-height:\s*500px/.test(m);
+  const SAL = m => SA(m) || LAND(m);
+  const val = (C, chain, p, st) => { const w = C.won(chain, p, st || null); return w ? w.value : null; };
+  const edge = (C, chain, side, st) => { const w = C.wonOf(chain, ['inset', side], st || null); if(!w) return null; if(w.prop !== 'inset') return w.value; const v = w.value.split(/\s+/); return side === 'top' ? v[0] : (v[2] || v[0]); };
+  const TOK = (() => { const root = cssNow.slice(cssNow.indexOf(':root{'), cssNow.indexOf('\n}', cssNow.indexOf(':root{'))); const t = {}; root.slice(root.indexOf('{') + 1).replace(/\/\*[\s\S]*?\*\//g, '').split(';').forEach(d => { const m = /^\s*(--[\w-]+)\s*:\s*([\s\S]+?)\s*$/.exec(d); if(m) t[m[1]] = m[2]; }); return t; })();
+  const env = I => ({ 'safe-area-inset-bottom': I, 'safe-area-inset-top': I ? 68 : 0 });
+  const pad = (C, chain, side, I, st) => { const w = C.wonOf(chain, ['padding', 'padding-' + side], st || null); if(!w) return null; if(w.prop !== 'padding') return d133Len(w.value, TOK, env(I)); const p = w.value.split(/\s+(?![^()]*\))/); return d133Len(side === 'top' ? p[0] : (p.length === 1 ? p[0] : (p[2] || p[0])), TOK, env(I)); };
+  const sameFn = n => !!wasJs && col(fnSrc(raw, n)) === col(fnSrc(wasJs, n)) && col(fnSrc(raw, n)).length > 20;
+  /* what makes a box the containing block of fixed descendants, read off a cascade (Transforms, Filter Effects, Containment, will-change, container queries) */
+  const FIXED_CB = ['transform', 'filter', 'backdrop-filter', '-webkit-backdrop-filter', 'perspective', 'contain', 'will-change', 'container-type', 'container'];
+  const holdsFixed = (C, chain, st) => FIXED_CB.filter(p => { const v = val(C, chain, p, st); return v != null && !/^(none|normal|auto|initial|unset)$/.test(v); });
+  const app = H.loadApp({ dataSchemaVersion: '1', workoutLog: '[]' });
+  const c = app.ctx; await H.settle(200);
+
+  /* ---------------------------------------------------------------- */
+  sub('drift: the D138.2 block out, the readout extended, one What’s New entry');
+  await guard('drift', async () => {
+    T('every D138.3 change is where it was written, once, and taking them out reads back LOOP 10.58 (a3ecb78) to the byte',
+      !!was && sha(was) === SHA_1058_HTML && D1383_RAW.length === 8, was && sha(was));
+    T('…and the eight are: the D138.2 block taken out of the D132 system block, six edits inside D138.1’s readout, and the What’s New entry — the stylesheet is 1512ac0’s again, byte for byte',
+      D1383_RAW[0][0] === D132_BLOCK[1] && D1383_RAW[0][1] === D1382_CSS + D132_BLOCK[1] && cssNow === css57 && css58.split(D1382_CSS).length === 2
+      && D1383_RAW.slice(1, 7).every(([now, then]) => diagOf(was).indexOf(then) !== -1 && DIAG.indexOf(now) !== -1) && D1383_RAW[7][0].indexOf(D1383_WHATSNEW) !== -1 && diagOf(wasJs) === diagOf(was));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('1–5  the phone’s screenshot, the 10.58 candidate, and the clip owner');
+  await guard('audit', async () => {
+    T('1  the physical failure is written down: E64’s D138.3 note and §182 say the buttons moved down and only their top edge showed — laid out at 828–878 in a 912px overlay, the visible area ending at 844, about 16px of a 50px button',
+      [note, s182].every(t => /only their top edge/.test(t) && /828–878/.test(t) && /912/.test(t) && /844/.test(t)) && /16px/.test(note), [!!note, !!s182]);
+    T('2  the 10.58 candidate is the one the phone ran: the file read back as 10.58 holds D138.2’s block once, and its at-rest rule is the large-viewport height',
+      css58.split(D1382_CSS).length === 2 && /#logOverlay\.overlay-page\{ --loop-shell: full; bottom: auto; height: 100vh; height: 100lvh; \}/.test(css58));
+    T('3  …and in the installed app it placed the overlay from 0 to 100lvh: in 10.58’s cascade under display-mode: standalone the overlay is fixed, top 0, bottom auto, height 100lvh',
+      val(C58, ov, 'position', SA) === 'fixed' && edge(C58, ov, 'top', SA) === '0' && edge(C58, ov, 'bottom', SA) === 'auto' && val(C58, ov, 'height', SA) === '100lvh', [edge(C58, ov, 'bottom', SA), val(C58, ov, 'height', SA)]);
+    T('4  every box between the buttons and the screen is accounted for: §182 lists the dock, the sheet, the overlay, the pinned body, the html element and the viewport, each with its position, overflow and whether it holds fixed boxes',
+      ['`#wsNav`', '`.sheet.sheet-page`', '`#logOverlay`', '`body.scroll-locked`', '`html`', '**viewport**'].every(k => s182.indexOf('| ' + k) !== -1) && /holds fixed boxes/i.test(s182));
+    const bodyCB = holdsFixed(C58, [html, body], SA), htmlCB = holdsFixed(C58, [html], SA);
+    const htmlOv = [val(C58, [html], 'overflow-x', SA), val(C58, [html], 'overflow', SA)];
+    T('5  the clip owner, from 10.58’s own cascade: the sheet clips only at its own bottom (it fills the overlay), the overlay does not clip, the pinned body is fixed with overflow hidden but holds no fixed boxes (no transform, filter, backdrop-filter, perspective, containment, will-change or container) so it is off the overlay’s containing-block chain, and the html element’s overflow belongs to the viewport — so the only boundary at 844 is the viewport, which no rule can move',
+      /hidden/.test(val(C58, sh, 'overflow', SA) || val(C58, sh, 'overflow-y', SA) || '') && edge(C58, sh, 'bottom', SA) === '0' && val(C58, sh, 'position', SA) === 'absolute'
+      && !val(C58, ov, 'overflow', SA) && !val(C58, ov, 'overflow-y', SA)
+      && val(C58, [html, body], 'position', SA) === 'fixed' && val(C58, [html, body], 'overflow', SA) === 'hidden' && bodyCB.length === 0 && htmlCB.length === 0
+      && htmlOv.some(v => /hidden/.test(v || '')) && /WebKit bug\s*301108/.test(s182) && /no CSS paints the strip below it/.test(s182) && /would not move that boundary/.test(s182),
+      { bodyCB, htmlCB, htmlOv });
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('6–13  the workout is the viewport again; nothing added to reach past it');
+  await guard('geometry', async () => {
+    const lengths = ADDED.match(/\b\d{2,}\b/g) || [];
+    T('6–7  no magic length: the stylesheet adds nothing (it is 1512ac0’s), and the readout’s new code holds no 68, 912 or 844 — the paint bars sit at innerHeight −14, +6, +31 and +56',
+      cssNow === css57 && !lengths.some(n => /^(68|912|844|878|828)$/.test(n)) && /ys = \[H - 14, H \+ 6, H \+ 31, H \+ 56\]/.test(ADDED), lengths);
+    T('8  the large-viewport shell is withdrawn, because the phone cannot paint it: no --loop-shell, no lvh height and no display-mode rule is left in the stylesheet, where 10.58 had them',
+      !/--loop-shell|100lvh|display-mode: standalone|@property/.test(cssNow) && /--loop-shell/.test(css58) && /100lvh/.test(css58));
+    const states = [null, SA, LAND, SAL];
+    T('9  in every state — a browser tab, the installed app, landscape, both — the overlay is fixed with top and bottom 0 and nothing else sizing it, so it cannot reach past the viewport, and the sheet is pinned inside it',
+      states.every(st => val(CN, ov, 'position', st) === 'fixed' && edge(CN, ov, 'top', st) === '0' && edge(CN, ov, 'bottom', st) === '0' && val(CN, ov, 'height', st) === null && val(CN, ov, 'max-height', st) === null
+        && val(CN, sh, 'position', st) === 'absolute' && edge(CN, sh, 'top', st) === '0' && edge(CN, sh, 'bottom', st) === '0' && val(CN, sh, 'height', st) === 'auto'),
+      states.map(st => [edge(CN, ov, 'bottom', st), val(CN, ov, 'height', st)]));
+    T('10–11  so Previous and the forward button are drawn inside the viewport: the dock is the sheet’s last row (flex-shrink 0, after the scroll box) and pays the inset below them, so they end at least 8px above the viewport’s bottom',
+      /<div class="ws-nav" id="wsNav"><\/div>\s*(<!--[\s\S]*?-->\s*)?<div class="sheet-actions" id="wsFinishBar"><\/div>/.test(raw) && /flex-shrink:\s*0/.test(cssRule(cssNow, '\n.ws-nav{')) && val(CN, dockChain, 'position', SA) === 'relative' && pad(CN, dockChain, 'bottom', 0, SA) === 8);
+    T('12  the bottom inset is paid once, by the dock and by the finish bar: max(8px, env(safe-area-inset-bottom)) — 34 on the owner’s phone, 8 with none',
+      [dockChain, barChain].every(ch => [SA, null].every(st => pad(CN, ch, 'bottom', 34, st) === 34 && pad(CN, ch, 'bottom', 0, st) === 8)));
+    T('13  the top inset is unchanged: the top bar pays env(safe-area-inset-top) — 6 + 68 = 74 on the owner’s phone', pad(CN, topChain, 'top', 34, SA) === 74 && pad(CN, topChain, 'top', 34, null) === 74);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('14–27  the workout, the keyboard, rotation, exit, the rest of the app');
+  await guard('behaviour', async () => {
+    T('14–19  short and long workouts, the final set, Add Set, Rest and Finish keep the geometry the phone showed whole in 10.57: the stylesheet is 1512ac0’s, D133’s and D138’s blocks once each, byte for byte',
+      cssNow === css57 && cssNow.split(D133_CSS).length === 2 && cssNow.split(D138_CSS).length === 2);
+    T('20–22  the keyboard, its closing and rotation: there is one state — no rule depends on focus, orientation or display mode — so the workout follows the viewport the keyboard shrinks (10.57’s behaviour) and nothing can be left behind',
+      !/#logOverlay(\.[\w-]+)*:has\(|:focus\)\s*\{[^}]*(height|bottom)/.test(cssNow) &&val(CN, ov, 'height', SAL) === null && edge(CN, ov, 'bottom', SAL) === '0');
+    T('23–25  exit, re-entry and Resume run the code they ran in 10.58 and store nothing: the workout closes, opens and resumes through the same functions, and the page lock (D138) is unchanged and scoped to an open workout',
+      ['closeLogSheet', 'startTemplateLog', 'openFreeformLog', 'resumeActiveWorkout', 'restoreDraftToSheet', 'renderWorkoutStep', 'goToWorkoutStep', 'lockBackgroundScroll', 'unlockBackgroundScroll', 'syncBackgroundScrollLock'].every(sameFn)
+      && /html:has\(#logOverlay\.open\) body\.scroll-locked/.test(D138_CSS));
+    T('26  the scroll position comes back: the pin takes the offset before it locks and the unpin restores it after',
+      /_lockedScrollY = window\.scrollY[\s\S]*?document\.body\.style\.top = \(-_lockedScrollY\) \+ 'px'/.test(raw) && /classList\.remove\('scroll-locked'\);[\s\S]*?window\.scrollTo\(\{ top: _lockedScrollY, behavior: 'instant' \}\)/.test(raw));
+    T('27  the normal bottom navigation is 10.57’s: every rule that draws the tab bar is in 1512ac0’s stylesheet, which this one is', cssNow === css57 && /\.tabbar/.test(cssNow));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('28–29  the readout stays, measures the clip chain, and moves nothing');
+  await guard('diag', async () => {
+    T('28  the diagnostics are all still there — seven taps, Measure, Capture, Copy, Share, SHELL MODE — and gain the clip chain, one CLIP row (the readout stays 10.58’s height) and a Paint button',
+      ['vpDiagCountTap', 'vpDiagVersionTap', 'vpDiagEnable', 'vpDiagMeasure', 'vpDiagReport', 'vpDiagCapture', 'vpDiagCopy', 'openViewportDiagnostics', 'vpDiagShellMode', 'vpDiagClipChain', 'vpDiagPaintTest', 'vpDiagPaintClear'].every(n => typeof c[n] === 'function')
+      && /clip: vpDiagClipChain\(dockEl\)/.test(CODE) && /\['SHELL MODE', m => m\.shellMode\], \['CLIP', m => vpDiagClipCell\(m\)\]\n\];/.test(DIAG) && typeof c.vpDiagClipCell === 'function' && !/'BUTTONS'/.test(CODE)
+      && c.vpDiagClipCell({ clip: { bottom: 844, owner: 'div.sheet + viewport' }, rects: { previous: { top: 786, bottom: 836 } } }) === '844 sheet+vp · 836' && c.vpDiagClipCell({ clip: { bottom: 844, owner: 'body.page-locked + viewport' }, rects: {} }) === '844 body+vp' && c.vpDiagClipCell({}) === 'n/a' && /vpDiagButton\('Paint', \(\) => \{ vpDiagPaintTest\(\); vpDiagRefresh\(\); \}\)/.test(CODE) && /clip chain \(D138\.3/.test(CODE));
+    /* the clip chain on stub boxes: the dock, a sheet that clips, a fixed overlay, a body — and a viewport the stub sets */
+    const S = {}, mkEl = (tag, id, cls, parent, bottom, style) => { const e = { tagName: tag, id: id || '', classList: cls || [], parentElement: parent, getBoundingClientRect: () => ({ bottom }) }; S[tag + (id || cls[0] || '')] = [e, style]; return e; };
+    const base = { position: 'static', overflowX: 'visible', overflowY: 'visible', transform: 'none', filter: 'none', perspective: 'none', contain: 'none', willChange: 'auto', clipPath: 'none', maskImage: 'none', containerType: 'normal' };
+    const run = bodyStyle => {
+      const de = c.document.documentElement;
+      const bd = mkEl('BODY', '', ['page-locked'], null, 844, Object.assign({}, base, { position: 'fixed', overflowX: 'hidden', overflowY: 'hidden' }, bodyStyle));
+      bd.parentElement = { tagName: 'X', id: '', classList: [], parentElement: null };
+      const ovl = mkEl('DIV', 'logOverlay', ['overlay'], bd, 912, Object.assign({}, base, { position: 'fixed' }));
+      const sht = mkEl('DIV', '', ['sheet'], ovl, 912, Object.assign({}, base, { position: 'absolute', overflowX: 'hidden', overflowY: 'hidden', transform: 'matrix(1, 0, 0, 1, 0, 0)' }));
+      const dock = mkEl('DIV', 'wsNav', ['ws-nav'], sht, 912, Object.assign({}, base, { position: 'relative' }));
+      const own = Object.prototype.hasOwnProperty.call(c, 'getComputedStyle'), saved = c.getComputedStyle;
+      const map = new Map(Object.values(S).map(([e, s]) => [e, s]));
+      c.getComputedStyle = e => map.get(e) || Object.assign({}, base, { position: 'static' });
+      const W = c.window, ownIH = Object.prototype.hasOwnProperty.call(W, 'innerHeight'), savedIH = W.innerHeight;
+      W.innerHeight = 844;   /* the phone's viewport */
+      try{ return c.vpDiagClipChain(dock); } finally { if(own) c.getComputedStyle = saved; else delete c.getComputedStyle; if(ownIH) W.innerHeight = savedIH; else delete W.innerHeight; }
+    };
+    const vh = 844;
+    const plain = run({}), held = run({ transform: 'translateZ(0)' });
+    T('28b  the clip chain is the real chain: from a dock in a clipping sheet in a fixed overlay, it reads the sheet, the overlay and the viewport — the fixed body is not on it, so a 912px sheet is paintable only to the viewport’s bottom, and the viewport owns that line',
+      !!plain && plain.chain.map(x => x.box).join(',') === 'div.sheet,div#logOverlay,viewport' && plain.chain[0].clips && !plain.chain[1].clips && plain.chain[2].bottom === vh && plain.bottom === Math.min(912, vh) && !plain.bodyOnChain, plain && plain.chain);
+    T('28c  …and when the body does hold fixed boxes (a transform), the chain goes through it and names it — so the phone’s report tells a clipping body from a short viewport',
+      !!held && held.chain.map(x => x.box).join(',') === 'div.sheet,div#logOverlay,body.page-locked,viewport' && held.bodyOnChain && held.chain[2].clips && held.bottom === Math.min(844, vh), held && held.chain);
+    T('28d  the paint test draws twelve bars — four heights in each of the html element, the body and the workout — fixed, out of the hit test, gone after 30 seconds, a second tap, or measuring off',
+      /hosts = \[\['html', document\.documentElement, [^\]]+\], \['body', document\.body, [^\]]+\], \['workout', document\.getElementById\('logOverlay'\), [^\]]+\]\]/.test(ADDED) && /position:fixed;/.test(ADDED) && /pointer-events:none;/.test(ADDED)
+      && /setTimeout\(vpDiagPaintClear, 30000\)/.test(ADDED) && /if\(vpDiag\.paint\)\{ vpDiagPaintClear\(\); return false; \}/.test(ADDED) && /vpDiag\.hud = null; \}\n  vpDiagPaintClear\(\);\n  if\(!on\) return;/.test(DIAG));
+    T('29  measuring still moves nothing: the new code reads computed styles and rects; the only things it creates are the paint bars (its own elements), and it writes no style, class or attribute on anything else, adds no listener, observer or storage, and nothing in the stylesheet reads it',
+      !/classList\.(add|remove|toggle)|setAttribute\((?!'data-vp')|addEventListener|Observer|Storage|setProperty|\b(b|de|ov|sheet|nav|fin|host|document\.body|document\.documentElement)\.style\./.test(ADDED) && /p\.setAttribute\('data-vp', 'paint'\)/.test(ADDED) && !/data-vp/.test(cssNow));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('30–37  every earlier phase unchanged');
+  await guard('protected', async () => {
+    T('30  D133’s density is unchanged: the stylesheet is 1512ac0’s, D133’s block once', cssNow === css57 && cssNow.split(D133_CSS).length === 2);
+    T('31  D134’s duration is 10.58’s text', ['workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText', 'workoutTimeOf'].every(sameFn));
+    T('32  D135’s split is 10.58’s text', sameFn('splitRowForSwap'));
+    T('33  D136’s warm-up applicability is 10.58’s text', ['refreshSuggestedWarmups', 'exerciseWorkBegun', 'seedWarmupTargets'].every(sameFn));
+    T('34  D137’s progression and D50B’s coach are 10.58’s text', ['buildProgressionRecommendation', 'progressionFor', 'detectPlateau', 'compareProgressionEvidence', 'workoutProgressionEvidence', 'newLoadProjection', 'deriveWorkingSetPlan', 'grindingBelowRange', 'refreshSetCoach', 'deriveNextSetCoach', 'applyCoachToFutureSets'].every(sameFn));
+    T('35–37  PRs, XP and Session Score are 10.58’s text', ['computePRs', 'computeAllPREvents', 'computeXPEvents', 'computeXPTimeline', 'sessionScore', 'getTopExerciseMastery'].every(sameFn));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('38–42  storage, the trainer, the findings, the release');
+  await guard('records', async () => {
+    const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(wasJs || '');
+    T('38  16 DATA_KEYS, the same sixteen, in the running app too', !!dk && !!dkw && dk[1] === dkw[1] && (c.DATA_KEYS || []).length === 16);
+    T('39  data schema 1', String(c.DATA_SCHEMA_VERSION) === '1' && /const DATA_SCHEMA_VERSION = 1;/.test(raw));
+    T('40  the trainer 0.1.1-shadow', /const TRAINER_ENGINE_VERSION = '0\.1\.1-shadow';/.test(raw));
+    T('41  E60 and E61 are untouched (still OPEN)', ['E60', 'E61'].every(id => /· OPEN$/.test(status(id))), ['E60', 'E61'].map(status));
+    T('42  E64 is OPEN, never CLOSED by automation: only the owner’s screenshot with both buttons whole can close it — PROJECT-STATUS still needs QA and asks for the Paint test, a screenshot and the report',
+      /^## E64 — [^\n]*· \*\*OPEN — 10\.58's full-screen dock was cut off by the iPhone's own viewport; 10\.59 puts the buttons back in view \(D138\.3\)\*\*$/.test(e64.split('\n')[0]) && !/CLOSED/.test(e64.split('\n')[0])
+      && ps.needsQa === true && ps.version === '10.59' && /^E64:/.test(ps.nextAction) && /Paint/.test(ps.nextAction) && /screenshot/.test(ps.nextAction) && ps.nextAction.length <= 200, e64.split('\n')[0]);
+    T('What’s New v10-59 “Workout Buttons Back in Full View” is LOOP 10.59 / loop-v236, dated in New York; its one fix is the cut-off buttons 10.58 shipped, its one change the withdrawn layout; it does not claim the bottom band is gone; sw.js serves loop-v236',
+      /id: 'v10-59',\s*version: 'LOOP 10\.59',\s*title: 'Workout Buttons Back in Full View',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v236',[\s\S]*newFeatures: \[\],\s*improvements: \[\],\s*bugFixes: \[\s*'[^']+'\s*\],\s*changes: \[\s*'[^']+'\s*\]/.test(D1383_WHATSNEW)
+      && !/gap|band|E64|D138|full screen\b|fixed the/i.test(D1383_WHATSNEW) && c.getLatestUpdateId() === 'v10-59' && /CACHE_VERSION = 'loop-v236'/.test(read('sw.js')));
+  });
+}
+
+/* =========================================================
    CONTRACT 259 — D138.2 (LOOP 10.58, E64 FIX CANDIDATE): THE INSTALLED APP'S WORKOUT USES THE WHOLE SCREEN
    D138.1's readout, run by the owner on the installed iPhone app, measured E64: the screen and the large viewport are 912px,
    the settled layout viewport is 844, and the overlay, the sheet and the dock all ended at 844 — 68px short of the glass.
@@ -56596,11 +56829,11 @@ async function testWarmupApplicabilityD136(){
 async function testFullCanvasShellD1382(){
   section('CONTRACT 259 — the installed app’s workout uses the whole screen, and contracts only while a field types (D138.2, E64 fix candidate)');
   const fs = require('fs'), crypto = require('crypto');
-  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const raw0 = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n'), raw = asOf1058Html(raw0) || '';   /* D138.3 restated: Contract 259 is about LOOP 10.58, so it reads the file with 10.59's hunks put back (Contract 260) */
   const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
   const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
   const col = s => String(s).replace(/\s+/g, ' ').trim();
-  const was = asOf1057dHtml(raw);   /* 1512ac0: LOOP 10.57 with D138.1's diagnostics */
+  const was = asOf1057dHtml(raw0);   /* 1512ac0: LOOP 10.57 with D138.1's diagnostics */   // D138.3 restated: read back from the file as it is
   /* the script as 1512ac0 had it: only the six script hunks put back, so a script reading still has its baseline when the
      stylesheet is what changed (the drift checks hold the whole file) */
   const wasJs = (() => { let t = raw; for(const [now, then] of D1382_RAW.slice(1)){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); } return t; })();
@@ -56780,11 +57013,11 @@ async function testFullCanvasShellD1382(){
     T('38  the trainer 0.1.1-shadow', /const TRAINER_ENGINE_VERSION = '0\.1\.1-shadow';/.test(raw));
     T('39  E60 and E61 are untouched (still OPEN)', ['E60', 'E61'].every(id => /· OPEN$/.test(status(id))), ['E60', 'E61'].map(status));
     T('40  E64 is a FIX CANDIDATE, never CLOSED: only the owner’s phone can close it — PROJECT-STATUS still needs QA and asks for Capture A, and the note says what the phone must show',
-      /^## E64 — [^\n]*· \*\*FIX CANDIDATE — awaiting the owner's iPhone confirmation \(D138\.2, LOOP 10\.58\)\*\*$/.test(e64.split('\n')[0]) && !/CLOSED/.test(e64.split('\n')[0]) && /NOT closed/.test(note) && /screen − dock ≈ 0/.test(note)
-      && ps.needsQa === true && ps.version === '10.58' && /E64 fix candidate/.test(ps.nextAction) && /Capture A/.test(ps.nextAction) && ps.nextAction.length <= 200, e64.split('\n')[0]);
+      /^## E64 — [^\n]*· \*\*(FIX CANDIDATE — awaiting the owner's iPhone confirmation \(D138\.2, LOOP 10\.58\)|OPEN — 10\.58's full-screen dock was cut off by the iPhone's own viewport; 10\.59 puts the buttons back in view \(D138\.3\))\*\*$/.test(e64.split('\n')[0]) && !/CLOSED/.test(e64.split('\n')[0]) && /NOT closed/.test(note) && /screen − dock ≈ 0/.test(note)
+      && ps.needsQa === true && /^10\.5[89]$/.test(ps.version) && /^E64/.test(ps.nextAction) && ps.nextAction.length <= 200 /* D138.3 restated: the phone showed the dock cut off; E64 is OPEN again, never CLOSED, and PROJECT-STATUS asks for the paint test (Contract 260) */, e64.split('\n')[0]);
     T('What’s New v10-58 “Full-Screen Workout Layout” is LOOP 10.58 / loop-v235, dated in New York, says what changed and claims no fix (the phone has not confirmed one), and sw.js serves loop-v235',
       /id: 'v10-58',\s*version: 'LOOP 10\.58',\s*title: 'Full-Screen Workout Layout',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v235',[\s\S]*newFeatures: \[\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D1382_WHATSNEW)
-      && !/\bfix|gap|E64|D138|iPhone/i.test(D1382_WHATSNEW) && c.getLatestUpdateId() === 'v10-58' && /CACHE_VERSION = 'loop-v235'/.test(read('sw.js')));
+      && !/\bfix|gap|E64|D138|iPhone/i.test(D1382_WHATSNEW) && /id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-59' && /CACHE_VERSION = 'loop-v236'/.test(read('sw.js')) /* D138.3 restated: v10-58 stays in the history; the newest is 10.59's (Contract 260) */);
   });
 }
 
@@ -56890,7 +57123,7 @@ async function testViewportDiagnosticsD1381(){
     const txt = c.vpDiagReport(now, { snaps: [{ label: 'auto: workout open', m: open }, { label: 'B', m: now }], log: [{ t: 10, type: 'vv resize', innerH: 800, vvH: 560, vvTop: 30, target: '' }], caches: 'loop-v234' });
     const SECTIONS = ['LOOP VIEWPORT DIAGNOSTIC', 'mode:', 'screen:', 'layout:', 'visualViewport:', 'safeArea:', 'workout:', 'styles:', 'gaps (', 'keyboard/focus:', 'captures (2):', 'event log (', 'timestamp:'];
     T('17  the report has every section, the version and cache, the standalone reading, the raw screen, the units, the visual viewport and its bottom, the four insets, the eight named gaps, the focus, both captures and the log',
-      SECTIONS.every(s => txt.indexOf(s) !== -1) && /version: LOOP 10\.58 · cache: loop-v235 · sw caches: loop-v234/.test(txt) /* D138.2 restated: the report names the newest release */ && /standalone: YES \(nav true, dm yes\)/.test(txt) && /h: 932 · availW: 430 · availH: 932 · dpr: 3/.test(txt) && /100dvh 800/.test(txt)
+      SECTIONS.every(s => txt.indexOf(s) !== -1) && /version: LOOP 10\.59 · cache: loop-v236 · sw caches: loop-v234/.test(txt) /* D138.2 restated: the report names the newest release */ /* D138.3 restated: now 10.59 */ && /standalone: YES \(nav true, dm yes\)/.test(txt) && /h: 932 · availW: 430 · availH: 932 · dpr: 3/.test(txt) && /100dvh 800/.test(txt)
       && /offsetTop: 30 · pageLeft: 0 · pageTop: 30 · scale: 1 · bottom \(offsetTop \+ height\): 590/.test(txt) && /top: 59 · right: 0 · bottom: 34 · left: 0/.test(txt) && /D screen-dock \(screen\.height raw − dock\.bottom\): 172/.test(txt) && /C visual-dock \(visualViewport bottom − dock\.bottom\): -170/.test(txt)
       && /activeElement: INPUT\.set-weight-in type=text inputmode=decimal/.test(txt) && /visualViewport changed since workout open: yes/.test(txt) && /auto: workout open @5ms/.test(txt) && /5ms|10 vv resize/.test(txt), txt.slice(0, 400));
     const same = c.vpDiagReport(open, { snaps: [{ label: 'auto: workout open', m: open }], log: [] });
@@ -56921,7 +57154,7 @@ async function testViewportDiagnosticsD1381(){
     T('24–27  D137’s progression, D136’s warm-up, D135’s split, D134’s duration, the scroll lock, Settings and the workout renderer are 10.57’s text', !!was && fns.every(n => col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20), fns.filter(n => col(fnSrc(raw, n)) !== col(fnSrc(was, n))));
     /* D138.2 restated: D138.1 added no entry — the file read as 1512ac0 still ends at v10-57 — and the newest now is D138.2's own (v10-58, loop-v235, 10.58; Contract 259) */
     T('28  the normal app is untouched: no What’s New entry (1512ac0’s newest is still v10-57, loop-v234); the release after it is D138.2’s own (v10-58, loop-v235, PROJECT-STATUS 10.58)',
-      /id: 'v10-57'/.test(raw) && !/id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-58' && /CACHE_VERSION = 'loop-v235'/.test(read('sw.js')) && JSON.parse(read('PROJECT-STATUS.json')).version === '10.58');
+      /id: 'v10-57'/.test(raw) && !/id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-59' && /CACHE_VERSION = 'loop-v236'/.test(read('sw.js')) && JSON.parse(read('PROJECT-STATUS.json')).version === '10.59');   /* D138.3 restated: the newest release is now 10.59 (Contract 260) */
   });
 
   /* ---------------------------------------------------------------- */
@@ -56929,7 +57162,7 @@ async function testViewportDiagnosticsD1381(){
   await guard('e64', async () => {
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
     T('29  E64 is OPEN — 10.57 did not fix it on the phone — never CLOSED; PROJECT-STATUS still needs QA and says E64 is awaiting physical iPhone measurements',
-      /^## E64 — [^\n]*· \*\*(OPEN — 10\.57 did not fix it on the owner's iPhone; device measurements requested \(D138\.1\)|FIX CANDIDATE — awaiting the owner's iPhone confirmation \(D138\.2, LOOP 10\.58\))\*\*/.test(e64) && !/CLOSED/.test(e64.split('\n')[0]) && ps.needsQa === true && /E64 (awaiting physical iPhone measurements|fix candidate)/.test(ps.nextAction) /* D138.2 restated: the phone's numbers came back; E64 is a fix candidate, still not CLOSED (Contract 259) */ && ps.nextAction.length <= 200, e64.split('\n')[0]);
+      /^## E64 — [^\n]*· \*\*(OPEN — 10\.57 did not fix it on the owner's iPhone; device measurements requested \(D138\.1\)|FIX CANDIDATE — awaiting the owner's iPhone confirmation \(D138\.2, LOOP 10\.58\)|OPEN — 10\.58's full-screen dock was cut off by the iPhone's own viewport; 10\.59 puts the buttons back in view \(D138\.3\))\*\*/.test(e64) && !/CLOSED/.test(e64.split('\n')[0]) && ps.needsQa === true && /E64 (awaiting physical iPhone measurements|fix candidate)|^E64:/.test(ps.nextAction) /* D138.3 restated */ /* D138.2 restated: the phone's numbers came back; E64 is a fix candidate, still not CLOSED (Contract 259) */ && ps.nextAction.length <= 200, e64.split('\n')[0]);
     T('30  no cause is claimed before the phone reports: E64 and §180 say so, and neither asserts one (“root cause is”, “caused by”, “the cause is”, “fixed”)',
       /No cause is inferred here/.test(e64) && /No cause is claimed until it has/.test(s180) && ![e64.slice(e64.indexOf('> **D138.1'), e64.indexOf('Found by the owner')), s180].some(t => /root cause is|caused by|the cause is|is fixed|fixes E64/i.test(t)));
   });
@@ -57749,6 +57982,7 @@ async function main(){
   await testWorkoutBottomDockD138();
   await testViewportDiagnosticsD1381();
   await testFullCanvasShellD1382();
+  await testVisibleDockD1383();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

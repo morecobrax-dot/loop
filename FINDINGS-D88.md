@@ -2262,7 +2262,21 @@ counts as training time, and what an old unfinished workout should say.
 presenting an implausible span as measured. Both need no new storage, and neither invents pausing. Leave C and D until the
 owner decides what "workout time" means.
 
-## E64 — On a physical iPhone the workout's Previous / Skip row stood well above the bottom edge, which the headless geometry tests could not see · P3 · PROVEN (by the owner's screenshot) · **FIX CANDIDATE — awaiting the owner's iPhone confirmation (D138.2, LOOP 10.58)**
+## E64 — On a physical iPhone the workout's Previous / Skip row stood well above the bottom edge, which the headless geometry tests could not see · P3 · PROVEN (by the owner's screenshot) · **OPEN — 10.58's full-screen dock was cut off by the iPhone's own viewport; 10.59 puts the buttons back in view (D138.3)**
+
+> **D138.3 — open; the 10.58 candidate withdrawn.** On the owner's iPhone, 10.58 moved Previous and Skip down to the
+> bottom, but only their top edge was visible: the rest was cut off. The layout put the buttons at 828–878 inside an
+> overlay 912px high, and the visible area ended at 844, so about 16px of each 50px button showed. The clip chain was
+> measured in the page (TRAINER-CONTRACT §182). The dock's containing blocks are the sheet, the overlay, then the viewport.
+> The pinned body is position: fixed with overflow hidden, but it holds no fixed boxes (no transform, filter, containment
+> or will-change), so it is not on that chain and cannot clip the overlay. <html>'s overflow belongs to the viewport.
+> The only box ending at 844 is the viewport itself. Other installed web apps report the same iOS 26 behaviour (WebKit bug
+> 301108, black-translucent status bar with viewport-fit=cover): the web view is one status-bar height short of the screen,
+> and no CSS paints the strip below it. 10.59 therefore withdraws the full-screen layout. The workout is again the 844px
+> viewport, as in 10.57, where the owner saw both buttons whole, and the 68px band below returns. The readout gains a
+> measured clip chain and a paint test (bars drawn by <html>, <body> and the workout at 830/850/875/900) so the phone can
+> confirm the clip owner. Remaining routes, each the owner's call: an opaque status bar (iOS reads it only at install, so
+> the Home Screen app must be backed up, removed, re-added and restored), or waiting for an iOS fix.
 
 > **D138.2 — fix candidate, NOT closed.** D138.1's readout, run on the owner's installed iPhone app (display-mode standalone,
 > navigator.standalone true, DPR 3, safe area top 68 / bottom 34), measured the cause. The screen is 912px tall and so is the

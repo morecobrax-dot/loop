@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.58",
+  "version": "10.59",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "E64 fix candidate: iPhone, Settings, 7 taps, Measure ON, open the Core workout, Capture A + screenshot. Expect shell FULL, screen − dock 0, safe bottom 34; then keyboard B, C.",
+  "nextAction": "E64: update to 10.59, Settings 7 taps, Measure ON, Core workout, tap Paint, screenshot, Copy diagnostics. Previous/Skip must be whole; report which paint bars show.",
   "blocker": null,
-  "updatedAt": "2026-10-09T12:35:34Z"
+  "updatedAt": "2026-10-09T22:15:28Z"
 }
