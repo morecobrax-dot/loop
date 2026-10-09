@@ -7,7 +7,7 @@
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: open the workout from Core. Previous and Skip should sit at the bottom with only the home-indicator space below. Tell me if a gap remains.",
+  "nextAction": "E64 awaiting physical iPhone measurements: Settings, tap the version 7 times, turn Measure the workout on, open the Core workout, screenshot, then Copy diagnostics.",
   "blocker": null,
-  "updatedAt": "2026-10-09T05:57:01Z"
+  "updatedAt": "2026-10-09T08:38:03Z"
 }

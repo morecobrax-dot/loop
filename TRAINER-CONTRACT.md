@@ -19539,3 +19539,39 @@ no document slack, nothing after the dock, the inset once). In headless Edge 10.
 control fails only the two structural claims. **That is the limit of this proof.** Headless Edge is not an iPhone.
 
 **Not proven here.** Whether the gap on the phone is gone. E64 is HELD until the owner confirms it, and PROJECT-STATUS stays needsQa.
+
+
+## §180 — VIEWPORT DIAGNOSTICS (D138.1 · LOOP 10.57, temporary · no version change)
+
+E64 is still open: on the owner's iPhone, 10.57 still leaves a large band under Previous / Skip, which no headless browser reproduced.
+D138.1 does not try another fix. It ships an instrument so the installed PWA can report its own geometry. No cause is claimed until it has.
+
+**Hidden.** Seven quick taps on the version line in Settings (each within 700 ms of the last) open Viewport Diagnostics. There is no row,
+label or other visible change; six taps, or slow ones, do nothing.
+
+**What it measures** (`vpDiagMeasure`), every value as the browser reports it, nothing converted:
+- screen (width, height, avail), the window (inner, outer), html and body (client, scroll), DPR, orientation, user agent, platform;
+- the display mode, read at run time: `navigator.standalone` and the display-mode media queries;
+- `visualViewport`: width, height, offsetLeft, offsetTop, pageLeft, pageTop, scale, and its bottom (offsetTop + height);
+- the four safe-area insets, read back from one invisible probe's padding; what 100vh / svh / lvh / dvh / a fixed 100% resolve to;
+- the rectangles of the overlay, sheet, top bar, scroll box, dock, both dock buttons, finish bar, rest readout, tab bar, body and html,
+  with their position, insets, heights, padding, margin, display, flex and overflow;
+- the eight gaps A–H: innerHeight, html.clientHeight, the visual viewport's bottom and screen.height (raw), each minus the dock's
+  bottom; sheet, overlay and body bottoms minus the dock's; and the scroll box's bottom minus the dock's top.
+
+**When.** Turned on in the panel, it captures on its own when the workout opens (before any field is touched), when a set field's
+keyboard opens and closes, and when the phone rotates; Capture adds a lettered snapshot (A, B, C…) and keeps the keyboard's field
+focused. The last 20 viewport events (resize, orientation, visual-viewport resize and scroll, focus in and out, visibility) are logged
+in memory. Copy (or Share) puts the whole report on the clipboard.
+
+**Boundaries.**
+- Geometry only. It never reads a workout, an exercise name, a value, a note or a record, and none is in the report.
+- Stored: one session-only flag (sessionStorage `loopDiag.viewport`) so a reload of the same session keeps measuring. Not LOOPStore,
+  not DATA_KEYS (still 16), not in any backup. The log and the captures are memory only.
+- Out of flow. The panel, the readout and the probes are position: fixed children of <html>; the readout sits at the top, never over
+  the dock. Contract 258 and the rig hold that every workout box is exactly where it was with it on and off.
+- No version change: the shell is network-first (D92), so the installed app takes the new index.html on its next launch with a
+  connection. No What's New entry: it is not a feature.
+
+**Removal.** The E64 fix deletes the whole block (from its header comment to `installViewportDiagnostics`) and the flag; nothing else
+depends on it.

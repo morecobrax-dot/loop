@@ -23060,6 +23060,381 @@ function openSettings(){
 }
 function closeSettings(){ document.getElementById('settingsOverlay').classList.remove('open'); }
 
+/* =========================================================
+   VIEWPORT DIAGNOSTICS  (Phase D138.1 — TEMPORARY, for E64)
+   ---------------------------------------------------------
+   An owner-only instrument for the one question no headless browser could
+   answer: where does an installed iPhone put the screen, the layout viewport,
+   the visual viewport, the workout sheet and its dock? It changes nothing it
+   measures and fixes nothing.
+     · Hidden. Seven quick taps on the version line in Settings open it; there
+       is no row, no label and no visible change anywhere else.
+     · Geometry only. It reads sizes, rectangles, computed layout styles, the
+       display mode and the user agent — never a workout, an exercise name, a
+       value, a note or a record.
+     · Nothing stored but one session-only flag (sessionStorage, outside
+       LOOPStore, DATA_KEYS and every backup) so the measuring survives a
+       reload of the same session. The event log and the captures live in
+       memory only.
+     · Out of flow. The panel, the workout readout and the probes are
+       position: fixed children of <html>, so they cannot move the sheet, the
+       dock or the page; the readout sits at the top, away from the dock.
+   Remove this whole block with the E64 fix. */
+const VP_DIAG = { build: 'd138.1', taps: 7, tapGapMs: 700, logMax: 20, snapMax: 12, settleMs: 900, flagKey: 'loopDiag.viewport' };
+const vpDiag = { on: false, t0: 0, log: [], snaps: [], letter: 0, taps: [], hud: null, panel: null, timer: null, settle: null, lastW: null, wasOpen: false, pending: null, listeners: [], hudPos: 'top', hudMin: false, lastMeasure: null };
+function vpDiagState(){ return vpDiag; }
+function vpDiagNow(){ try{ return performance.now(); }catch(e){ return Date.now(); } }
+function vpDiagFlag(){ try{ return window.sessionStorage.getItem(VP_DIAG.flagKey) === '1'; }catch(e){ return false; } }
+function vpDiagSetFlag(on){ try{ if(on) window.sessionStorage.setItem(VP_DIAG.flagKey, '1'); else window.sessionStorage.removeItem(VP_DIAG.flagKey); }catch(e){} }
+
+/* Seven taps, each within tapGapMs of the one before; a slower tap starts the count again. */
+function vpDiagCountTap(taps, now){
+  const kept = taps.length && now - taps[taps.length - 1] <= VP_DIAG.tapGapMs ? taps.concat(now) : [now];
+  return kept.length >= VP_DIAG.taps ? { open: true, taps: [] } : { open: false, taps: kept };
+}
+function vpDiagVersionTap(){
+  const r = vpDiagCountTap(vpDiag.taps, Date.now());
+  vpDiag.taps = r.taps;
+  if(r.open) openViewportDiagnostics();
+}
+
+/* ---- measuring ---- */
+function vpDiagNum(v){ return (typeof v === 'number' && isFinite(v)) ? Math.round(v * 10) / 10 : (v === undefined ? 'n/a' : v); }
+function vpDiagRect(el){
+  if(!el || !el.getBoundingClientRect) return null;
+  const r = el.getBoundingClientRect();
+  return { top: vpDiagNum(r.top), bottom: vpDiagNum(r.bottom), left: vpDiagNum(r.left), right: vpDiagNum(r.right), width: vpDiagNum(r.width), height: vpDiagNum(r.height) };
+}
+const VP_DIAG_STYLE = ['position', 'top', 'bottom', 'height', 'min-height', 'max-height', 'padding-top', 'padding-bottom', 'margin-top', 'margin-bottom', 'display', 'flex', 'flex-grow', 'flex-shrink', 'overflow', 'overflow-y'];
+function vpDiagStyle(el){
+  if(!el) return null;
+  const c = getComputedStyle(el), o = {};
+  VP_DIAG_STYLE.forEach(p => { o[p] = c.getPropertyValue(p); });
+  return o;
+}
+/* A probe is fixed, zero-width, invisible and out of flow: added, read, removed. */
+function vpDiagProbe(css, read){
+  const p = document.createElement('div');
+  p.setAttribute('aria-hidden', 'true');
+  p.style.cssText = 'position:fixed;left:0;top:0;width:0;overflow:hidden;visibility:hidden;pointer-events:none;box-sizing:content-box;' + css;
+  document.documentElement.appendChild(p);
+  try{ return read(p); } finally { p.remove(); }
+}
+/* The four safe-area insets, read back as the padding of one probe. */
+function vpDiagSafeArea(){
+  return vpDiagProbe('height:0;padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);', p => {
+    const c = getComputedStyle(p);
+    return { top: vpDiagNum(parseFloat(c.paddingTop) || 0), right: vpDiagNum(parseFloat(c.paddingRight) || 0), bottom: vpDiagNum(parseFloat(c.paddingBottom) || 0), left: vpDiagNum(parseFloat(c.paddingLeft) || 0) };
+  });
+}
+/* What each viewport unit resolves to here, and where a fixed box with bottom: 0 sits. */
+function vpDiagUnits(){
+  const out = {};
+  [['vh', '100vh'], ['svh', '100svh'], ['lvh', '100lvh'], ['dvh', '100dvh'], ['pct', '100%'], ['fill', '-webkit-fill-available']].forEach(([k, v]) => {
+    out[k] = vpDiagProbe('', p => { p.style.height = v; return p.style.height ? vpDiagNum(p.getBoundingClientRect().height) : 'unsupported'; });
+  });
+  out.fixedBottomTop = vpDiagProbe('top:auto;bottom:0;height:0;', p => vpDiagNum(p.getBoundingClientRect().top));
+  return out;
+}
+function vpDiagMeasure(){
+  const W = window, D = document, de = D.documentElement, b = D.body, s = W.screen || {}, vv = W.visualViewport || null;
+  const mm = q => { try{ return !!(W.matchMedia && W.matchMedia(q).matches); }catch(e){ return false; } };
+  const q = sel => D.querySelector(sel);
+  const ov = q('#logOverlay'), sheet = q('#logOverlay .sheet'), nav = q('#wsNav'), fin = q('#wsFinishBar'), rest = q('#wsRest');
+  const fwd = q('#wsNav .ws-nav-fwd');
+  const shown = el => !!(el && el.getBoundingClientRect().height > 0);
+  const dockEl = shown(nav) ? nav : (shown(fin) ? fin : null);
+  const ae = D.activeElement;
+  const m = {
+    at: new Date().toISOString(), t: Math.round(vpDiagNow() - vpDiag.t0),
+    mode: { navigatorStandalone: ('standalone' in navigator) ? navigator.standalone : 'n/a', displayModeStandalone: mm('(display-mode: standalone)'),
+      displayModeFullscreen: mm('(display-mode: fullscreen)'), displayModeMinimalUi: mm('(display-mode: minimal-ui)'), displayModeBrowser: mm('(display-mode: browser)') },
+    screen: { width: s.width, height: s.height, availWidth: s.availWidth, availHeight: s.availHeight },
+    window: { innerWidth: W.innerWidth, innerHeight: W.innerHeight, outerWidth: W.outerWidth, outerHeight: W.outerHeight, scrollY: vpDiagNum(W.scrollY) },
+    html: { clientWidth: de.clientWidth, clientHeight: de.clientHeight, scrollWidth: de.scrollWidth, scrollHeight: de.scrollHeight },
+    body: { clientWidth: b.clientWidth, clientHeight: b.clientHeight, scrollWidth: b.scrollWidth, scrollHeight: b.scrollHeight, lockTop: b.style.top || '', classes: String(b.className || '') },
+    dpr: W.devicePixelRatio,
+    orientation: { screenOrientationType: (s.orientation && s.orientation.type) || 'n/a', windowOrientation: ('orientation' in W) ? W.orientation : 'n/a', portrait: mm('(orientation: portrait)') },
+    ua: navigator.userAgent, platform: navigator.platform,
+    vv: vv ? { width: vpDiagNum(vv.width), height: vpDiagNum(vv.height), offsetLeft: vpDiagNum(vv.offsetLeft), offsetTop: vpDiagNum(vv.offsetTop), pageLeft: vpDiagNum(vv.pageLeft), pageTop: vpDiagNum(vv.pageTop), scale: vpDiagNum(vv.scale), bottom: vpDiagNum(vv.offsetTop + vv.height) } : null,
+    safe: vpDiagSafeArea(), units: vpDiagUnits(),
+    workoutOpen: !!(ov && ov.classList.contains('open')),
+    rects: { overlay: vpDiagRect(ov), sheet: vpDiagRect(sheet), topbar: vpDiagRect(q('#logOverlay .workout-topbar')), scroll: vpDiagRect(q('#logOverlay .sheet-scroll')),
+      dock: vpDiagRect(nav), previous: vpDiagRect(q('#wsNav .ws-nav-btn')), forward: vpDiagRect(fwd), finishBar: vpDiagRect(fin), rest: shown(rest) ? vpDiagRect(rest) : null,
+      tabbar: vpDiagRect(q('.tabbar')), body: vpDiagRect(b), html: vpDiagRect(de) },
+    styles: { overlay: vpDiagStyle(ov), sheet: vpDiagStyle(sheet), scroll: vpDiagStyle(q('#logOverlay .sheet-scroll')), dock: vpDiagStyle(nav), finishBar: vpDiagStyle(fin), body: vpDiagStyle(b), html: vpDiagStyle(de) },
+    forwardKind: fwd ? (['is-skip', 'is-next', 'is-finish'].filter(k => fwd.classList.contains(k))[0] || 'plain') : 'none',
+    dockKind: dockEl ? dockEl.id : 'none', dockRect: vpDiagRect(dockEl),
+    focus: ae && ae !== b && ae !== de ? { tag: ae.tagName, cls: String(ae.className || '').split(' ')[0], type: ae.getAttribute('type') || '', inputmode: ae.getAttribute('inputmode') || '' } : null
+  };
+  m.gaps = vpDiagGaps(m);
+  vpDiag.lastMeasure = m;
+  return m;
+}
+/* The eight distances the brief names, from one measurement. Nothing is converted: screen.height is raw. */
+function vpDiagGaps(m){
+  const d = m && m.dockRect, r = (m && m.rects) || {};
+  const n = v => typeof v === 'number' && isFinite(v);
+  const g = (a, b) => (n(a) && n(b)) ? Math.round((a - b) * 10) / 10 : null;
+  if(!d) return { A: null, B: null, C: null, D: null, E: null, F: null, G: null, H: null };
+  return {
+    A: g(m.window.innerHeight, d.bottom),
+    B: g(m.html.clientHeight, d.bottom),
+    C: g(m.vv ? m.vv.bottom : null, d.bottom),
+    D: g(m.screen.height, d.bottom),
+    E: g(r.sheet && r.sheet.bottom, d.bottom),
+    F: g(r.overlay && r.overlay.bottom, d.bottom),
+    G: g(r.body && r.body.bottom, d.bottom),
+    H: g(r.scroll && r.scroll.bottom, d.top)
+  };
+}
+function vpDiagStandalone(m){
+  const nav = m.mode.navigatorStandalone, dm = m.mode.displayModeStandalone;
+  return (nav === true || dm ? 'YES' : 'NO') + ' (nav ' + nav + ', dm ' + (dm ? 'yes' : 'no') + ')';
+}
+
+/* ---- the event log and the captures (memory only) ---- */
+function vpDiagLog(type, target){
+  const vv = window.visualViewport;
+  vpDiag.log.push({ t: Math.round(vpDiagNow() - vpDiag.t0), type, innerH: window.innerHeight, vvH: vv ? vpDiagNum(vv.height) : 'n/a', vvTop: vv ? vpDiagNum(vv.offsetTop) : 'n/a', target: target || '' });
+  if(vpDiag.log.length > VP_DIAG.logMax) vpDiag.log.splice(0, vpDiag.log.length - VP_DIAG.logMax);
+}
+function vpDiagCapture(label){
+  const m = vpDiagMeasure();
+  if(!label){ label = String.fromCharCode(65 + (vpDiag.letter % 26)); vpDiag.letter++; }
+  vpDiag.snaps.push({ label, m });
+  if(vpDiag.snaps.length > VP_DIAG.snapMax){
+    const keepOpen = vpDiag.snaps.find(s => s.label === 'auto: workout open');
+    vpDiag.snaps = vpDiag.snaps.slice(-VP_DIAG.snapMax);
+    if(keepOpen && vpDiag.snaps.indexOf(keepOpen) === -1) vpDiag.snaps.unshift(keepOpen);
+  }
+  vpDiagRefresh();
+  return label;
+}
+function vpDiagTargetOf(e){ const t = e && e.target; return t && t.tagName ? t.tagName + (t.className && typeof t.className === 'string' ? '.' + t.className.split(' ')[0] : '') : ''; }
+/* Every viewport event is logged; captures wait until the viewport has been still for settleMs. */
+function vpDiagOnEvent(e){
+  const type = (e && e.type) || 'event', src = e && e.currentTarget === window.visualViewport ? 'vv ' : '';
+  const focus = type === 'focusin' || type === 'focusout';
+  vpDiagCheckOpen();   // a field tapped first still finds the workout-open baseline taken before its keyboard
+  vpDiagLog(src + type, focus ? vpDiagTargetOf(e) : '');
+  if(focus){
+    const t = e.target;
+    if(t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && t.closest && t.closest('#logOverlay')) vpDiag.pending = type === 'focusin' ? 'auto: keyboard open' : 'auto: keyboard closed';
+  } else if(type === 'orientationchange') vpDiag.pending = 'auto: rotated';
+  else if(type === 'resize' && !src){ if(vpDiag.lastW !== window.innerWidth) vpDiag.pending = 'auto: rotated'; vpDiag.lastW = window.innerWidth; }
+  clearTimeout(vpDiag.settle);
+  vpDiag.settle = setTimeout(() => { if(vpDiag.pending && vpDiag.on){ const l = vpDiag.pending; vpDiag.pending = null; vpDiagCapture(l + (window.innerWidth > window.innerHeight ? ' (landscape)' : '')); } else vpDiagRefresh(); }, VP_DIAG.settleMs);
+}
+/* The workout-open baseline: taken the first time the readout or any viewport event finds the workout open, before anything
+   else is captured. No observer: the once-a-second refresh and the events are enough. */
+function vpDiagCheckOpen(){
+  const ov = document.getElementById('logOverlay');
+  const open = !!(ov && ov.classList.contains('open'));
+  if(open && !vpDiag.wasOpen && vpDiag.on){ vpDiag.wasOpen = true; vpDiagCapture('auto: workout open'); }
+  if(!open) vpDiag.wasOpen = false;
+  return open;
+}
+
+/* ---- on and off ---- */
+function vpDiagEnable(on){
+  if(on === vpDiag.on) return;
+  vpDiag.on = on;
+  vpDiagSetFlag(on);
+  vpDiag.listeners.forEach(([t, ev, f, opt]) => t.removeEventListener(ev, f, opt));
+  vpDiag.listeners = [];
+  clearInterval(vpDiag.timer); vpDiag.timer = null; clearTimeout(vpDiag.settle);
+  if(vpDiag.hud){ vpDiag.hud.remove(); vpDiag.hud = null; }
+  if(!on) return;
+  vpDiag.t0 = vpDiagNow(); vpDiag.log = []; vpDiag.snaps = []; vpDiag.letter = 0; vpDiag.pending = null;
+  const add = (t, ev, opt) => { if(!t) return; t.addEventListener(ev, vpDiagOnEvent, opt); vpDiag.listeners.push([t, ev, vpDiagOnEvent, opt]); };
+  add(window, 'resize', { passive: true }); add(window, 'orientationchange', { passive: true });
+  add(window.visualViewport, 'resize', { passive: true }); add(window.visualViewport, 'scroll', { passive: true });
+  add(document, 'focusin', true); add(document, 'focusout', true); add(document, 'visibilitychange', { passive: true });
+  vpDiag.wasOpen = false; vpDiag.lastW = window.innerWidth;
+  vpDiag.timer = setInterval(vpDiagRefresh, 1000);
+  vpDiagReadCaches();
+  vpDiagRefresh();
+}
+
+/* ---- the plain-text report: geometry only ---- */
+function vpDiagFmtRect(r){ return r ? 'top ' + r.top + ' bottom ' + r.bottom + ' left ' + r.left + ' right ' + r.right + ' w ' + r.width + ' h ' + r.height : 'none'; }
+function vpDiagFmtStyle(s){ return s ? VP_DIAG_STYLE.map(p => p + ' ' + s[p]).join(' · ') : 'none'; }
+function vpDiagSnapLine(s){
+  const m = s.m, g = m.gaps;
+  return s.label + ' @' + m.t + 'ms: innerH ' + m.window.innerHeight + ' clientH ' + m.html.clientHeight + ' vvH ' + (m.vv ? m.vv.height : 'n/a') + ' vvTop ' + (m.vv ? m.vv.offsetTop : 'n/a') +
+    ' vvBottom ' + (m.vv ? m.vv.bottom : 'n/a') + ' screenH ' + m.screen.height + ' dock ' + (m.dockRect ? m.dockRect.top + '–' + m.dockRect.bottom : 'none') +
+    ' | inner-dock ' + g.A + ' client-dock ' + g.B + ' visual-dock ' + g.C + ' screen-dock ' + g.D + ' sheet-dock ' + g.E + ' overlay-dock ' + g.F + ' body-dock ' + g.G + ' scroll-docktop ' + g.H +
+    ' | focus ' + (m.focus ? m.focus.tag + '.' + m.focus.cls : 'none') + ' | ' + (m.orientation.portrait ? 'portrait' : 'landscape');
+}
+function vpDiagReport(m, st){
+  st = st || vpDiag;
+  const latest = (typeof getLatestUpdate === 'function' && getLatestUpdate()) || {};
+  const open = (st.snaps || []).find(s => s.label === 'auto: workout open');
+  const changed = open && open.m.vv && m.vv ? ((open.m.vv.height !== m.vv.height || open.m.vv.offsetTop !== m.vv.offsetTop) ? 'yes' : 'no') : 'n/a';
+  const r = m.rects, s = m.styles, g = m.gaps, L = [];
+  L.push('LOOP VIEWPORT DIAGNOSTIC (' + VP_DIAG.build + ')');
+  L.push('version: ' + (latest.version || 'n/a') + ' · cache: ' + (latest.swVersion || 'n/a') + ' · sw caches: ' + (st.caches || 'n/a'));
+  L.push('');
+  L.push('mode:');
+  L.push('  standalone: ' + vpDiagStandalone(m));
+  L.push('  navigator.standalone: ' + m.mode.navigatorStandalone + ' · display-mode standalone ' + m.mode.displayModeStandalone + ' · fullscreen ' + m.mode.displayModeFullscreen + ' · minimal-ui ' + m.mode.displayModeMinimalUi + ' · browser ' + m.mode.displayModeBrowser);
+  L.push('  ua: ' + m.ua);
+  L.push('  platform: ' + m.platform);
+  L.push('');
+  L.push('screen:');
+  L.push('  w: ' + m.screen.width + ' · h: ' + m.screen.height + ' · availW: ' + m.screen.availWidth + ' · availH: ' + m.screen.availHeight + ' · dpr: ' + m.dpr);
+  L.push('  orientation: ' + m.orientation.screenOrientationType + ' · window.orientation: ' + m.orientation.windowOrientation + ' · ' + (m.orientation.portrait ? 'portrait' : 'landscape'));
+  L.push('');
+  L.push('layout:');
+  L.push('  innerW: ' + m.window.innerWidth + ' · innerH: ' + m.window.innerHeight + ' · outerW: ' + m.window.outerWidth + ' · outerH: ' + m.window.outerHeight + ' · scrollY: ' + m.window.scrollY);
+  L.push('  html clientW: ' + m.html.clientWidth + ' · clientH: ' + m.html.clientHeight + ' · scrollW: ' + m.html.scrollWidth + ' · scrollH: ' + m.html.scrollHeight);
+  L.push('  body clientW: ' + m.body.clientWidth + ' · clientH: ' + m.body.clientHeight + ' · scrollW: ' + m.body.scrollWidth + ' · scrollH: ' + m.body.scrollHeight + ' · lock top: ' + (m.body.lockTop || 'none') + ' · classes: ' + (m.body.classes || 'none'));
+  L.push('  units: 100vh ' + m.units.vh + ' · 100svh ' + m.units.svh + ' · 100lvh ' + m.units.lvh + ' · 100dvh ' + m.units.dvh + ' · fixed 100% ' + m.units.pct + ' · fill-available ' + m.units.fill + ' · fixed bottom:0 sits at ' + m.units.fixedBottomTop);
+  L.push('');
+  L.push('visualViewport:');
+  L.push(m.vv ? '  width: ' + m.vv.width + ' · height: ' + m.vv.height + ' · offsetLeft: ' + m.vv.offsetLeft + ' · offsetTop: ' + m.vv.offsetTop + ' · pageLeft: ' + m.vv.pageLeft + ' · pageTop: ' + m.vv.pageTop + ' · scale: ' + m.vv.scale + ' · bottom (offsetTop + height): ' + m.vv.bottom : '  not available');
+  L.push('');
+  L.push('safeArea:');
+  L.push('  top: ' + m.safe.top + ' · right: ' + m.safe.right + ' · bottom: ' + m.safe.bottom + ' · left: ' + m.safe.left);
+  L.push('');
+  L.push('workout: ' + (m.workoutOpen ? 'open' : 'not open') + ' · dock: ' + m.dockKind + ' · forward button: ' + m.forwardKind);
+  [['overlay', r.overlay], ['sheet', r.sheet], ['topbar', r.topbar], ['scroll', r.scroll], ['dock (#wsNav)', r.dock], ['previous', r.previous], ['forward', r.forward], ['finish bar', r.finishBar], ['rest', r.rest], ['tabbar', r.tabbar], ['body', r.body], ['html', r.html]]
+    .forEach(([k, v]) => L.push('  ' + k + ': ' + vpDiagFmtRect(v)));
+  L.push('styles:');
+  [['overlay', s.overlay], ['sheet', s.sheet], ['scroll', s.scroll], ['dock', s.dock], ['finish bar', s.finishBar], ['body', s.body], ['html', s.html]].forEach(([k, v]) => L.push('  ' + k + ': ' + vpDiagFmtStyle(v)));
+  L.push('');
+  L.push('gaps (from the dock' + (m.dockRect ? ' ' + m.dockRect.top + '–' + m.dockRect.bottom : ', none on screen') + '):');
+  L.push('  A inner-dock (innerHeight − dock.bottom): ' + g.A);
+  L.push('  B client-dock (html.clientHeight − dock.bottom): ' + g.B);
+  L.push('  C visual-dock (visualViewport bottom − dock.bottom): ' + g.C);
+  L.push('  D screen-dock (screen.height raw − dock.bottom): ' + g.D);
+  L.push('  E sheet-dock (sheet.bottom − dock.bottom): ' + g.E);
+  L.push('  F overlay-dock (overlay.bottom − dock.bottom): ' + g.F);
+  L.push('  G body-dock (body.bottom − dock.bottom): ' + g.G);
+  L.push('  H scroll-docktop (scroll.bottom − dock.top): ' + g.H);
+  L.push('');
+  L.push('keyboard/focus:');
+  L.push('  activeElement: ' + (m.focus ? m.focus.tag + '.' + m.focus.cls + (m.focus.type ? ' type=' + m.focus.type : '') + (m.focus.inputmode ? ' inputmode=' + m.focus.inputmode : '') : 'none'));
+  L.push('  visualViewport changed since workout open: ' + changed);
+  L.push('');
+  L.push('captures (' + (st.snaps || []).length + '):');
+  (st.snaps || []).forEach(x => L.push('  ' + vpDiagSnapLine(x)));
+  if(!(st.snaps || []).length) L.push('  none yet');
+  L.push('');
+  L.push('event log (last ' + VP_DIAG.logMax + ', ms since diagnostics started):');
+  (st.log || []).forEach(e => L.push('  ' + e.t + ' ' + e.type + (e.target ? ' ' + e.target : '') + ' · innerH ' + e.innerH + ' · vvH ' + e.vvH + ' · vvTop ' + e.vvTop));
+  if(!(st.log || []).length) L.push('  none yet');
+  L.push('');
+  L.push('timestamp: ' + m.at);
+  return L.join('\n');
+}
+
+/* ---- what is drawn: the workout readout and the panel ---- */
+const VP_DIAG_HUD_ROWS = [
+  ['SCREEN H', m => m.screen.height], ['INNER H', m => m.window.innerHeight], ['VV H', m => m.vv ? m.vv.height : 'n/a'], ['VV TOP', m => m.vv ? m.vv.offsetTop : 'n/a'],
+  ['VV BOTTOM', m => m.vv ? m.vv.bottom : 'n/a'], ['OVERLAY BOTTOM', m => m.rects.overlay ? m.rects.overlay.bottom : 'n/a'], ['SHEET BOTTOM', m => m.rects.sheet ? m.rects.sheet.bottom : 'n/a'],
+  ['DOCK BOTTOM', m => m.dockRect ? m.dockRect.bottom : 'none'], ['SAFE BOTTOM', m => m.safe.bottom], ['SCREEN − DOCK', m => m.gaps.D], ['VV BOTTOM − DOCK', m => m.gaps.C], ['STANDALONE', m => vpDiagStandalone(m)]
+];
+function vpDiagButton(label, fn){
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.textContent = label; btn.setAttribute('data-label', label);
+  btn.style.cssText = 'min-height:36px;padding:0 10px;margin:0;border-radius:8px;border:1px solid rgba(140,200,255,0.45);background:rgba(30,60,100,0.85);color:#e8f4ff;font:600 12px/1 system-ui,sans-serif;';
+  /* the readout must not take focus from a set field: a tap here keeps the keyboard where it is */
+  btn.addEventListener('mousedown', e => e.preventDefault());
+  btn.addEventListener('pointerdown', e => e.preventDefault());
+  btn.addEventListener('click', e => { e.stopPropagation(); fn(btn); });
+  return btn;
+}
+function vpDiagRefresh(){
+  if(!vpDiag.on) return;
+  const open = vpDiagCheckOpen();
+  if(!open){ if(vpDiag.hud) vpDiag.hud.style.display = 'none'; return; }
+  if(!vpDiag.hud) vpDiagBuildHud();
+  const m = vpDiagMeasure();
+  const h = vpDiag.hud;
+  h.style.display = 'block';
+  h.style.top = vpDiag.hudPos === 'top' ? 'calc(env(safe-area-inset-top, 0px) + 4px)' : '38%';
+  h.querySelector('[data-vp="grid"]').style.display = vpDiag.hudMin ? 'none' : 'grid';
+  h.querySelector('[data-vp="grid"]').innerHTML = VP_DIAG_HUD_ROWS.map(([k, f]) => '<span style="opacity:.75">' + k + '</span><b style="text-align:right">' + escapeHtml(String(f(m))) + '</b>').join('');
+  const last = vpDiag.snaps[vpDiag.snaps.length - 1];
+  h.querySelector('[data-vp="status"]').textContent = 'DIAG ' + VP_DIAG.build + ' · ' + vpDiag.snaps.length + ' captured' + (last ? ' · last: ' + last.label : '');
+}
+function vpDiagBuildHud(){
+  const h = document.createElement('div');
+  h.id = 'vpDiagHud';
+  h.setAttribute('role', 'region'); h.setAttribute('aria-label', 'Viewport diagnostics readout');
+  h.style.cssText = 'position:fixed;left:8px;right:8px;z-index:2147483000;padding:6px 8px;border-radius:10px;background:rgba(4,8,14,0.9);border:1px solid rgba(120,200,255,0.5);color:#cfe8ff;font:11px/1.35 ui-monospace,Menlo,monospace;pointer-events:auto;';
+  const status = document.createElement('div'); status.setAttribute('data-vp', 'status'); status.style.cssText = 'margin-bottom:4px;opacity:.85;';
+  const grid = document.createElement('div'); grid.setAttribute('data-vp', 'grid'); grid.style.cssText = 'display:grid;grid-template-columns:auto auto auto auto;column-gap:8px;row-gap:1px;';
+  const row = document.createElement('div'); row.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;';
+  row.appendChild(vpDiagButton('Capture', () => vpDiagCapture()));
+  row.appendChild(vpDiagButton('Copy', b => vpDiagCopy(b)));
+  row.appendChild(vpDiagButton('Move', () => { vpDiag.hudPos = vpDiag.hudPos === 'top' ? 'middle' : 'top'; vpDiagRefresh(); }));
+  row.appendChild(vpDiagButton('Hide', b => { vpDiag.hudMin = !vpDiag.hudMin; b.textContent = vpDiag.hudMin ? 'Show' : 'Hide'; vpDiagRefresh(); }));
+  h.appendChild(status); h.appendChild(grid); h.appendChild(row);
+  document.documentElement.appendChild(h);
+  vpDiag.hud = h;
+}
+async function vpDiagCopy(btn){
+  const text = vpDiagReport(vpDiagMeasure(), vpDiag);
+  let ok = false;
+  try{ if(navigator.clipboard && navigator.clipboard.writeText){ await navigator.clipboard.writeText(text); ok = true; } }catch(e){ ok = false; }
+  if(!ok && vpDiag.panel){
+    try{ const pre = vpDiag.panel.querySelector('pre'); const range = document.createRange(); range.selectNodeContents(pre); const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range); ok = document.execCommand('copy'); }catch(e){ ok = false; }
+  }
+  if(btn){ btn.textContent = ok ? 'Copied' : 'Copy failed'; setTimeout(() => { btn.textContent = btn.getAttribute('data-label'); }, 1600); }
+  if(!ok && !vpDiag.panel) openViewportDiagnostics();
+  return ok;
+}
+function vpDiagRenderPanel(){
+  const p = vpDiag.panel;
+  if(!p) return;
+  p.querySelector('[data-vp="toggle"]').textContent = 'Measure the workout: ' + (vpDiag.on ? 'ON' : 'OFF');
+  p.querySelector('pre').textContent = vpDiagReport(vpDiagMeasure(), vpDiag);
+}
+function openViewportDiagnostics(){
+  if(vpDiag.panel){ vpDiagRenderPanel(); return; }
+  const p = document.createElement('div');
+  p.id = 'vpDiagPanel';
+  p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', 'Viewport Diagnostics');
+  p.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;z-index:2147483001;background:#070B12;color:#e8eef7;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;' +
+    'padding:calc(env(safe-area-inset-top,0px) + 16px) calc(env(safe-area-inset-right,0px) + 16px) calc(env(safe-area-inset-bottom,0px) + 16px) calc(env(safe-area-inset-left,0px) + 16px);font:14px/1.45 system-ui,sans-serif;';
+  const h = document.createElement('h2'); h.textContent = 'Viewport Diagnostics'; h.style.cssText = 'margin:0 0 4px;font:700 20px/1.2 system-ui,sans-serif;';
+  const sub = document.createElement('div'); sub.textContent = 'Temporary (' + VP_DIAG.build + '). Geometry only — nothing about your training is read or copied.'; sub.style.cssText = 'opacity:.7;font-size:12.5px;margin-bottom:12px;';
+  const how = document.createElement('div');
+  how.textContent = 'Turn measuring on, close Settings and open your workout. A small readout appears at the top and captures the numbers when the workout opens, when the keyboard opens and closes, and when you rotate. Capture adds a snapshot; Copy puts the full report on the clipboard.';
+  how.style.cssText = 'font-size:13px;opacity:.85;margin-bottom:12px;';
+  const row = document.createElement('div'); row.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;';
+  const toggle = vpDiagButton('', () => { vpDiagEnable(!vpDiag.on); vpDiagRenderPanel(); }); toggle.setAttribute('data-vp', 'toggle');
+  row.appendChild(toggle);
+  row.appendChild(vpDiagButton('Refresh', () => vpDiagRenderPanel()));
+  row.appendChild(vpDiagButton('Copy diagnostics', b => vpDiagCopy(b)));
+  if(navigator.share) row.appendChild(vpDiagButton('Share', () => { try{ navigator.share({ title: 'LOOP viewport diagnostics', text: vpDiagReport(vpDiagMeasure(), vpDiag) }).catch(() => {}); }catch(e){} }));
+  row.appendChild(vpDiagButton('Clear captures', () => { vpDiag.snaps = []; vpDiag.letter = 0; vpDiag.log = []; vpDiagRenderPanel(); }));
+  row.appendChild(vpDiagButton('Close', () => closeViewportDiagnostics()));
+  const pre = document.createElement('pre');
+  pre.style.cssText = 'white-space:pre-wrap;word-break:break-word;font:11px/1.4 ui-monospace,Menlo,monospace;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;margin:0;-webkit-user-select:text;user-select:text;';
+  p.appendChild(h); p.appendChild(sub); p.appendChild(how); p.appendChild(row); p.appendChild(pre);
+  document.documentElement.appendChild(p);
+  vpDiag.panel = p;
+  vpDiagReadCaches();
+  vpDiagRenderPanel();
+}
+/* Which caches the service worker holds: the build the phone is really running. */
+function vpDiagReadCaches(){
+  try{ if(window.caches && caches.keys) caches.keys().then(k => { vpDiag.caches = k.join(', ') || 'none'; if(vpDiag.panel) vpDiagRenderPanel(); }).catch(() => {}); }catch(e){}
+}
+function closeViewportDiagnostics(){ if(vpDiag.panel){ vpDiag.panel.remove(); vpDiag.panel = null; } }
+/* Installed at load: the hidden gesture, and the measuring again if this session turned it on. */
+(function installViewportDiagnostics(){
+  try{
+    const v = document.getElementById('settingsVersion');
+    if(v && v.addEventListener) v.addEventListener('click', vpDiagVersionTap);
+    if(vpDiagFlag()) setTimeout(() => vpDiagEnable(true), 0);
+  }catch(e){}
+})();
+
 function backToSettings(fromOverlayId){
   document.getElementById(fromOverlayId).classList.remove('open');
   openSettings();

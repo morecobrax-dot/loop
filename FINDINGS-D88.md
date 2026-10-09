@@ -2262,7 +2262,14 @@ counts as training time, and what an old unfinished workout should say.
 presenting an implausible span as measured. Both need no new storage, and neither invents pausing. Leave C and D until the
 owner decides what "workout time" means.
 
-## E64 — On a physical iPhone the workout's Previous / Skip row stood well above the bottom edge, which the headless geometry tests could not see · P3 · PROVEN (by the owner's screenshot) · **HELD — awaiting the phone (D138, LOOP 10.57)**
+## E64 — On a physical iPhone the workout's Previous / Skip row stood well above the bottom edge, which the headless geometry tests could not see · P3 · PROVEN (by the owner's screenshot) · **OPEN — 10.57 did not fix it on the owner's iPhone; device measurements requested (D138.1)**
+
+> **D138.1 — still open.** A new screenshot from the owner's iPhone, taken on 10.57, still shows Previous / Skip well above the
+> physical bottom with a large dark band beneath. D138's change did not fix it on the phone; its CSS stays (it moved nothing in any browser
+> that could be measured), and no second fix was attempted. Instead 10.57 now carries a temporary, hidden instrument (TRAINER-CONTRACT §180):
+> seven taps on the version line in Settings open Viewport Diagnostics, which measures, on the installed PWA itself, the screen, the layout
+> viewport, the visual viewport, the safe-area insets, every workout box and the gaps between them, before, during and after the keyboard.
+> No cause is inferred here. The next phase (D138.2) starts from the phone's own numbers.
 
 Found by the owner on a real iPhone, after D133. In the active workout (Core, Ab Crunch Machine) the Previous / Skip row stood well above
 the physical bottom, with a band of empty dark ground beneath it. That screenshot was not available to the session that took this on.
