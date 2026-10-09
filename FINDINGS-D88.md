@@ -2262,6 +2262,36 @@ counts as training time, and what an old unfinished workout should say.
 presenting an implausible span as measured. Both need no new storage, and neither invents pausing. Leave C and D until the
 owner decides what "workout time" means.
 
+## E64 — On a physical iPhone the workout's Previous / Skip row stood well above the bottom edge, which the headless geometry tests could not see · P3 · PROVEN (by the owner's screenshot) · **HELD — awaiting the phone (D138, LOOP 10.57)**
+
+Found by the owner on a real iPhone, after D133. In the active workout (Core, Ab Crunch Machine) the Previous / Skip row stood well above
+the physical bottom, with a band of empty dark ground beneath it. That screenshot was not available to the session that took this on.
+
+**What D133 measured, and why it passed.** The dock's bottom edge against `innerHeight`, in headless Edge with a CDP safe-area override. Both
+are the layout viewport, so the dock was at the bottom whatever the phone's real screen did. That is a true measurement of a different
+question. It cannot see a layout viewport that is not the screen, a pinned page that is taller than it, or a height that resolves to
+something else on WebKit.
+
+**What was found in the shell (measured, headless).**
+- The sheet's height was `100%` of the fixed overlay, under a `max-height: 100%` that three other rules had capped before (D60, D100).
+  Correct only if that percentage resolved to the whole screen.
+- While any page or sheet is open the app pins `<body>` (`position: fixed`), but the pinned body kept the page's own clearance under the
+  tab bar (84px + the inset) and its page height: 1,087px on an 852px screen, 979–1,402px in the cases measured. Slack the workout
+  covers and never needed.
+- Neither was reproduced as a gap: in headless Edge the dock was at the bottom in 10.56 and is in 10.57.
+
+**What D138 did.** The sheet is now the overlay's own box (absolute, all four insets 0, no height cap), and the pinned page is the screen
+and reserves nothing while the workout is open. CSS only; see TRAINER-CONTRACT §179 and Contract 257. The real-browser rig now measures
+the dock against the VISUAL viewport and asserts the structure.
+
+**Why it is HELD, not closed.** No WebKit, no iPhone and no screenshot were available to the session, so the cause on the phone is not
+proven and the fix is not either. It closes when the owner confirms on the phone that the row sits at the bottom with only the
+home-indicator space beneath it, with the keyboard, in landscape, after exit and re-entry, and after a Resume.
+
+**If the gap is still there.** Do not widen the CSS. Get the facts that decide it: the iOS version; whether the app is launched from the
+Home Screen or a Safari tab; whether the keyboard was used before the screenshot; and a screenshot of Today and of the workout in the same
+state. A `visualViewport.offsetTop` left over after the keyboard closes, or an iOS 26 viewport change, are the candidates the CSS cannot reach.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

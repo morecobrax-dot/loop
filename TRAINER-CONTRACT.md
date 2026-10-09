@@ -19510,3 +19510,32 @@ on 10.56 and on 10.55's own engines as they shipped (`SHIPPED_1055`, pinned). It
 pairs, and 400 generated histories are attributed.
 
 **Not proven here.** How it reads on a physical iPhone.
+
+
+## §179 — THE WORKOUT PAGE IS THE SCREEN, AND THE DOCK IS ITS LAST ROW (D138 · LOOP 10.57 · loop-v234)
+
+CSS only. One block at the end of the D132 system block, and one What's New entry. No script moved, no store, field or migration:
+16 DATA_KEYS, schema 1, trainer 0.1.1-shadow. D133 (the dock as the page's own ground, the inset paid once), D132 / D132.1, D134–D137
+and the normal tab bar are unchanged.
+
+**The report.** The owner's iPhone showed Previous / Skip standing well above the bottom edge with empty ground beneath (E64). D133 had
+measured the dock against `innerHeight`, which is the layout viewport, so it could not see what the phone showed.
+
+**Two things in the shell that depended on something resolving, and now do not.**
+1. The sheet took its height from `100%` of the fixed overlay, under a `max-height: 100%`. It is now the overlay's own box:
+   `position: absolute` with all four insets 0, `height: auto`, `max-height: none`. It cannot be shorter than the overlay, whatever a
+   height or a viewport unit comes to. The dock is still its last flex row; the scroll box still ends at its edge.
+2. While a page or sheet is open the app pins `<body>` so the document behind stops being a document. That pinned body kept the page's
+   tab-bar clearance (84px + the inset) and its page height (1,087px on an 852px screen, 979–1,402px measured). While the workout is open
+   (`html:has(#logOverlay.open) body.scroll-locked`) it is the screen high and reserves nothing. The scroll offset is still captured before
+   the pin and restored after it.
+
+**The inset is paid once.** The dock's `max(8px, env(safe-area-inset-bottom))` is the only length below the buttons; nothing follows the
+dock in the sheet and no ancestor adds padding, margin or border under it. Not `dvh`: D60 measured `100dvh` coming up a status bar short on
+an installed phone with a translucent status bar, which is why the workout takes its height from its page.
+
+**The test model.** The rig measures the dock against `visualViewport` as well as `innerHeight`, and asserts the structure (sheet pinned,
+no document slack, nothing after the dock, the inset once). In headless Edge 10.56 and 10.57 both put the dock at the bottom: the 10.56
+control fails only the two structural claims. **That is the limit of this proof.** Headless Edge is not an iPhone.
+
+**Not proven here.** Whether the gap on the phone is gone. E64 is HELD until the owner confirms it, and PROJECT-STATUS stays needsQa.

@@ -9899,6 +9899,23 @@ svg text[font-family*="JetBrains"]{ font-family: var(--font-ui); font-variant-nu
 #logOverlay .ex-brief .warmup-label{ margin-bottom: 6px; }
 #logOverlay .ex-sets-bar{ margin-top: var(--space-2); }
 #logOverlay .ex-log-row .sets-list{ margin-top: 0; }
+/* D138 — THE WORKOUT PAGE IS THE SCREEN, AND THE DOCK IS ITS LAST ROW.
+   A physical iPhone showed Previous and Skip standing well above the bottom edge with a band of empty ground
+   beneath them, which D133's headless measurements (the dock against innerHeight) could not see. Two things in the
+   workout's shell depended on something resolving, and both are removed here rather than trusted:
+   · The sheet took its height from "100%" of the fixed overlay and a max-height that three other rules had capped before
+     (D60, D100), so the dock was only at the bottom if that percentage resolved to the whole screen. The sheet is now the
+     overlay's own box, pinned by all four insets: it cannot be shorter than the overlay, whatever a height or a
+     viewport unit comes to, and no height cap can reach it. The dock is still its last flex row, the sets still scroll
+     to its edge, and the inset below the buttons is still paid once, by the dock (D133).
+   · While a page or sheet is open the app pins the page's body in place (position: fixed, so the document behind stops being a
+     document) — but the pinned body kept the clearance it has under the tab bar (84px + the inset) and its
+     page-tall height: 1,087px on an 852px screen, 979–1,402px in the cases measured. That is slack the screen was never
+     meant to have, and the tab bar it stands for is covered by the workout. While the workout is open the pinned body
+     is the screen and reserves nothing. Everything else keeps its rule: it is scoped to the open workout, and the
+     tab bar, the page behind and every other sheet are as they were. */
+#logOverlay .sheet.sheet-page{ position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: auto; height: auto; max-height: none; }
+html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padding-bottom: 0; }
 /* ==== D132 SYSTEM END ==== */
 </style>
 </head>
@@ -19722,6 +19739,20 @@ const LOOP_UPDATES = [
     bugFixes: [
       'A lift LOOP called stalled is now called declining when your performance has dropped two sessions running, and if it has also stayed below the range with nothing left in reserve for two sessions, LOOP now suggests a lighter weight, as it already did for lifts that weren’t stalled'
     ],
+    changes: []
+  },
+  {
+    id: 'v10-57',
+    version: 'LOOP 10.57',
+    title: 'Workout Controls Sit Where They Should',
+    date: '2026-10-09',
+    swVersion: 'loop-v234',
+    summary: 'The workout page is now anchored to the whole screen, so its controls are held against the bottom edge.',
+    newFeatures: [],
+    improvements: [
+      'Previous, Skip, Next and Finish are now anchored to the bottom edge of the workout page, with only your phone’s home-indicator space beneath them'
+    ],
+    bugFixes: [],
     changes: []
   }
 ];

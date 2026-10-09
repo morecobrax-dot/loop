@@ -741,6 +741,29 @@ const D131B_RAW = [
     "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
    ]
 ];
+/* D138 (LOOP 10.57) — the workout page is the screen, and the dock is its last row. Two hunks: one CSS block at the end of the
+   D132 system block (the sheet pinned by all four insets; the pinned page behind it reserving nothing while the workout is
+   open) and the What's New entry. asOf1056Html(raw) takes them out and reads back LOOP 10.56 to the byte. Every older
+   read-back starts there: the HTML chain through asOf1055Html, and every function chain through d120Source, which hands
+   them the file as 10.55 by way of 10.56. Contract 257 proves what the block does and what it must leave alone. */
+const D138_RAW = [
+ [
+  "/* D138 — THE WORKOUT PAGE IS THE SCREEN, AND THE DOCK IS ITS LAST ROW.\n   A physical iPhone showed Previous and Skip standing well above the bottom edge with a band of empty ground\n   beneath them, which D133's headless measurements (the dock against innerHeight) could not see. Two things in the\n   workout's shell depended on something resolving, and both are removed here rather than trusted:\n   · The sheet took its height from \"100%\" of the fixed overlay and a max-height that three other rules had capped before\n     (D60, D100), so the dock was only at the bottom if that percentage resolved to the whole screen. The sheet is now the\n     overlay's own box, pinned by all four insets: it cannot be shorter than the overlay, whatever a height or a\n     viewport unit comes to, and no height cap can reach it. The dock is still its last flex row, the sets still scroll\n     to its edge, and the inset below the buttons is still paid once, by the dock (D133).\n   · While a page or sheet is open the app pins the page's body in place (position: fixed, so the document behind stops being a\n     document) — but the pinned body kept the clearance it has under the tab bar (84px + the inset) and its\n     page-tall height: 1,087px on an 852px screen, 979–1,402px in the cases measured. That is slack the screen was never\n     meant to have, and the tab bar it stands for is covered by the workout. While the workout is open the pinned body\n     is the screen and reserves nothing. Everything else keeps its rule: it is scoped to the open workout, and the\n     tab bar, the page behind and every other sheet are as they were. */\n#logOverlay .sheet.sheet-page{ position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: auto; height: auto; max-height: none; }\nhtml:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padding-bottom: 0; }\n/* ==== D132 SYSTEM END ==== */\n",
+  "/* ==== D132 SYSTEM END ==== */\n"
+ ],
+ [
+  "    changes: []\n  },\n  {\n    id: 'v10-57',\n    version: 'LOOP 10.57',\n    title: 'Workout Controls Sit Where They Should',\n    date: '2026-10-09',\n    swVersion: 'loop-v234',\n    summary: 'The workout page is now anchored to the whole screen, so its controls are held against the bottom edge.',\n    newFeatures: [],\n    improvements: [\n      'Previous, Skip, Next and Finish are now anchored to the bottom edge of the workout page, with only your phone’s home-indicator space beneath them'\n    ],\n    bugFixes: [],\n    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)",
+  "    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)"
+ ]
+];
+const D138_WHATSNEW = "  },\n  {\n    id: 'v10-57',\n    version: 'LOOP 10.57',\n    title: 'Workout Controls Sit Where They Should',\n    date: '2026-10-09',\n    swVersion: 'loop-v234',\n    summary: 'The workout page is now anchored to the whole screen, so its controls are held against the bottom edge.',\n    newFeatures: [],\n    improvements: [\n      'Previous, Skip, Next and Finish are now anchored to the bottom edge of the workout page, with only your phone’s home-indicator space beneath them'\n    ],\n    bugFixes: [],\n    changes: []\n";
+const D138_CSS = "/* D138 — THE WORKOUT PAGE IS THE SCREEN, AND THE DOCK IS ITS LAST ROW.\n   A physical iPhone showed Previous and Skip standing well above the bottom edge with a band of empty ground\n   beneath them, which D133's headless measurements (the dock against innerHeight) could not see. Two things in the\n   workout's shell depended on something resolving, and both are removed here rather than trusted:\n   · The sheet took its height from \"100%\" of the fixed overlay and a max-height that three other rules had capped before\n     (D60, D100), so the dock was only at the bottom if that percentage resolved to the whole screen. The sheet is now the\n     overlay's own box, pinned by all four insets: it cannot be shorter than the overlay, whatever a height or a\n     viewport unit comes to, and no height cap can reach it. The dock is still its last flex row, the sets still scroll\n     to its edge, and the inset below the buttons is still paid once, by the dock (D133).\n   · While a page or sheet is open the app pins the page's body in place (position: fixed, so the document behind stops being a\n     document) — but the pinned body kept the clearance it has under the tab bar (84px + the inset) and its\n     page-tall height: 1,087px on an 852px screen, 979–1,402px in the cases measured. That is slack the screen was never\n     meant to have, and the tab bar it stands for is covered by the workout. While the workout is open the pinned body\n     is the screen and reserves nothing. Everything else keeps its rule: it is scoped to the open workout, and the\n     tab bar, the page behind and every other sheet are as they were. */\n#logOverlay .sheet.sheet-page{ position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: auto; height: auto; max-height: none; }\nhtml:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padding-bottom: 0; }\n";
+const SHA_1056_HTML = '2601c7d694e50cfd';   /* index.html of LOOP 10.56 (af1b86b), LF */
+function asOf1056Html(raw){
+  let t = raw;
+  for(const [now, then] of D138_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
+}
 /* D137 (LOOP 10.56, E48 + E49 + E50) — progression reads the whole performance. Thirteen hunks: D47's test named once
    (grindingBelowRange), the plateau tier telling flat from falling, D125's new-load projection, one workout's evidence and one
    comparison, detectPlateau reading through them, the declining words on Today and the workout cards, and the What's New
@@ -805,7 +828,8 @@ const D137_RAW = [
 const D137_WHATSNEW = "  },\n  {\n    id: 'v10-56',\n    version: 'LOOP 10.56',\n    title: 'Progression Reads the Whole Performance',\n    date: '2026-10-08',\n    swVersion: 'loop-v233',\n    summary: 'LOOP now uses more of what you actually did when judging progress and planning the next session.',\n    newFeatures: [],\n    improvements: [\n      'When you earn a heavier weight you haven’t lifted recently, its set targets now build from your last session at the lighter weight, one rep lower (never below the range where you reached it), instead of every set starting at the bottom of the range',\n      'When your top set is unchanged, stronger later sets at the same weights, or more reps in reserve that you logged, can now count as progress instead of a stall'\n    ],\n    bugFixes: [\n      'A lift LOOP called stalled is now called declining when your performance has dropped two sessions running, and if it has also stayed below the range with nothing left in reserve for two sessions, LOOP now suggests a lighter weight, as it already did for lifts that weren’t stalled'\n    ],\n    changes: []\n";
 const SHA_1055_HTML = '4f317d5609d28d60';   /* index.html of LOOP 10.55 (eccb086), LF */
 function asOf1055Html(raw){
-  let t = raw;
+  let t = asOf1056Html(raw);   // D138 restated: 10.57 reads back as 10.56 first
+  if(t === null) return null;
   for(const [now, then] of D137_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
   return t;
 }
@@ -25040,8 +25064,12 @@ async function testWorkoutSheetReachesTheEdge(){
     const chain = [html, body, page(stepper), sheet];
     ['max-height', 'height'].forEach(prop => {
       const all = declared(chain, prop), won = winner(all), caps = all.filter(d => VIEWPORT.test(d.value));
-      T(label + ': its ' + prop + ' is one unconditional 100% that outranks every other ' + prop + ' able to reach it, viewport caps included, in any media query',
-        won.length === 1 && !won[0].media.length && won[0].value === '100%',
+      /* D138 restated: the sheet takes its height from its page either as 100% (10.56) or, since 10.57, as the page's own box:
+         position absolute, top and bottom 0 (both unconditional), height auto and max-height none. Never from the viewport. */
+      const one1 = p => { const w = winner(declared(chain, p)); return w.length === 1 && !w[0].media.length ? w[0].value : null; };
+      const pinned = (won.length === 1 && (won[0].value === 'auto' || won[0].value === 'none')) && one1('position') === 'absolute' && one1('top') === '0' && one1('bottom') === '0';
+      T(label + ': its ' + prop + ' is one unconditional value that outranks every other ' + prop + ' able to reach it, viewport caps included, in any media query: 100%, or the page’s own box (D138: absolute, top and bottom 0)',
+        won.length === 1 && !won[0].media.length && !VIEWPORT.test(won[0].value) && (won[0].value === '100%' || pinned),
         'winner: ' + show(won) + ' — ' + caps.length + ' viewport-relative of ' + all.length + ': ' + show(all));
     });
   });
@@ -55346,7 +55374,7 @@ async function testLiveWarmupD131B(){
     const was = asOf1050Html(raw);
     T('45  the file reads back as LOOP 10.50 to the byte (index.html of 0f72dba) once D131B’s statements and What’s New entry are taken out', !!was && sha(was) === SHA_1050_HTML, was && sha(was));
     const css = s => s.slice(s.indexOf('<style>'), s.indexOf('</style>'));
-    T('46  D132 and D132.1 untouched: the stylesheet is 10.50’s byte for byte — the current-set ring, the set circle, the warm-up’s amber, every token', !!was && css(raw.replace(D133_CSS, () => '')) === css(was));   // D133 restated: read without D133's own block (Contract 252)
+    T('46  D132 and D132.1 untouched: the stylesheet is 10.50’s byte for byte — the current-set ring, the set circle, the warm-up’s amber, every token', !!was && css(raw.replace(D133_CSS, () => '').replace(D138_CSS, () => '')) === css(was));   /* D138 restated: read without D138's block (Contract 257) */   // D133 restated: read without D133's own block (Contract 252)
     T('47  records, XP, rank, Mastery, Recovery and Session Score are 10.50’s: their engines byte-identical',
       pin('computePRs') === 'ff1f540c2ae3b46a' && pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computeXPEvents') === 'cec5fa2cffc42db5' && pin('getCurrentProgression') === 'bf3a7572296c620c' &&
       pin('computeMuscleRecovery') === 'd3589033bdb54c67' && pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' && pin('deriveExerciseDetail') === '2e7f87f1c8567b0a' && pin('masteryViewHtml') === 'cfeb04f7ef9796a6');
@@ -56399,7 +56427,7 @@ async function testWarmupApplicabilityD136(){
       s('S3 manual split (freeform)', 3, 'Close-Grip Bench Press').hidden && !s('S3 manual split (freeform)', 3, 'Dumbbell Bench Press').hidden && s('S3 manual split (freeform)', 3, 'Dumbbell Bench Press').plan.split('/')[0] === '' &&
       sameFn('splitRowForSwap') && /CLOSED in D135/.test(statusOf('E59')));
     T('33–37  E63 stays closed; D134’s duration, D133’s shell, D132’s system and D132.1’s circles are 10.54’s byte for byte (the whole stylesheet, workoutElapsedSeconds, workoutSpanLimitSec, activeWorkoutTimeText)',
-      !!was && raw.slice(raw.indexOf('<style>'), raw.indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')) && ['workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText', 'workoutTimeOf'].every(sameFn) && /CLOSED in D134/.test(statusOf('E63')));
+      !!was && raw.replace(D138_CSS, () => '').slice(raw.indexOf('<style>'), raw.replace(D138_CSS, () => '').indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')) /* D138 restated: read without D138's block */ && ['workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText', 'workoutTimeOf'].every(sameFn) && /CLOSED in D134/.test(statusOf('E63')));
     const p1 = cell('P1 D50B', 1, 'Bench Press');
     T('38–39  D49 and D50B are unchanged: the coach’s adapted sets after a hard Set 1 are exactly 10.54’s, the strip anchor stays the prescription, and D49’s next answer is the same in every class',
       p1.rows === cell('P1 D50B', 1, 'Bench Press', Q).rows && p1.internal === cell('P1 D50B', 1, 'Bench Press', Q).internal && ALL.every(n => same(R[n].d49, Q[n].d49)) && ['progressionFor', 'refreshSetCoach', 'deriveNextSetCoach', 'exerciseSessionHistory'].every(sameFn));
@@ -56482,6 +56510,119 @@ async function testWarmupApplicabilityD136(){
     T('51  the change is one statement pair in refreshSuggestedWarmups and the What’s New entry: the scripts differ by nothing else', !!was && D136_RAW.length === 2 && /const begun = exerciseWorkBegun\(exRow\);\s*if\(wrap\.hidden !== begun\) wrap\.hidden = begun;/.test(fnSrc(raw, 'refreshSuggestedWarmups')) && col(fnSrc(raw, 'refreshSuggestedWarmups')) !== col(fnSrc(was, 'refreshSuggestedWarmups')));
     T('52  What’s New v10-55 “Warm-up Guidance Knows When You’re Training” is LOOP 10.55 / loop-v232, dated in New York, and sw.js serves loop-v232',
       /id: 'v10-55',\s*version: 'LOOP 10\.55',\s*title: 'Warm-up Guidance Knows When You’re Training',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v232'/.test(raw) && /CACHE_VERSION = 'loop-v2(3[2-9]|[4-9]\d)'/.test(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8')));   // D137 restated: sw.js serves the newest release (Contract 256 holds loop-v233)
+  });
+}
+
+/* =========================================================
+   CONTRACT 257 — D138 (LOOP 10.57): THE WORKOUT PAGE IS THE SCREEN, AND THE DOCK IS ITS LAST ROW
+   A physical iPhone showed Previous and Skip standing well above the bottom edge with empty ground beneath them. D133 had
+   measured the dock against innerHeight in headless Edge and found it at the edge, which was true and not enough: that
+   measurement cannot see a viewport that is not the one the page is laid out in. This release removes the two things in the
+   workout's shell that depended on a percentage or a leftover resolving — the sheet's "height: 100%" under a max-height
+   that three other rules had capped before, and a pinned <body> that kept the page's 84px + inset clearance under the tab
+   bar the workout covers — and the real-browser rig now measures the dock against the VISUAL viewport and asserts the
+   structure. Nothing in a script moved. No layout engine runs in this suite: it reads the cascade and the source; the
+   geometry at twelve sizes is the rig's, and the physical result is the owner's.
+   ========================================================= */
+async function testWorkoutBottomDockD138(){
+  section('CONTRACT 257 — the workout page is the screen and the dock is its last row (D138)');
+  const fs = require('fs'), crypto = require('crypto');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const was = asOf1056Html(raw);
+  const styleOf = t => t ? t.slice(t.indexOf('<style>'), t.indexOf('</style>')) : '';
+  const scriptOf = t => t ? t.slice(t.indexOf('<script'), t.lastIndexOf('</script>')) : '';
+  const cssNow = styleOf(raw), cssWas = styleOf(was);
+  const blockAt = cssNow.indexOf(D138_CSS), noCmt = D138_CSS.replace(/\/\*[\s\S]*?\*\//g, '');
+  const TOK = (() => { const root = cssNow.slice(cssNow.indexOf(':root{'), cssNow.indexOf('\n}', cssNow.indexOf(':root{'))); const t = {}; root.slice(root.indexOf('{') + 1).replace(/\/\*[\s\S]*?\*\//g, '').split(';').forEach(d => { const m = /^\s*(--[\w-]+)\s*:\s*([\s\S]+?)\s*$/.exec(d); if(m) t[m[1]] = m[2]; }); return t; })();
+  const CN = d133Cascade(cssNow), CW = d133Cascade(cssWas);
+  const { html, body, page, sheet } = D133_CASCADE_CHAINS;
+  const el = (tag, id, classes) => ({ tag, id: id || null, classes: classes || [] });
+  const dockChain = [html, body, page, sheet, el('div', 'wsNav', ['ws-nav'])];
+  const barChain = [html, body, page, sheet, el('div', 'wsFinishBar', ['sheet-actions'])];
+  const scrollChain = [html, body, page, sheet, Object.assign(el('div', null, ['sheet-scroll']), { prev: el('div', null, ['workout-topbar']) })];
+  const val = (C, chain, prop, state) => { const w = C.won(chain, prop, state || null); return w ? w.value : null; };
+  const landscape = m => /orientation:\s*landscape/.test(m) && /max-height:\s*500px/.test(m);
+  const phoneLandscape = m => landscape(m);
+  const sameFn = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+  const status = (id) => { const fx = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'FINDINGS-D88.md'), 'utf8'); const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
+
+  /* ---------------------------------------------------------------- */
+  sub('1–3  zero drift: D138 changed one CSS block and one What’s New entry');
+  await guard('drift', async () => {
+    T('1  every D138 change is where it was written, once — the file reads back as LOOP 10.56', was !== null);
+    T('2  …and that read-back is LOOP 10.56 to the byte (index.html of af1b86b): no engine, renderer, handler, record, storage key or other rule moved', !!was && sha(was) === SHA_1056_HTML, was && sha(was));
+    T('3  the change is the block below plus one What’s New entry: the scripts of both files are identical once the entry is out, and the block sits at the end of the D132 system block',
+      !!was && blockAt !== -1 && scriptOf(raw).replace(D138_WHATSNEW, '') === scriptOf(was) && cssNow.indexOf(D132_BLOCK[0]) < blockAt && blockAt < cssNow.indexOf(D132_BLOCK[1]) && cssNow.replace(D138_CSS, '') === cssWas, blockAt);
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('4–7  the geometry that produced the physical issue, and the structure that replaces it');
+  await guard('geometry', async () => {
+    const st = (C, p, state) => val(C, [html, body, page, sheet], p, state);
+    T('4  frozen 10.56 has the geometry the phone exposed: the workout sheet is a relative box whose height is "100%" and whose max-height is "100%" — the dock sits at the bottom only if that percentage resolves to the whole screen',
+      st(CW, 'position') === 'relative' && st(CW, 'height') === '100%' && st(CW, 'max-height') === '100%', [st(CW, 'position'), st(CW, 'height'), st(CW, 'max-height')]);
+    T('5  the candidate’s sheet is the overlay’s own box: absolute, all four insets 0, an automatic height and no cap — there is no percentage to resolve and no viewport-unit or max-height rule that can shorten it',
+      st(CN, 'position') === 'absolute' && ['top', 'right', 'bottom', 'left'].every(p => st(CN, p) === '0') && st(CN, 'height') === 'auto' && st(CN, 'max-height') === 'none' && st(CN, 'width') === 'auto', ['position', 'top', 'bottom', 'height', 'max-height'].map(p => st(CN, p)));
+    const caps = CN.declared([html, body, page, sheet], 'max-height').filter(d => d.value !== 'none');
+    T('6  …in every state: the old caps (the base 92vh, the 100dvh sheet rule and its landscape twin, the page’s 100%) are all still in the file and all lose to the block, portrait and landscape', caps.length >= 3 && [null, phoneLandscape].every(s => st(CN, 'max-height', s) === 'none' && st(CN, 'height', s) === 'auto' && st(CN, 'bottom', s) === '0'), caps.map(d => d.selector));
+    T('7  the dock is still the sheet’s last flex row (a sibling after the scroll box and the rest readout, not an overlay): the flex column, the scroll box’s flex: 1 and the dock’s flex-shrink: 0 are as they were',
+      val(CN, [html, body, page, sheet], 'display') === val(CW, [html, body, page, sheet], 'display') && val(CN, [html, body, page, sheet], 'flex-direction') === val(CW, [html, body, page, sheet], 'flex-direction') && val(CN, scrollChain, 'flex') === val(CW, scrollChain, 'flex') && /flex-shrink:\s*0/.test(cssRule(cssNow, '\n.ws-nav{')) && val(CN, dockChain, 'position') === 'relative');
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('8–11  no leftover below the dock: the safe area once, nothing reserved, nothing after it');
+  await guard('leftover', async () => {
+    const env = I => ({ 'safe-area-inset-bottom': I, 'safe-area-inset-top': I ? 47 : 0 });
+    const below = (C, chain, I) => { const w = C.wonOf(chain, ['padding', 'padding-bottom'], null); if(!w) return null; if(w.prop === 'padding-bottom') return d133Len(w.value, TOK, env(I)); const p = w.value.split(/\s+(?![^()]*\))/); return d133Len(p.length === 1 ? p[0] : p.length === 2 || p.length === 3 ? (p[2] || p[0]) : p[2], TOK, env(I)); };
+    const ownBottom = (C, chain, I) => ['padding-bottom', 'margin-bottom', 'border-bottom-width'].map(p => { const w = C.won(chain, p, null); return w ? d133Len(w.value, TOK, env(I)) || 0 : 0; }).reduce((a, b) => a + b, 0);
+    T('8  the inset is counted once: the dock pays max(8px, the inset) — 34 on an iPhone, 8 where there is none — and the sheet, the overlay and the scroll box add nothing beneath it',
+      below(CN, dockChain, 34) === 34 && below(CN, dockChain, 0) === 8 && [[html, body, page, sheet], [html, body, page], scrollChain].every(ch => ownBottom(CN, ch, 34) === (ch === scrollChain ? ownBottom(CW, ch, 34) : 0)), [below(CN, dockChain, 34), below(CN, dockChain, 0)]);
+    T('9  the block names no inset, no tab bar and no length: it adds no env(), no 84px / 97px / 118px, no viewport unit and no bottom padding of its own to anything but the pinned page behind (to 0)',
+      !/env\(|safe-area/.test(noCmt) && !/(84|97|118)px/.test(noCmt) && !/[\d.](?:[dsl]?vh|vmin|vmax)\b/i.test(noCmt) && (noCmt.match(/padding-bottom/g) || []).length === 1 && /body\.scroll-locked\s*\{[^}]*padding-bottom:\s*0\s*;/.test(noCmt), noCmt);
+    T('10  the finish bar of an empty workout is the same single row (the ground, no rule, the inset once below its button) and is empty — never a second bar — on every step but that one',
+      val(CN, barChain, 'background') === 'var(--bg)' && below(CN, barChain, 34) === 34 && /\.sheet-actions:empty\s*\{\s*display:\s*none/.test(cssNow) && /if\(finishBar\) finishBar\.innerHTML = '';/.test(raw), [val(CN, barChain, 'background'), below(CN, barChain, 34)]);
+    T('11  the page behind has no slack while the workout is open and only then: the rule is "html:has(#logOverlay.open) body.scroll-locked" — the pinned page is the screen high, with no min-height and no tab-bar clearance — and nothing else in the block touches <body>',
+      /html:has\(#logOverlay\.open\) body\.scroll-locked\s*\{\s*height:\s*100%;\s*min-height:\s*0;\s*padding-bottom:\s*0;\s*\}/.test(noCmt) && (noCmt.match(/\bbody\b/g) || []).length === 1 && cssNow.replace(D138_CSS, '') === cssWas, noCmt.match(/[^{}]*body[^{}]*\{[^}]*\}/g));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('12–19  reach: the sets, Add Set and Rest end above the dock; keyboard, landscape, exit and re-entry are the code they were');
+  await guard('reach', async () => {
+    const scrollEnd = C => ['padding-bottom'].map(p => val(C, scrollChain, p) || val(C, scrollChain, 'padding'))[0];
+    T('12  the scroll box ends at the dock’s edge and its end padding is D133’s (so the last set, Add Set and Rest scroll clear of the dock’s fade): unchanged by the block', scrollEnd(CN) === scrollEnd(CW) && !/sheet-scroll/.test(noCmt) && !/ws-nav|ws-rest/.test(noCmt));
+    T('13  a short workout cannot raise the dock: the sheet’s height does not depend on its content (it is pinned top and bottom), where a content-sized sheet would have carried the dock up with it', val(CN, [html, body, page, sheet], 'height') === 'auto' && val(CN, [html, body, page, sheet], 'bottom') === '0' && val(CN, [html, body, page, sheet], 'top') === '0');
+    T('14  the keyboard path is the code it was: focus, scroll-into-view and the 16px field rule are untouched, and the block reads no viewport or keyboard state (no unit, no media query, no JS)', !/@media|visualViewport|innerHeight/.test(noCmt) && sameFn('addLogExerciseRow') && sameFn('appendSetRow') && /input, textarea, select\{[^}]*font-size: 16px/.test(cssNow));
+    T('15  landscape is valid: no media query in the block, and in the phone-landscape state the sheet still wins on every property that places it (position, insets, height, max-height)', !/@media/.test(D138_CSS) && ['position', 'top', 'bottom', 'height', 'max-height'].every(p => val(CN, [html, body, page, sheet], p, phoneLandscape) === val(CN, [html, body, page, sheet], p, null)));
+    T('16  the normal tab bar is not touched: every rule that draws the tab bar, its tabs, the update row and the page’s clearance is the same text as in 10.56', (() => { const tabs = css => { const nc = css.replace(/\/\*[\s\S]*?\*\//g, ''); const re = /([^{}]+)\{([^{}]*)\}/g; let m; const out = []; while((m = re.exec(nc))) if(/\.tabbar|\.tab-btn|\.app-update|(^|[\s,])body(\.|\{|\s|,|:)/.test(m[1]) && !/#logOverlay/.test(m[1])) out.push(m[1].replace(/\s+/g, ' ').trim() + '{' + m[2].replace(/\s+/g, ' ').trim() + '}'); return out.join('\n'); }; return tabs(cssNow).replace(/html:has\(#logOverlay\.open\) body\.scroll-locked\{[^}]*\}\n?/, '') === tabs(cssWas) && tabs(cssWas).length > 600; })());
+    T('17  nothing leaks out of the open workout: the page rule needs #logOverlay.open on the root’s subtree, so with the workout closed — exit, or another sheet — the page keeps its min-height and its 84px + inset', /html:has\(#logOverlay\.open\)/.test(noCmt) && !/(^|[^\w#.-])body\.scroll-locked\s*\{/.test(noCmt.replace(/html:has\(#logOverlay\.open\) body\.scroll-locked/g, '')));
+    T('18  leaving and re-entering run the code they ran: closeLogSheet (which unpins the page), the resume path, start, the draft restore and the step renderer are identical to 10.56', ['closeLogSheet', 'renderResumeBanner', 'resumeActiveWorkout', 'startTemplateLog', 'openFreeformLog', 'restoreDraftToSheet', 'captureActiveDraft', 'renderWorkoutStep', 'goToWorkoutStep', 'lockBackgroundScroll', 'unlockBackgroundScroll', 'syncBackgroundScrollLock'].every(sameFn));
+    T('19  the unpin restores the scroll offset the pin captured, and the pinned page’s new height cannot change it: the offset is taken before the class is added and applied after it is removed, as in 10.56', /_lockedScrollY = window\.scrollY[\s\S]*?document\.body\.style\.top = \(-_lockedScrollY\) \+ 'px'/.test(raw) && /classList\.remove\('scroll-locked'\);[\s\S]*?window\.scrollTo\(\{ top: _lockedScrollY, behavior: 'instant' \}\)/.test(raw));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('20–32  protected systems and storage');
+  await guard('protected', async () => {
+    T('20  D133’s density and its block are unchanged: the whole D133 block is in the file once, byte for byte, and no rule of the D132 system block moved', cssNow.split(D133_CSS).length === 2 && cssNow.replace(D138_CSS, '') === cssWas);
+    T('21  the D132 button system and D132.1’s circles are unchanged: the stylesheet minus the block is 10.56’s, byte for byte (so every button, token and circle rule is)', cssNow.replace(D138_CSS, '') === cssWas && /\.stepper-on \.ws-current \.set-idx::before\{ box-sizing: border-box; width: 32px;/.test(cssNow));
+    T('22–24  D134’s duration, D135’s split and D136’s warm-up applicability are unchanged: their functions are 10.56’s text', ['workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText', 'splitRowForSwap', 'refreshSuggestedWarmups', 'exerciseWorkBegun', 'seedWarmupTargets'].every(sameFn));
+    T('25–28  D137’s progression is unchanged: D49, the plateau, the comparison, the projection and the plan are 10.56’s text, and so are D50B’s coach and D131A / D131B', ['buildProgressionRecommendation', 'progressionFor', 'detectPlateau', 'compareProgressionEvidence', 'workoutProgressionEvidence', 'newLoadProjection', 'deriveWorkingSetPlan', 'grindingBelowRange', 'applyPhaseProgressionPolicy', 'refreshSetCoach', 'deriveNextSetCoach', 'applyCoachToFutureSets', 'captureActiveDraft', 'restoreDraftToSheet'].every(sameFn));
+    T('29–31  PRs, XP and Session Score are unchanged: no script moved, so every record, event and score engine is 10.56’s', !!was && scriptOf(raw).replace(D138_WHATSNEW, '') === scriptOf(was) && ['computePRs', 'computeAllPREvents', 'computeXPTimeline', 'sessionScore', 'getTopExerciseMastery', 'computeMuscleRecovery'].every(sameFn));
+    const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '');
+    const c = H.loadApp({ dataSchemaVersion: '1', workoutLog: '[]' }).ctx;
+    T('32  16 DATA_KEYS (the same sixteen, in the running app), schema 1, the trainer 0.1.1-shadow; nothing is stored for any of this', !!dk && !!dkw && dk[1] === dkw[1] && (c.DATA_KEYS || []).length === 16 && String(c.DATA_SCHEMA_VERSION) === '1' && /TRAINER_ENGINE_VERSION = '0\.1\.1-shadow'/.test(raw));
+    T('33  E60 and E61 are untouched (still OPEN), and the finding for this release says the physical result is the owner’s: E64 is HELD until the phone confirms', ['E60', 'E61'].every(id => /· OPEN/.test(status(id))) && /E64/.test(status('E64')) && /HELD/.test(status('E64')), status('E64').slice(-60));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the words and the release');
+  await guard('words', async () => {
+    const wn = D138_WHATSNEW;
+    T('What’s New v10-57 “Workout Controls Sit Where They Should” is LOOP 10.57 / loop-v234, dated in New York, one improvement and no bug-fix claim (the phone has not confirmed one), and sw.js serves loop-v234 or a later cache',
+      /id: 'v10-57'[\s\S]*version: 'LOOP 10\.57'[\s\S]*title: 'Workout Controls Sit Where They Should'[\s\S]*date: '2026-\d\d-\d\d'[\s\S]*swVersion: 'loop-v234'[\s\S]*newFeatures: \[\],[\s\S]*improvements: \[\s*'[^']+'\s*\],[\s\S]*bugFixes: \[\],[\s\S]*changes: \[\]/.test(wn)
+      && /CACHE_VERSION = 'loop-v2(3[4-9]|[4-9]\d)'/.test(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8')) && !/\bE\d{2}\b|D1\d\d\b/.test(wn));
   });
 }
 
@@ -56620,7 +56761,7 @@ async function testProgressionEvidenceD137(){
     T('31–32  D131A and D131B are 10.55’s byte for byte (the draft, the restore, the live warm-up)', ['captureActiveDraft', 'restoreDraftToSheet', 'refreshSuggestedWarmups', 'seedWarmupTargets', 'warmupBoxHtml', 'sessionPreparation', 'generalPrepSatisfiedBy'].every(sameFn));
     T('33–35  E59, E62 and E63 stay CLOSED and their code is 10.55’s (the split, the warm-up applicability, the duration)', /CLOSED in D135/.test(statusOf('E59')) && /CLOSED in D136/.test(statusOf('E62')) && /CLOSED in D134/.test(statusOf('E63'))
       && ['splitRowForSwap', 'workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText'].every(sameFn));
-    T('36–37  D133’s shell, D132’s system and D132.1’s circles: the whole stylesheet is 10.55’s byte for byte', !!was && raw.slice(raw.indexOf('<style>'), raw.indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')));
+    T('36–37  D133’s shell, D132’s system and D132.1’s circles: the whole stylesheet is 10.55’s byte for byte', !!was && raw.replace(D138_CSS, () => '').slice(raw.indexOf('<style>'), raw.replace(D138_CSS, () => '').indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')));   /* D138 restated: read without D138's block (Contract 257) */
     const all = FIX.filter(f => !f.bw).map(f => logOf(f).map((e, i) => Object.assign({}, e, { id: f.id.slice(0, 6) + '-' + i, date: e.date }))).reduce((a, x) => a.concat(x), []);
     const reads = side => on(all, side, () => ({ prs: sha(JSON.stringify([c.computeAllPREvents().map(v => [v.id, v.exerciseName, v.hits.map(h => h.type + ':' + h.next)]), c.computePRs().map(p => [p.name, p.weight, p.reps])])),
       xp: (() => { const tl = c.computeXPTimeline(); return [tl.lifetimeXP, tl.prCount]; })(), score: sha(JSON.stringify(all.map(l => { const s = c.sessionScore(l); return s && s.available ? s.score : null; }))),
@@ -56697,7 +56838,7 @@ async function testProgressionEvidenceD137(){
     T('every D137 change is where it was written, once — the file reads back as LOOP 10.55 to the byte (index.html of eccb086)', !!was && sha(was) === SHA_1055_HTML, was && sha(was));
     T('10.55 replay — the 10.55 side runs 10.55’s own engines: each SHIPPED_1055 text hashes to its pin, and 10.56 read back as 10.55 gives exactly those texts', SHIP.every(n => sha(SHIPPED_1055[n]) === SHIPPED_1055_PIN[n] && asOf1055(n) === SHIPPED_1055[n]));
     T('What’s New v10-56 “Progression Reads the Whole Performance” is LOOP 10.56 / loop-v233, dated in New York, and sw.js serves loop-v233',
-      /id: 'v10-56',\s*version: 'LOOP 10\.56',\s*title: 'Progression Reads the Whole Performance',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v233'/.test(raw) && fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').indexOf("CACHE_VERSION = 'loop-v233'") !== -1);
+      /id: 'v10-56',\s*version: 'LOOP 10\.56',\s*title: 'Progression Reads the Whole Performance',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v233'/.test(raw) && /CACHE_VERSION = 'loop-v2(3[3-9]|[4-9]\d)'/.test(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8')));   // D138 restated: sw.js serves the newest release
   });
 }
 
@@ -57183,6 +57324,7 @@ async function main(){
   await testSplitProvenanceD135();
   await testWarmupApplicabilityD136();
   await testProgressionEvidenceD137();
+  await testWorkoutBottomDockD138();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

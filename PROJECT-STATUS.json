@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.56",
+  "version": "10.57",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check: open a lift LOOP just moved up a weight. Its first set targets build from your last session, one rep lower; a falling lift says declining.",
+  "nextAction": "Owner iPhone check: open the workout from Core. Previous and Skip should sit at the bottom with only the home-indicator space below. Tell me if a gap remains.",
   "blocker": null,
-  "updatedAt": "2026-10-08T19:56:00Z"
+  "updatedAt": "2026-10-09T05:57:01Z"
 }
