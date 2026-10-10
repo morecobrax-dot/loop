@@ -10003,6 +10003,17 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
 .tr-chips.more-right{ -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); }
 .tr-chips.more-left{ -webkit-mask-image: linear-gradient(to right, transparent, #000 36px); mask-image: linear-gradient(to right, transparent, #000 36px); }
 .tr-chips.more-left.more-right{ -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
+/* D139.1 — SAVE A BUILT WORKOUT. The preview's actions read Start first: Save workout is the quiet partner beside
+   it, sized by its own label so it never wraps, and Build another moves under the exercises as a plain text action.
+   The save sheet is one labelled field and one button. Nothing outside these selectors changes. */
+#bfmActions .bfm-save{ flex: 0 1 auto; padding-inline: 16px; white-space: nowrap; }
+.bfm-again{ display: block; min-height: 44px; margin: var(--space-3) auto 0; padding: 0 18px; color: var(--accent); font: inherit; font-weight: 600; background: none; border: 0; border-radius: var(--r-control); cursor: pointer; }
+.bfm-save-form{ display: grid; gap: 8px; margin-top: var(--space-3); }
+.bfm-save-form label{ margin: 0; }
+#bfmSaveName{ width: 100%; min-height: 48px; }
+.bfm-save-hint{ margin: 4px 0 0; }
+#bfmSaveActions .bfm-cta{ flex: 1 1 auto; }
+#bfmSaveActions .bfm-cta:disabled{ opacity: 0.55; cursor: default; }
 /* ==== D132 SYSTEM END ==== */
 </style>
 </head>
@@ -10589,6 +10600,29 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
       <div id="bfmBody"></div>
     </div>
     <div class="sheet-actions" id="bfmActions"></div>
+  </div>
+</div>
+
+<!-- SAVE A BUILT WORKOUT (D139.1) — a small sheet over the Build for me preview: the name, then Save. The workout's
+     exercises, sets and reps are the preview's; nothing else is asked. -->
+<div class="overlay" id="bfmSaveOverlay" onclick="backdropDismiss(event, closeBfmSave)">
+  <div class="sheet" role="dialog" aria-labelledby="bfmSaveTitle">
+    <div class="sheet-scroll">
+      <div class="td-head">
+        <span class="td-kicker">Save workout</span>
+        <button type="button" class="td-close" onclick="closeBfmSave()" aria-label="Close"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      </div>
+      <h2 class="bfm-title" id="bfmSaveTitle" tabindex="-1">Save to My Workouts</h2>
+      <form id="bfmSaveForm" class="bfm-save-form" onsubmit="bfmSaveConfirm(); return false;" novalidate>
+        <label for="bfmSaveName">Workout name</label>
+        <input type="text" id="bfmSaveName" autocomplete="off" autocapitalize="words" enterkeyhint="done" maxlength="60">
+        <p class="bfm-hint bfm-save-hint" id="bfmSaveHint"></p>
+        <p class="bfm-note" id="bfmSaveMsg" role="status" hidden></p>
+      </form>
+    </div>
+    <div class="sheet-actions" id="bfmSaveActions">
+      <button type="submit" form="bfmSaveForm" class="btn-primary bfm-cta" id="bfmSaveBtn">Save workout</button>
+    </div>
   </div>
 </div>
 
@@ -19910,6 +19944,24 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-61',
+    version: 'LOOP 10.61',
+    title: 'Save Built Workouts',
+    date: '2026-10-10',
+    swVersion: 'loop-v238',
+    summary: 'Found a workout you like? Save a Build for me session to My Workouts and use it again anytime.',
+    newFeatures: [
+      'Save workout on a Build for me preview keeps it in My Workouts, with any swaps and removals you made'
+    ],
+    improvements: [
+      'A saved workout keeps its exercises, sets and rep targets, and LOOP still picks the weights from your progress each time you train it'
+    ],
+    bugFixes: [],
+    changes: [
+      'Build another now sits under the exercise list, so Start and Save are the two buttons at the bottom'
+    ]
   }
 ];
 
@@ -24077,7 +24129,8 @@ function bfmPreviewHtml(st){
       ${st.open.why ? `<ul class="bfm-why">${s.reasons.map(x => `<li>${escapeHtml(x.text)}</li>`).join('')}</ul>` : ''}
     </div>
     ${st.note ? `<p class="bfm-note" role="status">${escapeHtml(st.note)}</p>` : ''}
-    <ol class="bfm-rows" aria-label="Exercises">${s.rows.map((r, i) => bfmRowHtml(r, i, st)).join('')}</ol>`;
+    <ol class="bfm-rows" aria-label="Exercises">${s.rows.map((r, i) => bfmRowHtml(r, i, st)).join('')}</ol>
+    <button type="button" class="bfm-again" onclick="bfmAnother()">Build another</button>`;
 }
 
 function renderBuildForMe(){
@@ -24097,7 +24150,7 @@ function renderBuildForMe(){
     if(title) title.textContent = s.mode === 'plan' ? (s.planName || CAT_LABEL[s.cat]) + ', for today' : CAT_LABEL[s.cat] + ', built for today';
     body.innerHTML = bfmPreviewHtml(st);
     acts.innerHTML = s.rows.length && !s.problems.length
-      ? '<button type="button" class="btn-secondary" onclick="bfmAnother()">Build another</button><button type="button" class="btn-primary bfm-cta" onclick="startGeneratedWorkout()">Start workout</button>'
+      ? '<button type="button" class="btn-secondary bfm-save" onclick="openBfmSave()">Save workout</button><button type="button" class="btn-primary bfm-cta" onclick="startGeneratedWorkout()">Start workout</button>'
       : '';
   }
   try{ body.querySelectorAll('.bfm-seg').forEach(el => { const a = el.querySelector('.seg-btn.active'); if(a && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }); }catch(e){}
@@ -24268,6 +24321,124 @@ function trainChipsEdges(){
     if(row && typeof ResizeObserver === 'function') new ResizeObserver(() => { try{ trainRevealActiveChip(); }catch(e){} trainChipsEdges(); }).observe(row);
   }catch(e){}
 })();
+
+/* =========================================================
+   SAVE A BUILT WORKOUT  (Phase D139.1)
+   ---------------------------------------------------------
+   A Build for me session the athlete likes becomes one of their saved
+   workouts. Not a new kind of workout: the same five fields every saved
+   workout has (a name, then each exercise's name, sets, reps, effort and
+   starting weight), in the plan's list for its kind, through the path LOOP
+   already uses to save a workout on the athlete's behalf (D80B's Save to My
+   Workouts): a fresh c- id, a name never overwritten ("… 2"), the write
+   confirmed or nothing kept, then every view redrawn.
+     · What is saved is the preview as it stands — after swaps, removals, a
+       new window or Build another — and only its structure: the exercises
+       in order, their sets, reps and effort.
+     · No weight travels. The starting weight is LOOP's blank, so D49 and
+       D125 choose the load each time it is trained; the preview's Next load
+       is today's answer, not the workout's.
+     · Nothing about today travels either: no reasons, scores, recovery,
+       readiness, window, limits, removals list or variant.
+     · It is the athlete's workout, not the program's: no program, phase or
+       slot. Started later from My Workouts it is started like any saved
+       workout (startTemplateLog).
+     · Saving writes no history, no preference and no program, and the
+       session in the preview keeps its own origin ('generated').
+   ========================================================= */
+let bfmSaveState = null;   /* { error, busy } while the save sheet is open; memory only */
+
+/* The name LOOP proposes: the kind, and where it came from. The athlete can change it. */
+function bfmSaveProposedName(s){ return (CAT_LABEL[s.cat] || 'Workout') + ' — Built for me'; }
+
+/* The preview as a saved workout: the shape the workout editor and Save to My Workouts write. The starting weight is
+   LOOP's blank — or Bodyweight where the row's own prescription says so, because that marker is what makes a plan's
+   Walking Lunge bodyweight work (rowStartsAsBodyweight): structure, not load. A number never travels. */
+function bfmSavedTemplateOf(s){
+  return {
+    exercises: s.rows.map(r => ({
+      name: String(r.name),
+      sets: String(r.sets),
+      reps: shareCleanText(r.reps),
+      effort: shareCleanText(r.effort) || '7',
+      recommended: String(r.recommended == null ? '' : r.recommended).trim() === 'Bodyweight' ? 'Bodyweight' : '—'
+    }))
+  };
+}
+
+/* Save to My Workouts, as a share is saved: into the plan's list for the session's kind, never overwriting a name,
+   and only if the write lands. */
+async function saveBuiltWorkout(s, name){
+  const cat = s && s.cat;
+  if(!s || !s.rows || !s.rows.length) return { ok: false, error: 'empty' };
+  if(!planData || !Array.isArray(planData[cat])) return { ok: false, error: 'no_plan' };
+  const clean = shareCleanText(name);
+  if(!clean) return { ok: false, error: 'no_name' };
+  const tpl = { id: nextSavedWorkoutId(), name: uniqueSavedWorkoutName(clean), exercises: bfmSavedTemplateOf(s).exercises };
+  planData[cat].push(tpl);
+  const saved = await persistPlanData();
+  if(saved === false){
+    planData[cat] = planData[cat].filter(t => t !== tpl);
+    return { ok: false, error: 'save_failed' };
+  }
+  try{ renderAll(); }catch(e){}
+  return { ok: true, name: tpl.name, cat: cat, id: tpl.id };
+}
+
+const BFM_SAVE_ERROR = {
+  no_plan: 'Choose a plan first — saved workouts live in your plan.',
+  save_failed: 'Couldn’t save it on this phone. Nothing was changed.',
+  no_name: 'Give it a name to save it.',
+  empty: 'There’s nothing to save in this workout.'
+};
+
+function openBfmSave(){
+  const s = bfmState && bfmState.session;
+  if(!s || !s.rows.length || s.problems.length) return;
+  bfmSaveState = { error: (!planData || !Array.isArray(planData[s.cat])) ? 'no_plan' : null, busy: false };
+  const input = document.getElementById('bfmSaveName');
+  if(input) input.value = bfmSaveProposedName(s);
+  renderBfmSave();
+  const ov = document.getElementById('bfmSaveOverlay');
+  if(ov) ov.classList.add('open');
+  /* the heading, not the field: focusing the field would raise the keyboard over the sheet before it is read. After
+     the sheet is drawn, as the cardio entry's focus waits. */
+  setTimeout(() => { const h = document.getElementById('bfmSaveTitle'); if(h && bfmSaveState){ try{ h.focus({ preventScroll: true }); }catch(e){} } }, 60);
+}
+function closeBfmSave(){
+  const ov = document.getElementById('bfmSaveOverlay');
+  if(ov) ov.classList.remove('open');
+  bfmSaveState = null;
+}
+function renderBfmSave(){
+  const st = bfmSaveState, s = bfmState && bfmState.session;
+  if(!st || !s) return;
+  const n = s.rows.length, sets = s.rows.reduce((t, r) => t + r.sets, 0);
+  const hint = document.getElementById('bfmSaveHint');
+  if(hint) hint.textContent = CAT_LABEL[s.cat] + ' · ' + n + ' exercise' + (n === 1 ? '' : 's') + ' · ' + sets + ' working sets. It keeps its exercises, sets and reps; LOOP picks the weights each time you train it.';
+  const msg = document.getElementById('bfmSaveMsg');
+  if(msg){ msg.textContent = st.error ? BFM_SAVE_ERROR[st.error] || 'This workout couldn’t be saved.' : ''; msg.hidden = !st.error; }
+  const btn = document.getElementById('bfmSaveBtn');
+  if(btn) btn.disabled = st.busy || st.error === 'no_plan';
+}
+async function bfmSaveConfirm(){
+  const st = bfmSaveState, s = bfmState && bfmState.session;
+  if(!st || !s || st.busy) return;
+  const input = document.getElementById('bfmSaveName');
+  const name = input ? input.value : '';
+  if(!shareCleanText(name)){ st.error = 'no_name'; renderBfmSave(); if(input) flagFieldError(input); return; }
+  st.busy = true; st.error = null; renderBfmSave();
+  let res;
+  try{ res = await saveBuiltWorkout(s, name); }catch(e){ res = { ok: false, error: 'save_failed' }; }
+  if(bfmSaveState !== st) return;
+  st.busy = false;
+  if(!res.ok){ st.error = res.error; renderBfmSave(); return; }
+  closeBfmSave();
+  bfmState.note = 'Saved to My Workouts as “' + res.name + '”.';
+  renderBuildForMe();
+  const again = document.querySelector('#bfmActions .bfm-save');
+  if(again){ try{ again.focus({ preventScroll: true }); }catch(e){} }
+}
 
 /* =========================================================
    VIEWPORT DIAGNOSTICS  (Phase D138.1 — TEMPORARY, for E64)

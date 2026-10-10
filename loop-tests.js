@@ -741,6 +741,45 @@ const D131B_RAW = [
     "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
    ]
 ];
+/* D139.1 (LOOP 10.61) — Save a built workout. Six hunks: the save code after the D139 block, the preview's actions
+   (Save workout beside Start), Build another under the exercises, the save sheet's markup, one CSS block at the end of
+   the D132 system block, and the What's New entry. asOf1060Html(raw) puts them back and reads back LOOP 10.60 (a0f629d)
+   to the byte. Every older read-back starts there: asOf1059Html, and through it the HTML chain and d120Source.
+   Contract 262 holds what the release does. */
+const D1391_RAW = [
+ [
+  "/* =========================================================\n   SAVE A BUILT WORKOUT  (Phase D139.1)\n   ---------------------------------------------------------\n   A Build for me session the athlete likes becomes one of their saved\n   workouts. Not a new kind of workout: the same five fields every saved\n   workout has (a name, then each exercise's name, sets, reps, effort and\n   starting weight), in the plan's list for its kind, through the path LOOP\n   already uses to save a workout on the athlete's behalf (D80B's Save to My\n   Workouts): a fresh c- id, a name never overwritten (\"… 2\"), the write\n   confirmed or nothing kept, then every view redrawn.\n     · What is saved is the preview as it stands — after swaps, removals, a\n       new window or Build another — and only its structure: the exercises\n       in order, their sets, reps and effort.\n     · No weight travels. The starting weight is LOOP's blank, so D49 and\n       D125 choose the load each time it is trained; the preview's Next load\n       is today's answer, not the workout's.\n     · Nothing about today travels either: no reasons, scores, recovery,\n       readiness, window, limits, removals list or variant.\n     · It is the athlete's workout, not the program's: no program, phase or\n       slot. Started later from My Workouts it is started like any saved\n       workout (startTemplateLog).\n     · Saving writes no history, no preference and no program, and the\n       session in the preview keeps its own origin ('generated').\n   ========================================================= */\nlet bfmSaveState = null;   /* { error, busy } while the save sheet is open; memory only */\n\n/* The name LOOP proposes: the kind, and where it came from. The athlete can change it. */\nfunction bfmSaveProposedName(s){ return (CAT_LABEL[s.cat] || 'Workout') + ' — Built for me'; }\n\n/* The preview as a saved workout: the shape the workout editor and Save to My Workouts write. The starting weight is\n   LOOP's blank — or Bodyweight where the row's own prescription says so, because that marker is what makes a plan's\n   Walking Lunge bodyweight work (rowStartsAsBodyweight): structure, not load. A number never travels. */\nfunction bfmSavedTemplateOf(s){\n  return {\n    exercises: s.rows.map(r => ({\n      name: String(r.name),\n      sets: String(r.sets),\n      reps: shareCleanText(r.reps),\n      effort: shareCleanText(r.effort) || '7',\n      recommended: String(r.recommended == null ? '' : r.recommended).trim() === 'Bodyweight' ? 'Bodyweight' : '—'\n    }))\n  };\n}\n\n/* Save to My Workouts, as a share is saved: into the plan's list for the session's kind, never overwriting a name,\n   and only if the write lands. */\nasync function saveBuiltWorkout(s, name){\n  const cat = s && s.cat;\n  if(!s || !s.rows || !s.rows.length) return { ok: false, error: 'empty' };\n  if(!planData || !Array.isArray(planData[cat])) return { ok: false, error: 'no_plan' };\n  const clean = shareCleanText(name);\n  if(!clean) return { ok: false, error: 'no_name' };\n  const tpl = { id: nextSavedWorkoutId(), name: uniqueSavedWorkoutName(clean), exercises: bfmSavedTemplateOf(s).exercises };\n  planData[cat].push(tpl);\n  const saved = await persistPlanData();\n  if(saved === false){\n    planData[cat] = planData[cat].filter(t => t !== tpl);\n    return { ok: false, error: 'save_failed' };\n  }\n  try{ renderAll(); }catch(e){}\n  return { ok: true, name: tpl.name, cat: cat, id: tpl.id };\n}\n\nconst BFM_SAVE_ERROR = {\n  no_plan: 'Choose a plan first — saved workouts live in your plan.',\n  save_failed: 'Couldn’t save it on this phone. Nothing was changed.',\n  no_name: 'Give it a name to save it.',\n  empty: 'There’s nothing to save in this workout.'\n};\n\nfunction openBfmSave(){\n  const s = bfmState && bfmState.session;\n  if(!s || !s.rows.length || s.problems.length) return;\n  bfmSaveState = { error: (!planData || !Array.isArray(planData[s.cat])) ? 'no_plan' : null, busy: false };\n  const input = document.getElementById('bfmSaveName');\n  if(input) input.value = bfmSaveProposedName(s);\n  renderBfmSave();\n  const ov = document.getElementById('bfmSaveOverlay');\n  if(ov) ov.classList.add('open');\n  /* the heading, not the field: focusing the field would raise the keyboard over the sheet before it is read. After\n     the sheet is drawn, as the cardio entry's focus waits. */\n  setTimeout(() => { const h = document.getElementById('bfmSaveTitle'); if(h && bfmSaveState){ try{ h.focus({ preventScroll: true }); }catch(e){} } }, 60);\n}\nfunction closeBfmSave(){\n  const ov = document.getElementById('bfmSaveOverlay');\n  if(ov) ov.classList.remove('open');\n  bfmSaveState = null;\n}\nfunction renderBfmSave(){\n  const st = bfmSaveState, s = bfmState && bfmState.session;\n  if(!st || !s) return;\n  const n = s.rows.length, sets = s.rows.reduce((t, r) => t + r.sets, 0);\n  const hint = document.getElementById('bfmSaveHint');\n  if(hint) hint.textContent = CAT_LABEL[s.cat] + ' · ' + n + ' exercise' + (n === 1 ? '' : 's') + ' · ' + sets + ' working sets. It keeps its exercises, sets and reps; LOOP picks the weights each time you train it.';\n  const msg = document.getElementById('bfmSaveMsg');\n  if(msg){ msg.textContent = st.error ? BFM_SAVE_ERROR[st.error] || 'This workout couldn’t be saved.' : ''; msg.hidden = !st.error; }\n  const btn = document.getElementById('bfmSaveBtn');\n  if(btn) btn.disabled = st.busy || st.error === 'no_plan';\n}\nasync function bfmSaveConfirm(){\n  const st = bfmSaveState, s = bfmState && bfmState.session;\n  if(!st || !s || st.busy) return;\n  const input = document.getElementById('bfmSaveName');\n  const name = input ? input.value : '';\n  if(!shareCleanText(name)){ st.error = 'no_name'; renderBfmSave(); if(input) flagFieldError(input); return; }\n  st.busy = true; st.error = null; renderBfmSave();\n  let res;\n  try{ res = await saveBuiltWorkout(s, name); }catch(e){ res = { ok: false, error: 'save_failed' }; }\n  if(bfmSaveState !== st) return;\n  st.busy = false;\n  if(!res.ok){ st.error = res.error; renderBfmSave(); return; }\n  closeBfmSave();\n  bfmState.note = 'Saved to My Workouts as “' + res.name + '”.';\n  renderBuildForMe();\n  const again = document.querySelector('#bfmActions .bfm-save');\n  if(again){ try{ again.focus({ preventScroll: true }); }catch(e){} }\n}\n\n/* =========================================================\n   VIEWPORT DIAGNOSTICS  (Phase D138.1",
+  "/* =========================================================\n   VIEWPORT DIAGNOSTICS  (Phase D138.1"
+ ],
+ [
+  "'<button type=\"button\" class=\"btn-secondary bfm-save\" onclick=\"openBfmSave()\">Save workout</button><button type=\"button\" class=\"btn-primary bfm-cta\" onclick=\"startGeneratedWorkout()\">Start workout</button>'",
+  "'<button type=\"button\" class=\"btn-secondary\" onclick=\"bfmAnother()\">Build another</button><button type=\"button\" class=\"btn-primary bfm-cta\" onclick=\"startGeneratedWorkout()\">Start workout</button>'"
+ ],
+ [
+  "    <ol class=\"bfm-rows\" aria-label=\"Exercises\">${s.rows.map((r, i) => bfmRowHtml(r, i, st)).join('')}</ol>\n    <button type=\"button\" class=\"bfm-again\" onclick=\"bfmAnother()\">Build another</button>`;",
+  "    <ol class=\"bfm-rows\" aria-label=\"Exercises\">${s.rows.map((r, i) => bfmRowHtml(r, i, st)).join('')}</ol>`;"
+ ],
+ [
+  "<!-- SAVE A BUILT WORKOUT (D139.1) — a small sheet over the Build for me preview: the name, then Save. The workout's\n     exercises, sets and reps are the preview's; nothing else is asked. -->\n<div class=\"overlay\" id=\"bfmSaveOverlay\" onclick=\"backdropDismiss(event, closeBfmSave)\">\n  <div class=\"sheet\" role=\"dialog\" aria-labelledby=\"bfmSaveTitle\">\n    <div class=\"sheet-scroll\">\n      <div class=\"td-head\">\n        <span class=\"td-kicker\">Save workout</span>\n        <button type=\"button\" class=\"td-close\" onclick=\"closeBfmSave()\" aria-label=\"Close\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 16 16\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M4 4l8 8M12 4l-8 8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\"/></svg></button>\n      </div>\n      <h2 class=\"bfm-title\" id=\"bfmSaveTitle\" tabindex=\"-1\">Save to My Workouts</h2>\n      <form id=\"bfmSaveForm\" class=\"bfm-save-form\" onsubmit=\"bfmSaveConfirm(); return false;\" novalidate>\n        <label for=\"bfmSaveName\">Workout name</label>\n        <input type=\"text\" id=\"bfmSaveName\" autocomplete=\"off\" autocapitalize=\"words\" enterkeyhint=\"done\" maxlength=\"60\">\n        <p class=\"bfm-hint bfm-save-hint\" id=\"bfmSaveHint\"></p>\n        <p class=\"bfm-note\" id=\"bfmSaveMsg\" role=\"status\" hidden></p>\n      </form>\n    </div>\n    <div class=\"sheet-actions\" id=\"bfmSaveActions\">\n      <button type=\"submit\" form=\"bfmSaveForm\" class=\"btn-primary bfm-cta\" id=\"bfmSaveBtn\">Save workout</button>\n    </div>\n  </div>\n</div>\n\n<!-- WORKOUT ICON & COLOR (D81)",
+  "<!-- WORKOUT ICON & COLOR (D81)"
+ ],
+ [
+  "/* D139.1 — SAVE A BUILT WORKOUT. The preview's actions read Start first: Save workout is the quiet partner beside\n   it, sized by its own label so it never wraps, and Build another moves under the exercises as a plain text action.\n   The save sheet is one labelled field and one button. Nothing outside these selectors changes. */\n#bfmActions .bfm-save{ flex: 0 1 auto; padding-inline: 16px; white-space: nowrap; }\n.bfm-again{ display: block; min-height: 44px; margin: var(--space-3) auto 0; padding: 0 18px; color: var(--accent); font: inherit; font-weight: 600; background: none; border: 0; border-radius: var(--r-control); cursor: pointer; }\n.bfm-save-form{ display: grid; gap: 8px; margin-top: var(--space-3); }\n.bfm-save-form label{ margin: 0; }\n#bfmSaveName{ width: 100%; min-height: 48px; }\n.bfm-save-hint{ margin: 4px 0 0; }\n#bfmSaveActions .bfm-cta{ flex: 1 1 auto; }\n#bfmSaveActions .bfm-cta:disabled{ opacity: 0.55; cursor: default; }\n/* ==== D132 SYSTEM END ==== */\n",
+  "/* ==== D132 SYSTEM END ==== */\n"
+ ],
+ [
+  "    changes: []\n  },\n  {\n    id: 'v10-61',\n    version: 'LOOP 10.61',\n    title: 'Save Built Workouts',\n    date: '2026-10-10',\n    swVersion: 'loop-v238',\n    summary: 'Found a workout you like? Save a Build for me session to My Workouts and use it again anytime.',\n    newFeatures: [\n      'Save workout on a Build for me preview keeps it in My Workouts, with any swaps and removals you made'\n    ],\n    improvements: [\n      'A saved workout keeps its exercises, sets and rep targets, and LOOP still picks the weights from your progress each time you train it'\n    ],\n    bugFixes: [],\n    changes: [\n      'Build another now sits under the exercise list, so Start and Save are the two buttons at the bottom'\n    ]\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)",
+  "    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)"
+ ]
+];
+const D1391_WHATSNEW = "  },\n  {\n    id: 'v10-61',\n    version: 'LOOP 10.61',\n    title: 'Save Built Workouts',\n    date: '2026-10-10',\n    swVersion: 'loop-v238',\n    summary: 'Found a workout you like? Save a Build for me session to My Workouts and use it again anytime.',\n    newFeatures: [\n      'Save workout on a Build for me preview keeps it in My Workouts, with any swaps and removals you made'\n    ],\n    improvements: [\n      'A saved workout keeps its exercises, sets and rep targets, and LOOP still picks the weights from your progress each time you train it'\n    ],\n    bugFixes: [],\n    changes: [\n      'Build another now sits under the exercise list, so Start and Save are the two buttons at the bottom'\n    ]\n";
+const D1391_CSS = "/* D139.1 — SAVE A BUILT WORKOUT. The preview's actions read Start first: Save workout is the quiet partner beside\n   it, sized by its own label so it never wraps, and Build another moves under the exercises as a plain text action.\n   The save sheet is one labelled field and one button. Nothing outside these selectors changes. */\n#bfmActions .bfm-save{ flex: 0 1 auto; padding-inline: 16px; white-space: nowrap; }\n.bfm-again{ display: block; min-height: 44px; margin: var(--space-3) auto 0; padding: 0 18px; color: var(--accent); font: inherit; font-weight: 600; background: none; border: 0; border-radius: var(--r-control); cursor: pointer; }\n.bfm-save-form{ display: grid; gap: 8px; margin-top: var(--space-3); }\n.bfm-save-form label{ margin: 0; }\n#bfmSaveName{ width: 100%; min-height: 48px; }\n.bfm-save-hint{ margin: 4px 0 0; }\n#bfmSaveActions .bfm-cta{ flex: 1 1 auto; }\n#bfmSaveActions .bfm-cta:disabled{ opacity: 0.55; cursor: default; }\n";
+const SHA_1060_HTML = '1181e81536c14e42';   /* index.html of LOOP 10.60 (a0f629d), LF */
+function asOf1060Html(raw){
+  let t = raw;
+  for(const [now, then] of D1391_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
+}
 /* D139 (LOOP 10.60) — Build for me: LOOP builds today's workout. Six hunks: the engine and the sheet's code in one script
    block before the viewport diagnostics, the Quick start entry, the sheet's markup, one CSS block at the end of the D132
    system block (the sheet and Train's filter track), one line in trainRevealActiveChip, and the What's New entry.
@@ -776,7 +815,8 @@ const D139_WHATSNEW = "  },\n  {\n    id: 'v10-60',\n    version: 'LOOP 10.60',\
 const D139_CSS = "/* D139 — BUILD FOR ME, AND TRAIN'S FILTER AS ONE CONTROL YOU SWIPE.\n   Build for me leads Quick start across both columns: one card, an accent-tinted tile, no gradient (that stays the primary\n   forward action's). Its sheet is LOOP's ordinary sheet: what LOOP knows as quiet pills, today's choices as D132\n   segmented tracks that scroll when they are wider than the sheet, optional groups behind a disclosure, the preview as\n   rows with the exercise's own art. Every control is at least 44px. Train's kinds of workout sit in one inset track with\n   a raised selected segment; an edge with more beyond it fades, so the row reads as something to swipe. */\n.tq-build{\n  grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 12px;\n  text-align: left; color: var(--text); background: var(--surface-1); border: 1px solid var(--accent-soft);\n  border-radius: var(--r-card); box-shadow: var(--elev-1); cursor: pointer;\n}\n.tq-build:active{ background: var(--surface-2); }\n.tq-build:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }\n.tq-build .tq-ic{ width: 36px; height: 36px; color: var(--accent); background: var(--accent-soft); }\n.tq-build .tq-main{ flex: 1 1 auto; }\n.tq-build .tq-title{ font-weight: 700; }\n.tq-build-go{ flex: 0 0 auto; color: var(--text-faint); font-size: 20px; line-height: 1; }\n.seg.seg-scroll{ overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; margin-top: 0; }\n.seg.seg-scroll::-webkit-scrollbar{ display: none; }\n.seg.seg-scroll .seg-btn{ flex: 0 0 auto; padding: 0 14px; white-space: nowrap; scroll-snap-align: start; }\n#bfmOverlay .td-kicker .bfm-back{\n  min-height: 44px; margin-left: -6px; padding: 0 6px; background: transparent; border: 0; color: var(--accent);\n  font: inherit; font-size: var(--fs-meta); font-weight: 700; letter-spacing: 0.06em; cursor: pointer;\n}\n.bfm-title{ margin: 4px 0 var(--space-3); }\n.bfm-known{ list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }\n.bfm-known li{ padding: 4px 10px; font-size: var(--fs-meta); color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 999px; }\n.bfm-group{ margin-top: var(--space-4); }\n.bfm-k{ margin: 0 0 8px; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }\n.bfm-k2{ margin: 12px 0 6px; font-size: var(--fs-meta); font-weight: 600; color: var(--text-dim); }\n.bfm-hint{ margin: 6px 0 0; font-size: var(--fs-meta); color: var(--text-faint); }\n.bfm-disclose{\n  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 48px; padding: 0 14px;\n  color: var(--text); font-weight: 600; text-align: left; background: var(--surface-1); border: 1px solid var(--hairline);\n  border-radius: var(--r-control); cursor: pointer;\n}\n.bfm-count{ margin-left: 6px; padding: 0 7px; font-size: var(--fs-micro); color: var(--accent); background: var(--accent-soft); border-radius: 999px; }\n.bfm-chev{ margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--text-faint); border-bottom: 2px solid var(--text-faint); transform: rotate(45deg); transition: transform 0.18s var(--ease); }\n.bfm-disclose[aria-expanded=\"true\"] .bfm-chev{ transform: rotate(-135deg); }\n.bfm-disclosed{ padding: 8px 2px 0; }\n.bfm-chips{ display: flex; flex-wrap: wrap; gap: 6px; }\n.bfm-chips .filter-chip{ min-height: 44px; }\n.bfm-sum{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }\n.bfm-stat{ display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); }\n.bfm-num{ font-size: 22px; font-weight: 700; line-height: 1.1; color: var(--text); font-variant-numeric: tabular-nums; }\n.bfm-lab{ font-size: var(--fs-meta); color: var(--text-faint); }\n.bfm-muscles{ margin: 12px 0 2px; font-weight: 600; color: var(--text); }\n.bfm-line{ margin: 0; font-size: var(--fs-meta); color: var(--text-dim); }\n.bfm-why{ margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: var(--fs-meta); color: var(--text-dim); }\n.bfm-note{ margin: 12px 0 0; padding: 8px 12px; font-size: var(--fs-meta); color: var(--text-dim); background: var(--surface-2); border-radius: var(--r-control); }\n.bfm-rows{ list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: 8px; }\n.bfm-row{ background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); }\n.bfm-row-main{ display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 8px 2px 8px 8px; }\n.bfm-art{ width: 48px; height: 48px; flex: 0 0 auto; }\n.bfm-art-sm{ width: 36px; height: 36px; }\n.bfm-row-text{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }\n.bfm-row-name{ font-weight: 600; line-height: 1.25; color: var(--text); overflow-wrap: anywhere; }\n.bfm-row-rx{ font-size: var(--fs-meta); color: var(--text-dim); font-variant-numeric: tabular-nums; }\n.bfm-next{ margin-left: 6px; color: var(--accent); font-weight: 600; }\n.bfm-row-why{ font-size: var(--fs-micro); color: var(--text-faint); }\n.bfm-pref{ margin-left: 4px; padding: 0 6px; font-size: var(--fs-micro); font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 999px; }\n.bfm-row-more{ flex: 0 0 auto; width: 44px; height: 44px; padding: 0; color: var(--text-dim); background: transparent; border: 0; border-radius: var(--r-control); font-size: 12px; letter-spacing: 1px; cursor: pointer; }\n.bfm-row-more[aria-expanded=\"true\"]{ color: var(--text); background: var(--surface-2); }\n.bfm-row-actions{ display: flex; flex-wrap: wrap; gap: 6px; padding: 0 8px 10px; }\n.bfm-act{ display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 14px; color: var(--text); font-weight: 600; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-control); cursor: pointer; }\n.bfm-act[aria-pressed=\"true\"], .bfm-act[aria-expanded=\"true\"]{ color: var(--accent); border-color: var(--accent-soft); }\n.bfm-act-quiet{ color: var(--text-dim); }\n.bfm-swap{ display: grid; gap: 6px; padding: 0 8px 10px; }\n.bfm-swap-opt{ display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 4px 12px 4px 6px; color: var(--text); text-align: left; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-control); cursor: pointer; }\n.bfm-empty{ display: grid; gap: 12px; margin-top: var(--space-3); color: var(--text-dim); }\n#bfmActions .bfm-cta{ flex: 1.4 1 0; }\n.tr-chips{\n  display: flex; gap: 2px; margin: 0 0 var(--space-3); padding: 3px; overflow-x: auto; overscroll-behavior-x: contain;\n  scroll-snap-type: x proximity; scroll-padding-inline: 3px; background: var(--surface-inset); border: 1px solid var(--hairline);\n  border-radius: var(--r-control); box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);\n}\n.tr-chips .filter-chip{\n  flex: 0 0 auto; min-height: 44px; padding: 0 14px; color: var(--text-dim); font-size: 13px; font-weight: 600; white-space: nowrap;\n  background: transparent; border: 0; border-radius: 9px; box-shadow: none; scroll-snap-align: start;\n}\n.tr-chips .filter-chip.active{\n  color: var(--text); font-weight: 700; background: var(--surface-3);\n  box-shadow: inset 0 1px 0 var(--edge-hi), 0 1px 3px rgba(0,0,0,0.45), 0 0 0 1px rgba(148,170,205,0.10);\n}\n.tr-chips.more-right{ -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); }\n.tr-chips.more-left{ -webkit-mask-image: linear-gradient(to right, transparent, #000 36px); mask-image: linear-gradient(to right, transparent, #000 36px); }\n.tr-chips.more-left.more-right{ -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); }\n";
 const SHA_1059_HTML = '61509adcee73dbce';   /* index.html of LOOP 10.59 (8deac29), LF */
 function asOf1059Html(raw){
-  let t = raw;
+  let t = asOf1060Html(raw);   // D139.1 restated: 10.61's hunks come out first
+  if(t === null) return null;
   for(const [now, then] of D139_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
   return t;
 }
@@ -55531,7 +55571,7 @@ async function testLiveWarmupD131B(){
     const was = asOf1050Html(raw);
     T('45  the file reads back as LOOP 10.50 to the byte (index.html of 0f72dba) once D131B’s statements and What’s New entry are taken out', !!was && sha(was) === SHA_1050_HTML, was && sha(was));
     const css = s => s.slice(s.indexOf('<style>'), s.indexOf('</style>'));
-    T('46  D132 and D132.1 untouched: the stylesheet is 10.50’s byte for byte — the current-set ring, the set circle, the warm-up’s amber, every token', !!was && css(raw.replace(D133_CSS, () => '').replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '')) === css(was));   /* D139 restated: and without D139's block (Contract 261) */   /* D138 restated: read without D138's block (Contract 257) */ /* D138.2 restated: and without D138.2's (Contract 259) */   // D133 restated: read without D133's own block (Contract 252)
+    T('46  D132 and D132.1 untouched: the stylesheet is 10.50’s byte for byte — the current-set ring, the set circle, the warm-up’s amber, every token', !!was && css(raw.replace(D133_CSS, () => '').replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '')) === css(was));   /* D139 restated: and without D139's block (Contract 261) */   /* D138 restated: read without D138's block (Contract 257) */ /* D138.2 restated: and without D138.2's (Contract 259) */   // D133 restated: read without D133's own block (Contract 252) /* D139.1 restated: and without D139.1's block (Contract 262) */
     T('47  records, XP, rank, Mastery, Recovery and Session Score are 10.50’s: their engines byte-identical',
       pin('computePRs') === 'ff1f540c2ae3b46a' && pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computeXPEvents') === 'cec5fa2cffc42db5' && pin('getCurrentProgression') === 'bf3a7572296c620c' &&
       pin('computeMuscleRecovery') === 'd3589033bdb54c67' && pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' && pin('deriveExerciseDetail') === '2e7f87f1c8567b0a' && pin('masteryViewHtml') === 'cfeb04f7ef9796a6');
@@ -56584,7 +56624,7 @@ async function testWarmupApplicabilityD136(){
       s('S3 manual split (freeform)', 3, 'Close-Grip Bench Press').hidden && !s('S3 manual split (freeform)', 3, 'Dumbbell Bench Press').hidden && s('S3 manual split (freeform)', 3, 'Dumbbell Bench Press').plan.split('/')[0] === '' &&
       sameFn('splitRowForSwap') && /CLOSED in D135/.test(statusOf('E59')));
     T('33–37  E63 stays closed; D134’s duration, D133’s shell, D132’s system and D132.1’s circles are 10.54’s byte for byte (the whole stylesheet, workoutElapsedSeconds, workoutSpanLimitSec, activeWorkoutTimeText)',
-      !!was && raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').slice(raw.indexOf('<style>'), raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')) /* D138 restated: read without D138's block */ /* D138.2 restated: and without D138.2's (Contract 259) */ && ['workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText', 'workoutTimeOf'].every(sameFn) && /CLOSED in D134/.test(statusOf('E63'))); /* D139 restated: and without D139's block (Contract 261) */
+      !!was && raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').slice(raw.indexOf('<style>'), raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')) /* D138 restated: read without D138's block */ /* D138.2 restated: and without D138.2's (Contract 259) */ && ['workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText', 'workoutTimeOf'].every(sameFn) && /CLOSED in D134/.test(statusOf('E63'))); /* D139 restated: and without D139's block (Contract 261) */ /* D139.1 restated: and without D139.1's block (Contract 262) */
     const p1 = cell('P1 D50B', 1, 'Bench Press');
     T('38–39  D49 and D50B are unchanged: the coach’s adapted sets after a hard Set 1 are exactly 10.54’s, the strip anchor stays the prescription, and D49’s next answer is the same in every class',
       p1.rows === cell('P1 D50B', 1, 'Bench Press', Q).rows && p1.internal === cell('P1 D50B', 1, 'Bench Press', Q).internal && ALL.every(n => same(R[n].d49, Q[n].d49)) && ['progressionFor', 'refreshSetCoach', 'deriveNextSetCoach', 'exerciseSessionHistory'].every(sameFn));
@@ -56671,6 +56711,317 @@ async function testWarmupApplicabilityD136(){
 }
 
 /* =========================================================
+   CONTRACT 262 — D139.1 (LOOP 10.61): SAVE A BUILT WORKOUT
+   A Build for me preview the athlete likes becomes one of their saved workouts, through the path LOOP already uses
+   to save a workout on their behalf (D80B's Save to My Workouts): the same five-field template in the plan's list for
+   its kind, a fresh c- id, a name never overwritten, the write confirmed or nothing kept. What is saved is the preview
+   as it stands, structure only: no weight (D49 and D125 decide at each start), nothing about today, no program. Saving
+   writes no history, no preference, no program, and leaves the preview's session 'generated'; the saved copy starts
+   like any saved workout — exactly as the same workout built in the editor. Every behaviour runs the real app in the
+   vm with the clock pinned to Friday 2026-10-09 (the Balanced plan's Push day).
+   ========================================================= */
+async function testSaveBuiltWorkoutD1391(){
+  section('CONTRACT 262 — a built workout saves to My Workouts as the athlete’s own (D139.1)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const was = asOf1060Html(raw);   /* a0f629d: LOOP 10.60 */
+  const styleOf = t => t ? t.slice(t.indexOf('<style>'), t.indexOf('</style>')) : '';
+  const sameFn = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+  const CODE = raw.slice(raw.indexOf('   SAVE A BUILT WORKOUT  (Phase D139.1)'), raw.indexOf('/* =========================================================\n   VIEWPORT DIAGNOSTICS')).replace(/\/\*[\s\S]*?\*\//g, '');
+  const read = n => fs.readFileSync(H.APP_PATH.replace(/index\.html$/, n), 'utf8').split('\r\n').join('\n');
+  const NOW = '2026-10-09T09:00:00', DAY = 86400000;
+  const dstr = n => { const d = new Date(new Date(NOW).getTime() - n * DAY); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  const WK = (n, cat, names, w) => ({ id: 'g' + n + cat, date: dstr(n), category: cat, title: cat, notes: '', origin: 'freeform',
+    exercises: names.map(x => ({ name: x, effort: '', bodyweight: false, sets: Array(3).fill(0).map(() => ({ weight: String(w || 100), reps: '10', rir: '2', type: 'working', completed: true })) })) });
+  const PUSH = ['Machine Chest Press', 'Incline DB Press', 'Pec Deck', 'Lateral Raise', 'Triceps Pushdown'];
+  const PULL = ['Lat Pulldown', 'Seated Cable Row', 'Face Pull', 'Barbell Curl', 'Hammer Curl'];
+  const LEGS = ['Leg Press', 'Romanian Deadlift', 'Leg Extension', 'Lying Leg Curl', 'Standing Calf Raise'];
+  const ppl = weeks => { const out = []; for(let w = 0; w < weeks; w++) [[4, 'push', PUSH], [3, 'pull', PULL], [1, 'legs', LEGS], [7, 'push', PUSH]].forEach(([d, c, e]) => out.push(WK(7 * w + d, c, e))); return out; };
+  const PREFS = m => JSON.stringify({ version: 1, swappedAway: {}, swappedTo: {}, manual: m || {} });
+  /* a running program whose Friday is the plan's Push A */
+  const day = (cat, id) => ({ type: 'workout', planId: 'balanced', category: cat, templateId: id, name: 'Push A — Chest Focus',
+    exercises: [['Machine Chest Press', 3, '8-12'], ['Incline DB Press', 3, '8-12'], ['Pec Deck', 3, '12-15'], ['Lateral Raise', 3, '12-15'], ['Triceps Pushdown', 3, '10-12']].map(([name, sets, reps]) => ({ name, sets, reps, effort: '8' })) });
+  const PROGRAM = { version: 1, activeProgramId: 'p1', programs: [{ id: 'p1', name: 'Hypertrophy Block', goal: 'hypertrophy', status: 'active', durationWeeks: 12, startDate: '2026-09-07',
+    schedule: { mon: day('push', 'd1'), tue: day('pull', 'd3'), wed: { type: 'rest' }, thu: day('legs', 'd-lg1'), fri: day('push', 'd1'), sat: { type: 'rest' }, sun: { type: 'rest' } } }] };
+  const base = { selectedPlan: JSON.stringify('balanced'), onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) };
+  const athlete = async store => {
+    const app = H.loadApp(Object.assign({}, base, { workoutLog: JSON.stringify(ppl(6)) }, store || {}));
+    const c = app.ctx; const release = pinClock(c, NOW);
+    await H.settle(250);
+    c.confirm = () => true;
+    const g = expr => vm.runInContext(expr, c);
+    return { c, app, release, g,
+      saved: () => JSON.parse(g('JSON.stringify(trainSavedWorkouts().map(x => Object.assign({ cat: x.cat }, x.t)))')),
+      state: () => g('JSON.stringify({ log: workoutLog, programs: programsStore, prefs: exercisePrefs, plans: Object.keys(planData).map(k => [k, planData[k].filter(t => !/^c-/.test(t.id))]) })'),
+      session: () => c.bfmStateOf().session,
+      open: () => { c.openBuildForMe(); c.bfmBuild(); },
+      save: async name => { c.openBfmSave(); if(name != null) c.document.getElementById('bfmSaveName').value = name; await c.bfmSaveConfirm(); await H.settle(20); } };
+  };
+  /* the preview's reusable structure, and a saved workout's */
+  const structOf = s => s.rows.map(r => [r.name, String(r.sets), String(r.reps)]);
+  const savedStruct = t => t.exercises.map(e => [e.name, e.sets, e.reps]);
+  const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  /* what Start hands the logger (the startCapture pattern) */
+  const capture = async (c, go) => {
+    const keep = {}; ['addLogExerciseRow', 'openLogSheet', 'confirmOverwriteDraft', 'persistDraftNow'].forEach(k => { keep[k] = c[k]; });
+    const rows = [];
+    Object.assign(c, { addLogExerciseRow: (...a) => rows.push(a), openLogSheet(){}, confirmOverwriteDraft: async () => true, persistDraftNow(){} });
+    try{ await go(); } finally { Object.assign(c, keep); }
+    return { rows, origin: c.pendingWorkoutOrigin, programId: c.pendingWorkoutProgramId, phase: c.pendingWorkoutPhase, cat: c.pendingLogCategory, title: c.document.getElementById('logTitle').value };
+  };
+
+  /* ---------------------------------------------------------------- */
+  sub('drift: one script block, two lines in the preview, one sheet, one CSS block, one What’s New entry');
+  await guard('drift', async () => {
+    T('every D139.1 change is where it was written, once, and taking them out reads back LOOP 10.60 (a0f629d) to the byte', !!was && sha(was) === SHA_1060_HTML && D1391_RAW.length === 6, was && sha(was));
+    T('…the stylesheet is 10.60’s once the D139.1 block is out, and the block sits at the end of the D132 system block', styleOf(raw).replace(D1391_CSS, '') === styleOf(was) && styleOf(raw).indexOf(D1391_CSS) < styleOf(raw).indexOf(D132_BLOCK[1]) && styleOf(raw).indexOf(D139_CSS) < styleOf(raw).indexOf(D1391_CSS));
+    T('…and saving reaches the store only through persistPlanData: no other write, no fetch, no network', CODE.length > 2000 && /await persistPlanData\(\)/.test(CODE) && !/LOOPStore|localStorage|sessionStorage|fetch\(|XMLHttpRequest|https?:\/\//.test(CODE));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('1–6  the preview as it stands is what is saved');
+  const A = await athlete();
+  await guard('save', async () => {
+    const before = A.state();
+    A.open();
+    const s = A.session(), P = structOf(s);
+    const builderBefore = JSON.stringify({ inputs: A.c.bfmStateOf().inputs, rows: s.rows });
+    await A.save();
+    const builderAfter = JSON.stringify({ inputs: A.c.bfmStateOf().inputs, rows: A.session().rows });
+    A.c.bfmCompose();
+    T('…and saving changes nothing the builder reads: the session on screen, today’s choices and a rebuild from them are exactly what they were', builderBefore === builderAfter && JSON.stringify(A.session().rows) === JSON.stringify(s.rows));
+    const mine = A.saved();
+    const t = mine[0];
+    T('1  Save workout saves the preview: one new saved workout (a c- id) in the plan’s list for its kind, its exercises, sets and reps exactly the preview’s, in order',
+      mine.length === 1 && /^c-\d+$/.test(t.id) && t.cat === s.cat && eq(savedStruct(t), P) && P.length >= 4, [t && t.cat, t && savedStruct(t), P]);
+    T('…the same five fields every saved workout has, nothing else: id, name, exercises; each exercise name, sets, reps, effort, starting weight — no reasons, scores, recovery, window, limits, variant, program, phase, slot or origin',
+      eq(Object.keys(t).filter(k => k !== 'cat').sort(), ['exercises', 'id', 'name']) && t.exercises.every(e => eq(Object.keys(e).sort(), ['effort', 'name', 'recommended', 'reps', 'sets'])) && t.exercises.every(e => typeof e.sets === 'string'));
+    T('…named as LOOP proposes, “<Kind> — Built for me”, and the preview says where it went (role=status)', t.name === 'Push — Built for me' && /Saved to My Workouts as “Push — Built for me”\./.test(A.c.bfmStateOf().note) && /role="status"/.test(A.c.document.getElementById('bfmBody').innerHTML), [t.name, A.c.bfmStateOf().note]);
+    T('…and it is in Train › My Workouts at once, drawn by the same row as every saved workout (Start runs startTemplateLog)',
+      /Push — Built for me/.test(A.c.document.getElementById('trainMine').textContent) && A.c.document.getElementById('trainMine').innerHTML.indexOf("startTemplateLog('push','" + t.id + "')") !== -1);
+    const after = JSON.parse(A.state()), b0 = JSON.parse(before);
+    T('19–20  saving is not training and not planning: the history, the program, the preferences and the plan’s own workouts are exactly what they were', eq(after.log, b0.log) && eq(after.programs, b0.programs) && eq(after.prefs, b0.prefs) && eq(after.plans, b0.plans));
+    await A.save('Push Favorites');
+    T('2  the name is the athlete’s: “Push Favorites” is saved as written', A.saved()[0].name === 'Push Favorites' && A.saved().length === 2);
+    await A.save('Push Favorites');
+    T('…and never overwrites one already there: a second “Push Favorites” becomes “Push Favorites 2”, as a shared workout’s does (uniqueSavedWorkoutName)', A.saved()[0].name === 'Push Favorites 2' && A.saved().length === 3 && /uniqueSavedWorkoutName\(clean\)/.test(CODE));
+    A.c.bfmSwapTo(1, 'Dumbbell Bench Press');
+    const sw = structOf(A.session());
+    await A.save('Swapped');
+    T('3  a swap is kept: the swapped-in lift is saved in its place and the one it replaced is not', eq(savedStruct(A.saved()[0]), sw) && sw[1][0] === 'Dumbbell Bench Press' && !savedStruct(A.saved()[0]).some(x => x[0] === 'Incline DB Press'), sw.map(x => x[0]));
+    const gone = A.session().rows[2].name;
+    A.c.bfmRemove(2);
+    await A.save('Removed');
+    T('4  a removal is kept: the removed exercise is not saved', eq(savedStruct(A.saved()[0]), structOf(A.session())) && !savedStruct(A.saved()[0]).some(x => x[0] === gone), gone);
+    A.c.bfmSet('minutes', '20');
+    const short = structOf(A.session());
+    await A.save('Short');
+    T('5  after a new window the rebuilt session is what is saved, not the first one', eq(savedStruct(A.saved()[0]), short) && short.length < P.length, short.length);
+    A.c.bfmAnother();
+    const other = structOf(A.session());
+    await A.save('Another');
+    T('6  after Build another the alternative on screen is what is saved', eq(savedStruct(A.saved()[0]), other), other.map(x => x[0]));
+  });
+  A.release();
+
+  /* ---------------------------------------------------------------- */
+  sub('7–12  a plan, no plan, a priority, equipment left out, Favorite and Don’t suggest');
+  await guard('contexts', async () => {
+    const R = await athlete({ programs: JSON.stringify(PROGRAM) });
+    const p0 = R.g('JSON.stringify(programsStore)'), sched0 = R.g('JSON.stringify(schedule)');
+    R.open();
+    const s = R.session();
+    await R.save();
+    const t = R.saved()[0];
+    T('7  from today’s program session: the workout saved is the athlete’s, with no program, phase or slot, and the program and the week are untouched',
+      s.mode === 'plan' && !!t && eq(Object.keys(t).filter(k => k !== 'cat').sort(), ['exercises', 'id', 'name']) && R.g('JSON.stringify(programsStore)') === p0 && R.g('JSON.stringify(schedule)') === sched0 && !/programId|phase|slot/.test(JSON.stringify(t)), s.mode);
+    const later = await capture(R.c, () => R.c.startTemplateLog(t.cat, t.id));
+    T('…and started later it is not the program’s work: startTemplateLog gives it no program, as for any saved workout the program does not prescribe', later.origin === 'freeform' && later.programId === null && later.phase === null, [later.origin, later.programId]);
+    R.release();
+    const N = await athlete({ selectedPlan: JSON.stringify(null) });
+    N.open();
+    const log0 = N.g('JSON.stringify(workoutLog)');
+    N.c.openBfmSave();
+    const msg = N.c.document.getElementById('bfmSaveMsg'), btn = N.c.document.getElementById('bfmSaveBtn');
+    const res = await N.c.saveBuiltWorkout(N.session(), 'X');
+    T('8  with no plan there is nowhere to save, and the sheet says so instead of failing quietly: “Choose a plan first — saved workouts live in your plan.”, Save disabled, nothing written',
+      N.session().rows.length >= 3 && !msg.hidden && /Choose a plan first/.test(msg.textContent) && btn.disabled === true && res.ok === false && res.error === 'no_plan' && N.g('JSON.stringify(workoutLog)') === log0);
+    N.release();
+    const Q = await athlete({ exercisePrefs: PREFS({}) });
+    Q.c.openBuildForMe(); Q.c.bfmToggle('priority', 'chest'); Q.c.bfmToggle('offEquipment', 'Barbell'); Q.c.bfmToggle('offEquipment', 'Dumbbell'); Q.c.bfmBuild();
+    const qs = structOf(Q.session());
+    await Q.save('Chest day');
+    const qt = Q.saved()[0];
+    T('9–10  a priority and equipment left out shape the session, and the saved workout is that session — the choices themselves are not saved', eq(savedStruct(qt), qs) && !/priority|offEquipment|restMuscles|chest:/.test(JSON.stringify(qt)) && qs.every(x => { const cn = Q.c.getCanonicalExercise(Q.c.resolveExerciseId(x[0])); return !cn || ['Barbell', 'Dumbbell'].indexOf(cn.equipment) === -1; }), qs.map(x => x[0]));
+    Q.c.bfmPrefer(0);
+    const prefs1 = Q.g('JSON.stringify(exercisePrefs)');
+    await Q.save('After favorite');
+    T('11  Favorite is the athlete’s word on one exercise; saving adds no word on any other: the preferences after Save are exactly those after Favorite', Q.g('JSON.stringify(exercisePrefs)') === prefs1 && Object.keys(JSON.parse(prefs1).manual).length === 1);
+    const never = Q.session().rows[1].name;
+    Q.c.bfmNever(1);
+    const prefs2 = Q.g('JSON.stringify(exercisePrefs)');
+    await Q.save('After never');
+    T('12  Don’t suggest takes the row out and is remembered; Save saves the rows left and changes no preference', !savedStruct(Q.saved()[0]).some(x => x[0] === never) && Q.g('JSON.stringify(exercisePrefs)') === prefs2 && eq(savedStruct(Q.saved()[0]), structOf(Q.session())), never);
+    Q.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('13–14  two starts: the preview’s own session, and the saved copy later');
+  await guard('starts', async () => {
+    const S = await athlete();
+    S.open();
+    const s = S.session();
+    await S.save('Keep');
+    const t = S.saved()[0];
+    const now = await capture(S.c, () => S.c.startGeneratedWorkout());
+    T('13  saving does not change the session on screen: Start still opens it with origin generated, no program, every previewed row', now.origin === 'generated' && now.programId === null && now.rows.length === s.rows.length && now.rows.every((a, i) => a[0] === s.rows[i].name) && /built for today/.test(now.title), [now.origin, now.title]);
+    const later = await capture(S.c, () => S.c.startTemplateLog(t.cat, t.id));
+    T('14  the saved copy, started later from My Workouts, is started as a saved workout: startTemplateLog, origin freeform, its own name, every row with its saved sets and reps as the prescription',
+      later.origin === 'freeform' && later.programId === null && later.title === 'Keep' && later.rows.length === t.exercises.length && later.rows.every((a, i) => a[0] === t.exercises[i].name && String(a[6].targetSets) === t.exercises[i].sets && String(a[6].targetReps) === t.exercises[i].reps), [later.origin, later.title]);
+    /* the load at the time of saving, then a heavier session logged, then the saved copy started */
+    const lift = s.rows[0].name, nextThen = S.c.bfmNextLoad(s.rows[0]);
+    S.g("workoutLog.push(" + JSON.stringify(WK(0, 'push', [lift], 150)) + "); ['invalidateSortedLogCache', 'invalidateXPTimelineCache', 'invalidateConsistencyCache', 'invalidateCapabilityCache', 'invalidateContextCache', 'invalidateRecoveryCache', 'invalidateShadowCache'].forEach(f => { try{ globalThis[f](); }catch(e){} }); 1");
+    const after = await capture(S.c, () => S.c.startTemplateLog(t.cat, t.id));
+    const a0 = after.rows[0], fresh = S.c.progressionFor(lift, t.exercises[0].reps, t.exercises[0].recommended);
+    T('…and its load is today’s D49, never the preview’s: saved with no weight (“—”), it starts at progressionFor’s answer after the heavier session (' + (a0[5] && a0[5].weight) + ' lb, not the ' + nextThen + ' lb shown when it was saved)',
+      t.exercises.every(e => e.recommended === '—' || e.recommended === 'Bodyweight') && JSON.stringify(a0[5]) === JSON.stringify(fresh) && a0[5].weight != null && String(a0[5].weight) !== String(nextThen),
+      [nextThen, a0[5] && a0[5].weight]);
+    const p = S.c.deriveWorkingSetPlan(lift, t.exercises[0].reps, a0[3].length, a0[5], { deload: false });
+    T('…D125 lays out its working sets as for any saved workout', !!p && a0[3].map(x => x.reps).join() === p.reps.join(), [a0[3].map(x => x.reps), p && p.reps]);
+    S.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the editor’s workout and the built workout are the same kind of thing');
+  await guard('equivalence', async () => {
+    const E = await athlete();
+    E.open();
+    const s = E.session();
+    await E.save('Built');
+    const built = E.saved()[0];
+    /* the same workout, written by hand in the workout editor: its real saveTemplate, over rows read the way it reads them
+       (this DOM draws nothing, so each row's fields are given as the editor's inputs would hold them), a second later */
+    const editorRows = list => list.map(e => ({ querySelector: sel => ({ value: { '.t-name-in': e.name, '.t-sets-in': e.sets, '.t-reps-in': e.reps, '.t-effort-in': e.effort, '.t-weight-in': e.recommended === '—' ? '' : e.recommended }[sel] }) }));
+    const viaEditor = (list, fn) => { const real = E.c.document.querySelectorAll; E.c.document.querySelectorAll = sel => sel === '#tplExercises .ex-log-row' ? editorRows(list) : real.call(E.c.document, sel); try{ fn(); } finally { E.c.document.querySelectorAll = real; } };
+    const later = pinClock(E.c, '2026-10-09T09:00:05');
+    E.c.openAddTemplate('push');
+    E.c.document.getElementById('tplName').value = 'Handmade';
+    viaEditor(built.exercises, () => E.c.saveTemplate());
+    await H.settle(20);
+    const hand = E.saved().find(x => x.name === 'Handmade');
+    T('the built workout is what the editor writes for the same exercises: identical exercises, the same id scheme, the same list', !!hand && eq(hand.exercises, built.exercises) && hand.cat === built.cat && /^c-/.test(hand.id) && hand.id !== built.id, hand && hand.exercises.slice(0, 2));
+    const a = await capture(E.c, () => E.c.startTemplateLog(built.cat, built.id)), b = await capture(E.c, () => E.c.startTemplateLog(hand.cat, hand.id));
+    T('…and Start hands the logger the same thing for both — rows, sets, load, rest, prescription, provenance — so Session Score, PRs, XP and the summary treat them alike', a.rows.length === built.exercises.length && eq(a.rows, b.rows) && a.origin === b.origin && a.origin === 'freeform' && a.cat === b.cat && a.programId === b.programId, [a.origin, b.origin]);
+    /* 15–16: the editor and delete paths */
+    const drawn = [], realRow = E.c.addTplExerciseRow;
+    E.c.addTplExerciseRow = (...x) => drawn.push(x);
+    try{ E.c.openEditTemplate(built.cat, built.id); } finally { E.c.addTplExerciseRow = realRow; }
+    const edit = { name: E.c.document.getElementById('tplName').value, rows: drawn.length };
+    E.c.document.getElementById('tplName').value = 'Built, edited';
+    viaEditor(built.exercises, () => E.c.saveTemplate());
+    await H.settle(20);
+    const ed = E.saved().find(x => x.id === built.id);
+    T('15  Edit opens it in the workout editor like any saved workout — its name and every exercise row — and an edit is an ordinary edit of the same workout (same id)', edit.name === 'Built' && edit.rows === built.exercises.length && eq(drawn[0].slice(0, 3), [built.exercises[0].name, built.exercises[0].sets, built.exercises[0].reps]) && !!ed && ed.name === 'Built, edited' && eq(ed.exercises, built.exercises), edit);
+    later();
+    E.c.deleteTemplate(built.cat, built.id);
+    await H.settle(20);
+    T('16  Delete removes it through the same path as any saved workout', !E.saved().some(x => x.id === built.id) && E.saved().some(x => x.id === hand.id));
+    E.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('17–18  it stays, and backups carry it');
+  await guard('persistence', async () => {
+    const B = await athlete();
+    B.open();
+    await B.save('Stays');
+    const stored = await B.c.LOOPStore.get('planData:balanced');
+    const keys = await B.c.allDataKeys();
+    T('18  it lives in the plan’s stored workouts (planData:balanced), a key every backup and export already carries — no new key', !!stored && /"name":"Stays"/.test(stored.value) && keys.indexOf('planData:balanced') !== -1 && keys.filter(k => k.indexOf(':') === -1).length === 16);
+    const log = B.g('JSON.stringify(workoutLog)');
+    B.release();
+    const B2 = H.loadApp(Object.assign({}, base, { workoutLog: log, 'planData:balanced': stored.value }));
+    const r2 = pinClock(B2.ctx, NOW); await H.settle(250);
+    const again = JSON.parse(vm.runInContext('JSON.stringify(trainSavedWorkouts().map(x => x.t.name))', B2.ctx));
+    T('17  after a reload it is still in My Workouts', again.indexOf('Stays') !== -1 && /Stays/.test(B2.ctx.document.getElementById('trainMine').textContent), again);
+    r2();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the preview and the sheet');
+  await guard('ui', async () => {
+    const U = await athlete();
+    U.open();
+    const acts = U.c.document.getElementById('bfmActions'), body = U.c.document.getElementById('bfmBody');
+    const A_ = acts.innerHTML, B_ = body.innerHTML;
+    T('Start workout stays the one primary action; Save workout sits beside it as the secondary; Build another moves under the exercises as a plain text action',
+      (A_.match(/<button/g) || []).length === 2 && /^<button type="button" class="btn-secondary bfm-save" onclick="openBfmSave\(\)">Save workout<\/button><button type="button" class="btn-primary bfm-cta" onclick="startGeneratedWorkout\(\)">Start workout<\/button>$/.test(A_)
+      && /<\/ol>\s*<button type="button" class="bfm-again" onclick="bfmAnother\(\)">Build another<\/button>/.test(B_) && A_.indexOf('bfmAnother') === -1, A_);
+    U.c.openBfmSave();
+    const ov = U.c.document.getElementById('bfmSaveOverlay');
+    const sheet = raw.slice(raw.indexOf('<div class="overlay" id="bfmSaveOverlay"'), raw.indexOf('<!-- WORKOUT ICON & COLOR (D81)'));
+    T('the sheet asks only for a name: one labelled field, prefilled, Return submits; the exercises, sets and reps are said, not asked',
+      ov.classList.contains('open') && (sheet.match(/<input|<select|<textarea/g) || []).length === 1 && /<label for="bfmSaveName">Workout name<\/label>/.test(sheet) && U.c.document.getElementById('bfmSaveName').value === 'Push — Built for me'
+      && /<form id="bfmSaveForm"[^>]*onsubmit="bfmSaveConfirm\(\); return false;"/.test(sheet) && /<button type="submit" form="bfmSaveForm"[^>]*>Save workout<\/button>/.test(sheet) && /enterkeyhint="done"/.test(sheet)
+      && /exercises, sets and reps; LOOP picks the weights/.test(U.c.document.getElementById('bfmSaveHint').textContent));
+    U.c.document.getElementById('bfmSaveName').value = '   ';
+    await U.c.bfmSaveConfirm();
+    T('an empty name saves nothing and says why', U.saved().length === 0 && /Give it a name/.test(U.c.document.getElementById('bfmSaveMsg').textContent) && ov.classList.contains('open'));
+    U.c.closeBfmSave();
+    /* a write that does not land */
+    const realPersist = U.c.persistPlanData;
+    U.c.persistPlanData = async () => false;
+    let res;
+    try{ res = await U.c.saveBuiltWorkout(U.session(), 'Lost'); } finally { U.c.persistPlanData = realPersist; }
+    T('a write that does not land keeps nothing and says so (“Couldn’t save it on this phone. Nothing was changed.”), as Save to My Workouts does', res.ok === false && res.error === 'save_failed' && !U.saved().some(x => x.name === 'Lost') && /Couldn’t save it on this phone\. Nothing was changed\./.test(CODE));
+    U.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('Build for me builds what 10.60 built');
+  await guard('golden', async () => {
+    /* the sessions the shipped 10.60 engine (a0f629d) built for these athletes and choices, recorded from it */
+    const GOLDEN = {
+     "planned": "Machine Chest Press 3×8–12 | Incline DB Press 3×8–12 | Pec Deck 3×12–15 | Machine Shoulder Press 2×8–12 | Lateral Raise 3×12–15 | Triceps Dips 3×10–15 | Ab Crunch Machine 3×12–15 | Hanging Leg Raise 2×10–15",
+     "upper60": "Machine Chest Press 3×8–12 | Seated Cable Row 3×8–12 | Lat Pulldown 3×8–12 | Face Pull 3×12–15 | Hammer Curl 2×10–15 | Triceps Pushdown 3×12–15 | Pec Deck 3×12–15 | Lateral Raise 3×12–15",
+     "pull45biceps": "Lat Pulldown 3×8–12 | Seated Cable Row 3×8–12 | Hammer Curl 3×10–15 | Barbell Curl 4×8–12 | Machine Curl 4×10–12",
+     "legsNoFreeWeights": "Leg Press 3×10–12 | Hip Thrust Machine 3×10–12 | Lying Leg Curl 3×12–15 | Standing Calf Raise 3×12–15 | Hip Abduction 3×15–20 | Back Extension 2×12–15 | Leg Extension 3×12–15",
+     "noPlanBestFit": "Machine Chest Press 3×8–12 | Machine Shoulder Press 3×8–12 | Triceps Pushdown 3×10–15 | Pec Deck 3×10–15",
+     "another2": "Leg Press 3×10–12 | Machine Chest Press 3×8–12 | Seated Cable Row 3×8–12 | Romanian Deadlift 3×8–12 | Cable Glute Kickback 3×12–15 | Face Pull 3×12–15"
+    };
+    const CASES = [['planned', {}, {}], ['upper60', {}, { focus: 'upper', minutes: 60 }], ['pull45biceps', {}, { focus: 'pull', priority: ['biceps'] }],
+      ['legsNoFreeWeights', {}, { focus: 'legs', offEquipment: ['Barbell', 'Dumbbell'] }], ['noPlanBestFit', { selectedPlan: JSON.stringify(null) }, { minutes: 30 }], ['another2', {}, { focus: 'fullbody', variant: 2 }]];
+    const got = {};
+    for(const [id, store, inputs] of CASES){
+      const X = await athlete(store);
+      got[id] = X.c.composeInstantSession(inputs, X.c.buildKnown()).rows.map(r => r.name + ' ' + r.sets + '×' + r.reps).join(' | ');
+      X.release();
+    }
+    T('six athletes and choices get exactly the sessions 10.60 built — the same exercises, order, sets and reps — so nothing in D139.1 recalibrates the generator', Object.keys(GOLDEN).length === 6 && Object.keys(GOLDEN).every(k => got[k] === GOLDEN[k]), Object.keys(GOLDEN).filter(k => got[k] !== GOLDEN[k]).map(k => k + ': ' + got[k]));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('everything else unchanged');
+  await guard('protected', async () => {
+    T('Build for me composes exactly as in 10.60: the composer and every stage are 10.60’s text', ['composeInstantSession', 'buildKnown', 'buildCandidates', 'buildHardReject', 'buildScore', 'buildIntent', 'buildDemand', 'buildRowRx', 'validateComposedSession', 'buildSessionReasons', 'startGeneratedWorkout', 'bfmSwapTo', 'bfmRemove', 'bfmAnother', 'bfmPrefer', 'bfmNever', 'trainChipsEdges'].every(sameFn));
+    T('the saved-workout machinery it reuses is unchanged: the editor, Save to My Workouts, ids, names, the list and Start', ['saveTemplate', 'openEditTemplate', 'deleteTemplate', 'importSharedWorkout', 'nextSavedWorkoutId', 'uniqueSavedWorkoutName', 'trainSavedWorkouts', 'renderTrainMine', 'startTemplateLog', 'persistPlanData'].every(sameFn));
+    T('D49, D125, D50B, D134–D137, PRs, XP and Session Score are 10.60’s text', ['progressionFor', 'buildProgressionRecommendation', 'deriveWorkingSetPlan', 'deriveNextSetCoach', 'refreshSetCoach', 'workoutElapsedSeconds', 'workoutTimeOf', 'refreshSuggestedWarmups', 'detectPlateau', 'computePRs', 'computeXPEvents', 'sessionScore', 'rowStartsAsBodyweight'].every(sameFn));
+    const diagOf = t => { const a = t ? t.indexOf('/* =========================================================\n   VIEWPORT DIAGNOSTICS') : -1; const b = a === -1 ? -1 : t.indexOf('function backToSettings(fromOverlayId){', a); return a === -1 || b === -1 ? '' : t.slice(a, b); };
+    T('E64 is frozen: the diagnostics are 10.60’s byte for byte, the workout shell’s stylesheet is 10.60’s, E64 is still OPEN', diagOf(raw).length > 1000 && diagOf(raw) === diagOf(was) && styleOf(raw).replace(D1391_CSS, '') === styleOf(was) && /OPEN — 10\.58's full-screen dock/.test(read('FINDINGS-D88.md')));
+    T('16 DATA_KEYS, data schema 1, trainer 0.1.1-shadow; E60 and E61 still OPEN', (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw) || [])[1] === (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '') || [])[1] && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /const TRAINER_ENGINE_VERSION = '0\.1\.1-shadow';/.test(raw)
+      && ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(read('FINDINGS-D88.md'))));
+    const ps = JSON.parse(read('PROJECT-STATUS.json'));
+    T('the roadmap resumes where it paused: PROJECT-STATUS 10.61 still needs QA and its next action is the E64 phone check', ps.version === '10.61' && ps.needsQa === true && /^E64: update to 10\.61,/.test(ps.nextAction) && /tap Paint/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
+    T('What’s New v10-61 “Save Built Workouts” is LOOP 10.61 / loop-v238, dated in New York, says what was built and nothing more, and sw.js serves loop-v238',
+      /id: 'v10-61',\s*version: 'LOOP 10\.61',\s*title: 'Save Built Workouts',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v238',[\s\S]*newFeatures: \[\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\s*'[^']+'\s*\]/.test(D1391_WHATSNEW)
+      && !/\b(smart|perfect|AI)\b/.test(D1391_WHATSNEW) && /CACHE_VERSION = 'loop-v238'/.test(read('sw.js')));
+  });
+}
+
+/* =========================================================
    CONTRACT 261 — D139 (LOOP 10.60): BUILD FOR ME — LOOP BUILDS TODAY'S WORKOUT
    A third way to start on Train. The composer reads what LOOP already knows (the plan and today's session, the log,
    recovery, My Gym, the athlete's stated favorites and avoids) and asks only today's facts. It is staged (intent, hard
@@ -56683,11 +57034,11 @@ async function testWarmupApplicabilityD136(){
 async function testInstantBuilderD139(){
   section('CONTRACT 261 — Build for me builds today’s workout from what LOOP knows (D139)');
   const fs = require('fs'), crypto = require('crypto');
-  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const raw0 = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n'), raw = asOf1060Html(raw0) || '';   /* D139.1 restated: Contract 261 is about LOOP 10.60, so it reads the file with 10.61's hunks put back (Contract 262) */
   const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
   const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
   const col = s => String(s).replace(/\s+/g, ' ').trim();
-  const was = asOf1059Html(raw);   /* 8deac29: LOOP 10.59 */
+  const was = asOf1059Html(raw0);   /* 8deac29: LOOP 10.59 */   // D139.1 restated: read back from the file as it is
   const styleOf = t => t ? t.slice(t.indexOf('<style>'), t.indexOf('</style>')) : '';
   const cssNow = styleOf(raw), cssWas = styleOf(was);
   const sameFn = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
@@ -56954,10 +57305,10 @@ async function testInstantBuilderD139(){
     const fx = read('FINDINGS-D88.md');
     T('51  E60 and E61 untouched (still OPEN)', ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(fx)));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('52  the roadmap resumes where it paused: PROJECT-STATUS still needs QA and its next action is the E64 phone check', ps.version === '10.60' && ps.needsQa === true && /^E64:/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
+    T('52  the roadmap resumes where it paused: PROJECT-STATUS still needs QA and its next action is the E64 phone check', /^10\.6[01]$/.test(ps.version) /* D139.1 restated: 10.61 keeps the E64 next action (Contract 262) */ && ps.needsQa === true && /^E64:/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-60 “Build Today’s Workout” is LOOP 10.60 / loop-v237, dated in New York, says what was built and nothing more, and sw.js serves loop-v237',
       /id: 'v10-60',\s*version: 'LOOP 10\.60',\s*title: 'Build Today’s Workout',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v237',[\s\S]*newFeatures: \[\s*'[^']+',\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D139_WHATSNEW)
-      && !/\b(pump|optimal|smart|perfect|intelligent)\b/i.test(D139_WHATSNEW) && !/\bAI\b/.test(D139_WHATSNEW) &&/CACHE_VERSION = 'loop-v237'/.test(read('sw.js')));
+      && !/\b(pump|optimal|smart|perfect|intelligent)\b/i.test(D139_WHATSNEW) && !/\bAI\b/.test(D139_WHATSNEW) &&/id: 'v10-60'/.test(raw0) && /CACHE_VERSION = 'loop-v238'/.test(read('sw.js')) /* D139.1 restated: v10-60 stays in the history; sw.js now serves 10.61's cache (Contract 262) */);
   });
 }
 
@@ -57140,10 +57491,10 @@ async function testVisibleDockD1383(){
     T('41  E60 and E61 are untouched (still OPEN)', ['E60', 'E61'].every(id => /· OPEN$/.test(status(id))), ['E60', 'E61'].map(status));
     T('42  E64 is OPEN, never CLOSED by automation: only the owner’s screenshot with both buttons whole can close it — PROJECT-STATUS still needs QA and asks for the Paint test, a screenshot and the report',
       /^## E64 — [^\n]*· \*\*OPEN — 10\.58's full-screen dock was cut off by the iPhone's own viewport; 10\.59 puts the buttons back in view \(D138\.3\)\*\*$/.test(e64.split('\n')[0]) && !/CLOSED/.test(e64.split('\n')[0])
-      && ps.needsQa === true && /^10\.(59|60)$/.test(ps.version) /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64:/.test(ps.nextAction) && /Paint/.test(ps.nextAction) && /screenshot/.test(ps.nextAction) && ps.nextAction.length <= 200, e64.split('\n')[0]);
+      && ps.needsQa === true && /^10\.(59|6[01])$/.test(ps.version) /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64:/.test(ps.nextAction) && /Paint/.test(ps.nextAction) && /screenshot/.test(ps.nextAction) && ps.nextAction.length <= 200, e64.split('\n')[0]);
     T('What’s New v10-59 “Workout Buttons Back in Full View” is LOOP 10.59 / loop-v236, dated in New York; its one fix is the cut-off buttons 10.58 shipped, its one change the withdrawn layout; it does not claim the bottom band is gone; sw.js serves loop-v236',
       /id: 'v10-59',\s*version: 'LOOP 10\.59',\s*title: 'Workout Buttons Back in Full View',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v236',[\s\S]*newFeatures: \[\],\s*improvements: \[\],\s*bugFixes: \[\s*'[^']+'\s*\],\s*changes: \[\s*'[^']+'\s*\]/.test(D1383_WHATSNEW)
-      && !/gap|band|E64|D138|full screen\b|fixed the/i.test(D1383_WHATSNEW) && /id: 'v10-59'/.test(raw0) && c.getLatestUpdateId() === 'v10-60' && /CACHE_VERSION = 'loop-v237'/.test(read('sw.js')) /* D139 restated: v10-59 stays in the history; the newest is 10.60's (Contract 261) */);
+      && !/gap|band|E64|D138|full screen\b|fixed the/i.test(D1383_WHATSNEW) && /id: 'v10-59'/.test(raw0) && c.getLatestUpdateId() === 'v10-61' && /CACHE_VERSION = 'loop-v238'/.test(read('sw.js')) /* D139.1 restated: now 10.61's */ /* D139 restated: v10-59 stays in the history; the newest is 10.60's (Contract 261) */);
   });
 }
 
@@ -57345,10 +57696,10 @@ async function testFullCanvasShellD1382(){
     T('39  E60 and E61 are untouched (still OPEN)', ['E60', 'E61'].every(id => /· OPEN$/.test(status(id))), ['E60', 'E61'].map(status));
     T('40  E64 is a FIX CANDIDATE, never CLOSED: only the owner’s phone can close it — PROJECT-STATUS still needs QA and asks for Capture A, and the note says what the phone must show',
       /^## E64 — [^\n]*· \*\*(FIX CANDIDATE — awaiting the owner's iPhone confirmation \(D138\.2, LOOP 10\.58\)|OPEN — 10\.58's full-screen dock was cut off by the iPhone's own viewport; 10\.59 puts the buttons back in view \(D138\.3\))\*\*$/.test(e64.split('\n')[0]) && !/CLOSED/.test(e64.split('\n')[0]) && /NOT closed/.test(note) && /screen − dock ≈ 0/.test(note)
-      && ps.needsQa === true && /^10\.(5[89]|60)$/.test(ps.version) /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64/.test(ps.nextAction) && ps.nextAction.length <= 200 /* D138.3 restated: the phone showed the dock cut off; E64 is OPEN again, never CLOSED, and PROJECT-STATUS asks for the paint test (Contract 260) */, e64.split('\n')[0]);
+      && ps.needsQa === true && /^10\.(5[89]|6[01])$/.test(ps.version) /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64/.test(ps.nextAction) && ps.nextAction.length <= 200 /* D138.3 restated: the phone showed the dock cut off; E64 is OPEN again, never CLOSED, and PROJECT-STATUS asks for the paint test (Contract 260) */, e64.split('\n')[0]);
     T('What’s New v10-58 “Full-Screen Workout Layout” is LOOP 10.58 / loop-v235, dated in New York, says what changed and claims no fix (the phone has not confirmed one), and sw.js serves loop-v235',
       /id: 'v10-58',\s*version: 'LOOP 10\.58',\s*title: 'Full-Screen Workout Layout',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v235',[\s\S]*newFeatures: \[\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D1382_WHATSNEW)
-      && !/\bfix|gap|E64|D138|iPhone/i.test(D1382_WHATSNEW) && /id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-60' && /CACHE_VERSION = 'loop-v237'/.test(read('sw.js')) /* D139 restated: the newest is 10.60's (Contract 261) */ /* D138.3 restated: v10-58 stays in the history; the newest is 10.59's (Contract 260) */);
+      && !/\bfix|gap|E64|D138|iPhone/i.test(D1382_WHATSNEW) && /id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-61' && /CACHE_VERSION = 'loop-v238'/.test(read('sw.js')) /* D139.1 restated: now 10.61's */ /* D139 restated: the newest is 10.60's (Contract 261) */ /* D138.3 restated: v10-58 stays in the history; the newest is 10.59's (Contract 260) */);
   });
 }
 
@@ -57454,7 +57805,7 @@ async function testViewportDiagnosticsD1381(){
     const txt = c.vpDiagReport(now, { snaps: [{ label: 'auto: workout open', m: open }, { label: 'B', m: now }], log: [{ t: 10, type: 'vv resize', innerH: 800, vvH: 560, vvTop: 30, target: '' }], caches: 'loop-v234' });
     const SECTIONS = ['LOOP VIEWPORT DIAGNOSTIC', 'mode:', 'screen:', 'layout:', 'visualViewport:', 'safeArea:', 'workout:', 'styles:', 'gaps (', 'keyboard/focus:', 'captures (2):', 'event log (', 'timestamp:'];
     T('17  the report has every section, the version and cache, the standalone reading, the raw screen, the units, the visual viewport and its bottom, the four insets, the eight named gaps, the focus, both captures and the log',
-      SECTIONS.every(s => txt.indexOf(s) !== -1) && /version: LOOP 10\.60 · cache: loop-v237 · sw caches: loop-v234/.test(txt) /* D139 restated: now 10.60 */ /* D138.2 restated: the report names the newest release */ /* D138.3 restated: now 10.59 */ && /standalone: YES \(nav true, dm yes\)/.test(txt) && /h: 932 · availW: 430 · availH: 932 · dpr: 3/.test(txt) && /100dvh 800/.test(txt)
+      SECTIONS.every(s => txt.indexOf(s) !== -1) && /version: LOOP 10\.61 · cache: loop-v238 · sw caches: loop-v234/.test(txt) /* D139.1 restated: now 10.61 */ /* D139 restated: now 10.60 */ /* D138.2 restated: the report names the newest release */ /* D138.3 restated: now 10.59 */ && /standalone: YES \(nav true, dm yes\)/.test(txt) && /h: 932 · availW: 430 · availH: 932 · dpr: 3/.test(txt) && /100dvh 800/.test(txt)
       && /offsetTop: 30 · pageLeft: 0 · pageTop: 30 · scale: 1 · bottom \(offsetTop \+ height\): 590/.test(txt) && /top: 59 · right: 0 · bottom: 34 · left: 0/.test(txt) && /D screen-dock \(screen\.height raw − dock\.bottom\): 172/.test(txt) && /C visual-dock \(visualViewport bottom − dock\.bottom\): -170/.test(txt)
       && /activeElement: INPUT\.set-weight-in type=text inputmode=decimal/.test(txt) && /visualViewport changed since workout open: yes/.test(txt) && /auto: workout open @5ms/.test(txt) && /5ms|10 vv resize/.test(txt), txt.slice(0, 400));
     const same = c.vpDiagReport(open, { snaps: [{ label: 'auto: workout open', m: open }], log: [] });
@@ -57485,7 +57836,7 @@ async function testViewportDiagnosticsD1381(){
     T('24–27  D137’s progression, D136’s warm-up, D135’s split, D134’s duration, the scroll lock, Settings and the workout renderer are 10.57’s text', !!was && fns.every(n => col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20), fns.filter(n => col(fnSrc(raw, n)) !== col(fnSrc(was, n))));
     /* D138.2 restated: D138.1 added no entry — the file read as 1512ac0 still ends at v10-57 — and the newest now is D138.2's own (v10-58, loop-v235, 10.58; Contract 259) */
     T('28  the normal app is untouched: no What’s New entry (1512ac0’s newest is still v10-57, loop-v234); the release after it is D138.2’s own (v10-58, loop-v235, PROJECT-STATUS 10.58)',
-      /id: 'v10-57'/.test(raw) && !/id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-60' && /CACHE_VERSION = 'loop-v237'/.test(read('sw.js')) && JSON.parse(read('PROJECT-STATUS.json')).version === '10.60');   /* D139 restated: the newest release is now 10.60 (Contract 261) */   /* D138.3 restated: the newest release is now 10.59 (Contract 260) */
+      /id: 'v10-57'/.test(raw) && !/id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-61' && /CACHE_VERSION = 'loop-v238'/.test(read('sw.js')) && JSON.parse(read('PROJECT-STATUS.json')).version === '10.61');   /* D139.1 restated: the newest release is now 10.61 (Contract 262) */   /* D139 restated: the newest release is now 10.60 (Contract 261) */   /* D138.3 restated: the newest release is now 10.59 (Contract 260) */
   });
 
   /* ---------------------------------------------------------------- */
@@ -57747,7 +58098,7 @@ async function testProgressionEvidenceD137(){
     T('31–32  D131A and D131B are 10.55’s byte for byte (the draft, the restore, the live warm-up)', ['captureActiveDraft', 'restoreDraftToSheet', 'refreshSuggestedWarmups', 'seedWarmupTargets', 'warmupBoxHtml', 'sessionPreparation', 'generalPrepSatisfiedBy'].every(sameFn));
     T('33–35  E59, E62 and E63 stay CLOSED and their code is 10.55’s (the split, the warm-up applicability, the duration)', /CLOSED in D135/.test(statusOf('E59')) && /CLOSED in D136/.test(statusOf('E62')) && /CLOSED in D134/.test(statusOf('E63'))
       && ['splitRowForSwap', 'workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText'].every(sameFn));
-    T('36–37  D133’s shell, D132’s system and D132.1’s circles: the whole stylesheet is 10.55’s byte for byte', !!was && raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').slice(raw.indexOf('<style>'), raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')));   /* D138 restated: read without D138's block (Contract 257) */ /* D138.2 restated: and without D138.2's (Contract 259) */ /* D139 restated: and without D139's block (Contract 261) */
+    T('36–37  D133’s shell, D132’s system and D132.1’s circles: the whole stylesheet is 10.55’s byte for byte', !!was && raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').slice(raw.indexOf('<style>'), raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')));   /* D138 restated: read without D138's block (Contract 257) */ /* D138.2 restated: and without D138.2's (Contract 259) */ /* D139 restated: and without D139's block (Contract 261) */ /* D139.1 restated: and without D139.1's block (Contract 262) */
     const all = FIX.filter(f => !f.bw).map(f => logOf(f).map((e, i) => Object.assign({}, e, { id: f.id.slice(0, 6) + '-' + i, date: e.date }))).reduce((a, x) => a.concat(x), []);
     const reads = side => on(all, side, () => ({ prs: sha(JSON.stringify([c.computeAllPREvents().map(v => [v.id, v.exerciseName, v.hits.map(h => h.type + ':' + h.next)]), c.computePRs().map(p => [p.name, p.weight, p.reps])])),
       xp: (() => { const tl = c.computeXPTimeline(); return [tl.lifetimeXP, tl.prCount]; })(), score: sha(JSON.stringify(all.map(l => { const s = c.sessionScore(l); return s && s.available ? s.score : null; }))),
@@ -58315,6 +58666,7 @@ async function main(){
   await testFullCanvasShellD1382();
   await testVisibleDockD1383();
   await testInstantBuilderD139();
+  await testSaveBuiltWorkoutD1391();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

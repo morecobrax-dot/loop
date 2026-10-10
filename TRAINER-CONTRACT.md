@@ -19755,3 +19755,59 @@ D50B, PRs, XP and Session Score are 10.59's text. The roadmap resumes at the E64
 avoids, favorites, familiarity, plan-aware without plan-obedience, recent training, recovery as guidance, priority, shape,
 validation, reasons, start, provenance and the frozen functions. The browser rig measures the sheet and the track at 13
 sizes. The studies cover generated athletes, adversarial inputs and a longitudinal run.
+
+## §184 — SAVE A BUILT WORKOUT (D139.1 · LOOP 10.61 · loop-v238)
+
+A Build for me preview has a Save workout action. A session the athlete likes becomes one of their saved workouts in
+Train › My Workouts, and from then on it is just that: their workout.
+
+**The existing architecture, reused.** Saved workouts are plan templates whose id starts with "c-", kept in the plan's
+list for their kind (planData[cat], stored under planData:<plan>, a dynamic key every backup already carries).
+trainSavedWorkouts lists them, startTemplateLog starts them, openEditTemplate / saveTemplate edit them, deleteTemplate
+deletes them. LOOP already saves a workout on the athlete's behalf once: D80B's Save to My Workouts for a shared
+workout (importSharedWorkout). saveBuiltWorkout follows that path step for step:
+- nextSavedWorkoutId for a fresh c- id;
+- uniqueSavedWorkoutName, so a name is never overwritten ("… 2");
+- the same five-field shape the workout editor writes;
+- push, persistPlanData, and the push undone if the write does not land ("Couldn't save it on this phone. Nothing was
+  changed.");
+- renderAll, so My Workouts shows it at once.
+No new store, no new field, no new kind of workout.
+
+**What is saved.** The preview as it stands when Save is tapped: after swaps, removals, a new window or Build another.
+For each row, in order: name, sets, reps, effort ('7' if empty, the editor's default), and starting weight '—'. One
+exception: a row whose own prescription says Bodyweight keeps that word. In the default plans, two rows (the home
+plan's Walking Lunge and Calf Raise) are bodyweight work only because of it (rowStartsAsBodyweight), so it is
+structure, not load. A number never travels. The name is the athlete's; LOOP proposes "<Kind> — Built for me".
+
+**What is not saved.**
+- No weight. The preview's Next load is D49's answer for today; the saved workout's starting weight is LOOP's blank,
+  as a shared workout's is. D49 and D125 choose the load each time it is trained.
+- Nothing about today: no reasons, scores, recovery, readiness, window, equipment limits, rested muscles, removal list
+  or variant.
+- No program, phase, slot or origin. It is not a program's session.
+
+**What saving does not do.** It writes no workoutLog entry, no exercisePrefs (saving is not favoriting), and no program
+or schedule. The session in the preview keeps its own provenance: Start still opens it with origin 'generated'. The
+saved copy, started later from My Workouts, is started like any saved workout: startTemplateLog, origin 'freeform'
+unless the running program prescribes that workout (a new c- id never is), Time Mode, D49, D125, D50B, Session Score
+against its sets and reps, exactly as for the same workout built in the editor.
+
+**The sheet.** Save workout opens a small sheet over the preview: one labelled name field (prefilled; Return saves)
+and one Save workout button. Focus goes to the sheet's heading, not the field, so the keyboard does not cover the
+sheet before it is read. With no plan selected the sheet says "Choose a plan first — saved workouts live in your plan."
+and Save is disabled, as for a shared workout. After a save the preview says "Saved to My Workouts as “<name>”."
+(role=status) and stays open, so the session can still be started.
+
+**The preview's actions.** Start workout stays the primary action; Save workout sits beside it as the secondary
+button, sized by its own label so it never wraps. Build another moves under the exercise list as a plain text action.
+
+**Frozen here.** The D139 composer, E64, the diagnostics and the workout shell are 10.60's. DATA_KEYS 16, schema 1,
+trainer 0.1.1-shadow. The roadmap resumes at the E64 phone check.
+
+**Proof.** Contract 262 runs the real save in the vm: structure equality with the preview, swaps, removals, a new
+window, Build another, plan and no-plan athletes, priority and equipment limits, favorites and avoids untouched, no
+history, no program change, the current session still 'generated', the saved copy started through startTemplateLog
+exactly as the same workout saved through the editor, D49's load fresh at start, reload, edit, delete, backup. The
+browser rig checks the actions and the sheet at 13 sizes, then saves, finds the workout in My Workouts, reloads and
+starts it.
