@@ -9916,6 +9916,93 @@ svg text[font-family*="JetBrains"]{ font-family: var(--font-ui); font-variant-nu
      tab bar, the page behind and every other sheet are as they were. */
 #logOverlay .sheet.sheet-page{ position: absolute; top: 0; right: 0; bottom: 0; left: 0; width: auto; height: auto; max-height: none; }
 html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padding-bottom: 0; }
+/* D139 — BUILD FOR ME, AND TRAIN'S FILTER AS ONE CONTROL YOU SWIPE.
+   Build for me leads Quick start across both columns: one card, an accent-tinted tile, no gradient (that stays the primary
+   forward action's). Its sheet is LOOP's ordinary sheet: what LOOP knows as quiet pills, today's choices as D132
+   segmented tracks that scroll when they are wider than the sheet, optional groups behind a disclosure, the preview as
+   rows with the exercise's own art. Every control is at least 44px. Train's kinds of workout sit in one inset track with
+   a raised selected segment; an edge with more beyond it fades, so the row reads as something to swipe. */
+.tq-build{
+  grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 12px;
+  text-align: left; color: var(--text); background: var(--surface-1); border: 1px solid var(--accent-soft);
+  border-radius: var(--r-card); box-shadow: var(--elev-1); cursor: pointer;
+}
+.tq-build:active{ background: var(--surface-2); }
+.tq-build:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.tq-build .tq-ic{ width: 36px; height: 36px; color: var(--accent); background: var(--accent-soft); }
+.tq-build .tq-main{ flex: 1 1 auto; }
+.tq-build .tq-title{ font-weight: 700; }
+.tq-build-go{ flex: 0 0 auto; color: var(--text-faint); font-size: 20px; line-height: 1; }
+.seg.seg-scroll{ overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; margin-top: 0; }
+.seg.seg-scroll::-webkit-scrollbar{ display: none; }
+.seg.seg-scroll .seg-btn{ flex: 0 0 auto; padding: 0 14px; white-space: nowrap; scroll-snap-align: start; }
+#bfmOverlay .td-kicker .bfm-back{
+  min-height: 44px; margin-left: -6px; padding: 0 6px; background: transparent; border: 0; color: var(--accent);
+  font: inherit; font-size: var(--fs-meta); font-weight: 700; letter-spacing: 0.06em; cursor: pointer;
+}
+.bfm-title{ margin: 4px 0 var(--space-3); }
+.bfm-known{ list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.bfm-known li{ padding: 4px 10px; font-size: var(--fs-meta); color: var(--text-dim); background: var(--surface-2); border: 1px solid var(--hairline); border-radius: 999px; }
+.bfm-group{ margin-top: var(--space-4); }
+.bfm-k{ margin: 0 0 8px; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.bfm-k2{ margin: 12px 0 6px; font-size: var(--fs-meta); font-weight: 600; color: var(--text-dim); }
+.bfm-hint{ margin: 6px 0 0; font-size: var(--fs-meta); color: var(--text-faint); }
+.bfm-disclose{
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 48px; padding: 0 14px;
+  color: var(--text); font-weight: 600; text-align: left; background: var(--surface-1); border: 1px solid var(--hairline);
+  border-radius: var(--r-control); cursor: pointer;
+}
+.bfm-count{ margin-left: 6px; padding: 0 7px; font-size: var(--fs-micro); color: var(--accent); background: var(--accent-soft); border-radius: 999px; }
+.bfm-chev{ margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--text-faint); border-bottom: 2px solid var(--text-faint); transform: rotate(45deg); transition: transform 0.18s var(--ease); }
+.bfm-disclose[aria-expanded="true"] .bfm-chev{ transform: rotate(-135deg); }
+.bfm-disclosed{ padding: 8px 2px 0; }
+.bfm-chips{ display: flex; flex-wrap: wrap; gap: 6px; }
+.bfm-chips .filter-chip{ min-height: 44px; }
+.bfm-sum{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.bfm-stat{ display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); }
+.bfm-num{ font-size: 22px; font-weight: 700; line-height: 1.1; color: var(--text); font-variant-numeric: tabular-nums; }
+.bfm-lab{ font-size: var(--fs-meta); color: var(--text-faint); }
+.bfm-muscles{ margin: 12px 0 2px; font-weight: 600; color: var(--text); }
+.bfm-line{ margin: 0; font-size: var(--fs-meta); color: var(--text-dim); }
+.bfm-why{ margin: 10px 0 0; padding-left: 18px; display: grid; gap: 4px; font-size: var(--fs-meta); color: var(--text-dim); }
+.bfm-note{ margin: 12px 0 0; padding: 8px 12px; font-size: var(--fs-meta); color: var(--text-dim); background: var(--surface-2); border-radius: var(--r-control); }
+.bfm-rows{ list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; gap: 8px; }
+.bfm-row{ background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); }
+.bfm-row-main{ display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 8px 2px 8px 8px; }
+.bfm-art{ width: 48px; height: 48px; flex: 0 0 auto; }
+.bfm-art-sm{ width: 36px; height: 36px; }
+.bfm-row-text{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.bfm-row-name{ font-weight: 600; line-height: 1.25; color: var(--text); overflow-wrap: anywhere; }
+.bfm-row-rx{ font-size: var(--fs-meta); color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.bfm-next{ margin-left: 6px; color: var(--accent); font-weight: 600; }
+.bfm-row-why{ font-size: var(--fs-micro); color: var(--text-faint); }
+.bfm-pref{ margin-left: 4px; padding: 0 6px; font-size: var(--fs-micro); font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 999px; }
+.bfm-row-more{ flex: 0 0 auto; width: 44px; height: 44px; padding: 0; color: var(--text-dim); background: transparent; border: 0; border-radius: var(--r-control); font-size: 12px; letter-spacing: 1px; cursor: pointer; }
+.bfm-row-more[aria-expanded="true"]{ color: var(--text); background: var(--surface-2); }
+.bfm-row-actions{ display: flex; flex-wrap: wrap; gap: 6px; padding: 0 8px 10px; }
+.bfm-act{ display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 14px; color: var(--text); font-weight: 600; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-control); cursor: pointer; }
+.bfm-act[aria-pressed="true"], .bfm-act[aria-expanded="true"]{ color: var(--accent); border-color: var(--accent-soft); }
+.bfm-act-quiet{ color: var(--text-dim); }
+.bfm-swap{ display: grid; gap: 6px; padding: 0 8px 10px; }
+.bfm-swap-opt{ display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 4px 12px 4px 6px; color: var(--text); text-align: left; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-control); cursor: pointer; }
+.bfm-empty{ display: grid; gap: 12px; margin-top: var(--space-3); color: var(--text-dim); }
+#bfmActions .bfm-cta{ flex: 1.4 1 0; }
+.tr-chips{
+  display: flex; gap: 2px; margin: 0 0 var(--space-3); padding: 3px; overflow-x: auto; overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity; scroll-padding-inline: 3px; background: var(--surface-inset); border: 1px solid var(--hairline);
+  border-radius: var(--r-control); box-shadow: inset 0 1px 2px rgba(0,0,0,0.35);
+}
+.tr-chips .filter-chip{
+  flex: 0 0 auto; min-height: 44px; padding: 0 14px; color: var(--text-dim); font-size: 13px; font-weight: 600; white-space: nowrap;
+  background: transparent; border: 0; border-radius: 9px; box-shadow: none; scroll-snap-align: start;
+}
+.tr-chips .filter-chip.active{
+  color: var(--text); font-weight: 700; background: var(--surface-3);
+  box-shadow: inset 0 1px 0 var(--edge-hi), 0 1px 3px rgba(0,0,0,0.45), 0 0 0 1px rgba(148,170,205,0.10);
+}
+.tr-chips.more-right{ -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 36px), transparent); }
+.tr-chips.more-left{ -webkit-mask-image: linear-gradient(to right, transparent, #000 36px); mask-image: linear-gradient(to right, transparent, #000 36px); }
+.tr-chips.more-left.more-right{ -webkit-mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); mask-image: linear-gradient(to right, transparent, #000 36px, #000 calc(100% - 36px), transparent); }
 /* ==== D132 SYSTEM END ==== */
 </style>
 </head>
@@ -10025,6 +10112,12 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
            one trains now; the other saves a workout to reuse and asks what kind
            it is, instead of borrowing whichever category was on screen. -->
       <div class="tq" role="group" aria-labelledby="trainQuickLabel">
+        <!-- D139 — Build for me: LOOP builds today's session from what it knows; the athlete changes only today's facts. -->
+        <button type="button" class="tq-build" id="trainBuildForMe" onclick="openBuildForMe()">
+          <span class="tq-ic"><svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true" focusable="false"><path d="M9 2.2l1.6 4.2 4.2 1.6-4.2 1.6L9 13.8l-1.6-4.2L3.2 8l4.2-1.6z" fill="currentColor"/><path d="M14.2 12.2l.6 1.6 1.6.6-1.6.6-.6 1.6-.6-1.6-1.6-.6 1.6-.6z" fill="currentColor"/></svg></span>
+          <span class="tq-main"><span class="tq-title">Build for me</span><span class="tq-sub">Personalized for today</span></span>
+          <span class="tq-build-go" aria-hidden="true">›</span>
+        </button>
         <button type="button" class="tq-btn" onclick="openFreeformLog()">
           <span class="tq-ic"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 3.2v9.6M3.2 8h9.6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
           <span class="tq-main"><span class="tq-title">Empty workout</span><span class="tq-sub">Train now</span></span>
@@ -10480,6 +10573,22 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
       <button class="btn-secondary" onclick="closeTplSheet()">Cancel</button>
       <button class="btn-primary" onclick="saveTemplate(this)">Save Workout</button>
     </div>
+  </div>
+</div>
+
+<!-- BUILD FOR ME (D139) — one sheet: today's choices, then the session they build. Nothing is saved until the
+     workout is; Start opens the normal workout logger. -->
+<div class="overlay" id="bfmOverlay" onclick="backdropDismiss(event, closeBuildForMe)">
+  <div class="sheet" role="dialog" aria-labelledby="bfmTitle">
+    <div class="sheet-scroll">
+      <div class="td-head">
+        <span class="td-kicker" id="bfmKicker">Build for me</span>
+        <button type="button" class="td-close" onclick="closeBuildForMe()" aria-label="Close"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></button>
+      </div>
+      <h2 class="bfm-title" id="bfmTitle">Today’s workout</h2>
+      <div id="bfmBody"></div>
+    </div>
+    <div class="sheet-actions" id="bfmActions"></div>
   </div>
 </div>
 
@@ -19784,6 +19893,23 @@ const LOOP_UPDATES = [
     changes: [
       'The full-screen workout layout introduced in 10.58 has been withdrawn'
     ]
+  },
+  {
+    id: 'v10-60',
+    version: 'LOOP 10.60',
+    title: 'Build Today’s Workout',
+    date: '2026-10-09',
+    swVersion: 'loop-v237',
+    summary: 'LOOP can now build a workout around your time, your training and what you want to do today.',
+    newFeatures: [
+      'Build for me, on Train, uses your plan, recent training, recovery, equipment and favorites to put together a session you can start straight away',
+      'Change the time or focus, swap or remove anything you don’t want, mark favorites, then start it in the normal workout logger'
+    ],
+    improvements: [
+      'Train’s workout filter is now one track you swipe, with a fade where more is off screen'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -23089,6 +23215,1059 @@ function openSettings(){
   document.getElementById('settingsOverlay').classList.add('open');
 }
 function closeSettings(){ document.getElementById('settingsOverlay').classList.remove('open'); }
+
+/* =========================================================
+   BUILD FOR ME  (Phase D139 — the instant session builder)
+   ---------------------------------------------------------
+   LOOP composes today's workout from what it already knows: the athlete's
+   goal and plan, today's planned session, their history, recovery, equipment
+   and stated preferences. The athlete is asked only what changed today: time,
+   focus, anything they want more of, energy when no check-in exists, and
+   anything to leave out today.
+
+   The composer is staged, never "score everything and take the top six":
+     1 intent      — the plan session to adapt, or the focus (Best fit picks
+                     the most ready split the athlete trains)
+     2 constraints — hard: stated avoid, equipment the gym lacks or today's
+                     limits exclude, muscles rested today
+     3 demand      — which muscle groups the session owes, weighted by
+                     priority and (gently) by recovery
+     4 anchors     — one compound per movement the session is built around
+     5 support     — the athlete's favorites, then the groups still owed,
+                     without redundancy
+     6 sets/reps   — from the athlete's own plan, else the goal's range by
+                     role
+     7 order       — compounds first, priority work early, core last
+     8 time        — LOOP's own duration model, scaled by the athlete's
+                     measured pace, trimmed by Time Mode's tiers
+     9 validate    — nothing invalid is ever shown
+    10 explain     — every reason shown is a decision the engine made
+
+   Deterministic: the same history, plan, profile, preferences and inputs
+   always give the same session. "Build another" walks the validated
+   alternatives in order; it never shuffles.
+
+   Provenance: a generated session is the athlete's own extra training, saved
+   with origin 'generated'. It is never a program's work (no programId), never
+   marks a scheduled session done, and never writes to a plan. Its sets × reps
+   are the session's own prescription, as a saved custom workout's are.
+   ========================================================= */
+const BUILD_CONFIG = {
+  minutes: [20, 30, 45, 60, 75, 90],
+  focuses: ['best', 'push', 'pull', 'legs', 'upper', 'lower', 'fullbody', 'core'],
+  energies: ['normal', 'great', 'easy'],
+  offEquipment: ['Barbell', 'Dumbbell', 'Cable', 'Machine'],
+  /* how many exercises a session of N minutes is built from, before the time fit */
+  slots: [[20, 3], [30, 4], [45, 5], [60, 6], [75, 7], [90, 8]],
+  /* the movements each focus is built around, in order; one compound each */
+  anchors: {
+    push: [['horizontal_push'], ['vertical_push']],
+    pull: [['vertical_pull'], ['horizontal_pull']],
+    legs: [['squat'], ['hinge']],
+    lower: [['squat'], ['hinge']],
+    upper: [['horizontal_push'], ['horizontal_pull'], ['vertical_push', 'vertical_pull']],
+    fullbody: [['squat', 'lunge'], ['horizontal_push'], ['horizontal_pull'], ['hinge']],
+    core: []
+  },
+  fullbodyGroups: ['quads', 'chest', 'back', 'shoulders', 'hamstrings', 'glutes'],
+  /* candidate scoring; each term is a reason code the explanation can name */
+  weights: {
+    familiarPerSession: 5, familiarMax: 30,   // sessions of this exercise in the log
+    inTodayPlan: 25,                          // part of today's planned session
+    inMyPlan: 12,                             // in the athlete's own plan or saved workouts
+    statedMore: 40, statedLess: -30,          // the athlete's own Prefer / Less
+    observedMore: 8, observedLess: -10,       // repeated swaps, never one
+    recent48h: -14,                           // done in the last two days: space it
+    priority: 22,                             // trains a muscle asked for today
+    fit: 10, fitOther: 2,                     // the row's leading muscle is owed / another primary is
+    gymKnown: 4, gymUnknownNovel: -12,        // My Gym says yes / does not know and it is new
+    novel: -24,                               // never done and not in the athlete's plan
+    library: 8,                               // a movement LOOP's own plans use (a staple, not a curiosity)
+    style: 14, styleNever: -6,                // × the share of the athlete's logged work on this equipment; none at all
+    defaultGym: 3,                            // with no equipment evidence at all: LOOP's default assumption, a gym
+    newBarbell: -10, newMachine: 4            // a new athlete with no history: barbell lifts wait, guided machines first
+  },
+  /* LOOP's default assumption when nothing — My Gym, the profile, the log — says what the athlete trains on: a gym, as
+     Balanced Machines (the default plan) assumes. Used only then, and never a hard rule. */
+  defaultGymEquipment: ['Machine', 'Cable', 'Dumbbell', 'Barbell'],
+  /* the profile's coarse equipment answer, in the registry's words */
+  profileEquipment: { Barbell: 'Barbell', Dumbbells: 'Dumbbell', Cables: 'Cable', Machines: 'Machine', Bodyweight: 'Bodyweight', Bands: 'Band' },
+  /* smaller muscles are owed less than the large ones a session is built around */
+  minorGroups: ['calves', 'biceps', 'triceps', 'abs'], minorDemand: 0.6,
+  /* Best fit: at most this many exercises the athlete has never done and that
+     are not in their own plan */
+  noveltyCap: 1,
+  /* Best fit on a plan day: today's session waits when its split was trained within planRecentDays, or within
+     planWeekDays while another split of the athlete's has gone neglectDays or more */
+  planRecentDays: 1.5, planWeekDays: 4, neglectDays: 7,
+  /* the athlete's favorites (stated, not inferred) a session makes room for, when they train what it owes */
+  favoritesMax: 2,
+  /* support is owed in rounds (every group once, then again); a muscle may lead this many rows by round, so a long
+     session spreads first and only then adds a third or fourth row for its main muscles */
+  supportRounds: 4, leadCap: [2, 2, 3, 4],
+  /* the athlete's measured pace against LOOP's estimate, from their own timed workouts */
+  pace: { window: 12, minSamples: 3, min: 0.85, max: 1.35 },
+  /* below this share of the window, the session is filled out */
+  fillShare: 0.72,
+  maxSets: 4,
+  minSets: 2,
+  minExercises: 3,
+  /* alternatives within this share of the best score are valid for "Build another" */
+  alternativeShare: 0.82
+};
+const BUILD_REASON_TEXT = {
+  PLAN_ANCHOR: 'From today’s plan',
+  PREFERENCE: 'You marked this as a favorite',
+  MUSCLE_PRIORITY: 'More {m} today',
+  FAMILIARITY: 'You’ve trained this {n} times',
+  FAMILIAR_ONE: 'You’ve trained this before',
+  IN_YOUR_PLAN: 'In your plan',
+  EQUIPMENT_FIT: 'In your gym',
+  REPLACEMENT: 'Instead of {x}',
+  ANCHOR: 'Main {p} movement',
+  COVERS: 'Covers {m}',
+  NEW: 'New to you',
+  LIGHTER: 'One set fewer: {m} is still recovering',
+  USER_PICK: 'Your pick'
+};
+const BUILD_PATTERN_WORD = { horizontal_push: 'press', vertical_push: 'overhead press', horizontal_pull: 'row', vertical_pull: 'pulldown', squat: 'squat', hinge: 'hinge', lunge: 'lunge', isolation: 'isolation', core: 'core' };
+const BUILD_MUSCLE_WORD = { chest: 'chest', shoulders: 'shoulders', back: 'back', biceps: 'biceps', triceps: 'triceps', abs: 'core', quads: 'quads', hamstrings: 'hamstrings', glutes: 'glutes', calves: 'calves' };
+
+/* ---- LOOP's own duration model, unrounded ----
+   computeWorkoutDuration's constants (40 s a set, the rest restSecondsForReps
+   gives the reps, 50 s between exercises), without its rounding to 5 minutes:
+   a time window is a promise, and rounding down would break it. */
+function buildTemplateSeconds(exercises){
+  return (exercises || []).reduce((s, ex) => s + (parseInt(ex.sets, 10) || 3) * (40 + restSecondsForReps(ex.reps)) + 50, 0);
+}
+function buildLoggedSeconds(entry){
+  let total = 0;
+  ((entry && entry.exercises) || []).forEach(ex => {
+    const sets = ((ex && ex.sets) || []).filter(Boolean);
+    const n = sets.length;
+    if(!n) return;
+    const avg = sets.reduce((s, st) => s + (parseFloat(st.reps) || 10), 0) / n;
+    total += n * (40 + restSecondsForReps(String(avg))) + 50;
+  });
+  return total;
+}
+/* How the athlete's real workouts compare with that model: the median of
+   measured / estimated over their last timed workouts. Only real timings count
+   (workoutTimeOf's 'actual': started and finished live, on the day, within a
+   plausible span), and fewer than three of them is not evidence. */
+function buildPace(log){
+  const C = BUILD_CONFIG.pace;
+  const ratios = [];
+  const list = (log || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  for(const e of list){
+    if(ratios.length >= C.window) break;
+    let sec = null;
+    try{ const t = workoutTimeOf(e); sec = t.kind === 'actual' ? t.sec : null; }catch(err){ sec = null; }
+    const est = buildLoggedSeconds(e);
+    if(sec && est > 0) ratios.push(sec / est);
+  }
+  if(ratios.length < C.minSamples) return { factor: 1, samples: ratios.length };
+  ratios.sort((a, b) => a - b);
+  const mid = ratios.length >> 1;
+  const med = ratios.length % 2 ? ratios[mid] : (ratios[mid - 1] + ratios[mid]) / 2;
+  return { factor: Math.min(C.max, Math.max(C.min, Math.round(med * 100) / 100)), samples: ratios.length };
+}
+
+/* ---- What LOOP already knows ---- */
+function buildKnown(){
+  const today = localDateStr();
+  const log = Array.isArray(workoutLog) ? workoutLog : [];
+  const k = {
+    today,
+    goal: (athleteProfile && athleteProfile.goal) || null,
+    experience: (athleteProfile && athleteProfile.experience) || null,
+    sessionMinutes: (athleteProfile && athleteProfile.sessionMinutes) || null,
+    plan: null, recovery: {}, readiness: null, gymConfigured: false,
+    pace: (() => { try{ return buildPace(log); }catch(e){ return { factor: 1, samples: 0 }; } })(), historyCount: log.length, trainedToday: log.some(l => l && l.date === today),
+    family: [], style: {}, styleTotal: 0
+  };
+  /* The equipment the athlete actually trains on: the share of their logged exercise sessions per kind. */
+  log.forEach(l => (l && l.exercises || []).forEach(ex => {
+    let canon = null;
+    try{ canon = getCanonicalExercise(resolveExerciseId(ex.name)); }catch(e){}
+    if(!canon || !canon.equipment) return;
+    k.style[canon.equipment] = (k.style[canon.equipment] || 0) + 1; k.styleTotal++;
+  }));
+  /* no log: the profile's own equipment answer, when it gave one, counts as evidence of the same kind */
+  if(!k.styleTotal){
+    ((athleteProfile && athleteProfile.equipment) || []).forEach(e => { const q = BUILD_CONFIG.profileEquipment[e]; if(q){ k.style[q] = (k.style[q] || 0) + 1; k.styleTotal++; } });
+  }
+  try{ k.gymConfigured = isGymProfileConfigured(); }catch(e){}
+  try{ k.recovery = computeMuscleRecovery() || {}; }catch(e){ k.recovery = {}; }
+  try{
+    const r = getTodayReadiness();
+    const score = r ? calculateReadinessScore(r) : null;
+    const state = readinessStateFromScore(score);
+    if(state) k.readiness = { state, energy: state === 'high' ? 'great' : (state === 'normal' ? 'normal' : 'easy') };
+  }catch(e){}
+  /* Today's planned session, while it is still to do. */
+  try{
+    const s = k.trainedToday ? null : trainSessionOn(new Date());
+    const pick = s ? resolveStartWorkout(s.cat, s.id, s.dateStr) : null;
+    if(s && pick && pick.template && (pick.template.exercises || []).length){
+      k.plan = { cat: s.cat, id: s.id, name: pick.template.name || CAT_LABEL[s.cat], template: pick.template, scheduled: !!pick.scheduled };
+    }
+  }catch(e){ k.plan = null; }
+  /* The split the athlete trains: their schedule, else what they have logged. */
+  try{ k.family = scheduledTrainCategories().filter(c => CATEGORY_GROUPS[c] !== undefined); }catch(e){ k.family = []; }
+  if(!k.family.length){
+    const seen = {};
+    log.forEach(l => { if(l && CATEGORY_GROUPS[l.category] !== undefined) seen[l.category] = (seen[l.category] || 0) + 1; });
+    k.family = ORDER.filter(c => seen[c]);
+  }
+  return k;
+}
+
+/* The default answer for each of today's choices. */
+function buildDefaults(known){
+  known = known || buildKnown();
+  const opts = BUILD_CONFIG.minutes;
+  let base = known.sessionMinutes;
+  if(!base && known.plan){ try{ base = computeWorkoutDuration(known.plan.template); }catch(e){} }
+  if(!base) base = 45;
+  const minutes = opts.reduce((best, m) => Math.abs(m - base) < Math.abs(best - base) ? m : best, opts[0]);
+  return { minutes, focus: 'best', priority: [], energy: known.readiness ? known.readiness.energy : 'normal', offEquipment: [], restMuscles: [], variant: 0, include: [], exclude: [] };
+}
+
+/* ---- The candidates: every movement LOOP can name for this athlete ---- */
+function buildCandidates(known){
+  const log = Array.isArray(workoutLog) ? workoutLog : [];
+  const byId = {};
+  const idOf = n => { try{ return resolveExerciseId(n); }catch(e){ return 'unmapped:' + normalizeExerciseName(n); } };
+  const add = (name, from) => {
+    const clean = String(name || '').trim();
+    if(!clean) return null;
+    const id = idOf(clean);
+    let c = byId[id];
+    if(!c){
+      const canon = getCanonicalExercise(id) || null;
+      let m = { primary: [], secondary: [] };
+      if(canon) m = { primary: (canon.primary || []).slice(), secondary: (canon.secondary || []).slice() };
+      else { try{ m = musclesForExercise(clean); }catch(e){} }
+      let pattern = canon ? canon.pattern : null, role = null;
+      try{ const r = timeModeRoleOf(clean); pattern = pattern || r.pattern; role = r.role; }catch(e){}
+      /* a session is built around multi-joint lifts: one the registry says works a single muscle (the Pec Deck) is an
+         accessory here, whatever its pattern */
+      if(role === 'compound' && canon && !(canon.secondary || []).length) role = 'accessory';
+      /* a name the registry doesn't know still says its equipment ("Seated DB Shoulder Press"), and today's limits and the
+         redundancy rule need it */
+      let equipment = canon ? canon.equipment : null;
+      if(!equipment){ try{ equipment = pickerEquipmentFromName(clean); }catch(e){} }
+      c = byId[id] = { id, canon, name: canon ? canon.displayName : clean, logged: null, planName: null, pattern: pattern || 'other', role: role || 'other',
+        primary: m.primary.map(g => g === 'core' ? 'abs' : g), secondary: (m.secondary || []).map(g => g === 'core' ? 'abs' : g),
+        equipment: equipment || null, bodyweight: false, timed: !!(canon && canon.timed),
+        sessions: 0, lastDate: null, inTodayPlan: false, inMyPlan: false, inLibrary: false, src: null };
+      try{ c.bodyweight = !!(canon && canon.bodyweight) || exerciseIsBodyweight(clean); }catch(e){}
+    }
+    if(from === 'log') c.logged = clean;
+    if(from === 'plan' || from === 'today') c.planName = c.planName || clean;
+    return c;
+  };
+  /* history — the athlete's own spelling, most recent first */
+  log.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).forEach(l => {
+    const seen = {};
+    (l.exercises || []).forEach(ex => {
+      const c = add(ex.name, 'log');
+      if(!c || seen[c.id]) return;
+      seen[c.id] = true;
+      if(!c.logged) c.logged = String(ex.name).trim();
+      c.sessions++;
+      if(!c.lastDate || l.date > c.lastDate) c.lastDate = l.date;
+    });
+  });
+  /* today's plan, then the athlete's own plan and saved workouts, then LOOP's library */
+  if(known.plan) (known.plan.template.exercises || []).forEach(ex => { const c = add(ex.name, 'today'); if(c){ c.inTodayPlan = true; c.inMyPlan = true; c.src = c.src || ex; } });
+  try{ ORDER.forEach(cat => (getTemplates(cat) || []).forEach(t => (t.exercises || []).forEach(ex => { const c = add(ex.name, 'plan'); if(c){ c.inMyPlan = true; c.src = c.src || ex; } }))); }catch(e){}
+  /* LOOP's library marks a staple; its sets and reps are each default plan's own (a strength plan's 4–6 is not this
+     athlete's), so they are not borrowed: a row's prescription is the athlete's plan's, or the goal's by role. */
+  try{ ORDER.forEach(cat => (EXERCISE_LIBRARY[cat] || []).forEach(ex => { const c = add(ex.name, 'lib'); if(c) c.inLibrary = true; })); }catch(e){}
+  CANONICAL_EXERCISES.forEach(canon => add(canon.displayName, 'canon'));
+  /* the name a row is started with: the athlete's own spelling, their plan's, or LOOP's */
+  Object.values(byId).forEach(c => { c.name = c.logged || c.planName || c.name; });
+  return byId;
+}
+
+/* ---- Hard constraints: never lose to a score ---- */
+/* The names one movement goes by: the athlete's spelling, their plan's, LOOP's own and the registry's aliases. A favorite or
+   an avoid stated under any of them is about this movement (exercisePrefs is keyed by the name it was said under). */
+function buildNamesOf(c){
+  const out = [c.name, c.logged, c.planName, c.canon && c.canon.displayName].concat((c.canon && c.canon.aliases) || []);
+  return Array.from(new Set(out.filter(Boolean).map(n => String(n).trim().toLowerCase())));
+}
+/* the athlete's word under any of those names comes first (Don't suggest before Favorite), then repeated swaps */
+function buildPreference(names){
+  let best = { level: 'unknown', source: 'insufficient', net: 0 };
+  for(const n of names){
+    let p = null;
+    try{ p = inferredPreference(n); }catch(e){ p = null; }
+    if(!p) continue;
+    if(p.source === 'stated'){ if(p.level === 'never') return p; if(best.source !== 'stated') best = p; }
+    else if(p.source === 'observed' && best.source === 'insufficient') best = p;
+  }
+  return best;
+}
+function buildPreferenceOfName(name){
+  let canon = null;
+  try{ canon = getCanonicalExercise(resolveExerciseId(name)) || null; }catch(e){}
+  return buildPreference(buildNamesOf({ name, canon }));
+}
+
+function buildHardReject(c, inputs, known){
+  const key = normalizeExerciseName(c.name);
+  const names = buildNamesOf(c), keys = names.map(normalizeExerciseName);
+  if(buildPreference(names).level === 'never') return 'avoid';
+  const excluded = ((athleteProfile && athleteProfile.excludedExercises) || []).map(s => normalizeExerciseName(s));
+  if(keys.some(k => excluded.indexOf(k) !== -1)) return 'avoid';
+  if((inputs.exclude || []).some(n => normalizeExerciseName(n) === key)) return 'removed';
+  let gym = null;
+  try{ gym = canPerformExerciseByName(c.name); }catch(e){ gym = null; }
+  if(gym === GYM_STATUS.UNAVAILABLE) return 'equipment';
+  if(c.equipment && (inputs.offEquipment || []).indexOf(c.equipment) !== -1) return 'equipment-today';
+  if(c.primary.some(g => (inputs.restMuscles || []).indexOf(g) !== -1)) return 'rest-muscle';
+  return null;
+}
+
+/* ---- Scoring: each term is a reason the explanation can name ---- */
+function buildScore(c, ctx){
+  const W = BUILD_CONFIG.weights;
+  const reasons = [];
+  let s = 0;
+  const pref = buildPreference(buildNamesOf(c));
+  if(pref.source === 'stated' && pref.level === 'more'){ s += W.statedMore; reasons.push('PREFERENCE'); }
+  if(pref.source === 'stated' && pref.level === 'less') s += W.statedLess;
+  if(pref.source === 'observed') s += pref.level === 'more' ? W.observedMore : W.observedLess;
+  if(c.sessions){ s += Math.min(W.familiarMax, c.sessions * W.familiarPerSession); reasons.push('FAMILIARITY'); }
+  if(c.inTodayPlan && ctx.mode === 'plan'){ s += W.inTodayPlan; reasons.push('PLAN_ANCHOR'); }
+  else if(c.inMyPlan){ s += W.inMyPlan; if(!c.sessions) reasons.push('IN_YOUR_PLAN'); }
+  const novel = !c.sessions && !c.inMyPlan;
+  if(novel){ s += W.novel; reasons.push('NEW'); }
+  if(c.inLibrary) s += W.library;
+  if(c.equipment && ctx.known.styleTotal){
+    const share = (ctx.known.style[c.equipment] || 0) / ctx.known.styleTotal;
+    s += share > 0 ? W.style * share : W.styleNever;
+  } else if(c.equipment && !ctx.known.gymConfigured){
+    s += BUILD_CONFIG.defaultGymEquipment.indexOf(c.equipment) !== -1 ? W.defaultGym : -W.defaultGym;
+  }
+  /* an athlete with no history who is new (or has not said) starts on machines and dumbbells, as LOOP's own beginner
+     plan does: barbell lifts are the most technical, so they wait until the athlete has chosen them */
+  if(!ctx.known.historyCount && (!ctx.known.experience || ctx.known.experience === 'new')){ if(c.equipment === 'Barbell') s += W.newBarbell; else if(c.equipment === 'Machine' || c.equipment === 'Cable') s += W.newMachine; }
+  if(c.lastDate && ctx.known.today){ let d = 99; try{ d = daysBetweenDates(c.lastDate, ctx.known.today); }catch(e){} if(d >= 0 && d <= 2) s += W.recent48h; }
+  /* fit is for the job the row does: its leading muscle in full, any other owed primary a little */
+  const lead = c.primary[0];
+  if(lead && (ctx.demand[lead] || 0) > 0) s += W.fit * Math.min(2, ctx.demand[lead]);
+  s += c.primary.slice(1).filter(g => (ctx.demand[g] || 0) > 0).length * W.fitOther;
+  if(c.primary.some(g => ctx.priority.indexOf(g) !== -1)){ s += W.priority; reasons.push('MUSCLE_PRIORITY'); }
+  /* My Gym speaks only once it is configured: unconfigured, every piece of equipment is unknown and only bodyweight work
+     reads as available, which would tilt every session toward bodyweight for no reason the athlete gave. */
+  if(ctx.known.gymConfigured){
+    let gym = null;
+    try{ gym = canPerformExerciseByName(c.name); }catch(e){}
+    if(gym === GYM_STATUS.AVAILABLE){ s += W.gymKnown; reasons.push('EQUIPMENT_FIT'); }
+    else if(novel) s += W.gymUnknownNovel;
+  }
+  return { score: Math.round(s * 10) / 10, reasons, novel };
+}
+
+/* ---- Sets, reps and effort for a row: the athlete's plan, else the goal ---- */
+function buildRowRx(c, ctx, anchor){
+  const src = c.src;
+  /* the goal's range is for the movements a session is built around; a supporting compound sits in the middle of it
+     (a strength day's lunges are not 3–6), and accessories in the higher range */
+  let goalRange = (TRAINING_GOALS[ctx.known.goal] || {}).repRange || null;
+  if(!anchor && goalRange && ctx.known.goal === 'strength') goalRange = '6-10';
+  const accessory = c.role !== 'compound' || c.pattern === 'core' || c.pattern === 'isolation';
+  let sets = src ? (parseInt(src.sets, 10) || 3) : 3;
+  /* a source's reps stand when they say how many (a number, or LOOP's own "to failure"); otherwise the goal's range by role */
+  const srcReps = src && src.reps && /\d|failure/i.test(String(src.reps)) ? String(src.reps) : null;
+  let reps = srcReps || (accessory ? (ctx.known.goal === 'endurance' ? '15–20' : '10–15') : (goalRange ? goalRange.replace('-', '–') : '8–12'));
+  const effort = src && src.effort ? String(src.effort) : (accessory ? '7' : '7–8');
+  if(c.timed && !srcReps) reps = '30–45 sec';
+  sets = Math.max(BUILD_CONFIG.minSets, Math.min(BUILD_CONFIG.maxSets, sets));
+  return { sets, reps, effort, recommended: src && src.recommended ? src.recommended : '' };
+}
+
+/* ---- 1. Intent ---- */
+function buildIntent(inputs, known){
+  const focus = inputs.focus || 'best';
+  const groupsOf = cat => (CATEGORY_GROUPS[cat] || BUILD_CONFIG.fullbodyGroups).slice();
+  /* the days since a split's main muscles were last trained (its smaller ones don't decide it); 99 for never */
+  const daysOf = cat => {
+    const ds = groupsOf(cat).filter(g => BUILD_CONFIG.minorGroups.indexOf(g) === -1).map(g => { const r = known.recovery[g]; return r && r.lastTrainedDays !== null && r.lastTrainedDays !== undefined ? r.lastTrainedDays : 99; });
+    return ds.length ? Math.min.apply(null, ds) : 99;
+  };
+  /* recovery's own score, less for work in the last few days, plus the days since each group was trained (a week at most):
+     recovery alone barely tells splits apart once everything is "well", and a rotation is about what is longest undone */
+  const readiness = cat => {
+    const vals = groupsOf(cat).map(g => {
+      const r = known.recovery[g];
+      let v = (r && r.score !== null && r.score !== undefined) ? r.score : 100;
+      const d = r && r.lastTrainedDays !== null && r.lastTrainedDays !== undefined ? r.lastTrainedDays : 7;
+      if(d < 1.5) v -= 30; else if(d < 3) v -= 10;
+      return v + 3 * Math.min(7, d);
+    });
+    return vals.reduce((x, y) => x + y, 0) / vals.length;
+  };
+  const mostReady = pool => pool.map(c => ({ c, r: readiness(c) })).sort((x, y) => y.r - x.r || pool.indexOf(x.c) - pool.indexOf(y.c))[0].c;
+  const family = (known.family.length ? known.family : ['upper', 'lower', 'fullbody']).filter(c => c !== 'core' && c !== 'arms' && CATEGORY_GROUPS[c] !== undefined);
+  if(known.plan && (focus === 'best' || focus === known.plan.cat)){
+    const planCat = known.plan.cat;
+    /* Plan-aware, not plan-obedient. Best fit sets today's planned session aside only when the athlete's own log says so —
+       its muscles were trained yesterday or today, or it was trained this week while another split of theirs has gone a
+       week or more — and then says why. Choosing the plan's own focus always builds the plan's session. */
+    if(focus === 'best' && known.historyCount){
+      const others = family.filter(c => c !== planCat);
+      const since = daysOf(planCat);
+      if(others.length && since < BUILD_CONFIG.planRecentDays){ const cat = mostReady(others); return { mode: 'free', cat, groups: groupsOf(cat), why: 'planRecent', planCat, since }; }
+      if(others.length && since < BUILD_CONFIG.planWeekDays){
+        const owed = others.map(c => ({ c, d: daysOf(c) })).filter(o => o.d >= BUILD_CONFIG.neglectDays).sort((x, y) => y.d - x.d || others.indexOf(x.c) - others.indexOf(y.c))[0];
+        if(owed) return { mode: 'free', cat: owed.c, groups: groupsOf(owed.c), why: 'neglected', planCat, since: owed.d };
+      }
+    }
+    return { mode: 'plan', cat: planCat, groups: groupsOf(planCat), why: 'plan' };
+  }
+  if(focus !== 'best') return { mode: 'free', cat: focus, groups: groupsOf(focus), why: 'chosen' };
+  /* No plan session and no history: nothing says which muscles are ready, so a balanced full-body session, said as such. */
+  if(!known.historyCount) return { mode: 'free', cat: 'fullbody', groups: BUILD_CONFIG.fullbodyGroups.slice(), why: 'start' };
+  /* Best fit with nothing planned: the split the athlete trains whose muscles are most ready */
+  const cat = mostReady(family.length ? family : ['fullbody']);
+  return { mode: 'free', cat, groups: groupsOf(cat), why: 'ready' };
+}
+
+/* ---- 3. Demand: what the session owes each group ---- */
+function buildDemand(intent, inputs, known){
+  const demand = {};
+  intent.groups.forEach(g => { demand[g] = BUILD_CONFIG.minorGroups.indexOf(g) !== -1 ? BUILD_CONFIG.minorDemand : 1; });
+  if(intent.cat === 'core' || intent.cat === 'fullbody') demand.abs = intent.cat === 'core' ? 1 : 0.4;
+  (inputs.priority || []).forEach(g => { demand[g] = (demand[g] || 0.6) + 0.8; });
+  (inputs.restMuscles || []).forEach(g => { delete demand[g]; });
+  /* Recovery is guidance, never a prohibition: a low group is owed less, not nothing. */
+  Object.keys(demand).forEach(g => {
+    const r = known.recovery[g];
+    if(!r || r.score === null || r.score === undefined) return;
+    if(r.state === 'low' || r.state === 'verylow') demand[g] *= 0.55;
+    else if(r.state === 'moderate') demand[g] *= 0.8;
+  });
+  return demand;
+}
+
+function buildSlotsFor(minutes, energy){
+  let n = BUILD_CONFIG.slots.reduce((best, [m, k]) => (m <= minutes ? k : best), BUILD_CONFIG.slots[0][1]);
+  if(energy === 'easy') n = Math.max(BUILD_CONFIG.minExercises, n - 1);
+  return n;
+}
+
+/* Two rows are redundant when they are the same movement (pattern + leading muscle + equipment + role: a press and a fly on
+   the same machine family are different work), or one row too many for a muscle as its leading group (leadCap, two unless
+   a later support round allows more). Equipment nobody can name counts as the same. A plan's own rows are the plan
+   author's decision and only a duplicate is refused (asPlan). */
+function buildRedundant(c, chosen, asPlan, leadCap){
+  if(chosen.some(x => x.c.id === c.id)) return true;
+  if(asPlan) return false;
+  const lead = c.primary[0];
+  if(chosen.some(x => x.c.pattern === c.pattern && x.c.primary[0] === lead && (x.c.equipment === c.equipment || !x.c.equipment || !c.equipment) && x.c.role === c.role)) return true;
+  if(lead && chosen.filter(x => x.c.primary[0] === lead).length >= (leadCap || 2) && c.pattern !== 'core') return true;
+  return false;
+}
+
+/* Pick from a ranked list: the best, or for "Build another" the variant-th of the valid alternatives. */
+function buildPick(ranked, variant){
+  if(!ranked.length) return null;
+  const top = ranked[0].score;
+  const valid = ranked.filter((r, i) => i === 0 || (top > 0 && r.score >= top * BUILD_CONFIG.alternativeShare) || r.locked);
+  return valid[(variant || 0) % valid.length];
+}
+
+/* ---- The composer ---- */
+/* Today's choices as the composer may read them: a window the sheet offers (20–90), a focus, energy and equipment it knows,
+   two priority muscles at most and none of them rested, a whole-number variant. Anything else falls back to the default. */
+function buildCleanInputs(inputs, known){
+  const d = buildDefaults(known), x = Object.assign({}, d, inputs || {});
+  const C = BUILD_CONFIG, groups = Object.keys(BUILD_MUSCLE_WORD);
+  const m = Number(x.minutes);
+  x.minutes = isFinite(m) ? Math.max(C.minutes[0], Math.min(C.minutes[C.minutes.length - 1], Math.round(m))) : d.minutes;
+  if(C.focuses.indexOf(x.focus) === -1) x.focus = d.focus;
+  if(C.energies.indexOf(x.energy) === -1) x.energy = d.energy;
+  const list = v => (Array.isArray(v) ? v : []).filter((g, i, a) => typeof g === 'string' && a.indexOf(g) === i);
+  x.restMuscles = list(x.restMuscles).filter(g => groups.indexOf(g) !== -1);
+  x.priority = list(x.priority).filter(g => groups.indexOf(g) !== -1 && x.restMuscles.indexOf(g) === -1).slice(0, 2);
+  x.offEquipment = list(x.offEquipment).filter(e => C.offEquipment.indexOf(e) !== -1);
+  x.include = list(x.include); x.exclude = list(x.exclude);
+  x.variant = Math.max(0, Math.floor(Number(x.variant) || 0));
+  return x;
+}
+function composeInstantSession(inputs, known){
+  known = known || buildKnown();
+  inputs = buildCleanInputs(inputs, known);
+  const intent = buildIntent(inputs, known);
+  const demand = buildDemand(intent, inputs, known);
+  /* every muscle the focus is for is rested today: nothing is built, and the sheet offers the choices back */
+  if(intent.cat !== 'core' && !intent.groups.some(g => g !== 'abs' && (demand[g] || 0) > 0)){
+    const empty = { mode: intent.mode, cat: intent.cat, why: intent.why, planCat: intent.planCat || null, since: intent.since == null ? null : intent.since, minutes: inputs.minutes, pace: known.pace.factor, paceSamples: known.pace.samples, estimateMin: 0,
+      rows: [], rejected: [], inputs, planName: intent.mode === 'plan' ? known.plan.name : null, variant: inputs.variant };
+    empty.problems = ['focus rested'].concat(validateComposedSession(empty, known));
+    empty.reasons = buildSessionReasons(empty, known, { priority: inputs.priority });
+    return empty;
+  }
+  const ctx = { known, inputs, mode: intent.mode, demand, priority: (inputs.priority || []).slice() };
+  const pool = buildCandidates(known);
+  const rejected = [];
+  const live = [];
+  Object.values(pool).forEach(c => {
+    const why = buildHardReject(c, inputs, known);
+    if(why){ if(c.inTodayPlan || c.sessions) rejected.push({ name: c.name, why }); return; }
+    const sc = buildScore(c, ctx);
+    live.push(Object.assign({ c }, sc));
+  });
+  const includeKeys = (inputs.include || []).map(n => normalizeExerciseName(n));
+  live.forEach(x => { if(includeKeys.indexOf(normalizeExerciseName(x.c.name)) !== -1){ x.locked = true; x.score += 1000; } });
+  const order = (a, b) => b.score - a.score || a.c.name.localeCompare(b.c.name);
+  const chosen = [];
+  let novelCount = 0;
+  /* ord is the row's place: a plan slot or an anchor by its index, the athlete's own pick after those, everything else in
+     the order it was chosen */
+  const take = (x, slotReasons, fromPlan, ord) => { chosen.push({ c: x.c, score: x.score, reasons: slotReasons.concat(x.reasons), locked: !!x.locked, novel: x.novel, fromPlan: !!fromPlan, ord: ord == null ? 100 + chosen.length : ord }); if(x.novel) novelCount++; };
+  const N = buildSlotsFor(inputs.minutes, inputs.energy);
+  /* Novelty: at most BUILD_CONFIG.noveltyCap new movements while the athlete's own work can fill the session. An athlete whose
+     history and plan cannot (a new athlete, a narrow history) is allowed exactly as many new movements as the gap. */
+  const familiarAvail = live.filter(x => !x.novel && x.c.primary.some(g => (demand[g] || 0) > 0)).length;
+  const novelCap = Math.max(BUILD_CONFIG.noveltyCap, N - familiarAvail);
+  const allowedNovel = x => !x.novel || x.locked || novelCount < novelCap;
+
+  /* user locks come first: an exercise the athlete swapped in is theirs, and it fills the plan slot or anchor it stands for
+     (claim) rather than sitting beside a second one */
+  live.filter(x => x.locked).sort(order).forEach(x => { if(!buildRedundant(x.c, chosen)) take(x, ['USER_PICK'], false, 50); });
+  const claim = test => chosen.find(y => y.locked && !y.placed && test(y.c));
+
+  if(intent.mode === 'plan'){
+    /* 4p. The plan's own session, in its order: kept where it can be done today, replaced by the best fit for the same
+       movement where it cannot, dropped where nothing fits. "Build another" rotates the plan's accessories through their
+       familiar equivalents; its compounds stay the plan's. */
+    (known.plan.template.exercises || []).forEach((ex, k) => {
+      const id = (() => { try{ return resolveExerciseId(ex.name); }catch(e){ return null; } })();
+      const mine0 = chosen.find(x => x.c.id === id);
+      if(mine0){ if(mine0.locked && !mine0.placed){ mine0.placed = true; mine0.fromPlan = true; mine0.ord = k; mine0.c.src = mine0.c.src || ex; } return; }
+      const own = live.find(x => x.c.id === id && !x.locked);
+      const lost = pool[id];
+      /* an equivalent from outside today's plan (a row the plan has later keeps its own slot), under the plan slot's own rule */
+      const same = base => live.filter(x => !x.locked && x.c.pattern === base.pattern && x.c.role === base.role && x.c.primary[0] === base.primary[0]
+        && (x.c.sessions || x.c.inMyPlan || x.c.id === base.id) && (x.c.id === base.id || !x.c.inTodayPlan) && !buildRedundant(x.c, chosen, true));
+      if(own){
+        if(inputs.variant && own.c.role !== 'compound'){
+          const alts = same(own.c).sort((a, b) => (b.c.id === own.c.id) - (a.c.id === own.c.id) || order(a, b));
+          const pick = alts[(inputs.variant || 0) % Math.max(1, alts.length)] || own;
+          pick.c.src = pick.c.src || ex;
+          take(pick, pick === own ? [] : ['REPLACEMENT:' + own.c.name], true, k);
+          return;
+        }
+        own.c.src = ex; take(own, [], true, k); return;
+      }
+      if(!lost) return;
+      const mine = claim(c2 => c2.pattern === lost.pattern && c2.primary.some(g => lost.primary.indexOf(g) !== -1));
+      if(mine){ mine.placed = true; mine.fromPlan = true; mine.ord = k; mine.c.src = mine.c.src || ex; return; }
+      /* the plan's slot is the plan author's: a replacement fills it under the plan's own rule (a duplicate is all it refuses) */
+      /* the same job first (its role), and from outside today's plan unless nothing else fits: a row the plan has later keeps its own slot */
+      const fits = live.filter(x => !x.locked && x.c.pattern === lost.pattern && x.c.primary.some(g => lost.primary.indexOf(g) !== -1) && allowedNovel(x) && !buildRedundant(x.c, chosen, true));
+      const outside = fits.filter(x => !x.c.inTodayPlan);
+      const alts = (outside.length ? outside : fits).sort((p, q) => (q.c.role === lost.role) - (p.c.role === lost.role) || order(p, q));
+      const pick = buildPick(alts, inputs.variant);
+      if(pick){ pick.c.src = pick.c.src || ex; take(pick, ['REPLACEMENT:' + lost.name], true, k); }
+    });
+  } else {
+    /* 4f. Anchors: one compound per movement the focus is built around; priority movements first. */
+    const anchorSets = (BUILD_CONFIG.anchors[intent.cat] || []).slice();
+    anchorSets.sort((a, b) => {
+      const pa = live.some(x => a.indexOf(x.c.pattern) !== -1 && x.c.primary.some(g => ctx.priority.indexOf(g) !== -1)) ? 1 : 0;
+      const pb = live.some(x => b.indexOf(x.c.pattern) !== -1 && x.c.primary.some(g => ctx.priority.indexOf(g) !== -1)) ? 1 : 0;
+      return pb - pa;
+    });
+    anchorSets.forEach((patterns, k) => {
+      const mine = claim(c2 => patterns.indexOf(c2.pattern) !== -1 && c2.role === 'compound');
+      if(mine){ mine.placed = true; mine.ord = k; return; }
+      if(chosen.length >= N) return;
+      const ranked = live.filter(x => !x.locked && patterns.indexOf(x.c.pattern) !== -1 && x.c.role === 'compound' && x.c.primary.some(g => (demand[g] || 0) > 0) && allowedNovel(x) && !buildRedundant(x.c, chosen)).sort(order);
+      const pick = buildPick(ranked, inputs.variant);
+      if(pick) take(pick, ['ANCHOR:' + pick.c.pattern], false, k);
+    });
+  }
+  /* 4b. Favorites: the athlete's stated favorites that train what the session owes get a place (two at most), before
+     support fills the rest; their word outranks the novelty limit, though each still counts toward it. */
+  const favorite = x => x.reasons.indexOf('PREFERENCE') !== -1;
+  live.filter(x => favorite(x) && !x.locked && (demand[x.c.primary[0]] || 0) > 0).sort(order).forEach(x => {
+    if(chosen.filter(y => favorite(y)).length >= BUILD_CONFIG.favoritesMax || chosen.length >= Math.max(N, chosen.filter(y => y.fromPlan).length + 1)) return;
+    if(!buildRedundant(x.c, chosen, false, BUILD_CONFIG.leadCap[BUILD_CONFIG.leadCap.length - 1])) take(x, []);
+  });
+  /* 5. Support: the group still owed most gets its best row. Owing is in rounds — every group once, then again — so a
+     session is filled by spreading work, never by piling onto one group. Priority muscles count each row as half. */
+  const owed = round => {
+    const got = {};
+    chosen.forEach(x => x.c.primary.forEach(g => { got[g] = (got[g] || 0) + 1; }));
+    return Object.keys(demand).map(g => ({ g, need: demand[g] * round - (got[g] || 0) * (ctx.priority.indexOf(g) !== -1 ? 0.5 : 1) }))
+      .filter(o => o.need > 0.05).sort((a, b) => b.need - a.need || a.g.localeCompare(b.g));
+  };
+  const addSupport = () => {
+    for(let round = 1; round <= BUILD_CONFIG.supportRounds; round++){
+      for(const o of owed(round)){
+        const ranked = live.filter(x => !x.locked && x.c.primary.indexOf(o.g) !== -1 && allowedNovel(x) && !buildRedundant(x.c, chosen, false, BUILD_CONFIG.leadCap[round - 1])
+          && (intent.mode !== 'plan' || x.c.sessions || x.c.inMyPlan || favorite(x))).sort(order);
+        const pick = buildPick(ranked, inputs.variant);
+        if(pick){ take(pick, ['COVERS:' + o.g]); return true; }
+      }
+    }
+    return false;
+  };
+  let guard = 0;
+  while(chosen.length < N && guard++ < 24){ if(!addSupport()) break; }
+
+  /* 6. Rows: sets × reps from the athlete's plan or the goal; energy, deload, recovery and priority adjust sets only. */
+  const phase = (() => { try{ const p = trainTodayProgram(); return p && p.phase ? p.phase : null; }catch(e){ return null; } })();
+  const rowOf = x => {
+    const rx = buildRowRx(x.c, ctx, x.reasons.some(code => /^ANCHOR:/.test(code)) || (x.fromPlan && x.c.role === 'compound'));
+    const reasons = x.reasons.slice();
+    if(inputs.energy === 'easy' && x.c.role !== 'compound') rx.sets = Math.max(BUILD_CONFIG.minSets, rx.sets - 1);
+    if(phase === 'deload') rx.sets = Math.max(BUILD_CONFIG.minSets, rx.sets - 1);
+    const low = x.c.primary.find(g => known.recovery[g] && (known.recovery[g].state === 'low' || known.recovery[g].state === 'verylow') && ctx.priority.indexOf(g) === -1);
+    if(low && rx.sets > BUILD_CONFIG.minSets){ rx.sets -= 1; reasons.push('LIGHTER:' + low); }
+    if(ctx.priority.length && x.c.primary.some(g => ctx.priority.indexOf(g) !== -1) && rx.sets < BUILD_CONFIG.maxSets) rx.sets += 1;
+    return { name: x.c.name, id: x.c.id, pattern: x.c.pattern, role: x.c.role, primary: x.c.primary.slice(), bodyweight: x.c.bodyweight, timed: x.c.timed,
+      sets: rx.sets, reps: rx.reps, effort: rx.effort, recommended: rx.recommended, sessions: x.c.sessions, novel: x.novel, locked: x.locked, fromPlan: x.fromPlan, ord: x.ord, score: x.score, reasons };
+  };
+  /* 7. Order: compounds first (priority work before the rest), then accessories (priority first), core last; a plan keeps
+     its own order, with any added row after the plan's own work and before core. */
+  const rank = r => (r.pattern === 'core' ? 3 : r.role === 'compound' ? 0 : 1) - (r.primary.some(g => ctx.priority.indexOf(g) !== -1) ? 0.5 : 0);
+  const arrange = list => intent.mode !== 'plan'
+    ? list.map((r, i) => ({ r, i })).sort((a, b) => rank(a.r) - rank(b.r) || a.r.ord - b.r.ord || a.i - b.i).map(o => o.r)
+    : list.map((r, i) => ({ r, i })).sort((a, b) => (a.r.pattern === 'core') - (b.r.pattern === 'core') || (a.r.fromPlan ? 0 : 1) - (b.r.fromPlan ? 0 : 1) || a.r.ord - b.r.ord || a.i - b.i).map(o => o.r);
+  let rows = arrange(chosen.map(rowOf));
+  if(inputs.energy === 'great' && rows.length){ const a = rows.find(r => r.role === 'compound'); if(a && a.sets < BUILD_CONFIG.maxSets) a.sets += 1; }
+
+  /* 8. Time: LOOP's estimate × the athlete's measured pace must fit the window. A session that would end far too early gains
+     exercises first (more of what is owed), then sets on its compounds; one that runs over is trimmed with Time Mode's tiers,
+     the lowest tier first, sets before whole exercises. */
+  const pace = known.pace.factor;
+  const budget = inputs.minutes * 60;
+  const secs = () => buildTemplateSeconds(rows) * pace;
+  let grows = 0;
+  while(secs() < budget * BUILD_CONFIG.fillShare && grows++ < 6 && chosen.length < N + 3){
+    if(!addSupport()) break;
+    const extra = rowOf(chosen[chosen.length - 1]);
+    rows = arrange(rows.concat([extra]));
+    if(secs() > budget){ rows = rows.filter(r => r !== extra); chosen.pop(); break; }
+  }
+  let fills = 0;
+  while(secs() < budget * BUILD_CONFIG.fillShare && fills++ < 10){
+    const grow = rows.filter(r => r.role === 'compound' && r.sets < BUILD_CONFIG.maxSets).sort((a, b) => a.sets - b.sets)[0]
+      || rows.filter(r => r.sets < BUILD_CONFIG.maxSets - 1).sort((a, b) => a.sets - b.sets)[0]
+      || rows.filter(r => r.pattern !== 'core' && r.sets < BUILD_CONFIG.maxSets).sort((a, b) => a.sets - b.sets)[0];
+    if(!grow) break;
+    grow.sets += 1;
+    if(secs() > budget){ grow.sets -= 1; break; }
+  }
+  let trims = 0;
+  while(secs() > budget && trims++ < 60){
+    const tiers = assignTimeTiers(rows);
+    /* the athlete's favorites are cut last */
+    const fav = r => r.reasons.indexOf('PREFERENCE') !== -1 ? 1 : 0;
+    const order2 = rows.map((r, i) => ({ r, i, t: tiers[i] })).filter(o => !o.r.locked).sort((a, b) => fav(a.r) - fav(b.r) || b.t - a.t || b.i - a.i);
+    const setCut = order2.find(o => o.r.sets > BUILD_CONFIG.minSets && o.t >= 3) || order2.find(o => o.r.sets > 3);
+    if(setCut){ setCut.r.sets -= 1; continue; }
+    if(rows.length > BUILD_CONFIG.minExercises && order2.length){ rows.splice(order2[0].i, 1); continue; }
+    const any = rows.filter(r => r.sets > BUILD_CONFIG.minSets).sort((a, b) => b.sets - a.sets)[0];
+    if(any){ any.sets -= 1; continue; }
+    if(rows.length > 1 && order2.length){ rows.splice(order2[0].i, 1); continue; }
+    break;
+  }
+
+  const session = { mode: intent.mode, cat: intent.cat, why: intent.why, planCat: intent.planCat || null, since: intent.since == null ? null : intent.since, minutes: inputs.minutes, pace, paceSamples: known.pace.samples,
+    estimateMin: Math.max(1, Math.round(secs() / 60)), rows, rejected, inputs, planName: intent.mode === 'plan' ? known.plan.name : null, variant: inputs.variant || 0 };
+  session.problems = validateComposedSession(session, known);
+  session.reasons = buildSessionReasons(session, known, ctx);
+  return session;
+}
+
+/* ---- 9. Validation: nothing invalid is ever shown ---- */
+function validateComposedSession(s, known){
+  const out = [];
+  if(!s.rows.length) out.push('no exercises');
+  const ids = {};
+  s.rows.forEach(r => {
+    if(ids[r.id]) out.push('duplicate ' + r.name); ids[r.id] = true;
+    if(!(r.sets >= 1 && r.sets <= BUILD_CONFIG.maxSets + 1)) out.push('sets ' + r.name);
+    if(!r.reps || !/\d|failure/i.test(r.reps)) out.push('reps ' + r.name);
+    if(buildPreferenceOfName(r.name).level === 'never') out.push('avoided ' + r.name);
+    try{ if(canPerformExerciseByName(r.name) === GYM_STATUS.UNAVAILABLE) out.push('unavailable ' + r.name); }catch(e){}
+    if(r.recommended === undefined) out.push('rx ' + r.name);
+  });
+  if(buildTemplateSeconds(s.rows) * s.pace > s.minutes * 60) out.push('over time');
+  return out;
+}
+
+/* ---- 10. The reasons, from the decisions above ---- */
+function buildSessionReasons(s, known, ctx){
+  const out = [];
+  out.push({ code: 'TIME_FIT', text: 'Fits your ' + s.minutes + '-minute window (about ' + s.estimateMin + ' min' + (s.paceSamples >= BUILD_CONFIG.pace.minSamples ? ', at your usual pace' : '') + ')' });
+  if(s.mode === 'plan') out.push({ code: 'PLAN', text: 'Built around today’s ' + (s.planName || CAT_LABEL[s.cat]) });
+  else if(s.why === 'start') out.push({ code: 'START', text: 'A balanced full-body session to start — LOOP has no training history to build from yet' });
+  else if(s.why === 'ready') out.push({ code: 'READY', text: CAT_LABEL[s.cat] + ' muscles are the most rested of your usual split' });
+  else if(s.why === 'planRecent') out.push({ code: 'RECENT', text: CAT_LABEL[s.planCat] + ' was trained ' + (s.since < 1 ? 'today' : 'yesterday') + ', so today’s planned session waits; ' + CAT_LABEL[s.cat] + ' is the most rested of your split' });
+  else if(s.why === 'neglected') out.push({ code: 'UNDERTRAINED', text: CAT_LABEL[s.cat] + ' hasn’t been trained ' + (s.since >= 99 ? 'yet' : 'in ' + Math.floor(s.since) + ' days') + ', so today’s planned ' + CAT_LABEL[s.planCat] + ' waits' });
+  else out.push({ code: 'FOCUS', text: CAT_LABEL[s.cat] + ', as you chose' });
+  if(ctx.priority.length) out.push({ code: 'PRIORITY', text: 'Extra ' + ctx.priority.map(g => BUILD_MUSCLE_WORD[g] || g).join(' and ') + ' work' });
+  const lighter = s.rows.filter(r => r.reasons.some(x => /^LIGHTER:/.test(x)));
+  if(lighter.length) out.push({ code: 'RECOVERY', text: 'Lighter on ' + Array.from(new Set(lighter.map(r => BUILD_MUSCLE_WORD[r.reasons.find(x => /^LIGHTER:/.test(x)).slice(8)] || ''))).join(' and ') + ', which is still recovering' });
+  if(known.gymConfigured && !(s.inputs.offEquipment || []).length) out.push({ code: 'EQUIPMENT', text: 'Uses equipment in My Gym' });
+  if((s.inputs.offEquipment || []).length) out.push({ code: 'EQUIPMENT_TODAY', text: 'Without ' + s.inputs.offEquipment.map(e => e.toLowerCase()).join(' or ') + ' today' });
+  const known2 = s.rows.filter(r => r.sessions > 0).length;
+  if(s.rows.length) out.push({ code: 'FAMILIAR', text: known2 === s.rows.length ? 'All exercises you’ve done before' : known2 + ' of ' + s.rows.length + ' are exercises you’ve done before' });
+  return out;
+}
+/* One row's reasons in words, most important first, at most two. */
+function buildRowReasonText(r){
+  const words = [];
+  r.reasons.forEach(code => {
+    const [k, arg] = String(code).split(':');
+    let t = BUILD_REASON_TEXT[k];
+    if(!t) return;
+    if(k === 'FAMILIARITY'){ if(r.sessions === 1) t = BUILD_REASON_TEXT.FAMILIAR_ONE; else t = t.replace('{n}', r.sessions); }
+    if(k === 'MUSCLE_PRIORITY'){ const g = r.primary.find(x => x) || ''; t = t.replace('{m}', BUILD_MUSCLE_WORD[g] || g); }
+    if(k === 'REPLACEMENT') t = t.replace('{x}', arg || '');
+    if(k === 'ANCHOR') t = t.replace('{p}', BUILD_PATTERN_WORD[arg] || 'compound');
+    if(k === 'COVERS') t = t.replace('{m}', BUILD_MUSCLE_WORD[arg] || arg);
+    if(k === 'LIGHTER') t = t.replace('{m}', BUILD_MUSCLE_WORD[arg] || arg);
+    if(words.indexOf(t) === -1) words.push(t);
+  });
+  return words;
+}
+
+/* ---- Build for me: the sheet ----
+   One sheet in two views. The setup view says what LOOP already knows and asks only today's choices, every one already
+   answered with a default, so Build is a single tap. The preview shows the session before anything starts: how long,
+   how much, what it trains, why, and every exercise with its sets and the next load where LOOP prescribes one. Each row
+   can be swapped, removed, preferred or never suggested again; the window and Build another rebuild from the same
+   choices; Start opens the normal workout logger. Nothing is saved until the workout is. */
+const BFM_FOCUS_LABEL = { best: 'Best fit', push: 'Push', pull: 'Pull', legs: 'Legs', upper: 'Upper', lower: 'Lower', fullbody: 'Full body', core: 'Core' };
+const BFM_MUSCLES = [['chest', 'Chest'], ['back', 'Back'], ['shoulders', 'Shoulders'], ['biceps', 'Biceps'], ['triceps', 'Triceps'], ['quads', 'Quads'], ['hamstrings', 'Hamstrings'], ['glutes', 'Glutes'], ['calves', 'Calves'], ['abs', 'Core']];
+const BFM_ENERGY_LABEL = { normal: 'Normal', great: 'Feeling great', easy: 'Taking it easy' };
+const BFM_EQUIP_LABEL = { Barbell: 'Barbell', Dumbbell: 'Dumbbells', Cable: 'Cables', Machine: 'Machines' };
+let bfmState = null;
+function bfmStateOf(){ return bfmState; }
+
+function bfmMuscleLabel(g){ const m = BFM_MUSCLES.find(x => x[0] === g); return m ? m[1] : g; }
+function bfmSegHtml(group, label, options, current, labelOf){
+  return `<div class="seg seg-scroll bfm-seg" role="group" aria-label="${escapeAttr(label)}" data-bfm="${group}">` +
+    options.map(o => `<button type="button" class="seg-btn${o === current ? ' active' : ''}" aria-pressed="${o === current}" onclick="bfmSet('${group}', '${o}')">${escapeHtml(labelOf(o))}</button>`).join('') + '</div>';
+}
+function bfmChipsHtml(group, label, options, selected){
+  return `<div class="bfm-chips" role="group" aria-label="${escapeAttr(label)}">` +
+    options.map(([v, text]) => { const on = selected.indexOf(v) !== -1; return `<button type="button" class="filter-chip${on ? ' active' : ''}" aria-pressed="${on}" onclick="bfmToggle('${group}', '${v}')">${escapeHtml(text)}</button>`; }).join('') + '</div>';
+}
+
+function openBuildForMe(){
+  const known = buildKnown();
+  bfmState = { known, inputs: buildDefaults(known), session: null, view: 'setup', open: {}, rowMenu: -1, swapFor: -1, note: '' };
+  renderBuildForMe();
+  const ov = document.getElementById('bfmOverlay');
+  if(ov) ov.classList.add('open');
+}
+function closeBuildForMe(){
+  const ov = document.getElementById('bfmOverlay');
+  if(ov) ov.classList.remove('open');
+}
+
+/* what LOOP already knows, said once at the top of the setup */
+function bfmKnownHtml(k){
+  const items = [];
+  items.push(k.plan ? 'Planned today: ' + k.plan.name : 'Nothing planned today');
+  if(k.historyCount) items.push(k.historyCount + ' workout' + (k.historyCount === 1 ? '' : 's') + ' logged');
+  if(k.goal && TRAINING_GOALS[k.goal]) items.push(TRAINING_GOALS[k.goal].label);
+  if(k.gymConfigured) items.push('My Gym equipment');
+  if(k.readiness) items.push('Today’s check-in: ' + BFM_ENERGY_LABEL[k.readiness.energy].toLowerCase());
+  return `<ul class="bfm-known" aria-label="What LOOP already knows">${items.map(t => `<li>${escapeHtml(t)}</li>`).join('')}</ul>`;
+}
+
+function bfmSetupHtml(st){
+  const k = st.known, inp = st.inputs;
+  /* what Best fit will build, said before it is chosen */
+  const bi = (() => { try{ return buildIntent({ focus: 'best' }, k); }catch(e){ return null; } })();
+  const bestSub = !bi ? 'From your training' : bi.mode === 'plan' ? 'Today: ' + k.plan.name : bi.why === 'start' ? 'A full-body start'
+    : CAT_LABEL[bi.cat] + (bi.why === 'neglected' ? ', not trained lately' : ', the most rested of your split');
+  const disclose = (key, label, inner, count) => `
+    <div class="bfm-group">
+      <button type="button" class="bfm-disclose" aria-expanded="${!!st.open[key]}" onclick="bfmOpen('${key}')">${escapeHtml(label)}${count ? ` <span class="bfm-count">${count}</span>` : ''}<span class="bfm-chev" aria-hidden="true"></span></button>
+      ${st.open[key] ? `<div class="bfm-disclosed">${inner}</div>` : ''}
+    </div>`;
+  return `
+    ${bfmKnownHtml(k)}
+    <div class="bfm-group"><h3 class="bfm-k" id="bfmTimeK">Time</h3>${bfmSegHtml('minutes', 'Time', BUILD_CONFIG.minutes.map(String), String(inp.minutes), m => m === '90' ? '90+ min' : m + ' min')}</div>
+    <div class="bfm-group"><h3 class="bfm-k">What do you want today?</h3>${bfmSegHtml('focus', 'Focus', BUILD_CONFIG.focuses, inp.focus, f => BFM_FOCUS_LABEL[f])}
+      <p class="bfm-hint">${inp.focus === 'best' ? escapeHtml('Best fit: ' + bestSub) : '&nbsp;'}</p></div>
+    ${k.readiness ? '' : `<div class="bfm-group"><h3 class="bfm-k">Energy</h3>${bfmSegHtml('energy', 'Energy', BUILD_CONFIG.energies, inp.energy, e => BFM_ENERGY_LABEL[e])}</div>`}
+    ${disclose('more', 'More of a muscle today', '<p class="bfm-hint">Up to two.</p>' + bfmChipsHtml('priority', 'More of', BFM_MUSCLES, inp.priority), inp.priority.length)}
+    ${disclose('limits', 'Leave out today', '<h4 class="bfm-k2">Equipment you can’t use today</h4>' + bfmChipsHtml('offEquipment', 'Equipment to leave out', BUILD_CONFIG.offEquipment.map(e => [e, BFM_EQUIP_LABEL[e]]), inp.offEquipment) +
+      '<h4 class="bfm-k2">Muscles to rest today</h4>' + bfmChipsHtml('restMuscles', 'Muscles to rest', BFM_MUSCLES, inp.restMuscles), inp.offEquipment.length + inp.restMuscles.length)}`;
+}
+
+/* the next load LOOP prescribes for a row, where its progression engine has one */
+function bfmNextLoad(r){
+  if(r.bodyweight || r.timed) return null;
+  try{ const rec = progressionFor(r.name, r.reps, r.recommended); return rec && rec.weight != null && rec.weight !== '' ? rec.weight : null; }catch(e){ return null; }
+}
+function bfmRowHtml(r, i, st){
+  const next = bfmNextLoad(r);
+  const why = buildRowReasonText(r)[0] || '';
+  const pref = buildPreferenceOfName(r.name);
+  const preferred = pref.source === 'stated' && pref.level === 'more';
+  const open = st.rowMenu === i;
+  const swap = st.swapFor === i;
+  let alts = [];
+  if(swap){
+    try{
+      const ids = st.session.rows.map(x => x.id);
+      const o = exerciseSwapOptions(r.name, { workoutExerciseIds: ids });
+      alts = (o.ranked || []).map(x => x.displayName).concat((o.more || []).map(x => x.name)).filter((n, k, a) => a.indexOf(n) === k && !st.session.rows.some(x => normalizeExerciseName(x.name) === normalizeExerciseName(n))).slice(0, 5);
+    }catch(e){ alts = []; }
+  }
+  return `
+    <li class="bfm-row${open ? ' is-open' : ''}">
+      <div class="bfm-row-main">
+        ${exerciseThumbHtml(r.name, { static: true, cls: 'bfm-art' })}
+        <div class="bfm-row-text">
+          <span class="bfm-row-name">${escapeHtml(r.name)}${preferred ? ' <span class="bfm-pref">Favorite</span>' : ''}</span>
+          <span class="bfm-row-rx">${escapeHtml(r.sets + ' × ' + r.reps)}${next != null ? ` <span class="bfm-next">Next: ${escapeHtml(String(next))} lb</span>` : ''}</span>
+          ${why ? `<span class="bfm-row-why">${escapeHtml(why)}</span>` : ''}
+        </div>
+        <button type="button" class="bfm-row-more" aria-expanded="${open}" aria-label="${escapeAttr('Options for ' + r.name)}" onclick="bfmRowMenu(${i})"><span aria-hidden="true">•••</span></button>
+      </div>
+      ${open ? `<div class="bfm-row-actions" role="group" aria-label="${escapeAttr(r.name)}">
+        <button type="button" class="bfm-act" aria-expanded="${swap}" onclick="bfmSwapOpen(${i})">Swap</button>
+        <button type="button" class="bfm-act" onclick="bfmRemove(${i})">Remove</button>
+        <button type="button" class="bfm-act" aria-pressed="${preferred}" onclick="bfmPrefer(${i})">${preferred ? checkIconSvg(14) + ' ' : ''}Favorite</button>
+        <button type="button" class="bfm-act bfm-act-quiet" onclick="bfmNever(${i})">Don’t suggest</button>
+      </div>` : ''}
+      ${swap ? `<div class="bfm-swap" role="group" aria-label="${escapeAttr('Swap ' + r.name + ' for')}">${alts.length
+        ? alts.map(n => `<button type="button" class="bfm-swap-opt" data-n="${escapeAttr(n)}" onclick="bfmSwapTo(${i}, this.dataset.n)">${exerciseThumbHtml(n, { static: true, cls: 'bfm-art bfm-art-sm' })}<span>${escapeHtml(n)}</span></button>`).join('')
+        : '<p class="bfm-hint">No close alternative for this one in your gym.</p>'}</div>` : ''}
+    </li>`;
+}
+function bfmPreviewHtml(st){
+  const s = st.session;
+  if(!s.rows.length || s.problems.length){
+    return `<div class="bfm-empty"><p>LOOP couldn’t build a workout from these choices${st.inputs.restMuscles.length || st.inputs.offEquipment.length ? ' — try leaving less out' : ''}.</p>
+      <button type="button" class="btn-secondary" onclick="bfmBack()">Change choices</button></div>`;
+  }
+  const sets = s.rows.reduce((n, r) => n + r.sets, 0);
+  const groups = {};
+  s.rows.forEach(r => r.primary.forEach(g => { groups[g] = (groups[g] || 0) + r.sets; }));
+  const lead = Object.keys(groups).sort((a, b) => groups[b] - groups[a] || a.localeCompare(b)).slice(0, 3).map(bfmMuscleLabel);
+  return `
+    <div class="bfm-sum" aria-label="Session summary">
+      <div class="bfm-stat"><span class="bfm-num">~${s.estimateMin}</span><span class="bfm-lab">min</span></div>
+      <div class="bfm-stat"><span class="bfm-num">${s.rows.length}</span><span class="bfm-lab">exercise${s.rows.length === 1 ? '' : 's'}</span></div>
+      <div class="bfm-stat"><span class="bfm-num">${sets}</span><span class="bfm-lab">working sets</span></div>
+    </div>
+    <p class="bfm-muscles">${escapeHtml(lead.join(' · '))}</p>
+    <p class="bfm-line">${escapeHtml((s.reasons[1] || s.reasons[0]).text)}.</p>
+    <div class="bfm-group"><h3 class="bfm-k">Time</h3>${bfmSegHtml('minutes', 'Time', BUILD_CONFIG.minutes.map(String), String(st.inputs.minutes), m => m === '90' ? '90+ min' : m + ' min')}</div>
+    <div class="bfm-group">
+      <button type="button" class="bfm-disclose" aria-expanded="${!!st.open.why}" onclick="bfmOpen('why')">Why this workout<span class="bfm-chev" aria-hidden="true"></span></button>
+      ${st.open.why ? `<ul class="bfm-why">${s.reasons.map(x => `<li>${escapeHtml(x.text)}</li>`).join('')}</ul>` : ''}
+    </div>
+    ${st.note ? `<p class="bfm-note" role="status">${escapeHtml(st.note)}</p>` : ''}
+    <ol class="bfm-rows" aria-label="Exercises">${s.rows.map((r, i) => bfmRowHtml(r, i, st)).join('')}</ol>`;
+}
+
+function renderBuildForMe(){
+  const st = bfmState;
+  if(!st) return;
+  const body = document.getElementById('bfmBody'), acts = document.getElementById('bfmActions');
+  const title = document.getElementById('bfmTitle'), kicker = document.getElementById('bfmKicker');
+  if(!body || !acts) return;
+  if(st.view === 'setup'){
+    if(kicker) kicker.textContent = 'Build for me';
+    if(title) title.textContent = 'Today’s workout';
+    body.innerHTML = bfmSetupHtml(st);
+    acts.innerHTML = '<button type="button" class="btn-primary bfm-cta" onclick="bfmBuild()">Build workout</button>';
+  } else {
+    const s = st.session;
+    if(kicker) kicker.innerHTML = '<button type="button" class="bfm-back" onclick="bfmBack()">‹ Choices</button>';
+    if(title) title.textContent = s.mode === 'plan' ? (s.planName || CAT_LABEL[s.cat]) + ', for today' : CAT_LABEL[s.cat] + ', built for today';
+    body.innerHTML = bfmPreviewHtml(st);
+    acts.innerHTML = s.rows.length && !s.problems.length
+      ? '<button type="button" class="btn-secondary" onclick="bfmAnother()">Build another</button><button type="button" class="btn-primary bfm-cta" onclick="startGeneratedWorkout()">Start workout</button>'
+      : '';
+  }
+  try{ body.querySelectorAll('.bfm-seg').forEach(el => { const a = el.querySelector('.seg-btn.active'); if(a && a.scrollIntoView) a.scrollIntoView({ block: 'nearest', inline: 'nearest' }); }); }catch(e){}
+}
+
+/* ---- the choices ---- */
+function bfmSet(group, value){
+  const st = bfmState;
+  if(!st) return;
+  if(group === 'minutes') st.inputs.minutes = parseInt(value, 10) || st.inputs.minutes;
+  else if(group === 'focus' || group === 'energy') st.inputs[group] = value;
+  if(st.view === 'preview' && group === 'minutes'){ bfmCompose(); return; }
+  renderBuildForMe();
+}
+function bfmToggle(group, value){
+  const st = bfmState;
+  if(!st) return;
+  const list = st.inputs[group] = (st.inputs[group] || []).slice();
+  const at = list.indexOf(value);
+  if(at !== -1) list.splice(at, 1);
+  else { if(group === 'priority' && list.length >= 2) list.shift(); list.push(value); }
+  if(group === 'priority') st.inputs.restMuscles = st.inputs.restMuscles.filter(g => g !== value);
+  if(group === 'restMuscles') st.inputs.priority = st.inputs.priority.filter(g => g !== value);
+  renderBuildForMe();
+}
+function bfmOpen(key){ if(!bfmState) return; bfmState.open[key] = !bfmState.open[key]; renderBuildForMe(); }
+function bfmCompose(){
+  const st = bfmState;
+  st.session = composeInstantSession(st.inputs, st.known);
+  st.rowMenu = -1; st.swapFor = -1;
+  renderBuildForMe();
+}
+function bfmBuild(){ const st = bfmState; if(!st) return; st.inputs.variant = 0; st.note = ''; st.view = 'preview'; bfmCompose(); }
+function bfmBack(){ const st = bfmState; if(!st) return; st.view = 'setup'; st.note = ''; renderBuildForMe(); }
+/* Build another: the next valid alternative from the same choices, keeping what the athlete changed */
+function bfmAnother(){ const st = bfmState; if(!st) return; st.inputs.variant = (st.inputs.variant || 0) + 1; st.note = ''; bfmCompose(); }
+
+/* ---- a row ---- */
+function bfmRowMenu(i){ const st = bfmState; if(!st) return; st.rowMenu = st.rowMenu === i ? -1 : i; st.swapFor = -1; renderBuildForMe(); }
+function bfmSwapOpen(i){ const st = bfmState; if(!st) return; st.swapFor = st.swapFor === i ? -1 : i; renderBuildForMe(); }
+/* A swap replaces the one row in place — the rest of the session stays as it is — and is remembered for this build (a
+   rebuild keeps it). Like a swap in a workout it is one data point for the preference memory, which concludes nothing
+   before repetition. */
+function bfmSwapTo(i, name){
+  const st = bfmState;
+  if(!st || !st.session.rows[i] || !name) return;
+  const old = st.session.rows[i];
+  const pool = buildCandidates(st.known);
+  let id = null;
+  try{ id = resolveExerciseId(name); }catch(e){}
+  const c = pool[id] || { name, role: 'other', pattern: 'other', primary: old.primary.slice(), timed: false, bodyweight: false, src: null, sessions: 0, inMyPlan: false };
+  const rx = buildRowRx(c, { known: st.known, inputs: st.inputs }, old.role === 'compound');
+  st.session.rows[i] = Object.assign({}, old, { name: c.name || name, id: id || c.id, pattern: c.pattern, role: c.role, primary: (c.primary || old.primary).slice(),
+    bodyweight: !!c.bodyweight, timed: !!c.timed, reps: rx.reps, effort: rx.effort, recommended: rx.recommended, sessions: c.sessions || 0, novel: !c.sessions && !c.inMyPlan, locked: true, reasons: ['USER_PICK'] });
+  st.inputs.include = (st.inputs.include || []).filter(n => normalizeExerciseName(n) !== normalizeExerciseName(old.name)).concat([st.session.rows[i].name]);
+  st.inputs.exclude = (st.inputs.exclude || []).concat([old.name]);
+  try{ recordExerciseSwap(old.name, st.session.rows[i].name); }catch(e){}
+  bfmRefreshTime();
+  st.rowMenu = -1; st.swapFor = -1; st.note = '';
+  renderBuildForMe();
+}
+/* Remove: out of this session and this build's rebuilds; nothing is remembered beyond them. */
+function bfmRemove(i){
+  const st = bfmState;
+  if(!st || !st.session.rows[i]) return;
+  const r = st.session.rows.splice(i, 1)[0];
+  st.inputs.exclude = (st.inputs.exclude || []).concat([r.name]);
+  st.inputs.include = (st.inputs.include || []).filter(n => normalizeExerciseName(n) !== normalizeExerciseName(r.name));
+  bfmRefreshTime();
+  st.rowMenu = -1; st.swapFor = -1; st.note = r.name + ' removed from today’s workout.';
+  renderBuildForMe();
+}
+/* Favorite / Don't suggest: the athlete's own word, kept in the preference memory LOOP already has (exercisePrefs.manual),
+   which the builder and Swap both read. */
+function bfmPrefer(i){
+  const st = bfmState;
+  if(!st || !st.session.rows[i]) return;
+  const r = st.session.rows[i];
+  const pref = buildPreferenceOfName(r.name);
+  /* un-favoriting clears the word under every name it was given; favoriting keeps it under the row's own name */
+  if(pref.source === 'stated' && pref.level === 'more'){
+    let canon = null; try{ canon = getCanonicalExercise(resolveExerciseId(r.name)) || null; }catch(e){}
+    buildNamesOf({ name: r.name, canon }).forEach(n => { if(exercisePrefs.manual[n] === 'more') setExercisePreference(n, null); });
+  } else setExercisePreference(r.name, 'more');
+  st.note = pref.source === 'stated' && pref.level === 'more' ? r.name + ' is no longer a favorite.' : r.name + ' is a favorite: LOOP will build around it.';
+  renderBuildForMe();
+}
+function bfmNever(i){
+  const st = bfmState;
+  if(!st || !st.session.rows[i]) return;
+  const r = st.session.rows.splice(i, 1)[0];
+  setExercisePreference(r.name, 'never');
+  st.inputs.include = (st.inputs.include || []).filter(n => normalizeExerciseName(n) !== normalizeExerciseName(r.name));
+  bfmRefreshTime();
+  st.rowMenu = -1; st.swapFor = -1; st.note = 'LOOP won’t suggest ' + r.name + ' again.';
+  renderBuildForMe();
+}
+function bfmRefreshTime(){
+  const s = bfmState && bfmState.session;
+  if(!s) return;
+  s.estimateMin = Math.max(1, Math.round(buildTemplateSeconds(s.rows) * s.pace / 60));
+  s.problems = s.rows.length ? validateComposedSession(Object.assign({}, s, { minutes: Math.max(s.minutes, Math.ceil(buildTemplateSeconds(s.rows) * s.pace / 60)) }), bfmState.known) : ['no exercises'];
+  s.reasons[0] = { code: 'TIME_FIT', text: s.estimateMin <= s.minutes ? 'Fits your ' + s.minutes + '-minute window (about ' + s.estimateMin + ' min)' : 'About ' + s.estimateMin + ' min with your changes' };
+}
+
+/* ---- Start: the normal workout logger, with the generated session's own prescription ----
+   startTemplateLog's per-exercise path (progressionFor, deriveWorkingSetPlan, the row's targets), so D49, D125, D50B, D130
+   and Session Score treat each row exactly as a saved workout's row. Provenance is 'generated': the athlete's own extra
+   training, never a program's work, so nothing scheduled is marked done and no plan is touched. */
+async function startGeneratedWorkout(){
+  const st = bfmState;
+  const s = st && st.session;
+  if(!s || !s.rows.length || s.problems.length) return;
+  if(!(await confirmOverwriteDraft())) return;
+  closeBuildForMe();
+  pendingWorkoutOrigin = 'generated';
+  pendingWorkoutProgramId = null;
+  pendingWorkoutPhase = null;
+  pendingWorkoutIdentity = null;
+  const tpl = { id: 'gen-' + s.cat, name: (s.mode === 'plan' ? (s.planName || CAT_LABEL[s.cat]) : CAT_LABEL[s.cat]) + ' — built for today',
+    exercises: s.rows.map(r => ({ name: r.name, sets: r.sets, reps: r.reps, effort: r.effort, recommended: r.recommended })) };
+  pendingLogCategory = s.cat;
+  pendingDraftStartedAt = new Date().toISOString();
+  pendingDraftId = 'draft_' + Date.now();
+  pendingPlannedMinutes = s.estimateMin;
+  document.getElementById('logCategoryPicker').style.display = 'none';
+  document.getElementById('logSheetTitle').textContent = 'Log ' + CAT_LABEL[s.cat] + ' Workout';
+  document.getElementById('logSheetSub').textContent = 'Built for today (~' + s.estimateMin + ' min) — tap +/- to log each set.';
+  document.getElementById('logTitle').value = tpl.name;
+  document.getElementById('logDate').value = localDateStr();
+  document.getElementById('logNotes').value = '';
+  const wrap = document.getElementById('logExercises');
+  wrap.innerHTML = '';
+  tpl.exercises.forEach(ex => {
+    const isBW = rowStartsAsBodyweight(ex.name, ex.recommended);
+    const rec = isBW ? null : progressionFor(ex.name, ex.reps, ex.recommended);
+    const weightVal = isBW ? '' : (rec && rec.weight != null ? rec.weight : '');
+    const repVal = programRepSeed(ex.reps);
+    const setCount = parseInt(ex.sets) || 3;
+    const plan = isBW ? null : deriveWorkingSetPlan(ex.name, ex.reps, setCount, rec, { deload: false });
+    const sets = [];
+    for(let i = 0; i < setCount; i++) sets.push({ weight: weightVal, reps: plan ? plan.reps[i] : repVal });
+    const meta = { targetSets: ex.sets, targetReps: ex.reps, recommended: ex.recommended };
+    if(plan && plan.source !== 'program') meta.rxPlan = plan.reps.join(',');
+    addLogExerciseRow(ex.name, firstNumber(ex.effort), isBW, sets, restSecondsForReps(ex.reps), rec, meta);
+  });
+  openLogSheet();
+}
+
+/* ---- Train's filter: one control you swipe ----
+   The kinds of workout sit in one inset track (D132's segmented family). Where more of the track lies off an edge, that
+   edge fades, so the row reads as something to swipe; trainRevealActiveChip keeps the chosen kind in view and asks for
+   the edges after every redraw, and a scroll keeps them current. */
+function trainChipsEdges(){
+  const row = document.getElementById('trainChips');
+  if(!row || !row.classList) return;
+  const max = (row.scrollWidth || 0) - (row.clientWidth || 0);
+  row.classList.toggle('more-left', max > 2 && row.scrollLeft > 2);
+  row.classList.toggle('more-right', max > 2 && row.scrollLeft < max - 2);
+}
+(function installTrainChipsEdges(){
+  try{
+    const row = document.getElementById('trainChips');
+    if(row && row.addEventListener) row.addEventListener('scroll', trainChipsEdges, { passive: true });
+    if(window.addEventListener) window.addEventListener('resize', trainChipsEdges, { passive: true });
+    /* Train opening is a size change of the row (from nothing to its width): the chosen kind is brought into view then
+       (it is drawn while Train is hidden, when nothing can be measured), and the edges with it */
+    if(row && typeof ResizeObserver === 'function') new ResizeObserver(() => { try{ trainRevealActiveChip(); }catch(e){} trainChipsEdges(); }).observe(row);
+  }catch(e){}
+})();
 
 /* =========================================================
    VIEWPORT DIAGNOSTICS  (Phase D138.1 — TEMPORARY, for E64)
@@ -32173,6 +33352,7 @@ function trainRevealActiveChip(){
   const r = row.getBoundingClientRect(), c = chip.getBoundingClientRect();
   if(!r.width) return;
   if(c.left < r.left || c.right > r.right) row.scrollLeft += (c.left - r.left) - 20;
+  try{ trainChipsEdges(); }catch(e){}   /* D139 — the row says whether more lies off either edge */
 }
 
 function renderTrainPlan(view){

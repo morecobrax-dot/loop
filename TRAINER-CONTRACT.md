@@ -19664,3 +19664,94 @@ readout.
 **Proof here.** Contract 260 reads the stylesheet, the clip-chain and paint-test code, and the records. The browser rig checks
 that every button sits inside the viewport at 13 sizes, that the clip chain matches the real boxes, and that the paint test
 is temporary. None of it can show the phone's 68px.
+
+## §183 — BUILD FOR ME: LOOP BUILDS TODAY'S WORKOUT (D139 · LOOP 10.60 · loop-v237)
+
+Train's Quick start has a third way in, Build for me, beside Empty workout and Build workout (both unchanged). LOOP builds
+one session for today from what it already knows, shows it, and starts it in the normal logger. Everything runs on the
+device: no network call, no remote model, no backend.
+
+**What it asks.** Only today's facts, each already answered, so Build is one tap: time (20–90+ min, defaulting to the
+profile's session length or the plan's), what the athlete wants (Best fit, Push, Pull, Legs, Upper, Lower, Full body,
+Core), energy (asked only when today has no readiness check-in), and, behind two disclosures, up to two muscles to do more
+of, equipment that can't be used today, and muscles to rest. It never asks for goal, experience, equipment owned, plan or
+history: those come from athleteProfile, My Gym, the plan and the log.
+
+**How it composes (composeInstantSession, deterministic).**
+1. Intent. A planned day with Best fit (or the plan's own kind chosen) builds around today's planned session, unless
+   the log says otherwise: the plan's split was trained yesterday (Best fit builds the most rested split), or it was
+   trained in the last 4 days while another split of the athlete's has gone 7 days or more (Best fit builds that one).
+   Either way the reason is shown, and choosing the plan's own kind always builds the plan's session. A free choice
+   builds that kind. Best fit with nothing planned picks the athlete's usual kind whose muscles are most rested
+   (recovery score, less for work in the last 1.5 or 3 days, more for days since); a new athlete gets a full-body start.
+   If every muscle the chosen kind trains is rested today, nothing is built and the sheet offers the choices back.
+   Today's choices are cleaned first: a window the sheet offers (20–90), a known focus, energy and equipment, two
+   priority muscles at most and none of them rested.
+2. Hard rules, never traded for score: an exercise the configured gym can't do, one left out today by equipment, one
+   working a muscle the athlete is resting, one marked Don't suggest (exercisePrefs.manual 'never') or in the profile's
+   excluded list. A favorite or an avoid counts under any of the movement's names (the athlete's spelling, the plan's,
+   the registry's name and aliases), because exercisePrefs is keyed by the name it was said under. A name the registry
+   doesn't know still gives its equipment from its words ("Seated DB Shoulder Press" is dumbbell work). An avoided or
+   unavailable plan exercise is replaced by the closest allowed one of the same movement and job, from outside today's
+   plan where possible.
+3. Demand. Slots by time (20 min 3 … 90 min 8). Each focus has its anchors (push: a horizontal and a vertical press;
+   legs: a squat and a hinge; …), then support rounds that cover the focus's muscles, the priority muscles first. An
+   anchor is a multi-joint lift: one the registry says works a single muscle (the Pec Deck) is an accessory here. A lift
+   the athlete swapped in takes the anchor or plan slot it stands for, in that slot's place.
+4. Choice by score. Familiar work leads (sessions logged, today's plan, the athlete's plan); recent work and observed
+   dislikes lose. Up to two stated favorites that train what the session owes get a place before support fills the rest,
+   and are the last rows cut for time. At most one movement the athlete has never done and that isn't in their own plan,
+   unless the history is too small to fill the session or the athlete named it a favorite. No two rows of the same
+   movement (pattern, leading muscle, equipment, role). A muscle leads at most two rows until a long session has spread
+   its work, then three, then four. A plan's own rows are its author's and only a duplicate is refused.
+5. Sets and reps. A plan row keeps the plan's own prescription. Otherwise the goal's range for main lifts, 6–10 for
+   supporting compounds (strength), 10–15 for accessories (15–20 for endurance), 30–45 s for timed holds; 2–4 sets.
+   Energy, a deload phase, recovery (one set fewer where the muscle is still recovering) and priority (one more) adjust
+   sets. Loads are never the builder's: the logger asks progressionFor (D49) and deriveWorkingSetPlan (D125) as for any
+   saved workout.
+6. Order. Compounds first, accessories after, core last. A plan session keeps the plan's order, with any added row
+   after the plan's own work and before core.
+7. Time. LOOP's duration constants (sets × (40 s + rest for the reps) + 50 s an exercise) scaled by the athlete's own
+   pace: the median of measured ÷ estimated over the last 12 timed workouts, with at least 3, clamped 0.85–1.35. A
+   session under 72% of its window gains exercises first, then sets (compounds to four, accessories to three, then
+   four), and stops at that ceiling: a 90-minute Pull day is about an hour of work, not padding. One over the window is
+   trimmed with Time Mode's tiers (assignTimeTiers), sets before whole exercises. The estimate never exceeds the window.
+8. Validation. No duplicate, one to five sets, reps that say something, nothing avoided or unavailable in My Gym, and
+   inside the window. A session that fails is not shown; the sheet offers a way back to the choices.
+9. Reasons. Each session line (time, plan, rested, focus, priority, recovery, equipment, familiarity) and each row's
+   line come from a code the composer set. Nothing is said that the composer didn't decide.
+
+Build another walks the same validated ranking to the next alternative (variant n), so the same inputs and variant give
+the same session.
+
+**The preview.** One sheet: minutes, exercises, working sets, the muscles it trains, the session's leading reason, a
+minutes control that rebuilds in place, Why this workout, and each row with its drawing, sets × reps and the next load
+where D49 gives one. A row can be swapped (in place, from exerciseSwapOptions), removed, made a favorite or never
+suggested again. A swap or removal holds for this build's rebuilds. A swap is one data point for the existing
+preference memory (recordExerciseSwap), which concludes nothing before repetition. Favorite and Don't suggest are the
+athlete's word: exercisePrefs.manual 'more' / 'never', the memory Swap already reads. No new DATA_KEY; old backups
+already carry exercisePrefs.
+
+**Start and provenance.** startGeneratedWorkout follows startTemplateLog's per-exercise path. The rows carry the
+generated session's own prescription (targetSets, targetReps), as a saved workout's rows do, so Session Score judges the
+session against what was proposed and started. Origin is 'generated'. pendingWorkoutProgramId is null: the session is
+the athlete's own extra training. workoutBelongsToProgram says no, so no scheduled session is marked done, and no plan,
+program or template is written. A generated workout on a planned date still counts that day as trained in D44, by the
+rule every unscheduled workout already follows. The draft, its resume and saveLog carry the origin through paths that
+did not change.
+
+**Not built.** No post-workout survey (the owner's call if wanted). No learning beyond what exercisePrefs already does.
+
+**Train's filter.** The kinds of workout are one inset track (D132's segmented family): 44px segments that never wrap,
+the chosen one raised and bold, and edges that fade where more lies off screen. The markup, aria-pressed and
+setTrainCategory are unchanged. trainRevealActiveChip keeps the chosen kind in view. A ResizeObserver brings it into view
+when Train first opens (it is drawn while hidden), and a passive scroll listener keeps the edges current. Nothing captures
+touch, so a vertical swipe on the row scrolls the page.
+
+**Frozen here.** E64, its diagnostics and the workout shell's stylesheet are 10.59's byte for byte. D134–D137, D49, D125,
+D50B, PRs, XP and Session Score are 10.59's text. The roadmap resumes at the E64 phone check.
+
+**Proof.** Contract 261 runs the real engine on seeded athletes: determinism, the window at six lengths, pace, equipment,
+avoids, favorites, familiarity, plan-aware without plan-obedience, recent training, recovery as guidance, priority, shape,
+validation, reasons, start, provenance and the frozen functions. The browser rig measures the sheet and the track at 13
+sizes. The studies cover generated athletes, adversarial inputs and a longitudinal run.
