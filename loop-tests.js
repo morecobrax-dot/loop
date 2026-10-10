@@ -741,6 +741,89 @@ const D131B_RAW = [
     "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
    ]
 ];
+/* D140 (LOOP 10.62) — the Program Guide. Seventeen hunks: eleven small edits that let the tour's runner show a second
+   deck (onboardingDeck), the guide's code after the rank page, the card at the top of Training › Program, two copy edits
+   on that page (a paused program; "the sessions"), one CSS block at the end of the D132 system block, and the What's New
+   entry. asOf1061Html(raw) puts them back and reads back LOOP 10.61 (b7f7424) to the byte. Every older read-back starts
+   there: asOf1060Html, and through it the HTML chain and d120Source. Contract 263 holds what the release does. */
+const D140_RAW = [
+ [
+  "let onboardingSolo = false;\n/* D140 — a guide shown by the same runner (PROGRAM_GUIDE); null while the tour itself, or the rank page, is showing.\n   A guide records nothing, has its own last button, and closes back to where it was opened. */\nlet onboardingDeck = null;\n",
+  "let onboardingSolo = false;\n"
+ ],
+ [
+  "function startOnboarding(){\n  onboardingSolo = false;\n  onboardingDeck = null;\n  onboardingIndex = 0;",
+  "function startOnboarding(){\n  onboardingSolo = false;\n  onboardingIndex = 0;"
+ ],
+ [
+  "  if(onboardingSolo){ closeOnboarding(); return; }   // D97 — not the tour: nothing to record\n  if(onboardingDeck){ closeOnboardingGuide(); return; }   // D140 — a guide records nothing\n  onboardingState.skipped = true;",
+  "  if(onboardingSolo){ closeOnboarding(); return; }   // D97 — not the tour: nothing to record\n  onboardingState.skipped = true;"
+ ],
+ [
+  "  clearOnboardingAnimations();\n  onboardingSolo = false;\n  onboardingDeck = null;\n  const ov = document.getElementById('onboardingOverlay');",
+  "  clearOnboardingAnimations();\n  onboardingSolo = false;\n  const ov = document.getElementById('onboardingOverlay');"
+ ],
+ [
+  "  if(onboardingSolo){ closeOnboarding(); return; }   // D97 — \"Done\"\n  if(onboardingDeck){   // D140 — a guide: its last button is its own (Create Program), and nothing is recorded\n    if(onboardingIndex >= onboardingDeck.steps.length - 1){ const deck = onboardingDeck; closeOnboarding(); deck.finish(); return; }\n    onboardingIndex++;\n    renderOnboardingStep();\n    return;\n  }\n  if(onboardingIndex >= ONBOARDING_STEPS.length - 1){ finishOnboarding(); return; }",
+  "  if(onboardingSolo){ closeOnboarding(); return; }   // D97 — \"Done\"\n  if(onboardingIndex >= ONBOARDING_STEPS.length - 1){ finishOnboarding(); return; }"
+ ],
+ [
+  "  const steps = onboardingDeck ? onboardingDeck.steps : ONBOARDING_STEPS;   // D140 — the tour, or a guide\n  const step = steps[onboardingIndex];\n  const total = steps.length;\n  const isLast = onboardingIndex === total - 1;\n  const dots = steps.map((_, i) =>",
+  "  const step = ONBOARDING_STEPS[onboardingIndex];\n  const total = ONBOARDING_STEPS.length;\n  const isLast = onboardingIndex === total - 1;\n  const dots = ONBOARDING_STEPS.map((_, i) =>"
+ ],
+ [
+  "      <div class=\"ob-title\"${onboardingDeck ? ' role=\"heading\" aria-level=\"2\" id=\"obStepTitle\"' : ''}>${escapeHtml(step.title)}</div>",
+  "      <div class=\"ob-title\">${escapeHtml(step.title)}</div>"
+ ],
+ [
+  "  if(dotsEl) dotsEl.innerHTML = onboardingSolo ? '<span class=\"ob-solo-label\">How ranks work</span>'\n    : onboardingDeck ? '<span class=\"ob-dots-row\" aria-hidden=\"true\">' + dots + '</span><span class=\"sr-only\">' + escapeHtml(onboardingDeck.label) + ', page ' + (onboardingIndex + 1) + ' of ' + total + '</span>'   // D140 — a guide says where you are, not only in dots\n    : dots;",
+  "  if(dotsEl) dotsEl.innerHTML = onboardingSolo ? '<span class=\"ob-solo-label\">How ranks work</span>' : dots;"
+ ],
+ [
+  "  if(nextBtn) nextBtn.textContent = onboardingSolo ? 'Done' : (isLast ? (onboardingDeck ? onboardingDeck.lastLabel : 'Start training') : 'Continue');",
+  "  if(nextBtn) nextBtn.textContent = onboardingSolo ? 'Done' : (isLast ? 'Start training' : 'Continue');"
+ ],
+ [
+  "  if(skipBtn){ skipBtn.style.visibility = onboardingSolo ? 'hidden' : 'visible'; skipBtn.textContent = (onboardingDeck && isLast) ? 'Done' : 'Skip'; }   // D140 — a guide's last page is left with Done",
+  "  if(skipBtn) skipBtn.style.visibility = onboardingSolo ? 'hidden' : 'visible';"
+ ],
+ [
+  "  const i = ONBOARDING_STEPS.findIndex(s => s.id === 'ranks');\n  if(i < 0) return;\n  onboardingSolo = true;\n  onboardingDeck = null;",
+  "  const i = ONBOARDING_STEPS.findIndex(s => s.id === 'ranks');\n  if(i < 0) return;\n  onboardingSolo = true;"
+ ],
+ [
+  "\n/* =========================================================\n   PROGRAM GUIDE  (Phase D140)\n   ---------------------------------------------------------\n   \"How programs work\", opened from Training › Program. It is a second deck\n   for the tour's own runner (onboardingDeck): the same overlay, dots, Skip,\n   Back and Continue, the same step model ({ id, title, body, visual }), and\n   the same rule that nothing outlives the sheet. A guide records nothing:\n   Skip and Done close it and return to Program; its last button opens the\n   existing Create Program flow (openProgramBuilderFlow), nothing else.\n\n   Every sentence is what the app does today:\n     · the athlete chooses the days and the split (LOOP recommends one);\n     · LOOP writes the sessions, and any exercise, set or rep can be changed;\n     · the next load is D49's suggestion from the logged sets: more only after\n       the top of the rep range with reps to spare;\n     · a program runs a set number of weeks; a deload is the athlete's call,\n       suggested after six training weeks;\n     · Today shows the scheduled workout while the program is active;\n     · Change time trims today only, a missed day is never rescheduled, and a\n       pause moves the end date.\n   The pictures are small copies of real LOOP surfaces (a Train row, the\n   Today card, Exercise Detail's next load) drawn from fixed example data,\n   inert and hidden from assistive tech: the title and text carry the page.\n   ========================================================= */\nconst PROGRAM_GUIDE_EXAMPLE = {\n  workout: 'Push A — Chest Focus', meta: '6 exercises · ~45 min',\n  week: [['mon', 'push', 'Push A'], ['wed', 'pull', 'Pull A'], ['fri', 'legs', 'Legs A']],\n  session: [['Bench Press', '3 × 6–10'], ['Incline DB Press', '3 × 8–12'], ['Lateral Raise', '3 × 12–15']],\n  /* D49's own answer for this history (Contract 263 runs it): three sets of 205 × 10 with two in reserve, range 6–10.\n     The reason is its first sentence; D49 adds a record note when the next load would beat the athlete's best. */\n  lift: 'Bench Press', last: { weight: 205, reps: 10 }, next: { weight: 210, reps: '6–10' },\n  why: 'You hit 10 reps last session with ~2 RIR — ready for a small increase.',\n  weeks: 6, now: 3, phases: [['Foundation', 1, 3], ['Heavy', 4, 6]],\n  program: { name: 'My Program', meta: '4 days a week · 6 weeks', days: ['push', 'pull', 'legs', 'fullbody'] }\n};\nconst PG_DAY = { mon: 'M', tue: 'T', wed: 'W', thu: 'T', fri: 'F', sat: 'S', sun: 'S' };\n\n/* a Train row, as trainRowHtml draws a saved workout, without its buttons */\nfunction pgWorkoutRowHtml(cat, name, meta){\n  const wid = workoutIdentity(null, cat);\n  return '<div class=\"tl-row pg-row\"><div class=\"tl-main has-wi\">' + workoutIconHtml(wid, 'sm') +\n    '<span class=\"tl-text\"><span class=\"tl-name\">' + escapeHtml(name) + '</span>' +\n    (meta ? '<span class=\"tl-meta\">' + escapeHtml(meta) + '</span>' : '') + '</span></div></div>';\n}\nfunction pgWhatHtml(){\n  const X = PROGRAM_GUIDE_EXAMPLE;\n  return '<div class=\"ob-demo pg-demo\" inert aria-hidden=\"true\">' +\n    '<div class=\"pg-k\">One workout</div>' + pgWorkoutRowHtml('push', X.workout, X.meta) +\n    '<div class=\"pg-k\">A program</div><div class=\"pg-list\">' +\n      X.week.map(([d, cat, name]) => '<div class=\"pg-li\"><span class=\"pg-day\">' + escapeHtml(DAY_LABEL[d] || d) + '</span>' + pgWorkoutRowHtml(cat, name, '') + '</div>').join('') +\n    '</div></div>';\n}\nfunction pgWeekHtml(){\n  const X = PROGRAM_GUIDE_EXAMPLE, on = {};\n  X.week.forEach(([d, cat]) => { on[d] = cat; });\n  const cells = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => {\n    const cat = on[d];\n    return '<li class=\"pg-cell' + (cat ? ' pg-on' : '') + '\"' + (cat ? ' style=\"--k:var(--' + (cat === 'fullbody' ? 'full' : cat) + ')\"' : '') + '>' +\n      '<span class=\"pg-cell-d\">' + PG_DAY[d] + '</span><span class=\"pg-cell-c\">' + (cat ? escapeHtml(CAT_LABEL[cat]) : '—') + '</span></li>';\n  }).join('');\n  return '<div class=\"ob-demo pg-demo\" inert aria-hidden=\"true\"><ol class=\"pg-strip\">' + cells + '</ol>' +\n    '<div class=\"pg-chips\"><span class=\"pg-chip\">3 days a week</span><span class=\"pg-chip\">Push · Pull · Legs</span><span class=\"pg-chip pg-chip-q\">4 recovery days</span></div></div>';\n}\nfunction pgDaysHtml(){\n  const X = PROGRAM_GUIDE_EXAMPLE;\n  return '<div class=\"ob-demo pg-demo\" inert aria-hidden=\"true\">' + pgWorkoutRowHtml('push', X.workout, '') +\n    '<ol class=\"pg-ex\">' + X.session.map(([n, rx]) => '<li>' + exerciseThumbHtml(n, { static: true, cls: 'pg-art' }) +\n      '<span class=\"pg-ex-n\">' + escapeHtml(n) + '</span><span class=\"pg-ex-rx\">' + escapeHtml(rx) + '</span></li>').join('') + '</ol></div>';\n}\n/* Exercise Detail's Next session, drawn with its own classes */\nfunction pgProgressHtml(){\n  const X = PROGRAM_GUIDE_EXAMPLE;\n  const col = (k, w, reps, cls, extra) => '<div class=\"exd-ln-col' + (cls ? ' ' + cls : '') + '\"><span class=\"exd-ln-k\">' + k + '</span>' +\n    '<span class=\"exd-ln-v\">' + w + '<small> lb</small></span><span class=\"exd-ln-r\">× ' + escapeHtml(reps) + ' reps</span>' + (extra || '') + '</div>';\n  return '<div class=\"ob-demo pg-demo\" inert aria-hidden=\"true\"><section class=\"exd-zone exd-next pg-next\">' +\n    '<div class=\"pg-k\">' + escapeHtml(X.lift) + ' · next session</div>' +\n    '<div class=\"exd-ln\">' + col('Last', X.last.weight, String(X.last.reps), '') +\n      '<span class=\"exd-ln-arrow\">' + chevronRightSvg() + '</span>' +\n      col('Next', X.next.weight, X.next.reps, 'exd-ln-to', '<span class=\"exd-delta exd-delta-up\">+' + (X.next.weight - X.last.weight) + ' lb</span>') + '</div>' +\n    '<p class=\"exd-why\">' + escapeHtml(X.why) + '</p></section></div>';\n}\nfunction pgWeeksHtml(){\n  const X = PROGRAM_GUIDE_EXAMPLE;\n  const cells = Array.from({ length: X.weeks }, (_, i) => {\n    const w = i + 1;\n    return '<li class=\"pg-wk' + (w < X.now ? ' pg-wk-done' : w === X.now ? ' pg-wk-now' : '') + '\"><span>' + w + '</span></li>';\n  }).join('');\n  const bands = X.phases.map(([name, a, b]) => '<span class=\"pg-band\" style=\"grid-column:' + a + ' / ' + (b + 1) + '\">' + escapeHtml(name) + '</span>').join('');\n  return '<div class=\"ob-demo pg-demo\" inert aria-hidden=\"true\"><div class=\"pg-k\">Week ' + X.now + ' of ' + X.weeks + '</div>' +\n    '<ol class=\"pg-weeks\">' + cells + '</ol><div class=\"pg-bands\">' + bands + '</div>' +\n    '<div class=\"pg-chips\"><span class=\"pg-chip pg-chip-q\">Deload · when you choose</span></div></div>';\n}\nfunction pgFlexHtml(){\n  const row = (k, v) => '<li><span class=\"pg-flex-k\">' + escapeHtml(k) + '</span><span class=\"pg-flex-v\">' + escapeHtml(v) + '</span></li>';\n  return '<div class=\"ob-demo pg-demo\" inert aria-hidden=\"true\"><ul class=\"pg-flex\">' +\n    row('Change time', '30 min today · the program is unchanged') +\n    row('Missed Wednesday', 'Not rescheduled · still Week 3') +\n    row('Pause', 'The end date moves with you') + '</ul></div>';\n}\nfunction pgReadyHtml(){\n  const P = PROGRAM_GUIDE_EXAMPLE.program;\n  return '<div class=\"ob-demo pg-demo\" inert aria-hidden=\"true\"><div class=\"pg-prog\">' +\n    '<span class=\"pg-prog-n\">' + escapeHtml(P.name) + '</span><span class=\"pg-prog-m\">' + escapeHtml(P.meta) + '</span>' +\n    '<ol class=\"pg-prog-days\">' + P.days.map(cat => '<li>' + workoutIconHtml(workoutIdentity(null, cat), 'sm') + '<span>' + escapeHtml(CAT_LABEL[cat]) + '</span></li>').join('') + '</ol>' +\n    '</div></div>';\n}\n\nconst PROGRAM_GUIDE_STEPS = [\n  { id: 'pg-what', title: 'A program connects your workouts',\n    body: 'A workout is one session — what you train today. A program sets which workouts you train on which days, for a set number of weeks.',\n    visual: () => pgWhatHtml() },\n  { id: 'pg-week', title: 'You choose your week',\n    body: 'Pick how many days you train, which days, and how the week is split. LOOP suggests a split; the choice is yours. The other days are for recovery.',\n    visual: () => pgWeekHtml() },\n  { id: 'pg-days', title: 'Each day is a real workout',\n    body: 'LOOP fills each day with exercises, sets and rep targets for your goal and equipment. Change any of them, and the program keeps your version.',\n    visual: () => pgDaysHtml() },\n  { id: 'pg-progress', title: 'Log it. LOOP suggests what’s next.',\n    body: 'Log the weight and reps you actually did. Reach the top of the rep range with reps to spare, and LOOP suggests a little more next time.',\n    visual: () => pgProgressHtml() },\n  { id: 'pg-weeks', title: 'It runs for a set number of weeks',\n    body: 'LOOP knows which week you’re in. A program can move into heavier work, and after six training weeks LOOP may suggest a lighter deload week. You decide.',\n    visual: () => pgWeeksHtml() },\n  { id: 'pg-today', title: 'Then train from Today',\n    body: 'While a program runs, Today shows its scheduled workout. Start Workout begins it.',\n    visual: () => obTodayDemoHtml() },\n  { id: 'pg-flex', title: 'It bends around real life',\n    body: 'Change time trims today’s session, not the program. A missed day is never rescheduled, and pausing moves the end date with you.',\n    visual: () => pgFlexHtml() },\n  { id: 'pg-ready', title: 'Ready to build your program?',\n    body: 'A few quick choices and LOOP builds the weeks and the sessions. You can change any of it afterwards.',\n    visual: () => pgReadyHtml() }\n];\nconst PROGRAM_GUIDE = { id: 'program-guide', label: 'How programs work', steps: PROGRAM_GUIDE_STEPS, lastLabel: 'Create Program',\n  finish: () => { try{ openProgramBuilderFlow('create'); }catch(e){} } };\n\nfunction openProgramGuide(){\n  onboardingSolo = false;\n  onboardingDeck = PROGRAM_GUIDE;\n  onboardingIndex = 0;\n  renderOnboardingStep();\n  const ov = document.getElementById('onboardingOverlay');\n  if(ov) ov.classList.add('open');\n  document.body.classList.add('page-locked');\n}\n/* Skip and Done: back to Training › Program, focus where the guide was opened from */\nfunction closeOnboardingGuide(){\n  closeOnboarding();\n  const card = document.getElementById('programGuideCard');\n  if(card){ try{ card.focus({ preventScroll: true }); }catch(e){} }\n}\n\n/* =========================================================\n   PROGRAM BUILDER & TRAINING BLOCKS  (Phase D7A)",
+  "\n/* =========================================================\n   PROGRAM BUILDER & TRAINING BLOCKS  (Phase D7A)"
+ ],
+ [
+  "      <div class=\"seg-panel\" id=\"trpanel-program\">\n        <button type=\"button\" class=\"pg-card\" id=\"programGuideCard\" onclick=\"openProgramGuide()\">\n          <span class=\"pg-card-ic\" aria-hidden=\"true\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 16 16\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"2.5\" y=\"3.5\" width=\"11\" height=\"10\" rx=\"2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\"/><path d=\"M2.5 6.75h11M5.5 2v3M10.5 2v3M5.25 9.5h1.5M8.75 9.5h2\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\"/></svg></span>\n          <span class=\"pg-card-text\"><span class=\"pg-card-t\">New to programs?</span><span class=\"pg-card-s\">How LOOP runs your weeks, workouts and progression · 2 min</span></span>\n          <span class=\"pg-card-go\" aria-hidden=\"true\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 16 16\" aria-hidden=\"true\" focusable=\"false\"><path d=\"M6 3.5L10.5 8L6 12.5\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></span>\n        </button>\n        <div id=\"trainingProgramBody\"></div>",
+  "      <div class=\"seg-panel\" id=\"trpanel-program\">\n        <div id=\"trainingProgramBody\"></div>"
+ ],
+ [
+  "      let saved = [];\n      try{ saved = getPrograms(); }catch(e){}\n      /* D140 — the current program, when it is paused: the card above says Paused, so this says how to resume it */\n      let paused = null;\n      try{ const cur = getActiveProgram(); paused = cur && cur.status === 'paused' ? cur : null; }catch(e){}",
+  "      let saved = [];\n      try{ saved = getPrograms(); }catch(e){}"
+ ],
+ [
+  "          <span class=\"mt-start-k\">${paused ? 'Program paused' : 'No program running'}</span>\n          <span class=\"mt-start-t\">${paused ? 'Resume or start a program' : saved.length ? 'Start a program' : 'Build my program'}</span>\n          <span class=\"mt-start-s\">${paused\n            ? `“${escapeHtml(paused.name || 'Your program')}” is paused · open it to resume, or build a new one`\n            : saved.length\n            ? `${saved.length} saved program${saved.length===1?'':'s'} · or build a new one`\n            : 'A few questions and LOOP writes the weeks, the days and the sessions'}</span>",
+  "          <span class=\"mt-start-k\">No program running</span>\n          <span class=\"mt-start-t\">${saved.length ? 'Start a program' : 'Build my program'}</span>\n          <span class=\"mt-start-s\">${saved.length\n            ? `${saved.length} saved program${saved.length===1?'':'s'} · or build a new one`\n            : 'A few questions and LOOP writes the weeks, the days and the progression'}</span>"
+ ],
+ [
+  "/* D140 — PROGRAM GUIDE. The entry is a quiet card at the top of Training › Program (a hairline surface, an icon, two\n   lines, a chevron), never a second primary beside Create Program. The guide is the tour's own sheet; these rules only\n   draw its example pictures, from the same surfaces, tokens and category colours as the screens they copy. */\n.pg-card{ display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; margin: 0 0 var(--space-3); padding: 10px 14px;\n  color: var(--text); text-align: left; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); cursor: pointer; }\n.pg-card-ic{ display: grid; place-items: center; flex: 0 0 auto; width: 34px; height: 34px; color: var(--accent); background: var(--accent-soft); border-radius: 10px; }\n.pg-card-text{ display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }\n.pg-card-t{ font-weight: 700; font-size: 15px; }\n.pg-card-s{ color: var(--text-dim); font-size: var(--fs-meta); line-height: 1.35; }\n.pg-card-go{ flex: 0 0 auto; color: var(--text-dim); }\n.ob-dots-row{ display: contents; }\n/* Skip (and the guide's last-page Done) is a 44px-wide target; the word stays at the right edge where it was */\n.ob-skip{ min-width: 44px; text-align: right; }\n.pg-demo{ display: grid; gap: 6px; text-align: left; }\n.pg-k{ color: var(--text-dim); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }\n.pg-demo .pg-row{ padding: 0 12px 0 0; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 12px; }\n.pg-demo .pg-row .tl-main{ min-height: 0; padding: 7px 0 7px 12px; cursor: default; }\n.pg-demo .pg-row .tl-name{ font-size: 15px; }\n.pg-next .pg-k{ margin-bottom: 8px; }\n.pg-list{ display: grid; gap: 6px; }\n.pg-li{ display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 8px; }\n.pg-day{ color: var(--text-dim); font-size: 12px; font-weight: 700; }\n.pg-strip{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 0; padding: 0; list-style: none; }\n.pg-cell{ display: grid; justify-items: center; gap: 4px; padding: 8px 0; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 10px; }\n.pg-cell-d{ font-weight: 700; font-size: 13px; }\n.pg-cell-c{ color: var(--text-dim); font-size: 11px; }\n.pg-cell.pg-on{ border-color: var(--k); box-shadow: inset 0 -3px 0 var(--k); }\n.pg-cell.pg-on .pg-cell-c{ color: var(--text); font-weight: 600; }\n.pg-chips{ display: flex; flex-wrap: wrap; gap: 6px; }\n.pg-chip{ padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--text); background: var(--surface-2); border-radius: 999px; }\n.pg-chip-q{ color: var(--text-dim); background: none; border: 1px solid var(--hairline); }\n.pg-ex{ display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }\n.pg-ex li{ display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 4px 8px; background: var(--surface-1); border-radius: 10px; }\n.pg-ex .pg-art{ width: 34px; height: 34px; }\n.pg-ex-n{ font-size: 14px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }\n.pg-ex-rx{ color: var(--text-dim); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }\n.pg-next{ margin: 0; border-radius: var(--r-card); }\n.pg-weeks{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }\n.pg-wk{ display: grid; place-items: center; height: 40px; font-weight: 700; color: var(--text-dim); background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 10px; }\n.pg-wk-done{ color: var(--text); background: var(--surface-2); }\n.pg-wk-now{ color: var(--text); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }\n.pg-bands{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }\n.pg-band{ padding: 4px 6px; font-size: 12px; font-weight: 600; text-align: center; color: var(--text); background: var(--surface-2); border-radius: 8px; }\n.pg-flex{ display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }\n.pg-flex li{ display: grid; gap: 2px; padding: 10px 12px; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 12px; }\n.pg-flex-k{ font-weight: 700; font-size: 14px; }\n.pg-flex-v{ color: var(--text-dim); font-size: 13px; }\n.pg-prog{ display: grid; gap: 4px; padding: 14px; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); }\n.pg-prog-n{ font-weight: 700; font-size: 17px; }\n.pg-prog-m{ color: var(--text-dim); font-size: 13px; }\n.pg-prog-days{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }\n.pg-prog-days li{ display: grid; justify-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); text-align: center; }\n/* ==== D132 SYSTEM END ==== */\n",
+  "/* ==== D132 SYSTEM END ==== */\n"
+ ],
+ [
+  "    changes: [\n      'Build another now sits under the exercise list, so Start and Save are the two buttons at the bottom'\n    ]\n  },\n  {\n    id: 'v10-62',\n    version: 'LOOP 10.62',\n    title: 'Learn Programs Before You Build',\n    date: '2026-10-10',\n    swVersion: 'loop-v239',\n    summary: 'A new quick guide explains how workouts, weeks and progression fit together before you create a program.',\n    newFeatures: [\n      'New to programs? in Training › Program opens a short guide, and its last page takes you straight to Create Program'\n    ],\n    improvements: [\n      'A paused program now reads as paused on the Program page, with how to resume it'\n    ],\n    bugFixes: [],\n    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)",
+  "    changes: [\n      'Build another now sits under the exercise list, so Start and Save are the two buttons at the bottom'\n    ]\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)"
+ ]
+];
+const D140_WHATSNEW = "  },\n  {\n    id: 'v10-62',\n    version: 'LOOP 10.62',\n    title: 'Learn Programs Before You Build',\n    date: '2026-10-10',\n    swVersion: 'loop-v239',\n    summary: 'A new quick guide explains how workouts, weeks and progression fit together before you create a program.',\n    newFeatures: [\n      'New to programs? in Training › Program opens a short guide, and its last page takes you straight to Create Program'\n    ],\n    improvements: [\n      'A paused program now reads as paused on the Program page, with how to resume it'\n    ],\n    bugFixes: [],\n    changes: []\n";
+const D140_CSS = "/* D140 — PROGRAM GUIDE. The entry is a quiet card at the top of Training › Program (a hairline surface, an icon, two\n   lines, a chevron), never a second primary beside Create Program. The guide is the tour's own sheet; these rules only\n   draw its example pictures, from the same surfaces, tokens and category colours as the screens they copy. */\n.pg-card{ display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; margin: 0 0 var(--space-3); padding: 10px 14px;\n  color: var(--text); text-align: left; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); cursor: pointer; }\n.pg-card-ic{ display: grid; place-items: center; flex: 0 0 auto; width: 34px; height: 34px; color: var(--accent); background: var(--accent-soft); border-radius: 10px; }\n.pg-card-text{ display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }\n.pg-card-t{ font-weight: 700; font-size: 15px; }\n.pg-card-s{ color: var(--text-dim); font-size: var(--fs-meta); line-height: 1.35; }\n.pg-card-go{ flex: 0 0 auto; color: var(--text-dim); }\n.ob-dots-row{ display: contents; }\n/* Skip (and the guide's last-page Done) is a 44px-wide target; the word stays at the right edge where it was */\n.ob-skip{ min-width: 44px; text-align: right; }\n.pg-demo{ display: grid; gap: 6px; text-align: left; }\n.pg-k{ color: var(--text-dim); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }\n.pg-demo .pg-row{ padding: 0 12px 0 0; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 12px; }\n.pg-demo .pg-row .tl-main{ min-height: 0; padding: 7px 0 7px 12px; cursor: default; }\n.pg-demo .pg-row .tl-name{ font-size: 15px; }\n.pg-next .pg-k{ margin-bottom: 8px; }\n.pg-list{ display: grid; gap: 6px; }\n.pg-li{ display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 8px; }\n.pg-day{ color: var(--text-dim); font-size: 12px; font-weight: 700; }\n.pg-strip{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 0; padding: 0; list-style: none; }\n.pg-cell{ display: grid; justify-items: center; gap: 4px; padding: 8px 0; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 10px; }\n.pg-cell-d{ font-weight: 700; font-size: 13px; }\n.pg-cell-c{ color: var(--text-dim); font-size: 11px; }\n.pg-cell.pg-on{ border-color: var(--k); box-shadow: inset 0 -3px 0 var(--k); }\n.pg-cell.pg-on .pg-cell-c{ color: var(--text); font-weight: 600; }\n.pg-chips{ display: flex; flex-wrap: wrap; gap: 6px; }\n.pg-chip{ padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--text); background: var(--surface-2); border-radius: 999px; }\n.pg-chip-q{ color: var(--text-dim); background: none; border: 1px solid var(--hairline); }\n.pg-ex{ display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }\n.pg-ex li{ display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 4px 8px; background: var(--surface-1); border-radius: 10px; }\n.pg-ex .pg-art{ width: 34px; height: 34px; }\n.pg-ex-n{ font-size: 14px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }\n.pg-ex-rx{ color: var(--text-dim); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }\n.pg-next{ margin: 0; border-radius: var(--r-card); }\n.pg-weeks{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }\n.pg-wk{ display: grid; place-items: center; height: 40px; font-weight: 700; color: var(--text-dim); background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 10px; }\n.pg-wk-done{ color: var(--text); background: var(--surface-2); }\n.pg-wk-now{ color: var(--text); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }\n.pg-bands{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }\n.pg-band{ padding: 4px 6px; font-size: 12px; font-weight: 600; text-align: center; color: var(--text); background: var(--surface-2); border-radius: 8px; }\n.pg-flex{ display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }\n.pg-flex li{ display: grid; gap: 2px; padding: 10px 12px; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 12px; }\n.pg-flex-k{ font-weight: 700; font-size: 14px; }\n.pg-flex-v{ color: var(--text-dim); font-size: 13px; }\n.pg-prog{ display: grid; gap: 4px; padding: 14px; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); }\n.pg-prog-n{ font-weight: 700; font-size: 17px; }\n.pg-prog-m{ color: var(--text-dim); font-size: 13px; }\n.pg-prog-days{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }\n.pg-prog-days li{ display: grid; justify-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); text-align: center; }\n";
+const SHA_1061_HTML = '39432edf47aa3aa8';   /* index.html of LOOP 10.61 (b7f7424), LF */
+function asOf1061Html(raw){
+  let t = raw;
+  for(const [now, then] of D140_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
+}
 /* D139.1 (LOOP 10.61) — Save a built workout. Six hunks: the save code after the D139 block, the preview's actions
    (Save workout beside Start), Build another under the exercises, the save sheet's markup, one CSS block at the end of
    the D132 system block, and the What's New entry. asOf1060Html(raw) puts them back and reads back LOOP 10.60 (a0f629d)
@@ -776,7 +859,8 @@ const D1391_WHATSNEW = "  },\n  {\n    id: 'v10-61',\n    version: 'LOOP 10.61',
 const D1391_CSS = "/* D139.1 — SAVE A BUILT WORKOUT. The preview's actions read Start first: Save workout is the quiet partner beside\n   it, sized by its own label so it never wraps, and Build another moves under the exercises as a plain text action.\n   The save sheet is one labelled field and one button. Nothing outside these selectors changes. */\n#bfmActions .bfm-save{ flex: 0 1 auto; padding-inline: 16px; white-space: nowrap; }\n.bfm-again{ display: block; min-height: 44px; margin: var(--space-3) auto 0; padding: 0 18px; color: var(--accent); font: inherit; font-weight: 600; background: none; border: 0; border-radius: var(--r-control); cursor: pointer; }\n.bfm-save-form{ display: grid; gap: 8px; margin-top: var(--space-3); }\n.bfm-save-form label{ margin: 0; }\n#bfmSaveName{ width: 100%; min-height: 48px; }\n.bfm-save-hint{ margin: 4px 0 0; }\n#bfmSaveActions .bfm-cta{ flex: 1 1 auto; }\n#bfmSaveActions .bfm-cta:disabled{ opacity: 0.55; cursor: default; }\n";
 const SHA_1060_HTML = '1181e81536c14e42';   /* index.html of LOOP 10.60 (a0f629d), LF */
 function asOf1060Html(raw){
-  let t = raw;
+  let t = asOf1061Html(raw);   // D140 restated: 10.62's hunks come out first
+  if(t === null) return null;
   for(const [now, then] of D1391_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
   return t;
 }
@@ -47870,8 +47954,12 @@ async function testStartupRevealD114(){
      Warm-up asks D47 again, the strips only, Contract 251). It comes out first, then D131A's and D125's as before. */
   const D131B_RESTORE = ["      }\n    }\n  });\n   \n  refreshSuggestedWarmups({ reconcile: false });\n\n  if(draft.sho", "      }\n    }\n  });\n\n  if(draft.sho"];
   T('restoreDraftToSheet carries the one D131B statement, once', fnSrc(raw, 'restoreDraftToSheet').split(D131B_RESTORE[0]).length === 2);
+  /* D140 restated by reversal: startOnboarding gained exactly one statement (the tour runs with no deck, Contract 263).
+     With it taken out it must still hash to 10.30's pin. */
+  const D140_START = '  onboardingDeck = null;\n';
+  T('startOnboarding carries the one D140 statement, once', fnSrc(raw, 'startOnboarding').split(D140_START).length === 2);
   const moved = Object.keys(PINS).filter(n => sha(D134_EDITS[n] ? fnSrc(asOf1052Html(raw) || '', n) : n === 'renderAll' ?   // D134 restated: renderResumeBanner and renderTodayWorkout read at 10.52 (Contract 253)
-     fnSrc(raw, n).replace(D118_RENDER_ALL, '') : n === 'restoreDraftToSheet' ? fnSrc(raw, n).split(D131B_RESTORE[0]).join(D131B_RESTORE[1]).split(D131A_RESTORE[0]).join(D131A_RESTORE[1]).split(D125_RESTORE[0]).join(D125_RESTORE[1]) : fnSrc(raw, n)) !== PINS[n]);
+     fnSrc(raw, n).replace(D118_RENDER_ALL, '') : n === 'startOnboarding' ? fnSrc(raw, n).replace(D140_START, '') : n === 'restoreDraftToSheet' ? fnSrc(raw, n).split(D131B_RESTORE[0]).join(D131B_RESTORE[1]).split(D131A_RESTORE[0]).join(D131A_RESTORE[1]).split(D125_RESTORE[0]).join(D125_RESTORE[1]) : fnSrc(raw, n)) !== PINS[n]);
   T('all 18 startup-adjacent functions are unchanged: boot, both screens, the D106 tour decision and start, the draft load/restore/banner/flush, the update reload, tabs, Today',
     moved.length === 0, moved);
   T('storage is untouched: 16 DATA_KEYS, schema 1, trainer 0.1.1-shadow', (() => {
@@ -55571,7 +55659,7 @@ async function testLiveWarmupD131B(){
     const was = asOf1050Html(raw);
     T('45  the file reads back as LOOP 10.50 to the byte (index.html of 0f72dba) once D131B’s statements and What’s New entry are taken out', !!was && sha(was) === SHA_1050_HTML, was && sha(was));
     const css = s => s.slice(s.indexOf('<style>'), s.indexOf('</style>'));
-    T('46  D132 and D132.1 untouched: the stylesheet is 10.50’s byte for byte — the current-set ring, the set circle, the warm-up’s amber, every token', !!was && css(raw.replace(D133_CSS, () => '').replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '')) === css(was));   /* D139 restated: and without D139's block (Contract 261) */   /* D138 restated: read without D138's block (Contract 257) */ /* D138.2 restated: and without D138.2's (Contract 259) */   // D133 restated: read without D133's own block (Contract 252) /* D139.1 restated: and without D139.1's block (Contract 262) */
+    T('46  D132 and D132.1 untouched: the stylesheet is 10.50’s byte for byte — the current-set ring, the set circle, the warm-up’s amber, every token', !!was && css(raw.replace(D133_CSS, () => '').replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').replace(D140_CSS, () => '')) === css(was));   /* D139 restated: and without D139's block (Contract 261) */   /* D138 restated: read without D138's block (Contract 257) */ /* D138.2 restated: and without D138.2's (Contract 259) */   // D133 restated: read without D133's own block (Contract 252) /* D139.1 restated: and without D139.1's block (Contract 262) */ /* D140 restated: and without D140's block (Contract 263) */
     T('47  records, XP, rank, Mastery, Recovery and Session Score are 10.50’s: their engines byte-identical',
       pin('computePRs') === 'ff1f540c2ae3b46a' && pin('computeAllPREvents') === '94af217dbcf1f9ed' && pin('computeXPEvents') === 'cec5fa2cffc42db5' && pin('getCurrentProgression') === 'bf3a7572296c620c' &&
       pin('computeMuscleRecovery') === 'd3589033bdb54c67' && pin('sessionScore') === '842e5699f8ac0835' && pin('deriveSessionExecution') === '0498f3f2c0dd3c2c' && pin('deriveExerciseDetail') === '2e7f87f1c8567b0a' && pin('masteryViewHtml') === 'cfeb04f7ef9796a6');
@@ -56624,7 +56712,7 @@ async function testWarmupApplicabilityD136(){
       s('S3 manual split (freeform)', 3, 'Close-Grip Bench Press').hidden && !s('S3 manual split (freeform)', 3, 'Dumbbell Bench Press').hidden && s('S3 manual split (freeform)', 3, 'Dumbbell Bench Press').plan.split('/')[0] === '' &&
       sameFn('splitRowForSwap') && /CLOSED in D135/.test(statusOf('E59')));
     T('33–37  E63 stays closed; D134’s duration, D133’s shell, D132’s system and D132.1’s circles are 10.54’s byte for byte (the whole stylesheet, workoutElapsedSeconds, workoutSpanLimitSec, activeWorkoutTimeText)',
-      !!was && raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').slice(raw.indexOf('<style>'), raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')) /* D138 restated: read without D138's block */ /* D138.2 restated: and without D138.2's (Contract 259) */ && ['workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText', 'workoutTimeOf'].every(sameFn) && /CLOSED in D134/.test(statusOf('E63'))); /* D139 restated: and without D139's block (Contract 261) */ /* D139.1 restated: and without D139.1's block (Contract 262) */
+      !!was && raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').replace(D140_CSS, () => '').slice(raw.indexOf('<style>'), raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').replace(D140_CSS, () => '').indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')) /* D138 restated: read without D138's block */ /* D138.2 restated: and without D138.2's (Contract 259) */ && ['workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText', 'workoutTimeOf'].every(sameFn) && /CLOSED in D134/.test(statusOf('E63'))); /* D139 restated: and without D139's block (Contract 261) */ /* D139.1 restated: and without D139.1's block (Contract 262) */ /* D140 restated: and without D140's block (Contract 263) */
     const p1 = cell('P1 D50B', 1, 'Bench Press');
     T('38–39  D49 and D50B are unchanged: the coach’s adapted sets after a hard Set 1 are exactly 10.54’s, the strip anchor stays the prescription, and D49’s next answer is the same in every class',
       p1.rows === cell('P1 D50B', 1, 'Bench Press', Q).rows && p1.internal === cell('P1 D50B', 1, 'Bench Press', Q).internal && ALL.every(n => same(R[n].d49, Q[n].d49)) && ['progressionFor', 'refreshSetCoach', 'deriveNextSetCoach', 'exerciseSessionHistory'].every(sameFn));
@@ -56711,6 +56799,188 @@ async function testWarmupApplicabilityD136(){
 }
 
 /* =========================================================
+   CONTRACT 263 — D140 (LOOP 10.62): THE PROGRAM GUIDE
+   "New to programs?" in Training › Program opens "How programs work": eight pages shown by the first-run tour's own
+   runner (one overlay, one step model; onboardingDeck says which deck). A guide records nothing; Skip and Done return to
+   Program; its last button opens the existing Create Program flow. Every page says what the app does today — the
+   progression page's example is D49's own answer, run here. On the same page, a paused program now reads as paused, and
+   a first program "writes the weeks, the days and the sessions" (not "the progression"). Nothing about programs, D139,
+   D139.1 or E64 changes. The browser rig measures the card and every page at 13 sizes.
+   ========================================================= */
+async function testProgramGuideD140(){
+  section('CONTRACT 263 — How programs work: a guide on the tour’s own runner, true to the program it explains (D140)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const was = asOf1061Html(raw);   /* b7f7424: LOOP 10.61 */
+  const styleOf = t => t ? t.slice(t.indexOf('<style>'), t.indexOf('</style>')) : '';
+  const sameFn = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+  const GUIDE = raw.slice(raw.indexOf('   PROGRAM GUIDE  (Phase D140)'), raw.indexOf('/* =========================================================\n   PROGRAM BUILDER & TRAINING BLOCKS  (Phase D7A)'));
+  const CODE = GUIDE.replace(/\/\*[\s\S]*?\*\//g, '');
+  const read = n => fs.readFileSync(H.APP_PATH.replace(/index\.html$/, n), 'utf8').split('\r\n').join('\n');
+  const NOW = '2026-10-09T09:00:00';
+  const base = { selectedPlan: JSON.stringify('balanced'), onboarding: JSON.stringify({ version: 1, completedVersion: 1, skipped: false, hintsSeen: { rir: true } }) };
+  const app = async store => {
+    const a = H.loadApp(Object.assign({}, base, store || {})); const c = a.ctx; const release = pinClock(c, NOW);
+    await H.settle(250);
+    const g = e => vm.runInContext(e, c);
+    const el = id => c.document.getElementById(id);
+    return { c, g, el, release,
+      page: () => ({ index: g('onboardingIndex'), deck: g('onboardingDeck ? onboardingDeck.id : null'), title: (/<div class="ob-title"[^>]*>([^<]*)</.exec(el('onboardingBody').innerHTML) || [])[1],
+        body: el('onboardingBody').innerHTML, dots: el('onboardingDots').innerHTML, next: el('onboardingNext').textContent, skip: el('onboardingSkip').textContent,
+        back: el('onboardingBack').style.visibility, open: el('onboardingOverlay').classList.contains('open') }),
+      state: () => g('JSON.stringify({ log: workoutLog, programs: programsStore, prefs: exercisePrefs, onboarding: onboardingState, plan: planData, schedule: typeof schedule === "undefined" ? null : schedule })') };
+  };
+  const TITLES = ['A program connects your workouts', 'You choose your week', 'Each day is a real workout', 'Log it. LOOP suggests what’s next.',
+    'It runs for a set number of weeks', 'Then train from Today', 'It bends around real life', 'Ready to build your program?'];
+  const unescape = s => String(s).replace(/&amp;/g, '&').replace(/&#39;/g, '\'').replace(/&quot;/g, '"');
+
+  /* ---------------------------------------------------------------- */
+  sub('drift');
+  await guard('drift', async () => {
+    T('every D140 change is where it was written, once, and taking them out reads back LOOP 10.61 (b7f7424) to the byte', !!was && sha(was) === SHA_1061_HTML && D140_RAW.length === 17, was && sha(was));
+    T('…the stylesheet is 10.61’s once the D140 block is out, the block at the end of the D132 system block', styleOf(raw).replace(D140_CSS, '') === styleOf(was) && styleOf(raw).indexOf(D140_CSS) > styleOf(raw).indexOf(D1391_CSS) && styleOf(raw).indexOf(D140_CSS) < styleOf(raw).indexOf(D132_BLOCK[1]));
+    T('…and the guide stores and fetches nothing: no LOOPStore, browser storage, onboarding write, timer or network in its code', CODE.length > 3000 && !/LOOPStore|localStorage|sessionStorage|persistOnboarding|onboardingState|setInterval|setTimeout|fetch\(|https?:\/\//.test(CODE));
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('1–2  the card');
+  await guard('card', async () => {
+    const panel = raw.slice(raw.indexOf('<div class="seg-panel" id="trpanel-program">'), raw.indexOf('<div id="myTrainingBody"></div>'));
+    T('1  Training › Program has one entry to the guide, first in the panel and above everything the panel draws (My programs, the empty state, Create Program), in every state',
+      /^<div class="seg-panel" id="trpanel-program">\s*<button type="button" class="pg-card" id="programGuideCard" onclick="openProgramGuide\(\)">/.test(panel) && panel.indexOf('id="programGuideCard"') < panel.indexOf('id="trainingProgramBody"')
+      && (raw.match(/onclick="openProgramGuide\(\)"/g) || []).length === 1 && (raw.match(/id="programGuideCard"/g) || []).length === 1);
+    T('…a quiet card, not a second primary: its own surface, no action gradient, a text name (“New to programs?” · the guide in a line · 2 min), the icon and chevron hidden from assistive tech',
+      !/btn-primary|tr-cta/.test(panel.slice(0, panel.indexOf('</button>'))) && /<span class="pg-card-t">New to programs\?<\/span><span class="pg-card-s">How LOOP runs your weeks, workouts and progression · 2 min<\/span>/.test(panel)
+      && (panel.slice(0, panel.indexOf('</button>')).match(/aria-hidden="true"/g) || []).length >= 2 && /\.pg-card\{[^}]*min-height: 56px;[^}]*background: var\(--surface-1\)/.test(col(D140_CSS)));
+    const A = await app();
+    A.c.openMyTraining();
+    A.c.openProgramGuide();
+    const p = A.page();
+    T('2  tapping it opens the guide in the tour’s overlay: page 1, the guide’s deck, eight dots (the first one now), the position said in words', p.open && p.deck === 'program-guide' && p.index === 0 && p.title === TITLES[0] && /How programs work, page 1 of 8/.test(p.dots) && /<span class="ob-dots-row" aria-hidden="true">/.test(p.dots)
+      && (p.dots.match(/class="ob-dot[ "]/g) || []).length === 8 && /^<span class="ob-dots-row" aria-hidden="true"><span class="ob-dot now">/.test(p.dots), p);
+    A.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('3–10  the runner: the tour unchanged, the guide’s pages, Back, Continue, Skip, Done, Create Program');
+  await guard('runner', async () => {
+    const A = await app();
+    const s0 = A.state();
+    const k0 = JSON.stringify((await A.c.LOOPStore.listKeys()).slice().sort());
+    const builder = [];
+    A.c.openProgramBuilderFlow = (...x) => builder.push(x);
+    A.c.openProgramGuide();
+    const seen = [], next = [], skip = [], back = [];
+    for(let i = 0; i < 8; i++){
+      const p = A.page();
+      seen.push(unescape(p.title)); next.push(p.next); skip.push(p.skip); back.push(p.back);
+      if(i < 7) A.c.onboardingNext();
+    }
+    T('5  every page is reachable in order — eight, one concept each — and each title is a heading', JSON.stringify(seen) === JSON.stringify(TITLES) && /role="heading" aria-level="2"/.test(A.page().body), seen);
+    T('7  Continue moves exactly one page and reads Continue until the last, which reads Create Program; the top button reads Skip until the last, which reads Done',
+      next.slice(0, 7).every(x => x === 'Continue') && next[7] === 'Create Program' && skip.slice(0, 7).every(x => x === 'Skip') && skip[7] === 'Done', [next, skip]);
+    A.c.onboardingBack(); A.c.onboardingBack();
+    const b2 = A.page();
+    T('6  Back moves exactly one page back (8 → 7 → 6), and there is no Back on the first page', b2.index === 5 && unescape(b2.title) === TITLES[5] && back[0] === 'hidden' && back.slice(1).every(x => x === 'visible'), [b2.index, back]);
+    A.c.onboardingNext(); A.c.onboardingNext();
+    A.c.onboardingNext();
+    const after = A.page();
+    T('10  the last page’s Create Program closes the guide and opens the existing Create Program flow — openProgramBuilderFlow(\'create\'), the call the page’s own Create Program makes — once',
+      !after.open && after.deck === null && builder.length === 1 && builder[0][0] === 'create' && /onclick="openProgramBuilderFlow\('create'\)">\+ Create Program/.test(raw), builder);
+    A.c.openProgramGuide(); A.c.onboardingNext(); A.c.onboardingNext();
+    A.c.skipOnboarding();
+    const sk = A.page();
+    T('8  Skip closes the guide back to Program, opens nothing, and records nothing (the tour’s own state is exactly as it was)', !sk.open && sk.deck === null && builder.length === 1 && A.state() === s0, sk);
+    A.c.openProgramGuide();
+    for(let i = 0; i < 7; i++) A.c.onboardingNext();
+    A.c.skipOnboarding();
+    T('9  Done on the last page closes back to Program and opens nothing', !A.page().open && builder.length === 1 && A.state() === s0);
+    T('11–14  the whole guide, start to end, every way out: programs, history, preferences, the onboarding record, the plan and the week are exactly as they were, and no stored key was added', A.state() === s0 && JSON.stringify((await A.c.LOOPStore.listKeys()).slice().sort()) === k0);
+    /* the tour itself, after the guide */
+    A.c.startOnboarding();
+    const t0 = A.page();
+    const steps = A.g('ONBOARDING_STEPS.length');
+    for(let i = 0; i < steps - 1; i++) A.c.onboardingNext();
+    const tl = A.page();
+    A.c.onboardingNext();
+    const rec = JSON.parse(A.g('JSON.stringify(onboardingState)'));
+    T('3  the first-run tour is unchanged after the guide: its own pages from Welcome, its own last button (Start training), and finishing records the tour as before',
+      t0.deck === null && t0.title === 'Welcome to LOOP' && !/role="heading"/.test(t0.body) && !/page 1 of/.test(t0.dots) && t0.skip === 'Skip' && tl.next === 'Start training' && !A.page().open && rec.completedVersion === A.g('ONBOARDING_VERSION') && rec.skipped === false, [t0.title, tl.next]);
+    A.c.startOnboarding(); A.c.skipOnboarding();
+    T('…and its Skip records skipped, as it always has; the rank page (D97) opens as before, outside any deck', JSON.parse(A.g('JSON.stringify(onboardingState)')).skipped === true && (() => { A.c.openRankExplainer(); const r = A.page(); A.c.closeOnboarding(); return r.deck === null && /How ranks work/.test(r.dots) && r.next === 'Done'; })());
+    T('4  one runner: the guide is a deck { id, label, steps, lastLabel, finish } for the tour’s runner and overlay — no second overlay, runner or step model',
+      (raw.match(/id="onboardingOverlay"/g) || []).length === 1 && A.g('PROGRAM_GUIDE.steps.every(s => s.id && s.title && s.body && typeof s.visual === "function")') && A.g('PROGRAM_GUIDE.steps === PROGRAM_GUIDE_STEPS && PROGRAM_GUIDE.lastLabel === "Create Program"')
+      && /onboardingDeck = PROGRAM_GUIDE;[\s\S]*renderOnboardingStep\(\);[\s\S]*getElementById\('onboardingOverlay'\)/.test(fnSrc(raw, 'openProgramGuide')) && !/class="ob-step"|ob-dot/.test(CODE));
+    A.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the pages say what the app does');
+  await guard('truth', async () => {
+    const X = vm.runInContext('PROGRAM_GUIDE_EXAMPLE', (await app()).c);
+    const P = await app({ workoutLog: JSON.stringify([{ id: 'b1', date: '2026-10-06', category: 'push', title: 'Push', notes: '', origin: 'freeform',
+      exercises: [{ name: 'Bench Press', effort: '', bodyweight: false, sets: [0, 1, 2].map(() => ({ weight: '205', reps: '10', rir: '2', type: 'working', completed: true })) }] }]) });
+    const rec = P.c.progressionFor('Bench Press', '6-10', '');
+    T('the progression page’s example is D49’s own answer: three sets of 205 × 10 with two in reserve, range 6–10, give ' + (rec && rec.weight) + ' lb, and D49’s reason opens with the guide’s sentence',
+      !!rec && rec.weight === X.next.weight && rec.tag === 'increase' && rec.why.indexOf(X.why) === 0 && X.last.weight === 205 && X.next.reps === '6–10', rec);
+    P.release();
+    const words = TITLES.join(' ') + ' ' + vm.runInContext('PROGRAM_GUIDE_STEPS.map(s => s.body).join(" ")', (await app()).c);
+    T('no page oversells: no weight “every week”, no automatic rescheduling, none of mesocycle, periodization, stimulus or fatigue; the progression page says more comes after the top of the range with reps to spare',
+      !/every week|automatically (add|increase|resched)|mesocycle|microcycle|periodi[sz]ation|stimulus|fatigue/i.test(words) && /Reach the top of the rep range with reps to spare, and LOOP suggests a little more next time\./.test(words));
+    T('the facts each page states are the app’s: the athlete picks days and split (the builder recommends one), any exercise, set or rep can be changed, a missed day is never rescheduled, a pause moves the end date, a deload is suggested after six training weeks and started by the athlete',
+      /LOOP suggests a split; the choice is yours\./.test(words) && /Change any of them, and the program keeps your version\./.test(words) && /A missed day is never rescheduled, and pausing moves the end date with you\./.test(words)
+      && /after six training weeks LOOP may suggest a lighter deload week\. You decide\./.test(words) && /deloadAfterWeeks: 6/.test(raw) && /Nothing was rescheduled — it is up to you what to do with these\./.test(raw) && />Recommended</.test(raw));
+    const V = await app();
+    const pics = V.g('PROGRAM_GUIDE_STEPS.map(s => s.visual())');
+    T('every picture is an example drawn from LOOP’s own surfaces, inert and hidden from assistive tech: a Train row, the Today card, Exercise Detail’s next load', pics.length === 8 && pics.every(h => /^<div class="ob-demo[^"]*" inert aria-hidden="true">/.test(h))
+      && /class="tl-row pg-row"/.test(pics[0]) && /class="tw tw-push/.test(pics[5]) && /class="exd-zone exd-next pg-next"/.test(pics[3]) && pics[5] === V.g('obTodayDemoHtml()'), pics.map(h => h.slice(0, 50)));
+    V.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('the Program page’s copy, where it misled');
+  await guard('copy', async () => {
+    const PAUSED = { version: 1, activeProgramId: 'p1', programs: [{ id: 'p1', name: 'Hypertrophy Block', goal: 'hypertrophy', status: 'paused', durationWeeks: 6, startDate: '2026-09-07', pausedOnDate: '2026-10-01',
+      schedule: { mon: { type: 'rest' }, tue: { type: 'rest' }, wed: { type: 'rest' }, thu: { type: 'rest' }, fri: { type: 'rest' }, sat: { type: 'rest' }, sun: { type: 'rest' } } }] };
+    const A = await app({ programs: JSON.stringify(PAUSED) });
+    A.c.renderMyTraining();
+    const h = A.el('myTrainingBody').innerHTML;
+    T('a paused current program reads as paused — “Program paused · Resume or start a program · “Hypertrophy Block” is paused · open it to resume, or build a new one” — with the same button to the programs list',
+      /<span class="mt-start-k">Program paused<\/span>/.test(h) && /<span class="mt-start-t">Resume or start a program<\/span>/.test(h) && /“Hypertrophy Block” is paused · open it to resume, or build a new one/.test(h) && /onclick="closeMyTraining\(\); openPrograms\(\);"/.test(h), h.slice(0, 400));
+    A.release();
+    const B = await app();
+    B.c.renderMyTraining();
+    const n = B.el('myTrainingBody').innerHTML;
+    T('…with no program and none saved it still says No program running · Build my program, and a program writes the weeks, the days and the sessions — not “the progression”, which comes from what you log',
+      /<span class="mt-start-k">No program running<\/span>/.test(n) && /Build my program/.test(n) && /A few questions and LOOP writes the weeks, the days and the sessions/.test(n) && !/writes the weeks, the days and the progression/.test(raw), n.slice(0, 300));
+    B.release();
+  });
+
+  /* ---------------------------------------------------------------- */
+  sub('15–24  everything else unchanged');
+  await guard('protected', async () => {
+    T('17  programs run exactly as in 10.61: scheduling, the week, phases and their prescription, completion, pause, the builder, membership', ['getProgramWorkoutForDate', 'createProgramInMemory', 'resumeProgramInMemory', 'deriveEffectivePrescription', 'generateProgram', 'openProgramBuilderFlow', 'programPlannedSlots', 'programWeekMonday', 'programEndDate', 'completeProgram', 'getRunningProgram', 'workoutBelongsToProgram', 'getActiveProgram', 'hasActiveProgram', 'renderTrainingProgramTab'].every(sameFn));
+    T('…and D49, D125, D50B and the logger are 10.61’s', ['progressionFor', 'buildProgressionRecommendation', 'deriveWorkingSetPlan', 'deriveNextSetCoach', 'startTemplateLog', 'saveLog'].every(sameFn));
+    T('18–19  Build for me and Save workout are 10.61’s text (D139, D139.1)', ['composeInstantSession', 'buildKnown', 'buildIntent', 'startGeneratedWorkout', 'renderBuildForMe', 'bfmPreviewHtml', 'saveBuiltWorkout', 'bfmSavedTemplateOf', 'openBfmSave', 'trainChipsEdges'].every(sameFn));
+    const diagOf = t => { const a = t ? t.indexOf('/* =========================================================\n   VIEWPORT DIAGNOSTICS') : -1; const b = a === -1 ? -1 : t.indexOf('function backToSettings(fromOverlayId){', a); return a === -1 || b === -1 ? '' : t.slice(a, b); };
+    T('20  E64 is frozen: the diagnostics are 10.61’s byte for byte, the stylesheet is 10.61’s outside the D140 block, E64 still OPEN', diagOf(raw).length > 1000 && diagOf(raw) === diagOf(was) && /OPEN — 10\.58's full-screen dock/.test(read('FINDINGS-D88.md')));
+    T('21  reduced motion: the guide starts no animation — the runner’s only trigger is the rank page, no guide page is it, and each page enters with the tour’s own step animation, which Reduce Motion already stops',
+      (fnSrc(raw, 'renderOnboardingStep').match(/if\(step\.id === '\w+'\) \w+\(/g) || []).join() === "if(step.id === 'ranks') startRankLadderLight(" && vm.runInContext('PROGRAM_GUIDE_STEPS.every(s => s.id !== "ranks")', (await app()).c) && /@media \(prefers-reduced-motion: reduce\)\{ \.ob-step\{ animation: none; \} \}/.test(raw) && !/animation|transition/.test(D140_CSS));
+    T('22  Skip / Done take a 44px-wide target (the word stays at the right edge), the page title is a heading, the position is said in words, the pictures are hidden from assistive tech', /\.ob-skip\{ min-width: 44px; text-align: right; \}/.test(D140_CSS));
+    T('15–16  16 DATA_KEYS, data schema 1, trainer 0.1.1-shadow; E60 and E61 still OPEN', (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw) || [])[1] === (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '') || [])[1] && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /const TRAINER_ENGINE_VERSION = '0\.1\.1-shadow';/.test(raw)
+      && ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(read('FINDINGS-D88.md'))));
+    const ps = JSON.parse(read('PROJECT-STATUS.json'));
+    T('the roadmap resumes where it paused: PROJECT-STATUS 10.62 still needs QA and its next action is the E64 phone check', ps.version === '10.62' && ps.needsQa === true && /^E64: update to 10\.62,/.test(ps.nextAction) && /tap Paint/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
+    T('What’s New v10-62 “Learn Programs Before You Build” is LOOP 10.62 / loop-v239, dated in New York, says what was built, and sw.js serves loop-v239',
+      /id: 'v10-62',\s*version: 'LOOP 10\.62',\s*title: 'Learn Programs Before You Build',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v239',[\s\S]*newFeatures: \[\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D140_WHATSNEW)
+      && /CACHE_VERSION = 'loop-v239'/.test(read('sw.js')));
+  });
+}
+
+/* =========================================================
    CONTRACT 262 — D139.1 (LOOP 10.61): SAVE A BUILT WORKOUT
    A Build for me preview the athlete likes becomes one of their saved workouts, through the path LOOP already uses
    to save a workout on their behalf (D80B's Save to My Workouts): the same five-field template in the plan's list for
@@ -56777,7 +57047,7 @@ async function testSaveBuiltWorkoutD1391(){
   sub('drift: one script block, two lines in the preview, one sheet, one CSS block, one What’s New entry');
   await guard('drift', async () => {
     T('every D139.1 change is where it was written, once, and taking them out reads back LOOP 10.60 (a0f629d) to the byte', !!was && sha(was) === SHA_1060_HTML && D1391_RAW.length === 6, was && sha(was));
-    T('…the stylesheet is 10.60’s once the D139.1 block is out, and the block sits at the end of the D132 system block', styleOf(raw).replace(D1391_CSS, '') === styleOf(was) && styleOf(raw).indexOf(D1391_CSS) < styleOf(raw).indexOf(D132_BLOCK[1]) && styleOf(raw).indexOf(D139_CSS) < styleOf(raw).indexOf(D1391_CSS));
+    T('…the stylesheet is 10.60’s once the D139.1 block is out, and the block sits at the end of the D132 system block', styleOf(raw).replace(D140_CSS, () => '').replace(D1391_CSS, () => '') === styleOf(was) && styleOf(raw).indexOf(D1391_CSS) < styleOf(raw).indexOf(D132_BLOCK[1]) && styleOf(raw).indexOf(D139_CSS) < styleOf(raw).indexOf(D1391_CSS)); /* D140 restated: and without D140's block (Contract 263) */
     T('…and saving reaches the store only through persistPlanData: no other write, no fetch, no network', CODE.length > 2000 && /await persistPlanData\(\)/.test(CODE) && !/LOOPStore|localStorage|sessionStorage|fetch\(|XMLHttpRequest|https?:\/\//.test(CODE));
   });
 
@@ -57010,14 +57280,14 @@ async function testSaveBuiltWorkoutD1391(){
     T('the saved-workout machinery it reuses is unchanged: the editor, Save to My Workouts, ids, names, the list and Start', ['saveTemplate', 'openEditTemplate', 'deleteTemplate', 'importSharedWorkout', 'nextSavedWorkoutId', 'uniqueSavedWorkoutName', 'trainSavedWorkouts', 'renderTrainMine', 'startTemplateLog', 'persistPlanData'].every(sameFn));
     T('D49, D125, D50B, D134–D137, PRs, XP and Session Score are 10.60’s text', ['progressionFor', 'buildProgressionRecommendation', 'deriveWorkingSetPlan', 'deriveNextSetCoach', 'refreshSetCoach', 'workoutElapsedSeconds', 'workoutTimeOf', 'refreshSuggestedWarmups', 'detectPlateau', 'computePRs', 'computeXPEvents', 'sessionScore', 'rowStartsAsBodyweight'].every(sameFn));
     const diagOf = t => { const a = t ? t.indexOf('/* =========================================================\n   VIEWPORT DIAGNOSTICS') : -1; const b = a === -1 ? -1 : t.indexOf('function backToSettings(fromOverlayId){', a); return a === -1 || b === -1 ? '' : t.slice(a, b); };
-    T('E64 is frozen: the diagnostics are 10.60’s byte for byte, the workout shell’s stylesheet is 10.60’s, E64 is still OPEN', diagOf(raw).length > 1000 && diagOf(raw) === diagOf(was) && styleOf(raw).replace(D1391_CSS, '') === styleOf(was) && /OPEN — 10\.58's full-screen dock/.test(read('FINDINGS-D88.md')));
+    T('E64 is frozen: the diagnostics are 10.60’s byte for byte, the workout shell’s stylesheet is 10.60’s, E64 is still OPEN', diagOf(raw).length > 1000 && diagOf(raw) === diagOf(was) && styleOf(raw).replace(D140_CSS, () => '').replace(D1391_CSS, () => '') === styleOf(was) && /OPEN — 10\.58's full-screen dock/.test(read('FINDINGS-D88.md'))); /* D140 restated: and without D140's block (Contract 263) */
     T('16 DATA_KEYS, data schema 1, trainer 0.1.1-shadow; E60 and E61 still OPEN', (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw) || [])[1] === (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '') || [])[1] && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /const TRAINER_ENGINE_VERSION = '0\.1\.1-shadow';/.test(raw)
       && ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(read('FINDINGS-D88.md'))));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('the roadmap resumes where it paused: PROJECT-STATUS 10.61 still needs QA and its next action is the E64 phone check', ps.version === '10.61' && ps.needsQa === true && /^E64: update to 10\.61,/.test(ps.nextAction) && /tap Paint/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
+    T('the roadmap resumes where it paused: PROJECT-STATUS 10.61 still needs QA and its next action is the E64 phone check', /^10\.6[12]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[12],/.test(ps.nextAction) /* D140 restated: 10.62 keeps the E64 next action (Contract 263) */ && /tap Paint/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-61 “Save Built Workouts” is LOOP 10.61 / loop-v238, dated in New York, says what was built and nothing more, and sw.js serves loop-v238',
       /id: 'v10-61',\s*version: 'LOOP 10\.61',\s*title: 'Save Built Workouts',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v238',[\s\S]*newFeatures: \[\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\s*'[^']+'\s*\]/.test(D1391_WHATSNEW)
-      && !/\b(smart|perfect|AI)\b/.test(D1391_WHATSNEW) && /CACHE_VERSION = 'loop-v238'/.test(read('sw.js')));
+      && !/\b(smart|perfect|AI)\b/.test(D1391_WHATSNEW) && /id: 'v10-61'/.test(raw) && /CACHE_VERSION = 'loop-v239'/.test(read('sw.js')) /* D140 restated: v10-61 stays in the history; sw.js now serves 10.62's cache (Contract 263) */);
   });
 }
 
@@ -57305,10 +57575,10 @@ async function testInstantBuilderD139(){
     const fx = read('FINDINGS-D88.md');
     T('51  E60 and E61 untouched (still OPEN)', ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(fx)));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('52  the roadmap resumes where it paused: PROJECT-STATUS still needs QA and its next action is the E64 phone check', /^10\.6[01]$/.test(ps.version) /* D139.1 restated: 10.61 keeps the E64 next action (Contract 262) */ && ps.needsQa === true && /^E64:/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
+    T('52  the roadmap resumes where it paused: PROJECT-STATUS still needs QA and its next action is the E64 phone check', /^10\.6[012]$/.test(ps.version) /* D140 restated: 10.62 keeps the E64 next action (Contract 263) */ /* D139.1 restated: 10.61 keeps the E64 next action (Contract 262) */ && ps.needsQa === true && /^E64:/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-60 “Build Today’s Workout” is LOOP 10.60 / loop-v237, dated in New York, says what was built and nothing more, and sw.js serves loop-v237',
       /id: 'v10-60',\s*version: 'LOOP 10\.60',\s*title: 'Build Today’s Workout',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v237',[\s\S]*newFeatures: \[\s*'[^']+',\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D139_WHATSNEW)
-      && !/\b(pump|optimal|smart|perfect|intelligent)\b/i.test(D139_WHATSNEW) && !/\bAI\b/.test(D139_WHATSNEW) &&/id: 'v10-60'/.test(raw0) && /CACHE_VERSION = 'loop-v238'/.test(read('sw.js')) /* D139.1 restated: v10-60 stays in the history; sw.js now serves 10.61's cache (Contract 262) */);
+      && !/\b(pump|optimal|smart|perfect|intelligent)\b/i.test(D139_WHATSNEW) && !/\bAI\b/.test(D139_WHATSNEW) &&/id: 'v10-60'/.test(raw0) && /CACHE_VERSION = 'loop-v239'/.test(read('sw.js')) /* D140 restated: sw.js now serves 10.62's cache (Contract 263) */ /* D139.1 restated: v10-60 stays in the history; sw.js now serves 10.61's cache (Contract 262) */);
   });
 }
 
@@ -57491,10 +57761,10 @@ async function testVisibleDockD1383(){
     T('41  E60 and E61 are untouched (still OPEN)', ['E60', 'E61'].every(id => /· OPEN$/.test(status(id))), ['E60', 'E61'].map(status));
     T('42  E64 is OPEN, never CLOSED by automation: only the owner’s screenshot with both buttons whole can close it — PROJECT-STATUS still needs QA and asks for the Paint test, a screenshot and the report',
       /^## E64 — [^\n]*· \*\*OPEN — 10\.58's full-screen dock was cut off by the iPhone's own viewport; 10\.59 puts the buttons back in view \(D138\.3\)\*\*$/.test(e64.split('\n')[0]) && !/CLOSED/.test(e64.split('\n')[0])
-      && ps.needsQa === true && /^10\.(59|6[01])$/.test(ps.version) /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64:/.test(ps.nextAction) && /Paint/.test(ps.nextAction) && /screenshot/.test(ps.nextAction) && ps.nextAction.length <= 200, e64.split('\n')[0]);
+      && ps.needsQa === true && /^10\.(59|6[012])$/.test(ps.version) /* D140 restated: 10.62 keeps it too */ /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64:/.test(ps.nextAction) && /Paint/.test(ps.nextAction) && /screenshot/.test(ps.nextAction) && ps.nextAction.length <= 200, e64.split('\n')[0]);
     T('What’s New v10-59 “Workout Buttons Back in Full View” is LOOP 10.59 / loop-v236, dated in New York; its one fix is the cut-off buttons 10.58 shipped, its one change the withdrawn layout; it does not claim the bottom band is gone; sw.js serves loop-v236',
       /id: 'v10-59',\s*version: 'LOOP 10\.59',\s*title: 'Workout Buttons Back in Full View',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v236',[\s\S]*newFeatures: \[\],\s*improvements: \[\],\s*bugFixes: \[\s*'[^']+'\s*\],\s*changes: \[\s*'[^']+'\s*\]/.test(D1383_WHATSNEW)
-      && !/gap|band|E64|D138|full screen\b|fixed the/i.test(D1383_WHATSNEW) && /id: 'v10-59'/.test(raw0) && c.getLatestUpdateId() === 'v10-61' && /CACHE_VERSION = 'loop-v238'/.test(read('sw.js')) /* D139.1 restated: now 10.61's */ /* D139 restated: v10-59 stays in the history; the newest is 10.60's (Contract 261) */);
+      && !/gap|band|E64|D138|full screen\b|fixed the/i.test(D1383_WHATSNEW) && /id: 'v10-59'/.test(raw0) && c.getLatestUpdateId() === 'v10-62' && /CACHE_VERSION = 'loop-v239'/.test(read('sw.js')) /* D140 restated: now 10.62's */ /* D139.1 restated: now 10.61's */ /* D139 restated: v10-59 stays in the history; the newest is 10.60's (Contract 261) */);
   });
 }
 
@@ -57696,10 +57966,10 @@ async function testFullCanvasShellD1382(){
     T('39  E60 and E61 are untouched (still OPEN)', ['E60', 'E61'].every(id => /· OPEN$/.test(status(id))), ['E60', 'E61'].map(status));
     T('40  E64 is a FIX CANDIDATE, never CLOSED: only the owner’s phone can close it — PROJECT-STATUS still needs QA and asks for Capture A, and the note says what the phone must show',
       /^## E64 — [^\n]*· \*\*(FIX CANDIDATE — awaiting the owner's iPhone confirmation \(D138\.2, LOOP 10\.58\)|OPEN — 10\.58's full-screen dock was cut off by the iPhone's own viewport; 10\.59 puts the buttons back in view \(D138\.3\))\*\*$/.test(e64.split('\n')[0]) && !/CLOSED/.test(e64.split('\n')[0]) && /NOT closed/.test(note) && /screen − dock ≈ 0/.test(note)
-      && ps.needsQa === true && /^10\.(5[89]|6[01])$/.test(ps.version) /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64/.test(ps.nextAction) && ps.nextAction.length <= 200 /* D138.3 restated: the phone showed the dock cut off; E64 is OPEN again, never CLOSED, and PROJECT-STATUS asks for the paint test (Contract 260) */, e64.split('\n')[0]);
+      && ps.needsQa === true && /^10\.(5[89]|6[012])$/.test(ps.version) /* D140 restated: 10.62 keeps it too */ /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64/.test(ps.nextAction) && ps.nextAction.length <= 200 /* D138.3 restated: the phone showed the dock cut off; E64 is OPEN again, never CLOSED, and PROJECT-STATUS asks for the paint test (Contract 260) */, e64.split('\n')[0]);
     T('What’s New v10-58 “Full-Screen Workout Layout” is LOOP 10.58 / loop-v235, dated in New York, says what changed and claims no fix (the phone has not confirmed one), and sw.js serves loop-v235',
       /id: 'v10-58',\s*version: 'LOOP 10\.58',\s*title: 'Full-Screen Workout Layout',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v235',[\s\S]*newFeatures: \[\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D1382_WHATSNEW)
-      && !/\bfix|gap|E64|D138|iPhone/i.test(D1382_WHATSNEW) && /id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-61' && /CACHE_VERSION = 'loop-v238'/.test(read('sw.js')) /* D139.1 restated: now 10.61's */ /* D139 restated: the newest is 10.60's (Contract 261) */ /* D138.3 restated: v10-58 stays in the history; the newest is 10.59's (Contract 260) */);
+      && !/\bfix|gap|E64|D138|iPhone/i.test(D1382_WHATSNEW) && /id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-62' && /CACHE_VERSION = 'loop-v239'/.test(read('sw.js')) /* D140 restated: now 10.62's */ /* D139.1 restated: now 10.61's */ /* D139 restated: the newest is 10.60's (Contract 261) */ /* D138.3 restated: v10-58 stays in the history; the newest is 10.59's (Contract 260) */);
   });
 }
 
@@ -57805,7 +58075,7 @@ async function testViewportDiagnosticsD1381(){
     const txt = c.vpDiagReport(now, { snaps: [{ label: 'auto: workout open', m: open }, { label: 'B', m: now }], log: [{ t: 10, type: 'vv resize', innerH: 800, vvH: 560, vvTop: 30, target: '' }], caches: 'loop-v234' });
     const SECTIONS = ['LOOP VIEWPORT DIAGNOSTIC', 'mode:', 'screen:', 'layout:', 'visualViewport:', 'safeArea:', 'workout:', 'styles:', 'gaps (', 'keyboard/focus:', 'captures (2):', 'event log (', 'timestamp:'];
     T('17  the report has every section, the version and cache, the standalone reading, the raw screen, the units, the visual viewport and its bottom, the four insets, the eight named gaps, the focus, both captures and the log',
-      SECTIONS.every(s => txt.indexOf(s) !== -1) && /version: LOOP 10\.61 · cache: loop-v238 · sw caches: loop-v234/.test(txt) /* D139.1 restated: now 10.61 */ /* D139 restated: now 10.60 */ /* D138.2 restated: the report names the newest release */ /* D138.3 restated: now 10.59 */ && /standalone: YES \(nav true, dm yes\)/.test(txt) && /h: 932 · availW: 430 · availH: 932 · dpr: 3/.test(txt) && /100dvh 800/.test(txt)
+      SECTIONS.every(s => txt.indexOf(s) !== -1) && /version: LOOP 10\.62 · cache: loop-v239 · sw caches: loop-v234/.test(txt) /* D140 restated: now 10.62 */ /* D139.1 restated: now 10.61 */ /* D139 restated: now 10.60 */ /* D138.2 restated: the report names the newest release */ /* D138.3 restated: now 10.59 */ && /standalone: YES \(nav true, dm yes\)/.test(txt) && /h: 932 · availW: 430 · availH: 932 · dpr: 3/.test(txt) && /100dvh 800/.test(txt)
       && /offsetTop: 30 · pageLeft: 0 · pageTop: 30 · scale: 1 · bottom \(offsetTop \+ height\): 590/.test(txt) && /top: 59 · right: 0 · bottom: 34 · left: 0/.test(txt) && /D screen-dock \(screen\.height raw − dock\.bottom\): 172/.test(txt) && /C visual-dock \(visualViewport bottom − dock\.bottom\): -170/.test(txt)
       && /activeElement: INPUT\.set-weight-in type=text inputmode=decimal/.test(txt) && /visualViewport changed since workout open: yes/.test(txt) && /auto: workout open @5ms/.test(txt) && /5ms|10 vv resize/.test(txt), txt.slice(0, 400));
     const same = c.vpDiagReport(open, { snaps: [{ label: 'auto: workout open', m: open }], log: [] });
@@ -57836,7 +58106,7 @@ async function testViewportDiagnosticsD1381(){
     T('24–27  D137’s progression, D136’s warm-up, D135’s split, D134’s duration, the scroll lock, Settings and the workout renderer are 10.57’s text', !!was && fns.every(n => col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20), fns.filter(n => col(fnSrc(raw, n)) !== col(fnSrc(was, n))));
     /* D138.2 restated: D138.1 added no entry — the file read as 1512ac0 still ends at v10-57 — and the newest now is D138.2's own (v10-58, loop-v235, 10.58; Contract 259) */
     T('28  the normal app is untouched: no What’s New entry (1512ac0’s newest is still v10-57, loop-v234); the release after it is D138.2’s own (v10-58, loop-v235, PROJECT-STATUS 10.58)',
-      /id: 'v10-57'/.test(raw) && !/id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-61' && /CACHE_VERSION = 'loop-v238'/.test(read('sw.js')) && JSON.parse(read('PROJECT-STATUS.json')).version === '10.61');   /* D139.1 restated: the newest release is now 10.61 (Contract 262) */   /* D139 restated: the newest release is now 10.60 (Contract 261) */   /* D138.3 restated: the newest release is now 10.59 (Contract 260) */
+      /id: 'v10-57'/.test(raw) && !/id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-62' && /CACHE_VERSION = 'loop-v239'/.test(read('sw.js')) && JSON.parse(read('PROJECT-STATUS.json')).version === '10.62');   /* D140 restated: the newest release is now 10.62 (Contract 263) */   /* D139.1 restated: the newest release is now 10.61 (Contract 262) */   /* D139 restated: the newest release is now 10.60 (Contract 261) */   /* D138.3 restated: the newest release is now 10.59 (Contract 260) */
   });
 
   /* ---------------------------------------------------------------- */
@@ -58098,7 +58368,7 @@ async function testProgressionEvidenceD137(){
     T('31–32  D131A and D131B are 10.55’s byte for byte (the draft, the restore, the live warm-up)', ['captureActiveDraft', 'restoreDraftToSheet', 'refreshSuggestedWarmups', 'seedWarmupTargets', 'warmupBoxHtml', 'sessionPreparation', 'generalPrepSatisfiedBy'].every(sameFn));
     T('33–35  E59, E62 and E63 stay CLOSED and their code is 10.55’s (the split, the warm-up applicability, the duration)', /CLOSED in D135/.test(statusOf('E59')) && /CLOSED in D136/.test(statusOf('E62')) && /CLOSED in D134/.test(statusOf('E63'))
       && ['splitRowForSwap', 'workoutElapsedSeconds', 'workoutSpanLimitSec', 'activeWorkoutTimeText'].every(sameFn));
-    T('36–37  D133’s shell, D132’s system and D132.1’s circles: the whole stylesheet is 10.55’s byte for byte', !!was && raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').slice(raw.indexOf('<style>'), raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')));   /* D138 restated: read without D138's block (Contract 257) */ /* D138.2 restated: and without D138.2's (Contract 259) */ /* D139 restated: and without D139's block (Contract 261) */ /* D139.1 restated: and without D139.1's block (Contract 262) */
+    T('36–37  D133’s shell, D132’s system and D132.1’s circles: the whole stylesheet is 10.55’s byte for byte', !!was && raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').replace(D140_CSS, () => '').slice(raw.indexOf('<style>'), raw.replace(D138_CSS, () => '').replace(D1382_CSS, () => '').replace(D139_CSS, () => '').replace(D1391_CSS, () => '').replace(D140_CSS, () => '').indexOf('</style>')) === was.slice(was.indexOf('<style>'), was.indexOf('</style>')));   /* D138 restated: read without D138's block (Contract 257) */ /* D138.2 restated: and without D138.2's (Contract 259) */ /* D139 restated: and without D139's block (Contract 261) */ /* D139.1 restated: and without D139.1's block (Contract 262) */ /* D140 restated: and without D140's block (Contract 263) */
     const all = FIX.filter(f => !f.bw).map(f => logOf(f).map((e, i) => Object.assign({}, e, { id: f.id.slice(0, 6) + '-' + i, date: e.date }))).reduce((a, x) => a.concat(x), []);
     const reads = side => on(all, side, () => ({ prs: sha(JSON.stringify([c.computeAllPREvents().map(v => [v.id, v.exerciseName, v.hits.map(h => h.type + ':' + h.next)]), c.computePRs().map(p => [p.name, p.weight, p.reps])])),
       xp: (() => { const tl = c.computeXPTimeline(); return [tl.lifetimeXP, tl.prCount]; })(), score: sha(JSON.stringify(all.map(l => { const s = c.sessionScore(l); return s && s.available ? s.score : null; }))),
@@ -58667,6 +58937,7 @@ async function main(){
   await testVisibleDockD1383();
   await testInstantBuilderD139();
   await testSaveBuiltWorkoutD1391();
+  await testProgramGuideD140();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

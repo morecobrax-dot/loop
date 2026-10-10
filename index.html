@@ -10014,6 +10014,58 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
 .bfm-save-hint{ margin: 4px 0 0; }
 #bfmSaveActions .bfm-cta{ flex: 1 1 auto; }
 #bfmSaveActions .bfm-cta:disabled{ opacity: 0.55; cursor: default; }
+/* D140 — PROGRAM GUIDE. The entry is a quiet card at the top of Training › Program (a hairline surface, an icon, two
+   lines, a chevron), never a second primary beside Create Program. The guide is the tour's own sheet; these rules only
+   draw its example pictures, from the same surfaces, tokens and category colours as the screens they copy. */
+.pg-card{ display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; margin: 0 0 var(--space-3); padding: 10px 14px;
+  color: var(--text); text-align: left; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); cursor: pointer; }
+.pg-card-ic{ display: grid; place-items: center; flex: 0 0 auto; width: 34px; height: 34px; color: var(--accent); background: var(--accent-soft); border-radius: 10px; }
+.pg-card-text{ display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.pg-card-t{ font-weight: 700; font-size: 15px; }
+.pg-card-s{ color: var(--text-dim); font-size: var(--fs-meta); line-height: 1.35; }
+.pg-card-go{ flex: 0 0 auto; color: var(--text-dim); }
+.ob-dots-row{ display: contents; }
+/* Skip (and the guide's last-page Done) is a 44px-wide target; the word stays at the right edge where it was */
+.ob-skip{ min-width: 44px; text-align: right; }
+.pg-demo{ display: grid; gap: 6px; text-align: left; }
+.pg-k{ color: var(--text-dim); font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
+.pg-demo .pg-row{ padding: 0 12px 0 0; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 12px; }
+.pg-demo .pg-row .tl-main{ min-height: 0; padding: 7px 0 7px 12px; cursor: default; }
+.pg-demo .pg-row .tl-name{ font-size: 15px; }
+.pg-next .pg-k{ margin-bottom: 8px; }
+.pg-list{ display: grid; gap: 6px; }
+.pg-li{ display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 8px; }
+.pg-day{ color: var(--text-dim); font-size: 12px; font-weight: 700; }
+.pg-strip{ display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin: 0; padding: 0; list-style: none; }
+.pg-cell{ display: grid; justify-items: center; gap: 4px; padding: 8px 0; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 10px; }
+.pg-cell-d{ font-weight: 700; font-size: 13px; }
+.pg-cell-c{ color: var(--text-dim); font-size: 11px; }
+.pg-cell.pg-on{ border-color: var(--k); box-shadow: inset 0 -3px 0 var(--k); }
+.pg-cell.pg-on .pg-cell-c{ color: var(--text); font-weight: 600; }
+.pg-chips{ display: flex; flex-wrap: wrap; gap: 6px; }
+.pg-chip{ padding: 4px 10px; font-size: 12px; font-weight: 600; color: var(--text); background: var(--surface-2); border-radius: 999px; }
+.pg-chip-q{ color: var(--text-dim); background: none; border: 1px solid var(--hairline); }
+.pg-ex{ display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.pg-ex li{ display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 4px 8px; background: var(--surface-1); border-radius: 10px; }
+.pg-ex .pg-art{ width: 34px; height: 34px; }
+.pg-ex-n{ font-size: 14px; font-weight: 600; min-width: 0; overflow-wrap: anywhere; }
+.pg-ex-rx{ color: var(--text-dim); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pg-next{ margin: 0; border-radius: var(--r-card); }
+.pg-weeks{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pg-wk{ display: grid; place-items: center; height: 40px; font-weight: 700; color: var(--text-dim); background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 10px; }
+.pg-wk-done{ color: var(--text); background: var(--surface-2); }
+.pg-wk-now{ color: var(--text); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.pg-bands{ display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.pg-band{ padding: 4px 6px; font-size: 12px; font-weight: 600; text-align: center; color: var(--text); background: var(--surface-2); border-radius: 8px; }
+.pg-flex{ display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pg-flex li{ display: grid; gap: 2px; padding: 10px 12px; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: 12px; }
+.pg-flex-k{ font-weight: 700; font-size: 14px; }
+.pg-flex-v{ color: var(--text-dim); font-size: 13px; }
+.pg-prog{ display: grid; gap: 4px; padding: 14px; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); }
+.pg-prog-n{ font-weight: 700; font-size: 17px; }
+.pg-prog-m{ color: var(--text-dim); font-size: 13px; }
+.pg-prog-days{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.pg-prog-days li{ display: grid; justify-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); text-align: center; }
 /* ==== D132 SYSTEM END ==== */
 </style>
 </head>
@@ -10881,6 +10933,11 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
       </div>
       <div class="seg-panel" id="trpanel-plan" style="display:none"><div id="trainingPlanBody"></div></div>
       <div class="seg-panel" id="trpanel-program">
+        <button type="button" class="pg-card" id="programGuideCard" onclick="openProgramGuide()">
+          <span class="pg-card-ic" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><rect x="2.5" y="3.5" width="11" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.5 6.75h11M5.5 2v3M10.5 2v3M5.25 9.5h1.5M8.75 9.5h2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+          <span class="pg-card-text"><span class="pg-card-t">New to programs?</span><span class="pg-card-s">How LOOP runs your weeks, workouts and progression · 2 min</span></span>
+          <span class="pg-card-go" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5L10.5 8L6 12.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+        </button>
         <div id="trainingProgramBody"></div>
         <div id="myTrainingBody"></div>
       </div>
@@ -19962,6 +20019,22 @@ const LOOP_UPDATES = [
     changes: [
       'Build another now sits under the exercise list, so Start and Save are the two buttons at the bottom'
     ]
+  },
+  {
+    id: 'v10-62',
+    version: 'LOOP 10.62',
+    title: 'Learn Programs Before You Build',
+    date: '2026-10-10',
+    swVersion: 'loop-v239',
+    summary: 'A new quick guide explains how workouts, weeks and progression fit together before you create a program.',
+    newFeatures: [
+      'New to programs? in Training › Program opens a short guide, and its last page takes you straight to Create Program'
+    ],
+    improvements: [
+      'A paused program now reads as paused on the Program page, with how to resume it'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -43950,12 +44023,16 @@ let onboardingIndex = 0;
 /* D97 — true while the rank page is open on its own, from the Rank screen: the
    same page with no tour around it. Nothing is recorded in solo mode. */
 let onboardingSolo = false;
+/* D140 — a guide shown by the same runner (PROGRAM_GUIDE); null while the tour itself, or the rank page, is showing.
+   A guide records nothing, has its own last button, and closes back to where it was opened. */
+let onboardingDeck = null;
 /* Set when a first-run training setup has been held back so it will not stack
    on the tutorial. closeOnboarding() is the only thing that consumes it. */
 let pendingTrainingSetupPlan = null;
 
 function startOnboarding(){
   onboardingSolo = false;
+  onboardingDeck = null;
   onboardingIndex = 0;
   /* D97 — the tour ends on the rank ladder; its art is fetched now so it is in
      long before the last step. */
@@ -43968,6 +44045,7 @@ function startOnboarding(){
 /* Skip exits immediately — no confirmation, no second chance prompt. */
 function skipOnboarding(){
   if(onboardingSolo){ closeOnboarding(); return; }   // D97 — not the tour: nothing to record
+  if(onboardingDeck){ closeOnboardingGuide(); return; }   // D140 — a guide records nothing
   onboardingState.skipped = true;
   persistOnboarding();
   closeOnboarding();
@@ -43984,6 +44062,7 @@ function closeOnboarding(){
   // skip, finish and close all route through here.
   clearOnboardingAnimations();
   onboardingSolo = false;
+  onboardingDeck = null;
   const ov = document.getElementById('onboardingOverlay');
   if(ov) ov.classList.remove('open');
   /* D97 — only released if nothing else holds the page: the rank explainer
@@ -43999,6 +44078,12 @@ function closeOnboarding(){
 }
 function onboardingNext(){
   if(onboardingSolo){ closeOnboarding(); return; }   // D97 — "Done"
+  if(onboardingDeck){   // D140 — a guide: its last button is its own (Create Program), and nothing is recorded
+    if(onboardingIndex >= onboardingDeck.steps.length - 1){ const deck = onboardingDeck; closeOnboarding(); deck.finish(); return; }
+    onboardingIndex++;
+    renderOnboardingStep();
+    return;
+  }
   if(onboardingIndex >= ONBOARDING_STEPS.length - 1){ finishOnboarding(); return; }
   onboardingIndex++;
   renderOnboardingStep();
@@ -44014,32 +44099,35 @@ function renderOnboardingStep(){
   if(!body) return;
   // Any animation from the step being left stops before the next one starts.
   clearOnboardingAnimations();
-  const step = ONBOARDING_STEPS[onboardingIndex];
-  const total = ONBOARDING_STEPS.length;
+  const steps = onboardingDeck ? onboardingDeck.steps : ONBOARDING_STEPS;   // D140 — the tour, or a guide
+  const step = steps[onboardingIndex];
+  const total = steps.length;
   const isLast = onboardingIndex === total - 1;
-  const dots = ONBOARDING_STEPS.map((_, i) =>
+  const dots = steps.map((_, i) =>
     `<span class="ob-dot${i === onboardingIndex ? ' now' : (i < onboardingIndex ? ' done' : '')}"></span>`).join('');
 
   body.innerHTML = `
     <div class="ob-step" data-step="${escapeAttr(step.id)}">
       <div class="ob-visual">${step.visual()}</div>
-      <div class="ob-title">${escapeHtml(step.title)}</div>
+      <div class="ob-title"${onboardingDeck ? ' role="heading" aria-level="2" id="obStepTitle"' : ''}>${escapeHtml(step.title)}</div>
       <div class="ob-body">${escapeHtml(step.body)}</div>
     </div>`;
 
   const dotsEl = document.getElementById('onboardingDots');
   /* D97 — on its own the page has no place in a tour to show; it says what it is. */
-  if(dotsEl) dotsEl.innerHTML = onboardingSolo ? '<span class="ob-solo-label">How ranks work</span>' : dots;
+  if(dotsEl) dotsEl.innerHTML = onboardingSolo ? '<span class="ob-solo-label">How ranks work</span>'
+    : onboardingDeck ? '<span class="ob-dots-row" aria-hidden="true">' + dots + '</span><span class="sr-only">' + escapeHtml(onboardingDeck.label) + ', page ' + (onboardingIndex + 1) + ' of ' + total + '</span>'   // D140 — a guide says where you are, not only in dots
+    : dots;
   const backBtn = document.getElementById('onboardingBack');
   if(backBtn){
     backBtn.style.visibility = (onboardingSolo || onboardingIndex === 0) ? 'hidden' : 'visible';
     backBtn.style.display = onboardingSolo ? 'none' : '';   // D97 — Done takes the whole row
   }
   const nextBtn = document.getElementById('onboardingNext');
-  if(nextBtn) nextBtn.textContent = onboardingSolo ? 'Done' : (isLast ? 'Start training' : 'Continue');
+  if(nextBtn) nextBtn.textContent = onboardingSolo ? 'Done' : (isLast ? (onboardingDeck ? onboardingDeck.lastLabel : 'Start training') : 'Continue');
   /* D97 — the explainer has one way out, Done; Skip belongs to the tour. */
   const skipBtn = document.getElementById('onboardingSkip');
-  if(skipBtn) skipBtn.style.visibility = onboardingSolo ? 'hidden' : 'visible';
+  if(skipBtn){ skipBtn.style.visibility = onboardingSolo ? 'hidden' : 'visible'; skipBtn.textContent = (onboardingDeck && isLast) ? 'Done' : 'Skip'; }   // D140 — a guide's last page is left with Done
 
   /* D106 — the only thing a page starts by itself is the ladder's light (D97).
      The example rest starts when, and only if, the example set is completed. */
@@ -44100,12 +44188,165 @@ function openRankExplainer(){
   const i = ONBOARDING_STEPS.findIndex(s => s.id === 'ranks');
   if(i < 0) return;
   onboardingSolo = true;
+  onboardingDeck = null;
   onboardingIndex = i;
   try{ rankWarmAssets(); }catch(e){}
   renderOnboardingStep();
   const ov = document.getElementById('onboardingOverlay');
   if(ov) ov.classList.add('open');
   document.body.classList.add('page-locked');
+}
+
+/* =========================================================
+   PROGRAM GUIDE  (Phase D140)
+   ---------------------------------------------------------
+   "How programs work", opened from Training › Program. It is a second deck
+   for the tour's own runner (onboardingDeck): the same overlay, dots, Skip,
+   Back and Continue, the same step model ({ id, title, body, visual }), and
+   the same rule that nothing outlives the sheet. A guide records nothing:
+   Skip and Done close it and return to Program; its last button opens the
+   existing Create Program flow (openProgramBuilderFlow), nothing else.
+
+   Every sentence is what the app does today:
+     · the athlete chooses the days and the split (LOOP recommends one);
+     · LOOP writes the sessions, and any exercise, set or rep can be changed;
+     · the next load is D49's suggestion from the logged sets: more only after
+       the top of the rep range with reps to spare;
+     · a program runs a set number of weeks; a deload is the athlete's call,
+       suggested after six training weeks;
+     · Today shows the scheduled workout while the program is active;
+     · Change time trims today only, a missed day is never rescheduled, and a
+       pause moves the end date.
+   The pictures are small copies of real LOOP surfaces (a Train row, the
+   Today card, Exercise Detail's next load) drawn from fixed example data,
+   inert and hidden from assistive tech: the title and text carry the page.
+   ========================================================= */
+const PROGRAM_GUIDE_EXAMPLE = {
+  workout: 'Push A — Chest Focus', meta: '6 exercises · ~45 min',
+  week: [['mon', 'push', 'Push A'], ['wed', 'pull', 'Pull A'], ['fri', 'legs', 'Legs A']],
+  session: [['Bench Press', '3 × 6–10'], ['Incline DB Press', '3 × 8–12'], ['Lateral Raise', '3 × 12–15']],
+  /* D49's own answer for this history (Contract 263 runs it): three sets of 205 × 10 with two in reserve, range 6–10.
+     The reason is its first sentence; D49 adds a record note when the next load would beat the athlete's best. */
+  lift: 'Bench Press', last: { weight: 205, reps: 10 }, next: { weight: 210, reps: '6–10' },
+  why: 'You hit 10 reps last session with ~2 RIR — ready for a small increase.',
+  weeks: 6, now: 3, phases: [['Foundation', 1, 3], ['Heavy', 4, 6]],
+  program: { name: 'My Program', meta: '4 days a week · 6 weeks', days: ['push', 'pull', 'legs', 'fullbody'] }
+};
+const PG_DAY = { mon: 'M', tue: 'T', wed: 'W', thu: 'T', fri: 'F', sat: 'S', sun: 'S' };
+
+/* a Train row, as trainRowHtml draws a saved workout, without its buttons */
+function pgWorkoutRowHtml(cat, name, meta){
+  const wid = workoutIdentity(null, cat);
+  return '<div class="tl-row pg-row"><div class="tl-main has-wi">' + workoutIconHtml(wid, 'sm') +
+    '<span class="tl-text"><span class="tl-name">' + escapeHtml(name) + '</span>' +
+    (meta ? '<span class="tl-meta">' + escapeHtml(meta) + '</span>' : '') + '</span></div></div>';
+}
+function pgWhatHtml(){
+  const X = PROGRAM_GUIDE_EXAMPLE;
+  return '<div class="ob-demo pg-demo" inert aria-hidden="true">' +
+    '<div class="pg-k">One workout</div>' + pgWorkoutRowHtml('push', X.workout, X.meta) +
+    '<div class="pg-k">A program</div><div class="pg-list">' +
+      X.week.map(([d, cat, name]) => '<div class="pg-li"><span class="pg-day">' + escapeHtml(DAY_LABEL[d] || d) + '</span>' + pgWorkoutRowHtml(cat, name, '') + '</div>').join('') +
+    '</div></div>';
+}
+function pgWeekHtml(){
+  const X = PROGRAM_GUIDE_EXAMPLE, on = {};
+  X.week.forEach(([d, cat]) => { on[d] = cat; });
+  const cells = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(d => {
+    const cat = on[d];
+    return '<li class="pg-cell' + (cat ? ' pg-on' : '') + '"' + (cat ? ' style="--k:var(--' + (cat === 'fullbody' ? 'full' : cat) + ')"' : '') + '>' +
+      '<span class="pg-cell-d">' + PG_DAY[d] + '</span><span class="pg-cell-c">' + (cat ? escapeHtml(CAT_LABEL[cat]) : '—') + '</span></li>';
+  }).join('');
+  return '<div class="ob-demo pg-demo" inert aria-hidden="true"><ol class="pg-strip">' + cells + '</ol>' +
+    '<div class="pg-chips"><span class="pg-chip">3 days a week</span><span class="pg-chip">Push · Pull · Legs</span><span class="pg-chip pg-chip-q">4 recovery days</span></div></div>';
+}
+function pgDaysHtml(){
+  const X = PROGRAM_GUIDE_EXAMPLE;
+  return '<div class="ob-demo pg-demo" inert aria-hidden="true">' + pgWorkoutRowHtml('push', X.workout, '') +
+    '<ol class="pg-ex">' + X.session.map(([n, rx]) => '<li>' + exerciseThumbHtml(n, { static: true, cls: 'pg-art' }) +
+      '<span class="pg-ex-n">' + escapeHtml(n) + '</span><span class="pg-ex-rx">' + escapeHtml(rx) + '</span></li>').join('') + '</ol></div>';
+}
+/* Exercise Detail's Next session, drawn with its own classes */
+function pgProgressHtml(){
+  const X = PROGRAM_GUIDE_EXAMPLE;
+  const col = (k, w, reps, cls, extra) => '<div class="exd-ln-col' + (cls ? ' ' + cls : '') + '"><span class="exd-ln-k">' + k + '</span>' +
+    '<span class="exd-ln-v">' + w + '<small> lb</small></span><span class="exd-ln-r">× ' + escapeHtml(reps) + ' reps</span>' + (extra || '') + '</div>';
+  return '<div class="ob-demo pg-demo" inert aria-hidden="true"><section class="exd-zone exd-next pg-next">' +
+    '<div class="pg-k">' + escapeHtml(X.lift) + ' · next session</div>' +
+    '<div class="exd-ln">' + col('Last', X.last.weight, String(X.last.reps), '') +
+      '<span class="exd-ln-arrow">' + chevronRightSvg() + '</span>' +
+      col('Next', X.next.weight, X.next.reps, 'exd-ln-to', '<span class="exd-delta exd-delta-up">+' + (X.next.weight - X.last.weight) + ' lb</span>') + '</div>' +
+    '<p class="exd-why">' + escapeHtml(X.why) + '</p></section></div>';
+}
+function pgWeeksHtml(){
+  const X = PROGRAM_GUIDE_EXAMPLE;
+  const cells = Array.from({ length: X.weeks }, (_, i) => {
+    const w = i + 1;
+    return '<li class="pg-wk' + (w < X.now ? ' pg-wk-done' : w === X.now ? ' pg-wk-now' : '') + '"><span>' + w + '</span></li>';
+  }).join('');
+  const bands = X.phases.map(([name, a, b]) => '<span class="pg-band" style="grid-column:' + a + ' / ' + (b + 1) + '">' + escapeHtml(name) + '</span>').join('');
+  return '<div class="ob-demo pg-demo" inert aria-hidden="true"><div class="pg-k">Week ' + X.now + ' of ' + X.weeks + '</div>' +
+    '<ol class="pg-weeks">' + cells + '</ol><div class="pg-bands">' + bands + '</div>' +
+    '<div class="pg-chips"><span class="pg-chip pg-chip-q">Deload · when you choose</span></div></div>';
+}
+function pgFlexHtml(){
+  const row = (k, v) => '<li><span class="pg-flex-k">' + escapeHtml(k) + '</span><span class="pg-flex-v">' + escapeHtml(v) + '</span></li>';
+  return '<div class="ob-demo pg-demo" inert aria-hidden="true"><ul class="pg-flex">' +
+    row('Change time', '30 min today · the program is unchanged') +
+    row('Missed Wednesday', 'Not rescheduled · still Week 3') +
+    row('Pause', 'The end date moves with you') + '</ul></div>';
+}
+function pgReadyHtml(){
+  const P = PROGRAM_GUIDE_EXAMPLE.program;
+  return '<div class="ob-demo pg-demo" inert aria-hidden="true"><div class="pg-prog">' +
+    '<span class="pg-prog-n">' + escapeHtml(P.name) + '</span><span class="pg-prog-m">' + escapeHtml(P.meta) + '</span>' +
+    '<ol class="pg-prog-days">' + P.days.map(cat => '<li>' + workoutIconHtml(workoutIdentity(null, cat), 'sm') + '<span>' + escapeHtml(CAT_LABEL[cat]) + '</span></li>').join('') + '</ol>' +
+    '</div></div>';
+}
+
+const PROGRAM_GUIDE_STEPS = [
+  { id: 'pg-what', title: 'A program connects your workouts',
+    body: 'A workout is one session — what you train today. A program sets which workouts you train on which days, for a set number of weeks.',
+    visual: () => pgWhatHtml() },
+  { id: 'pg-week', title: 'You choose your week',
+    body: 'Pick how many days you train, which days, and how the week is split. LOOP suggests a split; the choice is yours. The other days are for recovery.',
+    visual: () => pgWeekHtml() },
+  { id: 'pg-days', title: 'Each day is a real workout',
+    body: 'LOOP fills each day with exercises, sets and rep targets for your goal and equipment. Change any of them, and the program keeps your version.',
+    visual: () => pgDaysHtml() },
+  { id: 'pg-progress', title: 'Log it. LOOP suggests what’s next.',
+    body: 'Log the weight and reps you actually did. Reach the top of the rep range with reps to spare, and LOOP suggests a little more next time.',
+    visual: () => pgProgressHtml() },
+  { id: 'pg-weeks', title: 'It runs for a set number of weeks',
+    body: 'LOOP knows which week you’re in. A program can move into heavier work, and after six training weeks LOOP may suggest a lighter deload week. You decide.',
+    visual: () => pgWeeksHtml() },
+  { id: 'pg-today', title: 'Then train from Today',
+    body: 'While a program runs, Today shows its scheduled workout. Start Workout begins it.',
+    visual: () => obTodayDemoHtml() },
+  { id: 'pg-flex', title: 'It bends around real life',
+    body: 'Change time trims today’s session, not the program. A missed day is never rescheduled, and pausing moves the end date with you.',
+    visual: () => pgFlexHtml() },
+  { id: 'pg-ready', title: 'Ready to build your program?',
+    body: 'A few quick choices and LOOP builds the weeks and the sessions. You can change any of it afterwards.',
+    visual: () => pgReadyHtml() }
+];
+const PROGRAM_GUIDE = { id: 'program-guide', label: 'How programs work', steps: PROGRAM_GUIDE_STEPS, lastLabel: 'Create Program',
+  finish: () => { try{ openProgramBuilderFlow('create'); }catch(e){} } };
+
+function openProgramGuide(){
+  onboardingSolo = false;
+  onboardingDeck = PROGRAM_GUIDE;
+  onboardingIndex = 0;
+  renderOnboardingStep();
+  const ov = document.getElementById('onboardingOverlay');
+  if(ov) ov.classList.add('open');
+  document.body.classList.add('page-locked');
+}
+/* Skip and Done: back to Training › Program, focus where the guide was opened from */
+function closeOnboardingGuide(){
+  closeOnboarding();
+  const card = document.getElementById('programGuideCard');
+  if(card){ try{ card.focus({ preventScroll: true }); }catch(e){} }
 }
 
 /* =========================================================
@@ -53782,15 +54023,20 @@ function renderMyTraining(){
     ${(!t.hasProgram && !finishedSum) ? (() => {
       let saved = [];
       try{ saved = getPrograms(); }catch(e){}
+      /* D140 — the current program, when it is paused: the card above says Paused, so this says how to resume it */
+      let paused = null;
+      try{ const cur = getActiveProgram(); paused = cur && cur.status === 'paused' ? cur : null; }catch(e){}
       return `
         <button type="button" class="mt-start" onclick="${saved.length
           ? 'closeMyTraining(); openPrograms();'
           : "openProgramBuilderFlow('create')"}">
-          <span class="mt-start-k">No program running</span>
-          <span class="mt-start-t">${saved.length ? 'Start a program' : 'Build my program'}</span>
-          <span class="mt-start-s">${saved.length
+          <span class="mt-start-k">${paused ? 'Program paused' : 'No program running'}</span>
+          <span class="mt-start-t">${paused ? 'Resume or start a program' : saved.length ? 'Start a program' : 'Build my program'}</span>
+          <span class="mt-start-s">${paused
+            ? `“${escapeHtml(paused.name || 'Your program')}” is paused · open it to resume, or build a new one`
+            : saved.length
             ? `${saved.length} saved program${saved.length===1?'':'s'} · or build a new one`
-            : 'A few questions and LOOP writes the weeks, the days and the progression'}</span>
+            : 'A few questions and LOOP writes the weeks, the days and the sessions'}</span>
           <span class="mt-start-go" aria-hidden="true">${chevronRightSvg()}</span>
         </button>
         <div class="mt-start-alt">You can keep training from your own workouts below — a program is not required.</div>`;

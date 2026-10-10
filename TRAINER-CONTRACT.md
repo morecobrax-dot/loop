@@ -19811,3 +19811,54 @@ history, no program change, the current session still 'generated', the saved cop
 exactly as the same workout saved through the editor, D49's load fresh at start, reload, edit, delete, backup. The
 browser rig checks the actions and the sheet at 13 sizes, then saves, finds the workout in My Workouts, reloads and
 starts it.
+
+## §185 — PROGRAM GUIDE (D140 · LOOP 10.62 · loop-v239)
+
+Training › Program gets one quiet entry at the top, "New to programs?". It opens "How programs work", an eight-page
+guide shown by the tour's own runner, and its last page hands over to the existing Create Program flow. It is education
+only: nothing is stored, nothing about a program changes.
+
+**One runner, two decks.** The first-run tour (ONBOARDING_STEPS, #onboardingOverlay) gains a deck: onboardingDeck is
+null for the tour and the rank page, and PROGRAM_GUIDE for the guide. Everything else is the tour's:
+- the overlay, the dots, Skip, Back, Continue;
+- the step model { id, title, body, visual };
+- clearOnboardingAnimations on every change and on close.
+With a deck: Skip and the last page's Done close back to Program and focus the card. The last Continue reads "Create
+Program", closes the guide and calls openProgramBuilderFlow('create'), the same call as the page's own button. No
+onboarding state is written. The page title is a heading, and the position is said in words ("How programs work, page
+N of 8") as well as dots. With no deck every line runs exactly as before.
+
+**The pages, each from what the app does today:**
+1. A program connects your workouts. A workout is one session; a program sets which workouts on which days, for a set
+   number of weeks. Pictures: a Train row, then a three-day week.
+2. You choose your week. Days, which days and the split are the athlete's; the builder recommends a split.
+3. Each day is a real workout. LOOP writes the exercises, sets and rep targets (generateProgram); Program Studio edits
+   any of them and the program keeps the athlete's version.
+4. Log it. LOOP suggests what's next. D49 suggests more only after the top of the rep range with reps to spare. The
+   picture is Exercise Detail's Next session, with D49's own answer for its example history (Contract 263 runs it):
+   205 × 10 → 210 × 6–10, "You hit 10 reps last session with ~2 RIR — ready for a small increase." (the reason's first
+   sentence; D49 adds a record note when the next load would beat the athlete's best). Never "weight goes up every week".
+5. It runs for a set number of weeks. LOOP knows the week. A program can move into heavier work (the builder's two-phase
+   programs); after six training weeks LOOP may suggest a deload (BLOCK_RULES), and starting one is the athlete's call.
+6. Then train from Today. While a program is active, Today shows its scheduled workout. The picture is the tour's
+   own Today card.
+7. It bends around real life. Change time trims today only. A missed day is never rescheduled and never shifts the
+   week. A pause moves the end date.
+8. Ready to build your program? A few choices and LOOP builds the weeks and sessions; anything can be changed after.
+
+**The same page's copy, where it was misleading.** With the current program paused, the "No program running" button
+said "Start a program". It now says "Program paused · Resume or start a program · “<name>” is paused · open it to
+resume, or build a new one". The button and its action are unchanged. The first-program line said LOOP "writes the
+weeks, the days and the progression"; progression is D49's suggestion from logged sets, so it now says "the sessions".
+
+**Recorded, not changed** (outside this page, or behaviour):
+- the phase editor's "Nothing changes your workouts automatically" and the deload / intensification review copy
+  predate D85;
+- the program map draws written phases without D85's prescription;
+- an ended program keeps status 'active', so Today shows rest days until Mark complete;
+- Today can show program sessions before the start date;
+- goal labels differ between the builder and other screens.
+
+**Frozen here.** Program scheduling, completion, phases, deload, pause, D43, D44, D77A, D85, D89, D90, D99, D125, D137,
+Build for me (D139) and Save workout (D139.1), E64, its diagnostics and the workout shell. DATA_KEYS 16, schema 1,
+trainer 0.1.1-shadow. The roadmap resumes at the E64 phone check.
