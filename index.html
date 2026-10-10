@@ -10125,6 +10125,10 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
 .wn-b-now{ fill: var(--c-action); }
 .wn-b-zero{ fill: var(--text-faint); }
 .wn-b-l{ font-family: var(--font-ui); font-size: 11px; font-weight: 600; fill: var(--text-dim); font-variant-numeric: tabular-nums; }
+/* D142B — E64. In the short standalone web view (workoutBottomFacts: the page ends at the layout viewport, one status bar
+   short of the screen, below which a Paint test proved it cannot draw) the home-indicator inset already lies outside what
+   the page can paint. There the workout's bottom surfaces keep only their own 8px minimum. Nowhere else does this apply. */
+#logOverlay.ws-low-dock .ws-nav, #logOverlay.ws-low-dock .sheet-actions{ padding-bottom: var(--space-2); }
 /* ==== D132 SYSTEM END ==== */
 </style>
 </head>
@@ -20113,6 +20117,20 @@ const LOOP_UPDATES = [
       'A volume trend now compares the same days of each week, so a week that has only just started is no longer called down'
     ],
     changes: []
+  },
+  {
+    id: 'v10-64',
+    version: 'LOOP 10.64',
+    title: 'Workout Controls Use the Available Space',
+    date: '2026-10-10',
+    swVersion: 'loop-v241',
+    summary: 'On affected Home Screen iPhones, workout controls now sit lower in the usable screen instead of leaving extra space inside the workout.',
+    newFeatures: [],
+    improvements: [
+      'On iPhones where the Home Screen app ends above the bottom of the display, Previous, Skip, Next and Finish now sit at the bottom of the space LOOP can use'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -24877,6 +24895,29 @@ function vpDiagSnapLine(s){
     ' | inner-dock ' + g.A + ' client-dock ' + g.B + ' visual-dock ' + g.C + ' screen-dock ' + g.D + ' sheet-dock ' + g.E + ' overlay-dock ' + g.F + ' body-dock ' + g.G + ' scroll-docktop ' + g.H +
     ' | focus ' + (m.focus ? m.focus.tag + '.' + m.focus.cls : 'none') + ' | ' + (m.orientation.portrait ? 'portrait' : 'landscape') + ' | shell ' + m.shellMode;
 }
+/* D142B — which bottom the workout is using: the class the production rule set (workoutBottomFacts), and the drawn boxes. */
+function vpDiagBottom(){
+  const ov = document.getElementById('logOverlay');
+  const low = !!ov && ov.classList.contains('ws-low-dock');
+  const nav = document.getElementById('wsNav');
+  const bar = nav && nav.offsetParent !== null ? nav : (ov ? ov.querySelector('.sheet-actions') : null);
+  const btns = bar ? [...bar.querySelectorAll('button')].filter(b => b.offsetParent !== null) : [];
+  const r1 = v => Math.round(v * 10) / 10;
+  const dockB = bar ? bar.getBoundingClientRect().bottom : null;
+  const vvB = window.visualViewport ? window.visualViewport.offsetTop + window.visualViewport.height : null;
+  let f = null; try{ f = workoutBottomFacts(); }catch(e){ f = null; }
+  return { mode: low ? 'LOW DOCK' : 'NORMAL', pad: bar ? r1(parseFloat(getComputedStyle(bar).paddingBottom)) : 'n/a',
+    button: btns.length ? r1(Math.max(...btns.map(b => b.getBoundingClientRect().bottom))) : 'n/a',
+    physicalGap: dockB === null ? 'n/a' : r1(screen.height - dockB), viewportGap: dockB === null || vvB === null ? 'n/a' : r1(vvB - dockB), f };
+}
+function vpDiagBottomText(){
+  let b = null; try{ b = vpDiagBottom(); }catch(e){ return 'n/a (' + (e && e.message) + ')'; }
+  const f = b.f;
+  return (b.mode === 'LOW DOCK' ? 'SHORT STANDALONE / LOW DOCK' : 'NORMAL SAFE AREA') + ' · physical gap ' + b.physicalGap + ' · viewport gap ' + b.viewportGap
+    + ' · dock padding-bottom ' + b.pad + ' · button bottom ' + b.button
+    + (f ? ' · facts: standalone ' + (f.standalone ? 'yes' : 'no') + ', portrait ' + (f.portrait ? 'yes' : 'no') + ', vv top ' + vpDiagNum(f.vvTop) + ', vv bottom ' + vpDiagNum(f.vvBottom)
+      + ', screen − inner ' + vpDiagNum(f.gap) + ', safe top ' + vpDiagNum(f.safeTop) + ', typing ' + (f.typing ? 'yes' : 'no') : '');
+}
 function vpDiagReport(m, st){
   st = st || vpDiag;
   const latest = (typeof getLatestUpdate === 'function' && getLatestUpdate()) || {};
@@ -24891,6 +24932,7 @@ function vpDiagReport(m, st){
   L.push('  navigator.standalone: ' + m.mode.navigatorStandalone + ' · display-mode standalone ' + m.mode.displayModeStandalone + ' · fullscreen ' + m.mode.displayModeFullscreen + ' · minimal-ui ' + m.mode.displayModeMinimalUi + ' · browser ' + m.mode.displayModeBrowser);
   L.push('  ua: ' + m.ua);
   L.push('  platform: ' + m.platform);
+  L.push('  workout bottom mode: ' + vpDiagBottomText());
   L.push('');
   L.push('screen:');
   L.push('  w: ' + m.screen.width + ' · h: ' + m.screen.height + ' · availW: ' + m.screen.availWidth + ' · availH: ' + m.screen.availHeight + ' · dpr: ' + m.dpr);
@@ -24953,7 +24995,8 @@ function vpDiagReport(m, st){
 const VP_DIAG_HUD_ROWS = [
   ['SCREEN H', m => m.screen.height], ['INNER H', m => m.window.innerHeight], ['VV H', m => m.vv ? m.vv.height : 'n/a'], ['VV TOP', m => m.vv ? m.vv.offsetTop : 'n/a'],
   ['VV BOTTOM', m => m.vv ? m.vv.bottom : 'n/a'], ['OVERLAY BOTTOM', m => m.rects.overlay ? m.rects.overlay.bottom : 'n/a'], ['SHEET BOTTOM', m => m.rects.sheet ? m.rects.sheet.bottom : 'n/a'],
-  ['DOCK BOTTOM', m => m.dockRect ? m.dockRect.bottom : 'none'], ['SAFE BOTTOM', m => m.safe.bottom], ['SCREEN − DOCK', m => m.gaps.D], ['VV BOTTOM − DOCK', m => m.gaps.C], ['STANDALONE', m => vpDiagStandalone(m)], ['SHELL MODE', m => m.shellMode], ['CLIP', m => vpDiagClipCell(m)]
+  ['DOCK BOTTOM', m => m.dockRect ? m.dockRect.bottom : 'none'], ['SAFE BOTTOM', m => m.safe.bottom], ['SCREEN − DOCK', m => m.gaps.D], ['VV BOTTOM − DOCK', m => m.gaps.C], ['STANDALONE', m => vpDiagStandalone(m)], ['SHELL MODE', m => m.shellMode], ['CLIP', m => vpDiagClipCell(m)],
+  ['BOTTOM MODE', () => vpDiagBottom().mode], ['PAD · BUTTONS', () => { const b = vpDiagBottom(); return b.pad + ' · ' + b.button; }]
 ];
 function vpDiagButton(label, fn){
   const btn = document.createElement('button');
@@ -58368,9 +58411,79 @@ function renderLogTopbarTitle(label){
   const text = label || CAT_LABEL[pendingLogCategory] || 'Workout';
   t.innerHTML = workoutIdentityHtml({ identity: pendingWorkoutIdentity }, pendingLogCategory, 'xs') + '<span>' + escapeHtml(text) + '</span>';
 }
+/* =========================================================
+   WORKOUT BOTTOM MODE  (Phase D142B — E64)
+   ---------------------------------------------------------
+   On the owner's Home Screen iPhone the page paints only to the layout viewport: the screen is 912 tall, the page ends at
+   844, and the Paint test showed its three 830 bars and none of the 850, 875 or 900 ones. The workout's bottom surfaces
+   paid the 34px home-indicator inset INSIDE those 844px, on top of the 68px the page cannot reach, so Previous / Skip ended
+   about 102px above the glass. In that state only, they keep their own 8px minimum instead of the inset. Everywhere else
+   they pay the inset exactly as before. Nothing is ever placed below the viewport: D138.2 did that, and the phone cut it off.
+
+   THE STATE, from relationships the device reports, never from its size:
+     · the app runs standalone (Home Screen), in portrait, with nothing being typed;
+     · the visual viewport is the layout viewport (offsetTop 0, its bottom at innerHeight) — not a keyboard-squeezed one;
+     · the screen reaches past the layout viewport by at least 20px, and by the top safe-area inset (to 2px): the page is
+       one status bar short of the glass. On the owner's phone 912 − 844 = 68 = the top inset; with the keyboard up the gap
+       is over 300 and the visual viewport is pushed down, in landscape the app is not portrait, on an ordinary phone the
+       gap is 0, and system bars that are not the status bar do not equal the top inset.
+   Read when the workout opens and closes, and on resize, rotation, visual-viewport resize, focus changes, page show and
+   visibility — and then only while the workout is open. One class on #logOverlay; nothing stored, nothing polled.
+   ========================================================= */
+const WORKOUT_LOW_DOCK = { minGap: 20, insetTolerance: 2, edgeTolerance: 1 };
+let _workoutInsetProbe = null;
+/* The top safe-area inset as the stylesheet resolves it: one hidden, fixed, zero-size probe. */
+function workoutSafeTop(){
+  if(!_workoutInsetProbe){
+    const p = document.createElement('div');
+    p.setAttribute('aria-hidden', 'true');
+    p.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;overflow:hidden;visibility:hidden;pointer-events:none;padding-top:env(safe-area-inset-top,0px);';
+    document.documentElement.appendChild(p);
+    _workoutInsetProbe = p;
+  }
+  return parseFloat(getComputedStyle(_workoutInsetProbe).paddingTop) || 0;
+}
+/* A field that raises the keyboard has focus (D138.2's list of typing inputs). */
+function workoutTyping(){
+  const a = document.activeElement;
+  if(!a || a === document.body || a === document.documentElement) return false;
+  if(a.isContentEditable || a.tagName === 'TEXTAREA') return true;
+  if(a.tagName !== 'INPUT' || a.readOnly) return false;
+  return ['', 'text', 'number', 'search', 'email', 'tel', 'url', 'password'].indexOf(String(a.getAttribute('type') || '').toLowerCase()) !== -1;
+}
+function workoutBottomFacts(){
+  const vv = window.visualViewport;
+  let standalone = false;
+  try{ standalone = navigator.standalone === true || (!!window.matchMedia && window.matchMedia('(display-mode: standalone)').matches); }catch(e){ standalone = false; }
+  const inner = window.innerHeight, width = window.innerWidth;
+  const screenH = (window.screen && window.screen.height) || 0;
+  const f = { standalone, portrait: inner > width, inner, screenH, gap: screenH - inner,
+    vvTop: vv ? vv.offsetTop : null, vvBottom: vv ? vv.offsetTop + vv.height : null, safeTop: workoutSafeTop(), typing: workoutTyping() };
+  const L = WORKOUT_LOW_DOCK;
+  f.short = !!vv && f.standalone && f.portrait && !f.typing
+    && Math.abs(f.vvTop) <= L.edgeTolerance && Math.abs(f.vvBottom - inner) <= L.edgeTolerance
+    && f.gap >= L.minGap && Math.abs(f.gap - f.safeTop) <= L.insetTolerance;
+  return f;
+}
+/* The one place the mode is set: on while the workout is open in the short standalone web view, off otherwise. */
+function syncWorkoutBottomMode(){
+  const ov = document.getElementById('logOverlay');
+  if(!ov) return false;
+  const on = ov.classList.contains('open') && workoutBottomFacts().short;
+  ov.classList.toggle('ws-low-dock', on);
+  return on;
+}
+(function installWorkoutBottomMode(){
+  const sync = () => { try{ syncWorkoutBottomMode(); }catch(e){} };
+  ['resize', 'orientationchange', 'pageshow'].forEach(t => window.addEventListener(t, sync));
+  ['focusin', 'focusout', 'visibilitychange'].forEach(t => document.addEventListener(t, sync));
+  try{ if(window.visualViewport) window.visualViewport.addEventListener('resize', sync); }catch(e){}
+})();
+
 function openLogSheet(){
   document.getElementById('logOverlay').classList.add('open');
   document.body.classList.add('page-locked');
+  try{ syncWorkoutBottomMode(); }catch(e){}   // D142B — the bottom mode is read as the workout opens
   renderLogTopbarTitle();
   // Give the workout its own history entry so the iPhone back gesture returns
   // to the previous LOOP screen instead of leaving the app.
@@ -58402,6 +58515,7 @@ function closeLogSheet(){
   // Leaving the workout must not leave a prep timer running behind it.
   try{ clearPrepTimer(); resetPrepCardForNewWorkout(); }catch(e){}
   document.getElementById('logOverlay').classList.remove('open');
+  try{ syncWorkoutBottomMode(); }catch(e){}   // D142B — and cleared as it closes
   document.body.classList.remove('page-locked');
   renderResumeBanner();
   // Clearing the flag first means the resulting popstate is a no-op rather

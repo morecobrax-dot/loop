@@ -19910,3 +19910,46 @@ recently, name. Zero, one, two or three rows; nothing fills a place.
 **Frozen here.** D49, D47, D85, D119, D123, D125, D126, D137, Exercise Detail, Progress › Volume, Build for me (D139),
 Save workout (D139.1), the Program Guide (D140), E64, its diagnostics and the workout shell. DATA_KEYS 16, schema 1,
 trainer 0.1.1-shadow. The roadmap resumes at the E64 phone check.
+
+## §187 — THE WORKOUT USES THE LOWEST PART OF THE SCREEN IT CAN PAINT (D142B · LOOP 10.64 · loop-v241)
+
+E64 stays open: a workaround from the owner's physical evidence, awaiting the owner's check.
+
+**The evidence (the owner's installed iPhone, the D138.3 Paint test).**
+- Screen 912. innerHeight, html.clientHeight and the visual viewport 844 (offsetTop 0). 100vh = 100lvh = 912; 100svh = 100dvh =
+  a fixed 100% = -webkit-fill-available = 844. Safe area top 68, bottom 34.
+- The overlay, sheet and dock ended at 844; the dock ran 752–844 with Previous / Skip at 760–810 (34px padding below them).
+- The bars at 830, drawn by <html>, by <body> and by the workout, were visible; none at 850, 875 or 900 was.
+- So the page cannot paint below about 844 there. The upstream browser cause is not proven by this, and no bug number is claimed.
+
+**What remained LOOP's.** The dock paid the 34px home-indicator inset inside the 844px it can paint, on top of the 68px it
+cannot reach: about 102px from the buttons to the glass.
+
+**The rule.** `workoutBottomFacts()` reads relationships the device reports, never a size. It is true only when:
+- the app is standalone, in portrait, and no typing field has focus;
+- the visual viewport is the layout viewport: offsetTop within 1px of 0 and its bottom within 1px of innerHeight;
+- the screen reaches past innerHeight by at least 20px, and by the top safe-area inset to within 2px — the page is one status
+  bar short of the glass (owner: 912 − 844 = 68 = the top inset).
+The keyboard fails it (gap over 300, the visual viewport pushed down, a field focused), so does landscape (not portrait), an
+ordinary phone (gap 0), a browser tab (not standalone), and system bars that are not the top inset.
+
+`syncWorkoutBottomMode()` sets one class, `ws-low-dock`, on `#logOverlay` while the workout is open and the rule holds, and
+clears it otherwise. It runs when the workout opens and closes, and on resize, orientationchange, pageshow, visual-viewport
+resize, focusin, focusout and visibilitychange; each call does nothing while the workout is closed. No polling, no observer,
+nothing stored.
+
+**The layout.** With the class, `#logOverlay .ws-nav` (Previous / Skip / Next / Finish) and `#logOverlay .sheet-actions` (the
+empty-workout Finish bar) take `padding-bottom: var(--space-2)` (8px) instead of `max(8px, env(safe-area-inset-bottom))`. On the
+owner's phone the buttons end at about 836, 8px above the paint boundary. The scroll box gains the 26px. Without the class
+nothing changes: every other device, a browser tab, the keyboard and landscape keep 10.63's geometry. Nothing is placed below
+the viewport, no length is hard-coded, the viewport meta and the status-bar style are unchanged.
+
+**Readout (D138.1, still hidden, kept for the owner's final check).** Two rows, BOTTOM MODE (LOW DOCK or NORMAL) and PAD ·
+BUTTONS, and one report line: SHORT STANDALONE / LOW DOCK or NORMAL SAFE AREA, the physical gap, the viewport gap, the dock's
+padding-bottom, the button bottom and the facts behind the rule. Paint is unchanged.
+
+**Proof here.** Contract 265 runs the rule over the owner's numbers and its neighbours (keyboard, landscape, ordinary phones,
+browser tab, other system bars, tolerances) and the class's lifecycle. The browser rig simulates the owner's relationship
+(screen 420×912, viewport 420×844, safe area 68 / 34, standalone) and every normal size, and measures the buttons, the last
+set, Rest, Finish, keyboard, rotation, exit, re-entry and Resume. None of it is the phone: E64 closes only on the owner's
+screenshot.

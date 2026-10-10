@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.63",
+  "version": "10.64",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "E64: update to 10.63, Settings 7 taps, Measure ON, Core workout, tap Paint, screenshot, Copy diagnostics. Previous/Skip must be whole; report which paint bars show.",
+  "nextAction": "E64: update to 10.64, open the Core workout: Previous/Skip should sit lower and be whole. Settings 7 taps, Measure ON, tap Paint, screenshot, Copy diagnostics (BOTTOM MODE).",
   "blocker": null,
-  "updatedAt": "2026-10-10T13:10:47Z"
+  "updatedAt": "2026-10-10T19:52:35Z"
 }

@@ -2262,7 +2262,19 @@ counts as training time, and what an old unfinished workout should say.
 presenting an implausible span as measured. Both need no new storage, and neither invents pausing. Leave C and D until the
 owner decides what "workout time" means.
 
-## E64 — On a physical iPhone the workout's Previous / Skip row stood well above the bottom edge, which the headless geometry tests could not see · P3 · PROVEN (by the owner's screenshot) · **OPEN — 10.58's full-screen dock was cut off by the iPhone's own viewport; 10.59 puts the buttons back in view (D138.3)**
+## E64 — On a physical iPhone the workout's Previous / Skip row stood well above the bottom edge, which the headless geometry tests could not see · P3 · PROVEN (by the owner's screenshot) · **OPEN — PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA (D142B, LOOP 10.64). Before: 10.58's full-screen dock was cut off by the iPhone's own viewport; 10.59 puts the buttons back in view (D138.3)**
+
+> **D142B — open; the paint boundary is classified, and a workaround awaits the owner's check.** The owner ran the Paint test on
+> the installed app (screen 912; innerHeight, html.clientHeight and the visual viewport 844, offsetTop 0; 100vh = 100lvh = 912;
+> 100svh = 100dvh = a fixed 100% = 844; safe area top 68, bottom 34). The three 830 bars (<html>, <body>, the workout) were visible
+> and none of the 850, 875 or 900 bars were. So the page cannot paint below about 844 on that phone: the 68px from there to the
+> glass is not LOOP's to draw in. That is why 10.58's dock, laid out to 912, showed only its top edge. The upstream cause is not
+> proven here. 10.64 stops paying the 34px home-indicator inset inside the paintable area in exactly that state (the app
+> standalone, in portrait, nothing being typed, the visual viewport the layout viewport, and the screen reaching past it by the
+> top safe-area inset): the dock and the empty-workout Finish bar keep their own 8px, so the buttons end at about 836 instead of
+> 810. Nothing is placed below 844, no size is hard-coded, and every other device keeps the inset (TRAINER-CONTRACT §187). It
+> closes only when the owner's screenshot shows Previous / Skip low and whole, with the keyboard, after rotation, Rest, the last
+> set, Finish, exit and re-entry, and a Resume. The 68px below stays the platform's.
 
 > **D138.3 — open; the 10.58 candidate withdrawn.** On the owner's iPhone, 10.58 moved Previous and Skip down to the
 > bottom, but only their top edge was visible: the rest was cut off. The layout put the buttons at 828–878 inside an
