@@ -19862,3 +19862,51 @@ weeks, the days and the progression"; progression is D49's suggestion from logge
 **Frozen here.** Program scheduling, completion, phases, deload, pause, D43, D44, D77A, D85, D89, D90, D99, D125, D137,
 Build for me (D139) and Save workout (D139.1), E64, its diagnostics and the workout shell. DATA_KEYS 16, schema 1,
 trainer 0.1.1-shadow. The roadmap resumes at the E64 phone check.
+
+## §186 — WORTH KNOWING 2.0 (D141 · LOOP 10.63 · loop-v240)
+
+Today's "Worth knowing" said a conclusion ("Bench Press — progress has flattened") and showed nothing behind it. It is
+now one E1 surface with a row per conclusion: the state and its subject, the number that matters, its reason or action,
+and the evidence beside them. The whole row opens the screen behind it. Derived on every draw, stored nowhere.
+
+**Every number is its owning engine's.**
+- READY: D49's increase, asked as Progress, Weekly Review and Exercise Detail ask it (progressionFor with the lift's
+  own range). LAST → NEXT is the session D49 judged (exerciseSessionHistory) and the load it suggests, with the range —
+  never D125's projected sets. "Top of the range with ~N RIR" is D49's own condition and rounding.
+- REDUCE: D47's tier, which the old list never showed (it looked only for increase and plateau, so a decline grinding
+  under the range vanished from Today). "Twice under N reps · no reserve", LAST → NEXT down by D47's own step.
+- STALLED / DECLINING: detectPlateau's own four workouts (plateauWindowOf reads them exactly as it does, deloads set
+  aside), drawn only when they agree with D49's verdict. Each point is a workout; each step is D137's comparison
+  (compareProgressionEvidence) — a stall against the first (the mark to beat), a decline against the one before. Labels
+  are the top set's reps, with the reserve only where the reserve decided; a missing RIR is never a number. The hold is
+  D49's weight. A decline decided by reserve or back-offs says so.
+- TREND: getTopCoachInsight's one trend and the weeks it read. Mini bars: a tracked week with nothing is a tick, a week
+  before tracking is not drawn.
+
+**The trend asks D25's question.** computeCategoryVolumeTrend compared the week so far with ALL of last week, so on a
+Monday with no Push yet it said "Your Push volume is trending down" — the half-run-week comparison D25 removed from
+Progress › Volume. It now compares this week so far with the same days of last week (calendar days, D93). Measure,
+thresholds (+15 % / −20 %, 200 lb floor) and priorities are unchanged. A category with no workout yet this week is never
+called down (unknown ≠ zero). computeFrequencyTrend counts calendar days and claims only when the earlier fortnight was
+tracked.
+
+**Which rows.** The lifts trained in the last 14 days (computeTrainingContext's recent window), D49 asked once each.
+The old list scanned the first 40 names alphabetically and took the first match. Groups take one row each first:
+attention (reduce, declining, stalled), opportunity (ready), pattern (the trend). A free place goes to the next row of
+attention or opportunity: at most two per group, one trend, three in all. Order: group, state, the lift trained most
+recently, name. Zero, one, two or three rows; nothing fills a place.
+
+**Not shown, on purpose.**
+- BUILDING: the ordinary course of training.
+- D49's one-session dip ('decline'), holds, insufficient evidence.
+- Bodyweight lifts: D119's answer is in reps, and Exercise Detail shows it.
+- Recovery: Today's own card shows it.
+
+**Destinations.**
+- A lift: its Exercise Detail (openExDetail), which shows the same pair.
+- The volume trend: Progress › Volume.
+- The frequency trend: the Log, where Progress's consistency card already sends a tap.
+
+**Frozen here.** D49, D47, D85, D119, D123, D125, D126, D137, Exercise Detail, Progress › Volume, Build for me (D139),
+Save workout (D139.1), the Program Guide (D140), E64, its diagnostics and the workout shell. DATA_KEYS 16, schema 1,
+trainer 0.1.1-shadow. The roadmap resumes at the E64 phone check.

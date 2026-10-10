@@ -10066,6 +10066,65 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
 .pg-prog-m{ color: var(--text-dim); font-size: 13px; }
 .pg-prog-days{ display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
 .pg-prog-days li{ display: grid; justify-items: center; gap: 4px; font-size: 12px; color: var(--text-dim); text-align: center; }
+/* D141 — WORTH KNOWING 2.0. One E1 surface, a row per conclusion: the state and its subject across the top, then the
+   number that matters and its reason or action, with the evidence beside them — LAST → NEXT, four workouts, or the
+   weeks a trend was read from. The whole row is the way in (≥44px, one name for assistive tech, the picture hidden
+   from it because the row's own words carry every number). Colour is the D132 role and never the only signal: each
+   state is named, a decline is drawn falling, a stall flat against its mark. Nothing here moves. */
+.wn-list{ background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); box-shadow: var(--elev-1); overflow: hidden; }
+.wn-row{
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "top top" "text viz";
+  column-gap: 12px; row-gap: 6px; align-items: center; width: 100%; min-height: 44px; margin: 0;
+  padding: 13px 14px 13px 16px; background: none; border: 0; border-top: 1px solid var(--hairline); border-radius: 0;
+  color: var(--text); font: inherit; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.wn-row:first-child{ border-top: 0; }
+.wn-row:active{ background: var(--surface-2); }
+.wn-row:focus-visible{ outline: 2px solid var(--c-action); outline-offset: -2px; }
+.wn-top{ grid-area: top; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.wn-tag{
+  flex-shrink: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: var(--eyebrow-track); text-transform: uppercase;
+  line-height: 1; padding: 4px 7px; border-radius: 6px;
+}
+.wn-ready .wn-tag{ color: var(--c-progress); background: var(--c-progress-soft); }
+.wn-reduce .wn-tag, .wn-stalled .wn-tag, .wn-declining .wn-tag{ color: var(--c-warning); background: var(--c-warning-soft); }
+.wn-trend .wn-tag{ color: var(--c-action); background: var(--accent-soft); }
+.wn-subj{
+  flex: 1 1 auto; min-width: 0; font-size: var(--fs-body); font-weight: 600; line-height: 1.3; color: var(--text);
+  overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.wn-go{ display: flex; flex-shrink: 0; margin-left: auto; color: var(--text-faint); }
+.wn-text{ grid-area: text; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wn-metric{ font-family: var(--font-display); font-size: var(--fs-card-title); font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; color: var(--text); font-variant-numeric: tabular-nums; }
+.wn-detail{ font-size: var(--fs-meta); line-height: 1.4; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.wn-viz{ grid-area: viz; display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
+.wn-viz svg{ display: block; overflow: visible; }
+/* LAST → NEXT, Exercise Detail's pair in miniature: the next load full strength, the last one recessive. */
+.wn-ln{ display: flex; align-items: center; gap: 4px; }
+.wn-ln-c{ display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.wn-ln-c b{ font-family: var(--font-display); font-size: 20px; font-weight: 600; line-height: 1; letter-spacing: -0.02em; color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wn-ln-to b{ color: var(--text); }
+.wn-ln-c b i{ font-style: normal; font-family: var(--font-ui); font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0; color: var(--text-faint); }
+.wn-ln-c small{ font-size: var(--fs-micro); line-height: 1; color: var(--text-faint); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wn-ln-to small{ color: var(--text-dim); }
+.wn-ln-a{ display: flex; color: var(--text-faint); }
+.wn-ready .wn-ln-to b{ color: var(--c-progress); }
+.wn-reduce .wn-ln-to b{ color: var(--c-warning); }
+/* FOUR WORKOUTS: the first is the mark (a ring, and the dashed line every later workout is measured against). */
+.wn-t-ref{ stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 2 3; }
+.wn-t-seg{ stroke: var(--text-faint); stroke-width: 1.6; stroke-linecap: round; }
+.wn-t-n{ fill: var(--text-dim); }
+.wn-t-first{ fill: var(--surface-1); stroke: var(--text-dim); stroke-width: 1.4; }
+.wn-trace-down .wn-t-fall{ stroke: var(--c-warning); }
+.wn-trace-down .wn-t-n:last-of-type{ fill: var(--c-warning); }
+.wn-t-l{ font-family: var(--font-ui); font-size: 11px; font-weight: 600; fill: var(--text-dim); font-variant-numeric: tabular-nums; }
+/* WEEKS: the latest period in the trend's own colour, the one it was compared with beside it, the rest recessive. */
+.wn-b-base{ stroke: var(--hairline-strong); stroke-width: 1; }
+.wn-b-old{ fill: var(--surface-3); }
+.wn-b-prev{ fill: rgba(76,194,255,0.38); }
+.wn-b-now{ fill: var(--c-action); }
+.wn-b-zero{ fill: var(--text-faint); }
+.wn-b-l{ font-family: var(--font-ui); font-size: 11px; font-weight: 600; fill: var(--text-dim); font-variant-numeric: tabular-nums; }
 /* ==== D132 SYSTEM END ==== */
 </style>
 </head>
@@ -20035,6 +20094,25 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-63',
+    version: 'LOOP 10.63',
+    title: 'Worth Knowing Shows the Why',
+    date: '2026-10-10',
+    swVersion: 'loop-v240',
+    summary: 'Worth Knowing on Today now shows the real numbers behind each insight.',
+    newFeatures: [
+      'Each Worth Knowing row shows its evidence: your last session and next weight, a lift’s last four workouts, or the weeks behind a trend'
+    ],
+    improvements: [
+      'Tap a lift in Worth Knowing to open its Exercise Detail, or a trend to open the screen it comes from',
+      'A lift LOOP suggests lightening now appears in Worth Knowing, and lifts that need attention come first'
+    ],
+    bugFixes: [
+      'A volume trend now compares the same days of each week, so a week that has only just started is no longer called down'
+    ],
+    changes: []
   }
 ];
 
@@ -27008,57 +27086,72 @@ function computeSessionVolumeInsight(entry){
   return null;
 }
 
+/* D141 — PARTIAL ≠ COMPLETE (D25's guardian rule, which Progress › Volume has kept since D25). This used to put the
+   week so far against ALL of last week, so a Monday with no Push workout yet read "Your Push volume is trending down"
+   from nothing but the calendar: a half-run week scored against a finished one. It now asks D25's question — this week
+   so far against the SAME DAYS of last week, in calendar days (D93). The measure (volume load, sessionVolume, by the
+   workout's category), the thresholds (up at +15 %, down at −20 %, at least 200 lb to compare against) and the
+   priorities are unchanged. Two rules are evidence, not policy: a category with no workout yet this week has not been
+   trained yet, so it is never called down (unknown ≠ zero); and a week LOOP had not started tracking is not a week of
+   nothing, so it is never read. Each trend carries the weeks it was read from — the same days of up to four weeks —
+   so Worth Knowing can show them. */
 function computeCategoryVolumeTrend(){
-  const now = new Date();
-  const dayOffset = (now.getDay() + 6) % 7;
-  const thisWeekStart = new Date(now); thisWeekStart.setHours(0,0,0,0); thisWeekStart.setDate(now.getDate() - dayOffset);
-  const lastWeekStart = new Date(thisWeekStart); lastWeekStart.setDate(thisWeekStart.getDate() - 7);
-  const lastWeekEnd = new Date(thisWeekStart); lastWeekEnd.setDate(thisWeekStart.getDate() - 1); lastWeekEnd.setHours(23,59,59,999);
-
-  const catVol = {};
-  ORDER.forEach(c => catVol[c] = { thisWeek: 0, lastWeek: 0 });
-  workoutLog.forEach(l => {
-    const d = new Date(l.date + 'T00:00:00');
-    const vol = sessionVolume(l);
-    if(!catVol[l.category]) return;
-    if(d >= thisWeekStart) catVol[l.category].thisWeek += vol;
-    else if(d >= lastWeekStart && d <= lastWeekEnd) catVol[l.category].lastWeek += vol;
-  });
-
+  const today = localDateStr();
+  const start = localDateStr(currentWeekStart());
+  const daysIn = Math.min(7, daysBetweenDates(start, today) + 1);
+  const first = progressCoverage().firstDate;
+  const weeks = [3, 2, 1, 0].map(k => { const from = addDaysISO(start, -7 * k); return { from, to: addDaysISO(from, daysIn - 1) }; })
+    .filter(w => !!first && w.to >= first);
   const trends = [];
+  if(weeks.length < 2) return trends;
+  const catVol = {};
+  ORDER.forEach(c => { catVol[c] = { vols: weeks.map(() => 0), sessions: weeks.map(() => 0) }; });
+  workoutLog.forEach(l => {
+    const c = l && catVol[l.category];
+    if(!c || !l.date) return;
+    const i = weeks.findIndex(w => l.date >= w.from && l.date <= w.to);
+    if(i === -1) return;
+    c.vols[i] += sessionVolume(l);
+    c.sessions[i]++;
+  });
+  const n = weeks.length;
   ORDER.forEach(c => {
-    const { thisWeek, lastWeek } = catVol[c];
+    const v = catVol[c].vols, thisWeek = v[n - 1], lastWeek = v[n - 2];
     if(lastWeek < 200) return;
     const pct = ((thisWeek - lastWeek) / lastWeek) * 100;
-    if(pct >= 15) trends.push({ cat: c, pct, dir: 'up', thisWeek, lastWeek });
-    else if(pct <= -20) trends.push({ cat: c, pct, dir: 'down', thisWeek, lastWeek });
+    const series = weeks.map((w, i) => ({ from: w.from, to: w.to, volume: v[i], sessions: catVol[c].sessions[i] }));
+    if(pct >= 15) trends.push({ cat: c, pct, dir: 'up', thisWeek, lastWeek, daysIn, series });
+    else if(pct <= -20 && catVol[c].sessions[n - 1] > 0) trends.push({ cat: c, pct, dir: 'down', thisWeek, lastWeek, daysIn, series });
   });
   return trends;
 }
 
+/* D141 — the same claim (more workouts in the last 14 days than in the 14 before), counted in calendar days (D93: the
+   windows used to hang on the minute the screen was drawn), and made only when LOOP tracked all of the earlier fortnight:
+   a fortnight before the first workout is unknown, not a fortnight of rest (D25). It carries the four weeks it counted. */
 function computeFrequencyTrend(){
-  const now = new Date();
-  const twoWeeksAgo = new Date(now); twoWeeksAgo.setDate(now.getDate() - 14);
-  const fourWeeksAgo = new Date(now); fourWeeksAgo.setDate(now.getDate() - 28);
-  const recent = workoutLog.filter(l => new Date(l.date + 'T00:00:00') >= twoWeeksAgo).length;
-  const prior = workoutLog.filter(l => {
-    const d = new Date(l.date + 'T00:00:00');
-    return d >= fourWeeksAgo && d < twoWeeksAgo;
-  }).length;
+  const today = localDateStr();
+  const blocks = [3, 2, 1, 0].map(k => ({ from: addDaysISO(today, -7 * k - 6), to: addDaysISO(today, -7 * k) }));
+  const first = progressCoverage().firstDate;
+  if(!first || first > blocks[0].from) return null;
+  blocks.forEach(b => { b.workouts = workoutLog.filter(l => l && l.date >= b.from && l.date <= b.to).length; });
+  const recent = blocks[2].workouts + blocks[3].workouts;
+  const prior = blocks[0].workouts + blocks[1].workouts;
   if(prior === 0 || recent <= prior) return null;
-  return { text: 'Your training frequency is improving.', detail: `${recent} sessions in the last 2 weeks vs ${prior} in the 2 weeks before that.`, tag: 'positive' };
+  return { text: 'Your training frequency is improving.', detail: `${recent} sessions in the last 2 weeks vs ${prior} in the 2 weeks before that.`, tag: 'positive', recent, prior, blocks };
 }
 
 function getTopCoachInsight(){
   const insights = [];
   const freq = computeFrequencyTrend();
-  if(freq) insights.push({ ...freq, priority: 2 });
+  if(freq) insights.push({ ...freq, priority: 2, kind: 'frequency' });
   computeCategoryVolumeTrend().forEach(t => {
     insights.push({
       text: `Your ${CAT_LABEL[t.cat]} volume is trending ${t.dir === 'up' ? 'upward' : 'down'}.`,
-      detail: `${Math.round(Math.abs(t.pct))}% ${t.dir === 'up' ? 'increase' : 'decrease'} vs last week — ${t.thisWeek.toLocaleString()} lb vs ${t.lastWeek.toLocaleString()} lb.`,
+      detail: `${Math.round(Math.abs(t.pct))}% ${t.dir === 'up' ? 'increase' : 'decrease'} vs the same days last week — ${t.thisWeek.toLocaleString()} lb vs ${t.lastWeek.toLocaleString()} lb.`,
       tag: t.dir === 'up' ? 'positive' : 'neutral',
-      priority: t.dir === 'up' ? 3 : 1
+      priority: t.dir === 'up' ? 3 : 1,
+      kind: 'volume', trend: t
     });
   });
   if(!insights.length) return null;
@@ -32871,40 +32964,275 @@ function renderTodayMuscles(){
     '</button>';
 }
 
+/* =========================================================
+   WORTH KNOWING 2.0  (Phase D141)
+   ---------------------------------------------------------
+   Today's "Worth knowing" told the athlete a conclusion and showed nothing behind it. Each row now answers, in order:
+   what happened, the evidence, what it means and what to do — and every number on it is the owning engine's own:
+     · READY / REDUCE       D49's answer, asked exactly as Progress, Weekly Review and Exercise Detail ask it
+                            (progressionFor with the lift's own range): the session it judged → the load it suggests,
+                            the change, and the first clause of its reason. REDUCE is D47's tier, which this list never
+                            showed: the one answer that asks for less.
+     · STALLED / DECLINING  detectPlateau's own four workouts (D123, D126, D137), checked against D49's verdict before
+                            they are drawn. Each step is D137's comparison (compareProgressionEvidence): never tonnage,
+                            never an estimated max, a missing RIR never a number. The hold is D49's.
+     · TREND                getTopCoachInsight's one trend and the weeks it was read from (D25's same days).
+   Nothing here decides a load, a state or a trend: it reads them, ranks them and draws them. A row whose evidence
+   cannot be drawn faithfully is not drawn.
+
+   WHICH ROWS. The lifts trained in the last 14 days (the window computeTrainingContext already calls recent), each
+   asked once. Three groups take one row each first: what needs attention (D47's reduce, a decline, a stall), an
+   opportunity (ready for more weight), the broader pattern (the trend). A free place then goes to the next row of
+   attention or opportunity — never more than two of one group, never more than one trend. At most three; one or none
+   is a valid answer, and nothing is added to fill a place. Ordered by group, state, the lift trained most recently,
+   then its name, so the same history always gives the same rows. BUILDING, D49's one-session dip, holds and
+   bodyweight lifts are not shown: the ordinary course of training, one session's evidence, or D119's own answer, which
+   Exercise Detail shows — none of them is a conclusion that needs a row here.
+   ========================================================= */
+const WORTH_KNOWING = { max: 3, perGroup: 2, recentDays: 14 };
+const WK_STATES = {
+  reduce:    { label: 'Reduce',    group: 0, order: 0 },
+  declining: { label: 'Declining', group: 0, order: 1 },
+  stalled:   { label: 'Stalled',   group: 0, order: 2 },
+  ready:     { label: 'Ready',     group: 1, order: 3 },
+  trend:     { label: 'Trend',     group: 2, order: 4 }
+};
+const WK_DAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/* The lifts trained in the last 14 days, by the spelling LOOP shows (D129), each with its latest date there. */
+function worthKnowingRecentLifts(){
+  const today = localDateStr();
+  const from = addDaysISO(today, -(WORTH_KNOWING.recentDays - 1));
+  const latest = new Map();
+  (workoutLog || []).forEach(l => {
+    if(!l || !l.date || l.date < from || l.date > today) return;
+    (l.exercises || []).forEach(ex => {
+      if(!ex || !ex.name || ex.skipped) return;
+      if(!(ex.sets || []).some(st => performedReps(st && st.reps) !== null)) return;
+      const k = loggedExerciseKey(ex.name);
+      if(k && (!latest.has(k) || l.date > latest.get(k))) latest.set(k, l.date);
+    });
+  });
+  if(!latest.size) return [];
+  return getAllLoggedExerciseNames()
+    .filter(n => latest.has(loggedExerciseKey(n)))
+    .map(n => ({ name: n, lastDate: latest.get(loggedExerciseKey(n)) }));
+}
+
+/* detectPlateau's own window, read exactly as it reads it: the lift's last four ordinary workouts (a programmed deload
+   is set aside, D123), each as D137's evidence. It decides nothing; the row checks it against D49's verdict. */
+function plateauWindowOf(name){
+  const key = String(name == null ? '' : name).trim().toLowerCase();
+  const occurrences = [];
+  sortedLog().slice().reverse().forEach(l => {
+    if(isDeloadWorkout(l)) return;
+    const ev = workoutProgressionEvidence(l, key);
+    if(ev) occurrences.push(ev);
+  });
+  return occurrences.length < 4 ? null : occurrences.slice(-4);
+}
+/* The window's steps by D137's comparison: each workout against the first (a stall: none beats it) and against the one
+   before (a decline: the last two each worse, at one load) — detectPlateau's two tests, asked of the same four. */
+function plateauStepsOf(win){
+  const first = win[0];
+  const vsFirst = win.map(o => compareProgressionEvidence(o, first));
+  const steps = win.slice(1).map((o, i) => compareProgressionEvidence(o, win[i]));
+  const stuck = vsFirst.every(v => v.verdict !== 'better');
+  const falling = win[1].topLoad === win[2].topLoad && win[2].topLoad === win[3].topLoad
+    && steps[1].verdict === 'worse' && steps[2].verdict === 'worse';
+  return { vsFirst, steps, stuck, falling };
+}
+
+function wkLb(n){ return exdNum(n) + ' lb'; }
+function wkSet(o){ return exdNum(o.topLoad) + ' for ' + o.topReps + (o.topRir !== null ? ' with ' + exdNum(o.topRir) + ' in reserve' : ''); }
+
+/* LAST → NEXT: D49's judged session and its suggestion, as Exercise Detail draws them. */
+function wkLastNextHtml(lastW, lastR, nextW, nextR){
+  return '<span class="wn-ln"><span class="wn-ln-c"><b>' + exdNum(lastW) + '</b><small>× ' + escapeHtml(lastR) + '</small></span>'
+    + '<span class="wn-ln-a">' + chevronRightSvg() + '</span>'
+    + '<span class="wn-ln-c wn-ln-to"><b>' + exdNum(nextW) + '<i> lb</i></b><small>× ' + escapeHtml(nextR) + '</small></span></span>';
+}
+/* FOUR WORKOUTS: one node per workout, oldest first, at the level D137's comparison puts it — a stall against the first
+   (the dashed mark to beat), a decline against the one before. Not a scale: a step is one verdict, so a flat run stays
+   flat, two falls fall twice and a fall followed by a rebound comes back. Labels are the top set's reps (with the RIR
+   only when the RIR decided a step), and only when all four were lifted at one load. */
+function wkTraceSvg(levels, labels, falling){
+  const W = 96, X0 = 9, X1 = 87, TOP = labels ? 18 : 6, STEP = 9;
+  const H = TOP - Math.min(0, ...levels) * STEP + 6;
+  const x = i => X0 + i * (X1 - X0) / (levels.length - 1);
+  const y = v => TOP - v * STEP;
+  const f = v => v.toFixed(1);
+  let out = '<svg class="wn-trace' + (falling ? ' wn-trace-down' : '') + '" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true" focusable="false">'
+    + '<line class="wn-t-ref" x1="' + X0 + '" x2="' + X1 + '" y1="' + y(0) + '" y2="' + y(0) + '"/>';
+  levels.forEach((v, i) => { if(i) out += '<line class="wn-t-seg' + (levels[i] < levels[i - 1] ? ' wn-t-fall' : '') + '" x1="' + f(x(i - 1)) + '" y1="' + f(y(levels[i - 1])) + '" x2="' + f(x(i)) + '" y2="' + f(y(v)) + '"/>'; });
+  levels.forEach((v, i) => {
+    out += '<circle class="wn-t-n' + (i ? '' : ' wn-t-first') + '" cx="' + f(x(i)) + '" cy="' + f(y(v)) + '" r="3.2" data-level="' + v + '"/>';
+    if(labels) out += '<text class="wn-t-l" x="' + f(x(i)) + '" y="' + f(y(v) - 7) + '" text-anchor="middle">' + escapeHtml(labels[i]) + '</text>';
+  });
+  return out + '</svg>';
+}
+/* WEEKS: one bar per period the claim was read from, oldest first, the latest at the right; `classes` says which side of
+   the comparison each is on. A period LOOP did not track is not drawn at all; a tracked period with nothing in it is drawn
+   as nothing (a flat tick), never as missing. */
+function wkBarsSvg(values, labels, classes){
+  const W = 96, H = 48, BW = 14, GAP = 10, BASE = H - 2, TOPROOM = labels ? 14 : 4;
+  const n = values.length, max = Math.max(...values, 0);
+  const x0 = W - n * BW - (n - 1) * GAP;
+  let out = '<svg class="wn-bars" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true" focusable="false">'
+    + '<line class="wn-b-base" x1="' + (x0 - 2) + '" x2="' + W + '" y1="' + (BASE + 0.5) + '" y2="' + (BASE + 0.5) + '"/>';
+  values.forEach((v, i) => {
+    const h = v > 0 && max > 0 ? Math.max(3, Math.round(v / max * (BASE - TOPROOM))) : 0;
+    const cls = 'wn-b-' + classes[i];
+    const x = x0 + i * (BW + GAP);
+    out += h ? '<rect class="wn-b ' + cls + '" x="' + x + '" y="' + (BASE - h) + '" width="' + BW + '" height="' + h + '" rx="3" data-v="' + v + '"/>'
+             : '<rect class="wn-b wn-b-zero ' + cls + '" x="' + x + '" y="' + (BASE - 2) + '" width="' + BW + '" height="2" rx="1" data-v="0"/>';
+    if(labels) out += '<text class="wn-b-l" x="' + (x + BW / 2) + '" y="' + (BASE - h - 4) + '" text-anchor="middle">' + escapeHtml(labels[i]) + '</text>';
+  });
+  return out + '</svg>';
+}
+
+/* One lift, as its owning engines answer it today, or null when it is not a row. */
+function worthKnowingLiftItem(name, lastDate){
+  let rec = null;
+  try{ rec = progressionFor(name, repRangeForExercise(name), null); }catch(e){ rec = null; }
+  if(!rec) return null;
+  const range = exdRange(repRangeForExercise(name));
+  const lift = name.trim();
+  const dest = { kind: 'exercise', name };
+  if(rec.tag === 'increase' || rec.tag === 'reduce'){
+    let last = null;
+    try{ const h = exerciseSessionHistory(name, 1); last = h.length ? h[0] : null; }catch(e){ last = null; }
+    if(!last || rec.weight == null || !(last.weight > 0)) return null;
+    const change = rec.weight - last.weight;
+    const up = rec.tag === 'increase';
+    if(up ? !(change > 0) : !(change < 0)) return null;
+    const why = String(rec.why || '').split(' — ')[0];
+    /* What earned it, in D49's own terms: the top of the range with reserve (its "~N RIR"), or D47's two grinding sessions. */
+    const range0 = parseRepRange(repRangeForExercise(name));
+    const detail = up ? 'Top of the range with ~' + Math.round(last.avgRir) + ' RIR'
+      : 'Twice under ' + (range0 ? range0.min : '') + ' reps · no reserve';
+    if(up ? last.avgRir == null : !range0) return null;
+    return { type: 'lift', state: up ? 'ready' : 'reduce', subject: lift, lastDate, dest,
+      metric: (up ? '+' : '−') + wkLb(Math.abs(change)) + ' next session',
+      detail,
+      evidence: { last: { weight: last.weight, reps: last.topReps, date: last.date }, next: { weight: rec.weight, reps: range }, change, tag: rec.tag },
+      viz: wkLastNextHtml(last.weight, String(last.topReps), rec.weight, range),
+      spoken: WK_STATES[up ? 'ready' : 'reduce'].label + ': ' + lift + '. Next session ' + exdNum(rec.weight) + ' pounds for ' + range + ' reps, '
+        + (up ? 'up ' : 'down ') + exdNum(Math.abs(change)) + ' from ' + exdNum(last.weight) + ' pounds for ' + last.topReps + ' reps last session. '
+        + why + '. Opens Exercise Detail.' };
+  }
+  if(rec.tag !== 'plateau') return null;
+  const state = rec.trend === 'declining' ? 'declining' : 'stalled';
+  let win = null;
+  try{ win = plateauWindowOf(name); }catch(e){ win = null; }
+  const s = win ? plateauStepsOf(win) : null;
+  /* Drawn only when the four are the ones D49 judged: stuck, and falling exactly when D49 says declining. */
+  if(!s || !s.stuck || s.falling !== (state === 'declining') || rec.weight == null) return null;
+  const oneLoad = win.every(o => o.topLoad === win[0].topLoad);
+  const rirDecided = (state === 'declining' ? s.steps : s.vsFirst).some(v => /RIR/.test(v.reason));
+  const labels = oneLoad ? win.map(o => String(o.topReps) + (rirDecided && o.topRir !== null ? '@' + exdNum(o.topRir) : '')) : null;
+  let levels;
+  if(state === 'declining'){
+    const l1 = s.steps[0].verdict === 'worse' ? -1 : 0;
+    levels = [0, l1, l1 - 1, l1 - 2];
+  } else levels = s.vsFirst.map(v => v.verdict === 'worse' ? -1 : 0);
+  const hold = wkLb(rec.weight);
+  const reasons = s.steps.slice(1).map(v => v.reason);
+  const detail = state === 'stalled' ? 'Hold ' + hold + ' or switch exercise'
+    : reasons.some(r => r === 'WORSE_BACKOFF') ? 'Back-off sets fell · hold ' + hold
+    : reasons.some(r => r === 'WORSE_MATCHED_RIR') ? 'Less in reserve · hold ' + hold
+    : 'Hold ' + hold + ' and rebuild';
+  const sets = win.map(wkSet);
+  return { type: 'lift', state, subject: lift, lastDate, dest,
+    metric: state === 'stalled' ? 'Flat for ' + win.length + ' workouts' : 'Down two in a row',
+    detail,
+    evidence: { window: win.map(o => ({ date: o.date, topLoad: o.topLoad, topReps: o.topReps, topRir: o.topRir })), levels, steps: s.steps.map(v => v.verdict), hold: rec.weight },
+    viz: wkTraceSvg(levels, labels, state === 'declining'),
+    spoken: WK_STATES[state].label + ': ' + lift + '. Last ' + win.length + ' workouts, oldest first: ' + sets.join(', ') + '. '
+      + (state === 'stalled' ? 'None beat the first. Hold ' + exdNum(rec.weight) + ' pounds, or switch to a similar exercise.'
+         : 'Each of the last two fell short of the one before. ' + detail.replace(' · ', '. ') + '.') + ' Opens Exercise Detail.' };
+}
+
+/* The one trend, with the weeks it was read from. */
+function worthKnowingTrendItem(t){
+  if(!t) return null;
+  if(t.kind === 'volume' && t.trend && t.trend.series && t.trend.series.length >= 2){
+    const tr = t.trend, cat = CAT_LABEL[tr.cat] || tr.cat;
+    const days = tr.daysIn >= 7 ? 'Full week' : WK_DAY[0] + (tr.daysIn > 1 ? '–' + WK_DAY[tr.daysIn - 1] : '');
+    const pct = Math.round(Math.abs(tr.pct));
+    const word = tr.dir === 'up' ? 'Up' : 'Down';
+    const v = n => Math.round(n).toLocaleString();
+    return { type: 'volume', state: 'trend', subject: cat + ' volume', lastDate: '', dest: { kind: 'volume' },
+      metric: word + ' ' + pct + '% vs last week',
+      detail: days + ' · ' + v(tr.thisWeek) + ' vs ' + v(tr.lastWeek) + ' lb',
+      evidence: { cat: tr.cat, dir: tr.dir, pct: tr.pct, daysIn: tr.daysIn, thisWeek: tr.thisWeek, lastWeek: tr.lastWeek, series: tr.series },
+      viz: wkBarsSvg(tr.series.map(w => w.volume), null, tr.series.map((w, i, a) => i === a.length - 1 ? 'now' : i === a.length - 2 ? 'prev' : 'old')),
+      spoken: 'Trend: ' + cat + ' volume ' + word.toLowerCase() + ' ' + pct + ' percent against the same days last week'
+        + (tr.daysIn >= 7 ? '' : ', ' + days) + ': ' + v(tr.thisWeek) + ' pounds this week, ' + v(tr.lastWeek) + ' pounds last week. Opens Progress, Volume.' };
+  }
+  if(t.kind === 'frequency' && t.blocks && t.blocks.length === 4){
+    return { type: 'frequency', state: 'trend', subject: 'Training frequency', lastDate: '', dest: { kind: 'log' },
+      metric: t.recent + ' workouts in 14 days',
+      detail: 'Up from ' + t.prior + ' in the 14 days before',
+      evidence: { recent: t.recent, prior: t.prior, blocks: t.blocks },
+      viz: wkBarsSvg(t.blocks.map(b => b.workouts), t.blocks.map(b => String(b.workouts)), ['prev', 'prev', 'now', 'now']),
+      spoken: 'Trend: training frequency up: ' + t.recent + ' workouts in the last 14 days, ' + t.prior + ' in the 14 days before. Opens the Log.' };
+  }
+  return null;
+}
+
+/* The order every row is compared in: group and state, the lift trained most recently, its name. */
+function worthKnowingCompare(a, b){
+  return WK_STATES[a.state].order - WK_STATES[b.state].order
+    || (a.lastDate < b.lastDate ? 1 : a.lastDate > b.lastDate ? -1 : 0)
+    || (a.subject < b.subject ? -1 : a.subject > b.subject ? 1 : 0);
+}
+function rankWorthKnowing(cands){
+  const sorted = cands.slice().sort(worthKnowingCompare);
+  const cap = [WORTH_KNOWING.perGroup, WORTH_KNOWING.perGroup, 1];
+  const groupOf = c => WK_STATES[c.state].group;
+  const pick = [];
+  [0, 1, 2].forEach(g => { const c = sorted.find(x => groupOf(x) === g); if(c) pick.push(c); });
+  sorted.forEach(c => {
+    if(pick.length >= WORTH_KNOWING.max || pick.indexOf(c) !== -1) return;
+    if(pick.filter(p => groupOf(p) === groupOf(c)).length >= cap[groupOf(c)]) return;
+    pick.push(c);
+  });
+  return pick.sort(worthKnowingCompare).slice(0, WORTH_KNOWING.max);
+}
+function deriveWorthKnowing(){
+  const cands = [];
+  worthKnowingRecentLifts().forEach(l => { const it = worthKnowingLiftItem(l.name, l.lastDate); if(it) cands.push(it); });
+  let t = null;
+  try{ t = worthKnowingTrendItem(getTopCoachInsight()); }catch(e){ t = null; }
+  if(t) cands.push(t);
+  return rankWorthKnowing(cands);
+}
+
+/* Where a row goes: the lift's own Exercise Detail, Progress › Volume, or the Log. */
+function openWorthKnowingVolume(){ switchTab('progress'); switchProgTab('volume'); }
+function worthKnowingRowHtml(it){
+  const open = it.dest.kind === 'exercise' ? 'onclick="openExDetail(this.dataset.ex)" data-ex="' + escapeAttr(it.dest.name) + '"'
+    : it.dest.kind === 'volume' ? 'onclick="openWorthKnowingVolume()"' : 'onclick="switchTab(\'history\')"';
+  return '<button type="button" class="wn-row wn-' + it.state + '" ' + open + ' aria-label="' + escapeAttr(it.spoken) + '">'
+    + '<span class="wn-top"><span class="wn-tag">' + WK_STATES[it.state].label + '</span>'
+    + '<span class="wn-subj">' + escapeHtml(it.subject) + '</span>'
+    + '<span class="wn-go" aria-hidden="true">' + chevronRightSvg() + '</span></span>'
+    + '<span class="wn-text"><span class="wn-metric">' + escapeHtml(it.metric) + '</span>'
+    + '<span class="wn-detail">' + escapeHtml(it.detail) + '</span></span>'
+    + '<span class="wn-viz" aria-hidden="true">' + it.viz + '</span>'
+    + '</button>';
+}
+
+/* D45B — the heading is rendered with the rows, so a new athlete with nothing worth knowing sees no bare heading.
+   D141 — one surface, a row per conclusion, its evidence beside it, the whole row the way in. */
 function renderTodayInsights(){
   const el = document.getElementById('todayInsights');
   if(!el) return;
-  const rows = [];
-  const insight = getTopCoachInsight();
-  if(insight) rows.push({ tag:'Trend', text: insight.text });
-
-  // Surface at most two actionable exercise states from the existing engines
-  const names = getAllLoggedExerciseNames().slice(0, 40);
-  let ready = null, stalled = null, stalledRec = null;
-  for(const n of names){
-    if(ready && stalled) break;
-    const rec = progressionFor(n, repRangeForExercise(n), null);
-    if(!rec) continue;
-    if(!ready && rec.tag === 'increase') ready = n;
-    if(!stalled && rec.tag === 'plateau'){ stalled = n; stalledRec = rec; }
-  }
-  if(ready) rows.push({ tag:'Ready', text:`${ready} — ready for more weight` });
-  /* D137 (E50) — a falling lift is named as one, in the same warning colour */
-  if(stalled) rows.push(stalledRec.trend === 'declining'
-    ? { tag:'Declining', cls:'stalled', text:`${stalled} — performance has declined two sessions running` }
-    : { tag:'Stalled', text:`${stalled} — progress has flattened` });
-
-  /* D45B — the heading moved inside the render. It used to sit in the static
-     markup reading "Momentum", so when Momentum was removed it was left
-     labelling this block, and a new athlete with no signals yet saw a bare
-     heading over nothing (#todayInsights:empty hides the list, but could not
-     hide a sibling). Rendered with the rows, it appears only when there is
-     something under it — and it now says what the block actually holds:
-     a trend, and any lift ready for more weight or gone flat. */
-  el.innerHTML = rows.length
-    ? `<div class="sec-head">Worth knowing</div>
-       <div class="insight-list">${rows.slice(0,3).map(r => `
-        <div class="insight-row"><span class="insight-tag it-${(r.cls || r.tag).toLowerCase()}">${r.tag}</span><span>${escapeHtml(r.text)}</span></div>`).join('')}</div>`
+  let items = [];
+  try{ items = deriveWorthKnowing(); }catch(e){ items = []; }
+  el.innerHTML = items.length
+    ? '<div class="sec-head">Worth knowing</div><div class="wn-list">' + items.map(worthKnowingRowHtml).join('') + '</div>'
     : '';
 }
 
