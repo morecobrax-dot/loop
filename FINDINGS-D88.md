@@ -2368,7 +2368,31 @@ home-indicator space beneath it, with the keyboard, in landscape, after exit and
 Home Screen or a Safari tab; whether the keyboard was used before the screenshot; and a screenshot of Today and of the workout in the same
 state. A `visualViewport.offsetTop` left over after the keyboard closes, or an iOS 26 viewport change, are the candidates the CSS cannot reach.
 
-## E65 — Setting what a day holds on a running program reaches the program only from next Monday, and a paused program not at all · P3 · PROVEN · OPEN
+## E65 — Setting what a day holds on a running program reaches the program only from next Monday, and a paused program not at all · P3 · PROVEN · **CLOSED in D144 (LOOP 10.67)**
+
+> **D144 — closed.** Reproduced on 10.66 through the athlete's own day sheet (`setDayValue` → `setScheduledCategory`).
+> A day set to another session, to rest or from rest, on a running program became a D51 revision effective next Monday,
+> so this week's day kept what it held while the sheet already showed the new choice. A paused program was not written at
+> all, so resuming brought the old session back. Because the plan layer changes at once, three readers also restated a
+> day already over:
+> - This Week dropped a missed day's mark once the day was set to rest, and marked a rest day already over as missed once
+>   it was set to a workout. A Change day that waits (D143) dropped the mark the same way.
+> - The missed-yesterday banner forgot a skipped session set to rest, and invented one for a rest day set to a workout.
+> - The rest-day "Next" named the category's first workout, not the program's own session (Push A over a program's
+>   Push B).
+>
+> 10.67: the same rule as Change day. The change takes effect TODAY when this week's occurrence of the day is still
+> ahead:
+> - its date is today or later, and not inside a pause;
+> - no logged workout fulfils that occurrence;
+> - nothing is under way on it today;
+> - D43's matcher pairs every logged workout with the same date with and without the change.
+>
+> Otherwise it takes effect next Monday, as before. The session a day is given is chosen exactly as before. Completed,
+> missed and rested days already over never change, and nothing in the log is rewritten. A paused program is written and
+> stays paused. A change already waiting for next Monday takes the new day too, so it cannot bring the old session back.
+> This Week's mark for a day already over, the missed-yesterday banner and the rest-day "Next" read the program. A day
+> whose change waits shows "From next week: …" on its card. TRAINER-CONTRACT §190, Contract 268.
 
 Found by D143's trace of the day-edit sheet, which E27 did not cover. The sheet has two actions:
 - **Move this day** (Change day), which D143 fixed.
@@ -2382,6 +2406,52 @@ category, while the plan layer and D44 keep the new one.
 **Why it was not fixed in D143.** The brief targeted E27 (moves) alone. Whether a change of session (rather than of
 day) should reach the current week is its own decision. A new category can collide with sessions already trained this
 week, which a swap never introduces.
+
+## E66 — A Studio change set to start tomorrow is undone next Monday when another change is already waiting for next Monday · P3 · PROVEN · OPEN
+
+Found by D144's audit of pending revisions. Program Studio offers "From next week" and "From tomorrow" (§77). A change
+"From tomorrow" is recorded as a revision dated tomorrow, built from the program's latest plan. A revision already dated
+next Monday is left as it was, without the new change. On that Monday it takes over, and the Studio change disappears.
+
+Measured on 10.66 and 10.67 (the same in both). On Wednesday 23 Sep, Monday is set to Core; that change is already over
+this week, so it waits for 28 Sep. Then Studio sets Friday Legs → Push "From tomorrow". Friday 25 Sep holds Push, but
+Friday 2 Oct holds Legs again. The revisions are 09-14, 09-24 and 09-28.
+
+**Why it was not fixed in D144.** The day sheet's own changes cannot meet it:
+- a change applied today carries itself into a waiting revision (`setProgramDayFrom`);
+- a waiting change replaces the one revision next Monday already has.
+
+The Studio path (`reviseProgramPlan` → `addProgramRevision`) is its own explicit effective-date choice, which the brief
+kept as it is. The fix belongs there, as the same carry-forward rule.
+
+## E67 — The Log calendar and D44 consistency judge every past week by today's plan, so a day's change rewrites past weeks · P3 · PROVEN · OPEN
+
+Found by D144. D44 consistency and the Log calendar (D27, D99.3, D108) read the plan layer (`schedule`) as the plan for
+every past date. D44 says so: it is a target, not a historical record. Any day edit therefore restates every past week
+for that weekday, whether the edit is a Change day or a category change, and whether it took effect today or waits.
+
+Measured on 10.66 and 10.67 (the same in both): setting Tuesday to Push on Wednesday 23 Sep turns September's four past
+Tuesdays from rest days into missed days in the Log calendar, and D44's planned total rises from 34 to 46. A running
+program knows better: its D51 revisions date every plan. In D144, This Week's marks and the missed-yesterday banner read
+the program for exactly this reason. Progress's consistency and the Log calendar still read the plan layer.
+
+**Why it was not fixed in D144.** D44 and D108 are protected policies. Judging past weeks by a running program's dated
+plan, or by a recorded history of the plan layer, changes what consistency means. That is an owner decision.
+
+## E68 — The day sheet's category choices are not buttons and show the selected one by colour alone · P4 · PROVEN · OPEN
+
+Found by D144's mobile QA of the day sheet. The eight category choices and Rest Day are `<div class="cat-opt">` with an
+`onclick`:
+- no `role="button"`, no `tabindex`, no `aria-pressed`;
+- a keyboard cannot reach them, and a screen reader is not told which one the day holds;
+- the selected choice differs only in border, background and text colour (`.cat-opt.sel-*.on`).
+
+Their size is fine (at least 44 px tall at every size measured).
+
+**Why it was not fixed in D144.** The brief kept the sheet's design as it is, and no state D144 introduced needs it. A
+fix is a markup and style change to the sheet: real buttons with `aria-pressed`, and a selected mark that is not colour
+alone.
+
 
 ## Not findings — checked and clean
 

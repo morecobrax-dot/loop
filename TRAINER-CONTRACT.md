@@ -20062,3 +20062,80 @@ program only from next Monday and a paused program not at all.
 - holds the log byte for byte, D43 fulfilment, program week and phase, and reload.
 
 The browser rig drives the sheet and the drag by touch at 13 sizes.
+
+## §190 — WHAT A DAY HOLDS CHANGES THIS WEEK WHEN THE DAY IS STILL AHEAD (D144 · LOOP 10.67 · loop-v244)
+
+**The defect (E65).** The day sheet has two actions. Change day (§189) moves a session. The category buttons set what a
+day holds: another category, Rest Day, or a workout on a rest day (`setDayValue` → `setScheduledCategory`). The second
+still wrote the plan layer (`schedule`) at once, but a running program only through `updateProgram`: a D51 revision
+effective next Monday. So:
+- a day set to Legs still held Pull this week while the sheet said Legs;
+- a paused program was not written at all (`hasActiveProgram` is false while paused), so resuming brought the old
+  session back.
+
+The sheet is reached from the card of any other day this week (Today's week strip), and from the Program screen's day
+rows when no program is running (a paused one included). Today's own card has no Change day, as before.
+
+**The rule: past truth stays past; what is still ahead follows the edit.** It is Change day's rule (§189), applied to one
+day. The change takes effect today when this week's occurrence of the day is still ahead of the athlete
+(`dayContentChangesThisWeek`):
+- its date is today or later (Monday-first civil weeks, `weekDateForDayKey`);
+- it is not inside a pause. A paused day owes nothing (D90), and giving it a session or taking one away would only
+  change how much longer the program runs to make up for the pause. While paused, that is today: today's change waits,
+  and the days after it change now;
+- no logged workout fulfils that occurrence (D43), so a session trained early is never re-planned beneath it;
+- no workout is under way today when the day is today;
+- D43's matcher, run on the program with and without the change, pairs the same logged workouts with the same dates.
+  For example, Legs set on Wednesday this week would let Monday's extra Legs session count for it, so that change waits.
+
+Otherwise the change takes effect next Monday, exactly as D51 has always done. D43's answer is one function,
+`programWorkClaims`, which Change day now asks too (the same words it had inline).
+
+**What the day holds.** The session a day is given is chosen exactly as before: rest, or the least-used variant of the
+category on the selected plan (`leastUsedTemplateId`). Only when the change applies is new. It stays program work:
+- Starting the day from its card opens that session as the program's (D103 provenance by date).
+- A card still showing the old session is stale and starts nothing.
+
+**How the date is expressed (§77, §189 kept).** `setProgramDayFrom` asks `programRevisionDate('today')`, the choice §189
+added for Change day, and only after the rule above holds. It is now the second asker, beside `moveProgramDaysFrom`.
+`reviseProgramPlan` still maps every choice to next week or tomorrow, so no Studio edit and no `updateProgram` call can
+reach today.
+
+`setProgramDayFrom` sets the day in the plan in force on the effective date and records that as one revision. A revision
+already set to begin later (next Monday) takes the new day too, so a waiting change cannot bring the old session back. A
+second change the same day replaces the first, and setting the day back is the original week. Setting a day to exactly
+what it already holds, this week and from now on, records nothing (10.66 recorded nothing either). `program.schedule`
+stays the latest plan.
+
+**What never moves.**
+- No workout in the log is written.
+- The program's start, length, week, phase, status, pause spans and end are unchanged, and nothing is planned past the
+  end.
+- D43 fulfilment of every logged workout is identical before and after.
+- A paused program is written and stays paused. Resumed, it trains the changed days.
+- DATA_KEYS 16, schema 1; no new field.
+
+**Readers.** The plan layer still changes at once: it is what the sheet shows selected and D44's target (E67). Three
+readers took a day already over from it, and now read the program while one is running:
+- This Week's mark for a day already over, where the program and the plan layer disagree on whether it was a training
+  day (`programDayState`). A missed session set to rest keeps its missed mark, and a rest day set to a workout gains
+  none. A waiting Change day kept the mark the same way.
+- The missed-yesterday banner. A skipped session set to rest was still skipped, and a rest day set to a workout was not
+  skipped.
+- The rest-day "Next", which names the program's own session (Push B, not the category's first).
+
+A day whose change waits says so on its card: "From next week: Legs", or "From next week: Rest". This is read from the
+program's plan for the same weekday a week later, the Studio's own words (§77).
+
+**Not changed.** D44 consistency and the Log calendar still judge every past week by the plan layer (E67, owner
+decision). A Studio change "From tomorrow" is still undone by a change already waiting for next Monday (E66). The sheet's
+category choices are still not buttons (E68).
+
+**Proof here.** Contract 268:
+- runs the athlete's own sheet (`setDayValue`) on the matrix, against 10.66 read back and against 10.67;
+- runs a generated property sweep over programs of 3–6 training days, all eight categories and rest, active and paused,
+  phases, the final week, completed, missed and early sessions, drafts, waiting changes, chains and edits back,
+  reversed log order, and four time zones;
+- holds the log byte for byte, D43 fulfilment, the program week and phase, and reload.
+
+The browser rig drives the sheet by touch at 13 sizes.

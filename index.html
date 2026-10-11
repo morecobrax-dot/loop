@@ -20161,6 +20161,23 @@ const LOOP_UPDATES = [
       'A day moved while your program is paused now stays moved when you resume'
     ],
     changes: []
+  },
+  {
+    id: 'v10-67',
+    version: 'LOOP 10.67',
+    title: 'Program Day Changes Update This Week',
+    date: '2026-10-11',
+    swVersion: 'loop-v244',
+    summary: 'Changing what an upcoming program day holds now updates the current week when that day has not happened yet.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'Changing an upcoming program day to a different workout now takes effect this week, instead of only from next week',
+      'Turning an upcoming workout into a rest day, or a rest day into a workout, now updates this week straight away',
+      'A day changed while your program is paused now keeps its change when you resume',
+      'Days you already completed or missed stay exactly as they happened, and a change that can only start next week now says so on that day'
+    ],
+    changes: []
   }
 ];
 
@@ -31366,7 +31383,16 @@ function checkMissedWorkout(){
   const yDateStr = localDateStr(yesterday);
 
   if(new Date(yDateStr + 'T00:00:00') < new Date(planStartDate + 'T00:00:00')) return null;
-  const scheduledCat = schedule[yKey];
+  let scheduledCat = schedule[yKey];
+  /* D144 — with a program running, yesterday held what the program had on that date, as Today's card and This Week
+     read it. A day edit changes the plan layer at once but never a day already over: a rest day set to a workout was
+     not a session skipped, and a skipped session set to rest was still skipped. */
+  try{
+    if(hasActiveProgram()){
+      const pd = getProgramWorkoutForDate(yDateStr);
+      if(pd) scheduledCat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';
+    }
+  }catch(e){}
   if(!scheduledCat || scheduledCat === 'rest') return null;
   if(dismissedMissedDates.includes(yDateStr)) return null;
   const hasLog = workoutLog.some(l => l.date === yDateStr);
@@ -31951,6 +31977,18 @@ function renderOtherDayCard(el){
       <button type="button" class="tw-daynav-today" onclick="setSelectedDay(todayKey())">Today</button>
     </div>`;
   const changeDay = `<button class="tw-change" onclick="openDayEdit('${key}')">${twActionLabel('Change day', 'Day')}</button>`;
+  /* D144 — a day whose change waits for next week says so. The day sheet shows what the day holds from now on; this
+     card shows what it holds this week. The program's own plan for the same weekday a week later decides, so this
+     says exactly what will happen, whichever edit made it. */
+  let fromNextWeek = '';
+  try{
+    if(hasActiveProgram()){
+      const kind = x => (x && x.entry && x.entry.type === 'workout') ? x.category : 'rest';
+      const thisWeek = getProgramWorkoutForDate(dateStr), nextWeek = getProgramWorkoutForDate(addDaysISO(dateStr, 7));
+      if(thisWeek && nextWeek && !thisWeek.ended && !nextWeek.ended && kind(thisWeek) !== kind(nextWeek))
+        fromNextWeek = `<div class="tw-meta tw-from-next">From next week: ${escapeHtml(kind(nextWeek) === 'rest' ? 'Rest' : CAT_LABEL[kind(nextWeek)])}</div>`;
+    }
+  }catch(e){ fromNextWeek = ''; }
 
   if(logged){
     /* A day that already happened shows what happened, not what was planned —
@@ -31961,6 +31999,7 @@ function renderOtherDayCard(el){
         ${nav}
         <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${escapeHtml(logged.title)}</span></div>
         <div class="tw-meta">Logged · ${(logged.exercises||[]).length} exercise${(logged.exercises||[]).length===1?'':'s'}${dayEntries.length > 1 ? ' · +' + (dayEntries.length - 1) + ' more' : ''}</div>
+        ${fromNextWeek}
         <div class="tw-actions">
           <button class="tw-change" onclick="openDayDetail('${onclickArg(logged.id)}')">${twActionLabel('View workout', 'View')}</button>
           ${changeDay}
@@ -31975,6 +32014,7 @@ function renderOtherDayCard(el){
         ${nav}
         <div class="tw-title">Rest Day</div>
         <div class="tw-meta">Nothing scheduled for ${escapeHtml(DAY_LABEL_FULL[key])}.</div>
+        ${fromNextWeek}
         <button class="tw-change tw-override" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
         ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(null)}</div>` : ''}
         <div class="tw-actions">${changeDay}</div>
@@ -32002,6 +32042,7 @@ function renderOtherDayCard(el){
       ${nav}
       <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${CAT_LABEL[cat]}</span></div>
       <div class="tw-meta">${tpl ? escapeHtml(tpl.name) + (meta ? ' · ' + escapeHtml(meta) : '') : 'Planned for ' + escapeHtml(DAY_LABEL_FULL[key])}</div>
+      ${fromNextWeek}
       ${tpl ? `<button class="tw-cta" onclick="startTemplateLog('${escapeAttr(cat)}','${onclickArg(tpl.id)}','${dateStr}')">Start Workout</button>` : ''}
       ${tpl ? `<div class="tw-actions">
         <button class="tw-change" onclick="openTrainDetail('${escapeAttr(cat)}','${onclickArg(tpl.id)}','${dateStr}')">${twActionLabel('View workout', 'View')}</button>
@@ -32146,6 +32187,7 @@ function renderTodayWorkout(){
        primary action. */
     let nextDay = findNextTrainingDay(tKey);
     let nextCat = nextDay ? schedule[nextDay] : null;
+    let nextTpl = null;
     /* D143 — with a program running, the next session is the program's next workout day, read date by date as the
        card for each day reads it; the plan layer can already hold a change the program applies only next week. */
     if(programDay && !programDay.ended){
@@ -32154,12 +32196,15 @@ function renderTodayWorkout(){
         const d = addDaysISO(todayStr, i);
         let pd = null;
         try{ pd = getProgramWorkoutForDate(d); }catch(e){ pd = null; }
-        if(pd && pd.entry && pd.entry.type === 'workout'){ nextDay = JS_DAY_TO_KEY[new Date(d + 'T00:00:00').getDay()]; nextCat = pd.category; }
+        if(pd && pd.entry && pd.entry.type === 'workout'){ nextDay = JS_DAY_TO_KEY[new Date(d + 'T00:00:00').getDay()]; nextCat = pd.category; nextTpl = pd.template || null; }
       }
     }
     let nextPreview = '';
     if(nextCat){
-      const tpl = (getTemplates(nextCat) || [])[0];
+      /* D144 — the program's own session for that day, as This Week's Next and that day's card name it. The category's
+         first workout named another one whenever the program trains a second variant (Push B on Friday), and a day given
+         a new session is given the variant the week uses least. */
+      const tpl = nextTpl || (getTemplates(nextCat) || [])[0];
       const shown = tpl ? applyTimeModeToTemplate(tpl) : null;
       const bits = [];
       if(shown){
@@ -32872,6 +32917,7 @@ function weekOverview(){
        Today and This Week can never disagree about what is planned. */
     let cat = (schedule && schedule[key]) || 'rest';
     let workoutName = null;
+    let dayState = cd ? cd.state : null;
     if(cd && cd.date){
       try{
         if(hasActiveProgram()){
@@ -32879,6 +32925,14 @@ function weekOverview(){
           if(pd){
             cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';
             if(pd.template && pd.template.name) workoutName = pd.template.name;
+            /* D144 — whether a day already over was a training day this week is the program's answer too. D44 reads the
+               plan layer, which a day edit changes at once while the program keeps a day already over as it was: a
+               missed session set to rest from next week lost its missed mark, and a rest day set to a workout gained
+               one. Where the two disagree, the program's own day (programDayState, D43) decides the mark. */
+            if(i < todayIdx && dayState !== 'trained' && dayState !== 'pr' && !!cd.planned !== (cat !== 'rest')){
+              const p = getActiveProgram();
+              dayState = (cat !== 'rest' && programDayState(p, key, programCalendarWeek(p, cd.date)) === 'missed') ? 'missed' : 'rest';
+            }
           }
         }
       }catch(e){ /* a malformed program must never break Today */ }
@@ -32895,7 +32949,7 @@ function weekOverview(){
     let state;
     if(i === todayIdx) state = (cd && (cd.state === 'trained' || cd.state === 'pr')) ? 'done-today' : 'today';
     else if(cd && (cd.state === 'trained' || cd.state === 'pr')) state = 'done';
-    else if(cd && cd.state === 'missed') state = 'missed';
+    else if(cd && dayState === 'missed') state = 'missed';
     else if(cat === 'rest') state = 'rest';
     else if(i > todayIdx) state = 'upcoming';
     else state = 'rest';
@@ -33169,8 +33223,10 @@ async function setScheduledCategory(dayKey, cat){
   schedule[dayKey] = cat;
   persistSchedule();
   try{
-    if(hasActiveProgram()){
-      const p = getActiveProgram();
+    /* D144 (E65) — the program a day edit writes, running or paused, and from today when this week's occurrence of the
+       day is still ahead (dayContentChangesThisWeek); otherwise from next Monday, exactly as before. */
+    const p = dayEditProgram();
+    if(p){
       const next = Object.assign({}, p.schedule || {});
       if(cat === 'rest'){
         next[dayKey] = { type:'rest' };
@@ -33180,7 +33236,25 @@ async function setScheduledCategory(dayKey, cat){
           ? { type:'workout', planId:selectedPlanId, category:cat, templateId:tplId }
           : { type:'rest' };
       }
-      await updateProgram(p.id, { schedule: next });
+      /* the day already holds exactly this, from now on and this week: there is nothing to record (10.66 wrote no
+         revision either) */
+      const ident = e => (e && e.type === 'workout') ? e.category + '|' + (e.templateId || '') + '|' + (e.planId || '') : 'rest';
+      if(JSON.stringify(next[dayKey]) === JSON.stringify((p.schedule || {})[dayKey] || { type:'rest' })
+        && ident(next[dayKey]) === ident(programEntryOn(p, dayKey, weekDateForDayKey(dayKey)))) return;
+      if(dayContentChangesThisWeek(p, dayKey, next[dayKey])){
+        await commitProgramChange(() => {
+          const q = getProgram(p.id);
+          if(!q) return false;
+          const check = validateProgram(Object.assign({}, q, { schedule: Object.assign({}, q.schedule || {}, { [dayKey]: next[dayKey] }) }));
+          if(!check.valid) return { ok:false, errors:check.errors, program:null };
+          setProgramDayFrom(q, dayKey, next[dayKey], 'today');
+          try{ refreshProgramName(q); }catch(e){}
+          q.updatedAt = new Date().toISOString();
+          return { ok:true, errors:[], program:q };
+        });
+      } else {
+        await updateProgram(p.id, { schedule: next });
+      }
       invalidateProgramCache();
     }
   }catch(e){ /* the plan layer above still stands on its own */ }
@@ -33242,12 +33316,9 @@ function changeDayMovesThisWeek(program, a, b){
   if(plan[b] && plan[b].type === 'workout') moves.push([dB, dA]);
   if(!moves.length || !moves.every(m => m[0] >= today && m[1] >= today)) return false;
   if(hasActiveDraftNow && (dA === today || dB === today)) return false;
-  const claims = p => {
-    const f = deriveProgramPlanFulfillment(p, workoutLog || []);
-    return f.slots.filter(s => s.workoutId).map(s => s.workoutId + '@' + s.date).sort().join('|') + '#' + f.additional;
-  };
+  /* D144 — D43's answer through programWorkClaims, which the day sheet's category buttons ask too */
   const trial = moveProgramDaysFrom(JSON.parse(JSON.stringify(program)), a, b, 'today');
-  return claims(trial) === claims(program);
+  return programWorkClaims(trial) === programWorkClaims(program);
 }
 
 /* Swapping two days has to move BOTH layers, or the program keeps the old week
@@ -33285,6 +33356,59 @@ function setDayValue(val){
   setScheduledCategory(currentEditDay, val);
   renderAll();
   closeDayEdit();
+}
+
+/* =========================================================
+   WHAT A DAY HOLDS ON A RUNNING PROGRAM  (Phase D144 — E65)
+   ---------------------------------------------------------
+   The day sheet's category buttons set what a weekday holds. Like Change day before D143, they reached a running
+   program only as a D51 revision effective NEXT MONDAY: a day set to Legs still held Pull this week while the sheet
+   already said Legs. A paused program was not written at all, so resuming brought the old session back.
+
+   The same rule as Change day (D143): PAST TRUTH STAYS PAST; WHAT IS STILL AHEAD FOLLOWS THE EDIT. The change takes
+   effect TODAY when this week's occurrence of the day is still ahead of the athlete:
+     · its date is today or later — a day already over keeps what it held, whether trained, missed or rested;
+     · it is not inside a pause — a paused day owes nothing (D90), and giving it a session or taking one away would only
+       restate how much longer the program runs to make up for the pause;
+     · nothing already counts for it — no logged workout fulfils that occurrence (D43), so a session trained a day early
+       is never re-planned beneath it;
+     · no workout is under way today when the day is today;
+     · nothing already logged counts differently — D43's matcher, asked of the program with and without the change,
+       pairs the same workouts with the same dates (programWorkClaims, which Change day asks too).
+   Otherwise it takes effect next Monday, exactly as before. The session a day is given is chosen exactly as it always
+   was (setScheduledCategory, leastUsedTemplateId); only WHEN it applies changed. Either way no workout in the log is
+   touched, and the program's week, phase, status, pause spans and end stay where they are.
+   ========================================================= */
+/* What the logged training counts as, by D43: each claimed workout with the date it fulfils, and how many are left over. */
+function programWorkClaims(program){
+  const f = deriveProgramPlanFulfillment(program, workoutLog || []);
+  return f.slots.filter(s => s.workoutId).map(s => s.workoutId + '@' + s.date).sort().join('|') + '#' + f.additional;
+}
+/* The change, from programRevisionDate(when) on: the plan in force then holds the day's new entry, recorded as one
+   revision; a revision already set to begin later (next Monday) holds it too, so the change outlasts it. */
+function setProgramDayFrom(p, key, entry, when){
+  const from = programRevisionDate(when);
+  const put = s => Object.assign({}, s || {}, { [key]: entry });
+  const later = Array.isArray(p.revisions) ? p.revisions.filter(r => r && r.schedule && String(r.effectiveFrom) > from) : [];
+  const base = later.length ? programPlanOn(p, from) : p.schedule;
+  const latest = put(p.schedule);
+  const kept = materializeProgramPlan({ [key]: entry })[key];
+  later.forEach(r => { r.schedule = Object.assign({}, r.schedule, { [key]: kept }); });
+  addProgramRevision(p, put(base), from);
+  p.schedule = latest;
+  return p;
+}
+/* Whether setting this day can change this week's occurrence now (see the rule above). */
+function dayContentChangesThisWeek(program, key, entry){
+  const today = localDateStr();
+  if(!program || !programHasBegun(program) || programTimelineEnded(program, today)) return false;
+  const date = weekDateForDayKey(key, today);
+  if(!date || date < today || dateIsSuspended(program, date, today)) return false;
+  if(hasActiveDraftNow && date === today) return false;
+  const f = deriveProgramPlanFulfillment(program, workoutLog || []);
+  if(f.slots.some(s => s.date === date && s.workoutId)) return false;
+  const trial = setProgramDayFrom(JSON.parse(JSON.stringify(program)), key, entry, 'today');
+  return programWorkClaims(trial) === programWorkClaims(program);
 }
 
 /* D65 — Train lists workouts as rows and keeps this card for Today's workout
@@ -44892,9 +45016,10 @@ function materializeProgramPlan(schedule){
 function programRevisionDate(when){
   const today = new Date(localDateStr() + 'T00:00:00');
   const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
-  /* D143 — 'today' is Change day's alone: moveProgramDaysFrom asks for it only after changeDayMovesThisWeek has shown
-     that nothing on today has been trained, started or counted for the sessions that move. reviseProgramPlan still
-     maps every choice it is given to 'next' or 'week', so no other edit can reach it. */
+  /* D143 — 'today' belongs to the day sheet alone: moveProgramDaysFrom (Change day) and, since D144, setProgramDayFrom
+     (what a day holds) ask for it only after changeDayMovesThisWeek or dayContentChangesThisWeek has shown that nothing
+     on today has been trained, started or counted for what they change. reviseProgramPlan still maps every choice it
+     is given to 'next' or 'week', so no other edit can reach it. */
   if(when === 'today') return localDateStr(today);
   if(when === 'next') return localDateStr(tomorrow);
   const d = new Date(today);
