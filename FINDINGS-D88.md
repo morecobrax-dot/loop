@@ -2262,7 +2262,23 @@ counts as training time, and what an old unfinished workout should say.
 presenting an implausible span as measured. Both need no new storage, and neither invents pausing. Leave C and D until the
 owner decides what "workout time" means.
 
-## E64 — On a physical iPhone the workout's Previous / Skip row stood well above the bottom edge, which the headless geometry tests could not see · P3 · PROVEN (by the owner's screenshot) · **OPEN — PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA (D142B, LOOP 10.64). Before: 10.58's full-screen dock was cut off by the iPhone's own viewport; 10.59 puts the buttons back in view (D138.3)**
+## E64 — On a physical iPhone the workout's Previous / Skip row stood well above the bottom edge, which the headless geometry tests could not see · P3 · PROVEN (by the owner's screenshot) · **CLOSED in D142C (LOOP 10.65) — accepted on the owner's physical iPhone (10.64's low dock); the temporary diagnostics removed**
+
+> **D142C — CLOSED on the owner's physical iPhone.** The owner reviewed LOOP 10.64 on the installed Home Screen iPhone and
+> reported it good: the workout's navigation sits where it should, Previous / Skip / Next are whole and usable, and the large
+> empty band inside the workout is no longer the problem. That review is the closure authority. The acceptance was visual; no
+> diagnostics readout was sent with it, and none was asked for again. Headless QA never reproduced the phone and proves only
+> that 10.65 draws the workout exactly as 10.64 does.
+> The evidence chain: headless geometry (D133, D138) measured the dock at the bottom of a viewport that was not the phone's;
+> the hidden readout (D138.1) measured the short standalone viewport on the phone (screen 912, layout and visual viewport 844);
+> the full-canvas attempt (D138.2) was cut off at 844 and withdrawn (D138.3); the Paint test showed the page cannot paint below
+> about 844 there; D142B's low dock keeps the buttons inside that boundary, and the owner accepted it.
+> ROOT BOUNDARY: on the affected installed iPhone the usable web viewport is shorter than screen.height, and LOOP cannot paint
+> its workout controls below it. PRODUCT FIX: D142B places the workout dock at the lowest position LOOP can safely own in that
+> state (8px above the viewport's bottom), and pays the safe-area inset everywhere else. The upstream cause is not proven here:
+> WebKit bug 301108 is context, not proof. LOOP did not fix iOS, and the strip below the viewport is still not paintable.
+> 10.65 removes the temporary Viewport Diagnostics (the seven-tap trigger, the panel and readout, Capture / Copy / Move / Hide /
+> Paint, the probes, the event log and its session flag). D142B stays as it shipped (TRAINER-CONTRACT §188).
 
 > **D142B — open; the paint boundary is classified, and a workaround awaits the owner's check.** The owner ran the Paint test on
 > the installed app (screen 912; innerHeight, html.clientHeight and the visual viewport 844, offsetTop 0; 100vh = 100lvh = 912;

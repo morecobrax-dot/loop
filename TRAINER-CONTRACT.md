@@ -19543,6 +19543,8 @@ control fails only the two structural claims. **That is the limit of this proof.
 
 ## §180 — VIEWPORT DIAGNOSTICS (D138.1 · LOOP 10.57, temporary · no version change)
 
+> **Removed in D142C (LOOP 10.65, §188).** The instrument described here no longer exists; this section is the historical record.
+
 E64 is still open: on the owner's iPhone, 10.57 still leaves a large band under Previous / Skip, which no headless browser reproduced.
 D138.1 does not try another fix. It ships an instrument so the installed PWA can report its own geometry. No cause is claimed until it has.
 
@@ -19953,3 +19955,37 @@ browser tab, other system bars, tolerances) and the class's lifecycle. The brows
 (screen 420×912, viewport 420×844, safe area 68 / 34, standalone) and every normal size, and measures the buttons, the last
 set, Rest, Finish, keyboard, rotation, exit, re-entry and Resume. None of it is the phone: E64 closes only on the owner's
 screenshot.
+
+## §188 — E64 CLOSED: THE LOW DOCK IS THE WORKOUT SHELL, AND THE DIAGNOSTICS ARE GONE (D142C · LOOP 10.65 · loop-v242)
+
+**Owner physical QA.** The owner reviewed 10.64 on the installed Home Screen iPhone and accepted it: the workout's navigation
+sits low, Previous / Skip / Next are whole and usable, and the large band inside the workout is no longer the problem. For E64
+the physical phone is the authority. No headless browser ever reproduced it, so a rig can prove only that nothing else moved.
+
+**The production invariant (D142B, unchanged).** In the short standalone web view the dock and the empty-workout Finish bar
+take 8px of bottom padding instead of the safe-area inset (`#logOverlay.ws-low-dock`). That view is: standalone, portrait,
+nothing being typed, the visual viewport the layout viewport, and the screen reaching past innerHeight by at least 20px and by
+the top safe-area inset (within 2px). Everywhere else the inset is paid exactly as before. `WORKOUT_LOW_DOCK`,
+`workoutBottomFacts`, `syncWorkoutBottomMode`, their listeners, the two sync lines and the one CSS rule are 10.64's byte for
+byte.
+
+**For later work.**
+- On this installed state the page cannot paint below its layout viewport, so `screen.height` is not a layout target for the
+  workout. Do not restore D138.2's full canvas (100lvh, or any height past innerHeight) without new physical-device evidence.
+- A workout-shell change keeps 10.64's accepted bottom geometry: Contract 265 holds the rule, Contract 266 the release.
+
+**Removed.** The whole D138.1 Viewport Diagnostics block, with D138.3's clip chain and Paint test and D142B's BOTTOM MODE rows:
+- the seven-tap trigger on the Settings version line (the line is plain text again);
+- the panel and the workout readout, Measure, Capture, Copy, Move, Hide, Paint, Share, Refresh and Clear;
+- the unit, safe-area and geometry probes, the event log and its listeners, the one-second refresh;
+- the `loopDiag.viewport` session flag.
+§180's instructions are historical. One hunk takes the block out, and asOf1064Html puts it back to read 10.64 to the byte.
+
+**Tests.** Contract 258, which held the instrument, is retired with it. The diagnostics checks in Contracts 259, 260 and 265 now
+read 10.64 back instead of running the instrument. Contract 266 checks four things:
+- the block and only the block is gone;
+- nothing touches the version line at boot;
+- no session flag, timer or extra listener remains;
+- the low-dock rule still holds on the owner's numbers and their neighbours, and writes nothing.
+The browser rig compares 10.65 with 10.64 (diagnostics off) box for box at 13 sizes and in the owner's relationship. It also
+taps the version line seven times and counts listeners and timers.
