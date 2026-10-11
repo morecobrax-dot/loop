@@ -2424,7 +2424,26 @@ Friday 2 Oct holds Legs again. The revisions are 09-14, 09-24 and 09-28.
 The Studio path (`reviseProgramPlan` → `addProgramRevision`) is its own explicit effective-date choice, which the brief
 kept as it is. The fix belongs there, as the same carry-forward rule.
 
-## E67 — The Log calendar and D44 consistency judge every past week by today's plan, so a day's change rewrites past weeks · P3 · PROVEN · OPEN
+## E67 — The Log calendar and D44 consistency judge every past week by today's plan, so a day's change rewrites past weeks · P3 · PROVEN · **CLOSED in D145 (LOOP 10.68)**
+
+> **D145 — closed.** Reproduced on 10.67 through the athlete's own edits (the day sheet, Change day, Studio). On
+> Wednesday 23 Sep, setting Tuesday to Push turned every past Tuesday of D44's twelve weeks into a missed day in D44, the
+> Log calendar, its day line and the Weekly Review. That included the program's own rest Tuesdays (1, 8, 15 Sep), and
+> D44's planned total rose 34 → 46. Setting Tuesday to Rest erased the program's missed Tuesdays. A program whose
+> Tuesdays had been Push, then Pull, then Rest was judged by today's plan even with no edit at all. A finished program's
+> weeks were restated the same way. Root cause: computeConsistencyData, renderHistoryCalendar and renderSelectedDay
+> read `schedule[weekday]` for every date, and planDayIsSuspended asked the program active now.
+>
+> 10.68: a past date a program covered is judged by that program's plan in force on that date (D51 revisions,
+> programPlanOn) and by its own pauses (D90). This holds whatever the program's status now: running, paused, finished, or
+> left for a later program. A program covers its own grid, from its start date to programEndDate (D89, D90).
+> - One resolver, planTargetOn, answers D44, the calendar, the day line and planDayIsSuspended, so the Weekly Review
+>   inherits it.
+> - Dates no program covers keep the plan layer exactly as before (E70). So do dates two programs both cover (E69).
+> - Nothing is stored. The revision writers, D43, D44's formula and window, and the calendar's completed state are
+>   unchanged.
+>
+> TRAINER-CONTRACT §191, Contract 269.
 
 Found by D144. D44 consistency and the Log calendar (D27, D99.3, D108) read the plan layer (`schedule`) as the plan for
 every past date. D44 says so: it is a target, not a historical record. Any day edit therefore restates every past week
@@ -2452,6 +2471,45 @@ Their size is fine (at least 44 px tall at every size measured).
 fix is a markup and style change to the sheet: real buttons with `aria-pressed`, and a selected mark that is not colour
 alone.
 
+
+## E69 — A date two programs both cover has no recorded owner, so it is still judged by today's plan · P3 · PROVEN · OPEN
+
+Found by D145.
+
+**How an overlap arises.** A program covers its own grid, from its start date to programEndDate. Building a new program
+while one is still running makes the new one active, but the old one keeps its status and its grid. Its remaining weeks
+and the new program's first weeks then cover the same dates.
+
+**What D145 does with them.** LOOP does not record when one program took over from another, and the active program can
+be switched back later. So D145 (planTargetOn) does not choose an owner for those dates. It keeps them on the plan layer,
+exactly as 10.67 judged every date. Their past can still be restated by a day edit made today (E67's old behaviour, on
+those dates only).
+
+**Measured on 10.68** (Contract 269, check 16): program A runs 31 Aug for 8 weeks; program B starts 21 Sep and is
+active. 22 Sep is covered by both and answers from the plan layer. A's own earlier dates answer to A.
+
+**Why it was not fixed in D145.** The brief asked for no invented precedence. Settling it means either:
+- recording when a program becomes or stops being the athlete's program, which is a new stored fact; or
+- an owner decision on precedence (for example, the program that started most recently).
+
+## E70 — Dates no program covered are still judged by today's weekly plan, so a day's change restates them · P3 · PROVEN · OPEN
+
+Found by D145. For dates no program covers, the plan layer (`schedule`, the athlete's weekday plan) remains the only
+target:
+- the weeks before a program began;
+- the weeks after it ended;
+- every date for an athlete with no program.
+
+LOOP stores no history of the plan layer, so those dates are judged by today's plan, as D44 and the calendar always
+judged them (D44 calls it a target, not a historical record). A day edit made today therefore still restates them.
+
+**Measured on 10.68** (Contract 269, checks 1, 13, 17): on Wednesday 23 Sep, with a program begun 31 Aug, setting Tuesday
+to Push leaves the program's past Tuesdays as they were. It still turns the eight Tuesdays before 31 Aug inside D44's
+twelve weeks into missed days. With no program, all twelve turn.
+
+**Why it was not fixed in D145.** E67 was about a program's dated plan being ignored. Plan-layer history does not exist,
+so these dates cannot be told apart from today without recording it. That is a new stored fact (a DATA_KEY or a dated
+record of schedule changes), or a policy decision about what such dates are judged against. Both are the owner's call.
 
 ## Not findings — checked and clean
 

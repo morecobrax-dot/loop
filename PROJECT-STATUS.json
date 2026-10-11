@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.67",
+  "version": "10.68",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check (10.67): in a running program, set a day later this week to another workout or to rest; Today, This Week and the Program screen show it this week.",
+  "nextAction": "Owner iPhone check (10.68): in a running program, change a day of the week, then open Log; earlier program weeks keep their missed and rest days as they were.",
   "blocker": null,
-  "updatedAt": "2026-10-11T19:16:23Z"
+  "updatedAt": "2026-10-11T22:32:01Z"
 }

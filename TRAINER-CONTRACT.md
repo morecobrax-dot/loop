@@ -20139,3 +20139,52 @@ category choices are still not buttons (E68).
 - holds the log byte for byte, D43 fulfilment, the program week and phase, and reload.
 
 The browser rig drives the sheet by touch at 13 sizes.
+
+## §191 — A PAST DATE IS JUDGED BY THE PLAN IN FORCE ON THAT DATE (D145 · LOOP 10.68 · loop-v245)
+
+**The defect (E67).** D44 consistency (computeConsistencyData), the Log calendar (renderHistoryCalendar) and its day line
+(renderSelectedDay) asked the plan layer (`schedule`, the athlete's weekday plan as it stands today) what was planned on
+every date they judged. planDayIsSuspended asked the program active now. So any day edit restated every past week for
+that weekday, whether it was a Change day (§189), a category (§190) or a Studio change (§77). Measured on 10.67:
+- setting Tuesday to Push turned a program's past rest Tuesdays into missed days, and D44's planned total rose 34 → 46;
+- setting it to Rest erased the program's missed Tuesdays;
+- a program whose Tuesdays had been Push, then Pull, then Rest read as Rest throughout, with no edit at all;
+- a finished program's weeks moved the same way.
+
+**The rule: past plan truth is dated truth.** A program records what it planned on each date (D51 revisions,
+programPlanOn) and when it was paused (D90 spans). A date a program covered is judged by:
+- that program's plan in force ON THAT DATE;
+- that program's own pauses.
+This holds whatever the program's status now: running, paused, finished, or left for a later program.
+
+A program covers its own grid, from its start date to programEndDate (D89, D90). That is the window its slots, its
+fulfilment and its records already answer for.
+
+**Dates no program owns keep the plan layer**, as D44 and the calendar always judged them: a target, not a historical
+record. They are:
+- before a program began, after it ended, and every date with no program (E70);
+- a date two programs both cover. LOOP records no owner for it, so no precedence is guessed (E69).
+
+**One resolver.** planTargetOn(date) answers { source, program, planned, category, suspended } and reads the programs once
+per pass (planTargetWindows). Its readers:
+- D44: what each day planned, its pause, and its slot's category;
+- the calendar cell and the day line;
+- planDayIsSuspended, so the Weekly Review's "program paused" follows too.
+A pause now belongs to the program it suspended. D90's old boundary — one program's spans applied to another program's
+weeks — holds only on shared dates (E69).
+
+**What did not change.**
+- D44's formula, twelve-week window, history start (D27), open-today rule, matching (D43's matcher, category-blind) and
+  totals.
+- The calendar's completed state (D108).
+- The revision writers (§77, §189, §190) and their precedence (E66 stays open); D43 program fulfilment; the log.
+- Today, This Week, the Program screen and the missed-yesterday banner.
+- DATA_KEYS 16, schema 1; nothing is stored or cached beyond one pass.
+
+**Proof here.** Contract 269 runs the athlete's own edits against 10.67 read back and 10.68. It covers:
+- rest → workout, workout → rest, category, three revisions;
+- Change day and category edits applied now and waiting, and a Studio change;
+- completed and missed days, pauses, the program's window, finished and later programs, shared dates, no program;
+- the clock-change Sundays in four zones;
+- 72 generated histories in four time zones.
+The browser rig reads the Log calendar month by touch at 13 sizes.

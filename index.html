@@ -20178,6 +20178,22 @@ const LOOP_UPDATES = [
       'Days you already completed or missed stay exactly as they happened, and a change that can only start next week now says so on that day'
     ],
     changes: []
+  },
+  {
+    id: 'v10-68',
+    version: 'LOOP 10.68',
+    title: 'Past Program Weeks Stay Accurate',
+    date: '2026-10-11',
+    swVersion: 'loop-v245',
+    summary: 'Changing your program no longer changes what its earlier weeks say you were scheduled to train.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'Past rest days in your program no longer turn into missed days after you change your current schedule',
+      'Days you missed earlier in your program stay missed after you change or move that day of the week',
+      'The Log calendar and your consistency keep earlier program weeks as they were actually planned, including after the program has finished'
+    ],
+    changes: []
   }
 ];
 
@@ -27250,11 +27266,13 @@ function computeConsistencyData(){
      day pushed the ratio over 100% and a clamp hid it. */
   const planSlots = [];
 
-  // Planned days come from the live schedule — the only planned baseline LOOP
-  // stores. Applied uniformly and labelled as a target, not presented as a
-  // historical record of what was scheduled at the time.
+  // The athlete's week as it stands today, reported as plannedPerWeek.
   const plannedDayKeys = schedule ? Object.keys(schedule).filter(d => schedule[d] !== 'rest') : [];
   const plannedPerWeek = plannedDayKeys.length;
+  /* D145 (E67) — what was planned on each DATE is the plan in force on that date: the program that covered it, by
+     its own revisions and pauses, or — where no program did — the live schedule, the only planned baseline LOOP stores
+     for those dates, applied as a target exactly as before (planTargetOn). The programs are read once per window. */
+  const targetWindows = planTargetWindows();
 
   let firstLogDate = null;
   workoutLog.forEach(l => { if(!firstLogDate || l.date < firstLogDate) firstLogDate = l.date; });
@@ -27284,8 +27302,8 @@ function computeConsistencyData(){
       /* Kept for the questions that are about the DAY ("was anything logged?").
          Which workout it names carries no meaning; entries holds them all. */
       const entry = dayEntries.length ? dayEntries[0] : null;
-      const dayKey = JS_DAY_TO_KEY[dt.getDay()];
-      const wasPlanned = plannedDayKeys.indexOf(dayKey) !== -1;
+      const target = planTargetOn(key, targetWindows);
+      const wasPlanned = target.planned;
       /* Planned AND knowable AND already due — the only sessions the athlete
          can fairly be measured against. */
       /* D90 — a day the athlete had explicitly suspended was never a promise
@@ -27293,22 +27311,20 @@ function computeConsistencyData(){
          The FORMULA is untouched; only the opportunity set shrinks, which is
          the same repair the program's own slot grid gets.
 
-         KNOWN BOUNDARY: LOOP does not record which program was active on a
-         past date, so this asks the program that is active NOW. For the single
-         active program every athlete actually has that is exact; an athlete who
-         paused program A, trained B, and later returns would see A's spans
-         applied to B's weeks. Recording per-date program ownership is a bigger
-         change than fixing a denominator, and it is written up rather than
-         guessed at. */
+         D145 — the pause asked is the pause of the program that covered the
+         date, from its own spans (planTargetOn); a date no program covers asks
+         the program that is active now, as before. A program's spans are no
+         longer applied to another program's weeks, except on a date two
+         programs both cover, which has no recorded owner (E69). */
       const suspendedDay = wasPlanned && !beforeHistory && !isFuture
-        && planDayIsSuspended(key);
+        && target.suspended;
       if(wasPlanned && !beforeHistory && !isFuture && !suspendedDay){
         plannedKnown++;
         /* D99.2 - `open` marks today's slot while nothing is logged for it. It stays
            in the pool so D43's matching sees exactly what it always saw (no past slot
            can change owner); it is only left out of the counts below if it is still
            unfulfilled once matching is done. */
-        planSlots.push({ date: key, category: schedule ? schedule[dayKey] : null,
+        planSlots.push({ date: key, category: target.category,
           week: CONSISTENCY_WEEKS - 1 - w, workoutId: null, open: key === todayKey && !entry });
       }
 
@@ -34182,6 +34198,8 @@ function renderHistoryCalendar(){
      athlete's tracked history begins. */
   let trackingStart = null;
   try{ trackingStart = computeConsistencyData().trackingStart; }catch(e){}
+  /* D145 — what was planned on each date, as D44 reads it (planTargetOn); the programs are read once per month. */
+  const targetWindows = planTargetWindows();
 
   let cells = '';
   for(let i=0; i<startOffset; i++) cells += `<div class="cal-cell cal-empty"></div>`;
@@ -34191,8 +34209,8 @@ function renderHistoryCalendar(){
     const isToday = dateStr === todayStr;
     const isFuture = dateStr > todayStr;
     const dayEntries = dayMap[dateStr] || [];
-    const dayKey = JS_DAY_TO_KEY[dt.getDay()];
-    const scheduledCat = schedule ? schedule[dayKey] : 'rest';
+    const target = planTargetOn(dateStr, targetWindows);
+    const scheduledCat = target.source === 'program' ? (target.planned ? target.category : 'rest') : target.category;
     const beforeHistory = !trackingStart || dateStr < trackingStart;
 
     /* State model, one layer at a time:
@@ -34226,9 +34244,9 @@ function renderHistoryCalendar(){
       /* D99.2 - today is still available to train: the hollow PLANNED mark, never
          MISSED. A day the athlete suspended shows no mark at all. */
       cls += ' cal-due-today';
-      if(planDayIsSuspended(dateStr)) stateWord = 'program paused';
+      if(target.suspended) stateWord = 'program paused';
       else { mark = `<span class="cal-mark cal-mark-planned"></span>`; stateWord = 'planned today'; }
-    } else if(planDayIsSuspended(dateStr)){
+    } else if(target.suspended){
       /* D99.3 - a passed day the athlete had suspended was never owed, so it cannot be
          MISSED. It reads as the quiet rest cell, with no mark - the same truth D44 has
          always applied when it counts what the athlete is measured against. */
@@ -34351,8 +34369,9 @@ function renderSelectedDay(){
   }
 
   // No session that day — say what it was, without calling it a failure.
-  const dayKey = JS_DAY_TO_KEY[dt.getDay()];
-  const scheduledCat = schedule ? schedule[dayKey] : 'rest';
+  /* D145 — the plan in force on that date, as the calendar cell above reads it (planTargetOn). */
+  const target = planTargetOn(dateStr);
+  const scheduledCat = target.source === 'program' ? (target.planned ? target.category : 'rest') : target.category;
   let firstLogDate = null;
   workoutLog.forEach(l => { if(!firstLogDate || l.date < firstLogDate) firstLogDate = l.date; });
   const beforeHistory = !firstLogDate || dateStr < firstLogDate;
@@ -44787,14 +44806,71 @@ function dateIsSuspended(program, dateStr, todayStr){
   return false;
 }
 
+/* =========================================================
+   WHAT WAS PLANNED ON A DATE  (Phase D145 — E67)
+   ---------------------------------------------------------
+   D44 consistency, the Log calendar and its day line asked the plan layer (`schedule`, today's weekday plan) what was
+   planned on every date they judged. So any day edit — Change day, a category, a Studio change — restated every past
+   week for that weekday: setting Tuesday to Push turned September's past rest Tuesdays into missed days, and D44's
+   planned total rose from 34 to 46 with nothing in history changed.
+
+   PAST PLAN TRUTH IS DATED TRUTH. A program records what it planned on each date (D51 revisions, programPlanOn) and
+   when it was paused (D90 spans), so a date a program covers is judged by the plan in force ON THAT DATE and by that
+   program's own pauses — never by today's plan, and never by whichever program is active now.
+
+   Which dates a program covers is its own grid: from its start date to programEndDate (D89, D90), the window its
+   slots, its fulfilment and its records already answer for, whatever its status now (running, paused, finished, or
+   left for a later program). A date no program covers keeps the plan layer as its target, exactly as before — before
+   a program began, after it ended, and for an athlete with no program. A date two programs both cover has no recorded
+   owner (LOOP does not record when one program took over from another), so it keeps the plan layer too, rather than a
+   precedence nobody chose (E69).
+
+   Derived on every call from what is stored; nothing is written and nothing is cached beyond the caller's one pass.
+   ========================================================= */
+/* The programs that can own a date, each with the civil-date window it covers. Read once per pass. */
+function planTargetWindows(){
+  let list = [];
+  try{ list = getPrograms(); }catch(e){ list = []; }
+  const out = [];
+  list.forEach(p => {
+    if(!p || !p.startDate) return;
+    let to = null;
+    try{ to = programEndDate(p); }catch(e){ to = null; }
+    if(to && String(to) >= String(p.startDate)) out.push({ program: p, from: String(p.startDate), to: String(to) });
+  });
+  return out;
+}
+/* What was planned on a civil date: { source: 'program' | 'plan' | 'shared', program, planned, category, suspended }.
+   A program's date answers from that program; any other date answers from the plan layer exactly as D44, the
+   calendar and D99.3's pause check always have. */
+function planTargetOn(dateStr, windows){
+  const ws = windows || planTargetWindows();
+  const dayKey = JS_DAY_TO_KEY[new Date(dateStr + 'T00:00:00').getDay()];
+  const own = ws.filter(w => dateStr >= w.from && dateStr <= w.to);
+  if(own.length === 1){
+    const p = own[0].program;
+    const e = programPlanOn(p, dateStr)[dayKey];
+    const workout = !!(e && e.type === 'workout');
+    return { source: 'program', program: p, planned: workout, category: workout ? (e.category || null) : 'rest',
+      suspended: !!dateIsSuspended(p, dateStr) };
+  }
+  let suspended = false;
+  try{ suspended = !!dateIsSuspended(getActiveProgram(), dateStr); }catch(e){ suspended = false; }
+  return { source: own.length ? 'shared' : 'plan', program: null,
+    planned: !!schedule && Object.keys(schedule).indexOf(dayKey) !== -1 && schedule[dayKey] !== 'rest',
+    category: schedule ? schedule[dayKey] : 'rest', suspended };
+}
+
 /* D99.3 - was nothing owed on this date because the athlete had suspended the
    program? The ONE place that asks. computeConsistencyData (D44) asked it inline
    and the calendar did not ask at all, so a past planned day inside a pause was
-   "nothing owed" in the engine and MISSED on the calendar. Both call this now; it
-   is dateIsSuspended against the program that is active NOW, exactly as D44 has
-   always asked it (D90's known boundary is unchanged), and never throws. */
+   "nothing owed" in the engine and MISSED on the calendar. Both call this now, and
+   it never throws.
+   D145 — the pause asked is the pause of the program that covered the date
+   (planTargetOn), whichever program is active now; a date no program covers asks
+   the program that is active now, as D99.3 always did. */
 function planDayIsSuspended(dateStr){
-  try{ return !!dateIsSuspended(getActiveProgram(), dateStr); }catch(e){ return false; }
+  try{ return !!planTargetOn(dateStr).suspended; }catch(e){ return false; }
 }
 
 /* Whole days spent paused, from the spans rather than from the banked total.
