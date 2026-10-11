@@ -741,6 +741,68 @@ const D131B_RAW = [
     "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
    ]
 ];
+/* D143 (LOOP 10.66) — Change day on a running program moves this week when the day is still ahead (E27). Eight hunks:
+   programRevisionDate's 'today' choice, the CHANGE DAY ON A RUNNING PROGRAM block with swapScheduledDays, Today's header,
+   the rest-day "Next", the Program screen's next session, the week drag's undo pair, and What's New. asOf1065Html(raw)
+   puts them back and reads back LOOP 10.65 (5162514) to the byte. Every older read-back starts there. Contract 267 holds
+   what the release does. */
+const D143_RAW = [
+ [
+  "function programRevisionDate(when){\n  const today = new Date(localDateStr() + 'T00:00:00');\n  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);\n  /* D143 — 'today' is Change day's alone: moveProgramDaysFrom asks for it only after changeDayMovesThisWeek has shown\n     that nothing on today has been trained, started or counted for the sessions that move. reviseProgramPlan still\n     maps every choice it is given to 'next' or 'week', so no other edit can reach it. */\n  if(when === 'today') return localDateStr(today);\n  if(when === 'next') return localDateStr(tomorrow);\n",
+  "function programRevisionDate(when){\n  const today = new Date(localDateStr() + 'T00:00:00');\n  const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);\n  if(when === 'next') return localDateStr(tomorrow);\n"
+ ],
+ [
+  "/* =========================================================\n   CHANGE DAY ON A RUNNING PROGRAM  (Phase D143 — E27)\n   ---------------------------------------------------------\n   Change day swaps two weekdays. The plan layer (`schedule`) always changed at once, but the program's change was a D51\n   revision effective NEXT MONDAY, so a move within the current week never happened: Today's card kept the session on\n   its old day while the header, reading the plan layer, named the new one. A paused program was not written at all, so\n   resuming brought the old days back.\n\n   PAST TRUTH STAYS PAST; WHAT IS STILL AHEAD FOLLOWS THE EDIT. A move takes effect TODAY when every session it moves is\n   still ahead of the athlete this week:\n     · its old day is today or later, and its new day is today or later — a day already over is never given a\n       session it did not have, and a session whose day has passed (trained or missed) has already had its week;\n     · no workout is under way today when today is one of the two days;\n     · nothing already logged counts differently — D43's own matcher, asked of the program with and without the move,\n       must pair the same workouts with the same dates. A session trained early inside the shift window has happened,\n       and a missed one is never rescued.\n   Otherwise the move takes effect next Monday, exactly as before (D51). Either way no workout in the log is touched,\n   the program week, phase and status stay where they are, and a paused program stays paused.\n   ========================================================= */\n/* The program a day edit writes: the active one, running or paused. */\nfunction dayEditProgram(){\n  let p = null;\n  try{ p = getActiveProgram(); }catch(e){ p = null; }\n  return (p && (p.status === 'active' || p.status === 'paused')) ? p : null;\n}\nfunction swapProgramDays(sched, a, b){\n  const next = Object.assign({}, sched || {});\n  const ta = next[a];\n  next[a] = next[b] || { type:'rest' };\n  next[b] = ta || { type:'rest' };\n  return next;\n}\n/* The move, from programRevisionDate(when) on: the plan in force then has its two days swapped and recorded as one\n   revision; a revision already set to begin later (next Monday) is swapped too, so the move holds after it. */\nfunction moveProgramDaysFrom(p, a, b, when){\n  const from = programRevisionDate(when);\n  const later = Array.isArray(p.revisions) ? p.revisions.filter(r => r && r.schedule && String(r.effectiveFrom) > from) : [];\n  const base = later.length ? programPlanOn(p, from) : p.schedule;\n  const latest = swapProgramDays(p.schedule, a, b);\n  later.forEach(r => { r.schedule = swapProgramDays(r.schedule, a, b); });\n  addProgramRevision(p, swapProgramDays(base, a, b), from);\n  p.schedule = latest;\n  return p;\n}\n/* Whether swapping these two days can move this week's sessions now (see the rule above). */\nfunction changeDayMovesThisWeek(program, a, b){\n  const today = localDateStr();\n  if(!program || !programHasBegun(program) || programTimelineEnded(program, today)) return false;\n  const dA = weekDateForDayKey(a, today), dB = weekDateForDayKey(b, today);\n  if(!dA || !dB) return false;\n  const plan = programPlanOn(program, today);\n  const moves = [];\n  if(plan[a] && plan[a].type === 'workout') moves.push([dA, dB]);\n  if(plan[b] && plan[b].type === 'workout') moves.push([dB, dA]);\n  if(!moves.length || !moves.every(m => m[0] >= today && m[1] >= today)) return false;\n  if(hasActiveDraftNow && (dA === today || dB === today)) return false;\n  const claims = p => {\n    const f = deriveProgramPlanFulfillment(p, workoutLog || []);\n    return f.slots.filter(s => s.workoutId).map(s => s.workoutId + '@' + s.date).sort().join('|') + '#' + f.additional;\n  };\n  const trial = moveProgramDaysFrom(JSON.parse(JSON.stringify(program)), a, b, 'today');\n  return claims(trial) === claims(program);\n}\n\n/* Swapping two days has to move BOTH layers, or the program keeps the old week\n   while the plan claims the new one. */\nasync function swapScheduledDays(a, b){\n  if(!a || !b || a === b || !schedule) return;\n  const tmp = schedule[a];\n  schedule[a] = schedule[b];\n  schedule[b] = tmp;\n  persistSchedule();\n  try{\n    const p = dayEditProgram();\n    if(p){\n      if(changeDayMovesThisWeek(p, a, b)){\n        await commitProgramChange(() => {\n          const q = getProgram(p.id);\n          if(!q) return false;\n          const check = validateProgram(Object.assign({}, q, { schedule: swapProgramDays(q.schedule, a, b) }));\n          if(!check.valid) return { ok:false, errors:check.errors, program:null };\n          moveProgramDaysFrom(q, a, b, 'today');\n          try{ refreshProgramName(q); }catch(e){}\n          q.updatedAt = new Date().toISOString();\n          return { ok:true, errors:[], program:q };\n        });\n      } else {\n        await updateProgram(p.id, { schedule: swapProgramDays(p.schedule, a, b) });\n      }\n      invalidateProgramCache();\n    }\n  }catch(e){}\n}\n",
+  "/* Swapping two days has to move BOTH layers, or the program keeps the old week\n   while the plan claims the new one. */\nasync function swapScheduledDays(a, b){\n  if(!a || !b || a === b || !schedule) return;\n  const tmp = schedule[a];\n  schedule[a] = schedule[b];\n  schedule[b] = tmp;\n  persistSchedule();\n  try{\n    if(hasActiveProgram()){\n      const p = getActiveProgram();\n      const next = Object.assign({}, p.schedule || {});\n      const ta = next[a];\n      next[a] = next[b] || { type:'rest' };\n      next[b] = ta || { type:'rest' };\n      await updateProgram(p.id, { schedule: next });\n      invalidateProgramCache();\n    }\n  }catch(e){}\n}\n"
+ ],
+ [
+  "  const tKey = todayKey();\n  let cat = schedule ? schedule[tKey] : 'rest';\n  /* D143 — an active program owns today, exactly as the card below reads it (renderTodayWorkout). The header used to\n     read the plan layer alone, which a Change day updates at once, so it named one day's session over a card offering\n     another until the program's change began. */\n  try{\n    if(hasActiveProgram()){\n      const pd = getProgramWorkoutForDate(localDateStr());\n      if(pd) cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';\n    }\n  }catch(e){}\n  /* The level sits in the header,",
+  "  const tKey = todayKey();\n  const cat = schedule ? schedule[tKey] : 'rest';\n  /* The level sits in the header,"
+ ],
+ [
+  "    let nextDay = findNextTrainingDay(tKey);\n    let nextCat = nextDay ? schedule[nextDay] : null;\n    /* D143 — with a program running, the next session is the program's next workout day, read date by date as the\n       card for each day reads it; the plan layer can already hold a change the program applies only next week. */\n    if(programDay && !programDay.ended){\n      nextDay = null; nextCat = null;\n      for(let i = 1; i <= 7 && !nextCat; i++){\n        const d = addDaysISO(todayStr, i);\n        let pd = null;\n        try{ pd = getProgramWorkoutForDate(d); }catch(e){ pd = null; }\n        if(pd && pd.entry && pd.entry.type === 'workout'){ nextDay = JS_DAY_TO_KEY[new Date(d + 'T00:00:00').getDay()]; nextCat = pd.category; }\n      }\n    }\n",
+  "    const nextDay = findNextTrainingDay(tKey);\n    const nextCat = nextDay ? schedule[nextDay] : null;\n"
+ ],
+ [
+  "    const key = PROGRAM_DAY_KEYS[(todayIdx + i) % 7];\n    let cat = schedule && schedule[key];\n    /* D143 — and whether there IS a session that day is the program's answer too, not the plan layer's: a day moved\n       from next week on must not be named as this week's next session. */\n    try{\n      if(hasActiveProgram()){\n        const on = new Date(today); on.setDate(on.getDate() + i);\n        const pd = getProgramWorkoutForDate(localDateStr(on));\n        if(pd && !pd.ended) cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';\n      }\n    }catch(e){}\n    if(!cat || cat === 'rest') continue;\n    let workoutName = null;\n    try{\n      /* D51C — this session is `i` days away, so it answers to the plan in\n         force then. A revision starting before it is already true for it. */\n      const when = new Date(today); when.setDate(when.getDate() + i);\n      let program = hasActiveProgram() ? getActiveProgram() : null;\n",
+  "    const key = PROGRAM_DAY_KEYS[(todayIdx + i) % 7];\n    const cat = schedule && schedule[key];\n    if(!cat || cat === 'rest') continue;\n    let workoutName = null;\n    try{\n      /* D51C — this session is `i` days away, so it answers to the plan in\n         force then. A revision starting before it is already true for it. */\n      const when = new Date(today); when.setDate(when.getDate() + i);\n      let program = hasActiveProgram() ? getActiveProgram() : null;\n"
+ ],
+ [
+  "  const snap = { schedule: Object.assign({}, schedule), program: null };\n  try{\n    /* D143 — the program a move writes (running or paused), with its revisions: a move can now take effect today,\n       and only the revisions as they were can take that back. */\n    const p = dayEditProgram();\n    if(p){\n      snap.program = { id: p.id, schedule: JSON.parse(JSON.stringify(p.schedule || {})),\n        revisions: Array.isArray(p.revisions) ? JSON.parse(JSON.stringify(p.revisions)) : null };\n    }\n  }catch(e){}\n  return snap;",
+  "  const snap = { schedule: Object.assign({}, schedule), program: null };\n  try{\n    if(hasActiveProgram()){\n      const p = getActiveProgram();\n      snap.program = { id: p.id, schedule: JSON.parse(JSON.stringify(p.schedule || {})) };\n    }\n  }catch(e){}\n  return snap;"
+ ],
+ [
+  "    if(s.program){\n      /* D143 — restored exactly, revisions included, not re-revised: a fresh revision would leave a move made today in\n         force for the rest of the week. */\n      await commitProgramChange(() => {\n        const q = getProgram(s.program.id);\n        if(!q) return false;\n        q.schedule = JSON.parse(JSON.stringify(s.program.schedule));\n        if(s.program.revisions) q.revisions = JSON.parse(JSON.stringify(s.program.revisions)); else delete q.revisions;\n        q.updatedAt = new Date().toISOString();\n        return { ok:true, errors:[], program:q };\n      });\n      invalidateProgramCache();\n    }",
+  "    if(s.program){\n      await updateProgram(s.program.id, { schedule: s.program.schedule });\n      invalidateProgramCache();\n    }"
+ ],
+ [
+  "  programMapOpts[prefix] = { interactive:o.interactive, today:o.today, dayState:o.dayState, dated:o.dated };\n  const inner = programMapInnerHtml(def,\n    { week, interactive:o.interactive, idPrefix:prefix, today:o.today, dayState:o.dayState, dated:o.dated });",
+  "  programMapOpts[prefix] = { interactive:o.interactive, today:o.today, dayState:o.dayState };\n  const inner = programMapInnerHtml(def,\n    { week, interactive:o.interactive, idPrefix:prefix, today:o.today, dayState:o.dayState });"
+ ],
+ [
+  "function programMapWeekHtml(def, week, o){\n  const opts = o || {};\n  /* D143 — a running program's map shows the selected week as it was or will be planned on its own dates (D51C), not\n     the latest plan for every week: a move that starts next Monday leaves this week as it is, and a missed day keeps\n     its mark. Studio's preview of a draft passes no `dated` and draws the draft. */\n  if(opts.dated && def && def.startDate){\n    const plan = {};\n    PROGRAM_DAY_KEYS.forEach(k => { const d = programDateFor(def, week, k); plan[k] = (d ? programPlanOn(def, d)[k] : null) || { type:'rest' }; });\n    def = Object.assign({}, def, { schedule: plan });\n  }\n",
+  "function programMapWeekHtml(def, week, o){\n  const opts = o || {};\n"
+ ],
+ [
+  "    week: t.week || 1, today: t.week || 1, interactive: true, idPrefix: 'mtMap', dated: true,\n    dayState: (dayKey, week) => programDayState(program, dayKey, week)\n  });",
+  "    week: t.week || 1, today: t.week || 1, interactive: true, idPrefix: 'mtMap',\n    dayState: (dayKey, week) => programDayState(program, dayKey, week)\n  });"
+ ],
+ [
+  "    /* D143 — the plan in force on the day's own date (D51C), as the slots and the map read it: the latest plan named a\n       day by a session it never had, and dropped the mark of a missed one whose session had since moved. */\n    const date = programDateFor(program, week, dayKey);\n    if(!date) return null;\n    const entry = programEntryOn(program, dayKey, date);\n    if(!entry || entry.type !== 'workout') return null;\n",
+  "    const entry = program.schedule[dayKey];\n    if(!entry || entry.type !== 'workout') return null;\n    const date = programDateFor(program, week, dayKey);\n    if(!date) return null;\n"
+ ],
+ [
+  "    changes: [\n      'Previous, Skip, Next and Finish keep the position LOOP 10.64 gave them on affected Home Screen iPhones, now confirmed on a physical iPhone'\n    ]\n  },\n  {\n    id: 'v10-66',\n    version: 'LOOP 10.66',\n    title: 'Moved Training Days Update This Week',\n    date: '2026-10-11',\n    swVersion: 'loop-v243',\n    summary: 'Moving a training day in a running program now moves it this week when that day is still ahead. Workouts you have already done or missed stay where they happened.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [\n      'Moving an upcoming program workout to another day this week now moves it this week, instead of only from next week',\n      'Today’s heading now names the same day’s workout as the card beneath it after a day is moved',\n      'A day moved while your program is paused now stays moved when you resume'\n    ],\n    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)",
+  "    changes: [\n      'Previous, Skip, Next and Finish keep the position LOOP 10.64 gave them on affected Home Screen iPhones, now confirmed on a physical iPhone'\n    ]\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)"
+ ]
+];
+const D143_WHATSNEW = "  },\n  {\n    id: 'v10-66',\n    version: 'LOOP 10.66',\n    title: 'Moved Training Days Update This Week',\n    date: '2026-10-11',\n    swVersion: 'loop-v243',\n    summary: 'Moving a training day in a running program now moves it this week when that day is still ahead. Workouts you have already done or missed stay where they happened.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [\n      'Moving an upcoming program workout to another day this week now moves it this week, instead of only from next week',\n      'Today’s heading now names the same day’s workout as the card beneath it after a day is moved',\n      'A day moved while your program is paused now stays moved when you resume'\n    ],\n    changes: []\n";
+const SHA_1065_HTML = '97a0ef9d0f2fb9bd';   /* index.html of LOOP 10.65 (5162514), LF */
+function asOf1065Html(raw){
+  let t = raw;
+  for(const [now, then] of D143_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
+}
 /* D142C (LOOP 10.65) — E64 closed on the owner's physical iPhone. Two hunks: the whole Viewport Diagnostics block (D138.1,
    with D138.3's clip chain and Paint and D142B's BOTTOM MODE rows) comes out from before backToSettings, and the What's New
    entry. asOf1064Html(raw) puts them back and reads back LOOP 10.64 (15ce58b) to the byte. Every older read-back starts
@@ -758,7 +820,8 @@ const D142C_RAW = [
 const D142C_WHATSNEW = "  },\n  {\n    id: 'v10-65',\n    version: 'LOOP 10.65',\n    title: 'Workout Controls Stay Within Reach',\n    date: '2026-10-11',\n    swVersion: 'loop-v242',\n    summary: 'The workout keeps the bottom-control layout from LOOP 10.64, which has now been checked on a physical iPhone.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [],\n    changes: [\n      'Previous, Skip, Next and Finish keep the position LOOP 10.64 gave them on affected Home Screen iPhones, now confirmed on a physical iPhone'\n    ]\n";
 const SHA_1064_HTML = 'd507bfb323f99abb';   /* index.html of LOOP 10.64 (15ce58b), LF */
 function asOf1064Html(raw){
-  let t = raw;
+  let t = asOf1065Html(raw);   // D143 restated: 10.66's hunks come out first
+  if(t === null) return null;
   for(const [now, then] of D142C_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
   return t;
 }
@@ -8592,10 +8655,11 @@ function testD11Consolidation(app){
     T('it swaps rather than overwrites — so it is its own undo',
       /schedule\[a\] = schedule\[b\]/.test(sw) && /schedule\[b\] = tmp/.test(sw));
     T('it moves the program entries too, not just the plan layer',
-      /hasActiveProgram\(\)/.test(sw) && /updateProgram\(/.test(sw));
+      /hasActiveProgram\(\)|dayEditProgram\(\)/.test(sw) /* D143 restated: the move writes the active program, running or paused (Contract 267) */ && /updateProgram\(/.test(sw));
     T('it persists through the existing schedule path', sw.indexOf('persistSchedule()') !== -1);
     T('it never touches workoutLog',
-      mv.indexOf('workoutLog') === -1 && sw.indexOf('workoutLog') === -1);
+      mv.slice(0, mv.indexOf('CHANGE DAY ON A RUNNING PROGRAM') === -1 ? undefined : mv.indexOf('CHANGE DAY ON A RUNNING PROGRAM')).indexOf('workoutLog') === -1 && sw.indexOf('workoutLog') === -1
+      && !/workoutLog\s*=[^=]|workoutLog\.(push|splice|pop|shift|unshift|sort|reverse)\(|persistLog/.test(src.slice(src.indexOf('CHANGE DAY ON A RUNNING PROGRAM'), src.indexOf('function setDayValue(')))); /* D143 restated: D143's block READS the log once, to ask D43 whether a logged workout would count differently, and writes it nowhere (Contract 267) */
   }
   {
     ctx.schedule = { mon:'upper', tue:'lower', wed:'rest', thu:'upper', fri:'lower', sat:'rest', sun:'rest' };
@@ -9855,11 +9919,11 @@ async function testScheduleWritePath(app){
     T('a single writer owns "this day holds this category"',
       typeof ctx.setScheduledCategory === 'function');
     T('a single writer owns swapping two days', typeof ctx.swapScheduledDays === 'function');
-    const setter = src.slice(src.indexOf('function setScheduledCategory('), src.indexOf('function swapScheduledDays('));
+    const setter = src.slice(src.indexOf('function setScheduledCategory('), src.indexOf('CHANGE DAY ON A RUNNING PROGRAM') !== -1 ? src.indexOf('CHANGE DAY ON A RUNNING PROGRAM') : src.indexOf('function swapScheduledDays('));   /* D143 restated: D143's block now sits between the two writers */
     const swapper = src.slice(src.indexOf('function swapScheduledDays('), src.indexOf('function setDayValue('));
     [['setScheduledCategory', setter], ['swapScheduledDays', swapper]].forEach(([nm, code]) => {
       T(nm + ' writes the plan layer', code.indexOf('persistSchedule()') !== -1);
-      T(nm + ' also writes the active program', /hasActiveProgram\(\)/.test(code) && /updateProgram\(/.test(code));
+      T(nm + ' also writes the active program', /hasActiveProgram\(\)|dayEditProgram\(\)/.test(code) /* D143 restated */ && /updateProgram\(/.test(code));
       T(nm + ' invalidates the program cache', code.indexOf('invalidateProgramCache()') !== -1);
       T(nm + ' never touches workoutLog', code.indexOf('workoutLog') === -1);
     });
@@ -11022,11 +11086,11 @@ function testWeekDrag(app){
   sub('undo restores the exact week, and withdraws itself');
   T('the snapshot covers both schedule layers', (() => {
     const fn = src.slice(src.indexOf('function snapshotWeekForUndo'), src.indexOf('function showWeekUndo'));
-    return /schedule: Object\.assign/.test(fn) && /hasActiveProgram\(\)/.test(fn);
+    return /schedule: Object\.assign/.test(fn) && (/hasActiveProgram\(\)/.test(fn) || /dayEditProgram\(\)/.test(fn) && /revisions: Array\.isArray\(p\.revisions\)/.test(fn)); /* D143 restated: the snapshot takes the program's revisions too (Contract 267) */
   })());
   T('undo restores the program layer too', (() => {
     const fn = src.slice(src.indexOf('function undoWeekMove'), src.indexOf('/* ---- pointer wiring'));
-    return /updateProgram\(s\.program\.id/.test(fn);
+    return /updateProgram\(s\.program\.id/.test(fn) || /commitProgramChange\(/.test(fn) && /q\.schedule = JSON\.parse\(JSON\.stringify\(s\.program\.schedule\)\)/.test(fn) && /q\.revisions = JSON\.parse/.test(fn); /* D143 restated: restored exactly, revisions included (Contract 267) */
   })());
   T('the offer is temporary, not a permanent control', /setTimeout\(hideWeekUndo, 5000\)/.test(src));
   T('undo is a labelled button, not a gesture to discover', /class="wk-undo-btn"/.test(src));
@@ -40870,7 +40934,7 @@ async function testTodayNotMissedD992(){
     const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
     T('D43 fulfilment, the D89/D90 grid and the D44 matching are byte-identical to 10.7',
       pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' &&
-      pin('programDayState') === 'bfd2453f055f85bb' && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
+      crypto.createHash('sha256').update(fnSrc(asOf1065Html(src.split('\r\n').join('\n')) || '', 'programDayState').replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === 'bfd2453f055f85bb' /* D143 restated: the Program map's marks read the plan on the day's date; read at 10.65 (Contract 267) */ && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
       pin('dateIsSuspended') === '0e8f48036cced387' && pin('programDateFor') === 'f4181c72c9c3ab8f' && pin('pauseSpansOf') === '00f0412bae612770');
   });
 
@@ -41156,7 +41220,7 @@ async function testCalendarStateD993(){
     const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
     T('D43, the D89/D90 program grid and the pause arithmetic are byte-identical to 10.8, and PR/XP to their D96C restatements',
       pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' &&
-      pin('programDayState') === 'bfd2453f055f85bb' && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
+      crypto.createHash('sha256').update(fnSrc(asOf1065Html(src.split('\r\n').join('\n')) || '', 'programDayState').replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === 'bfd2453f055f85bb' /* D143 restated: the Program map's marks read the plan on the day's date; read at 10.65 (Contract 267) */ && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
       pin('dateIsSuspended') === '0e8f48036cced387' && pin('pauseSpansOf') === '00f0412bae612770' && pin('programDateFor') === 'f4181c72c9c3ab8f' &&
       pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('getSessionPRs') === '2a121bed25bfa6ab');
     const app = await at('2026-09-22T09:00:00', HIST('2026-09-21'), { programs: PROG({ pauses: [{ from: '2026-09-15', to: '2026-09-19' }] }) }); const c = app.ctx;
@@ -41424,7 +41488,7 @@ async function testMomentumWeekPauseD994(){
     const pin = n => crypto.createHash('sha256').update(fnSrc(src, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
     T('D43, D44 and the D89/D90 program grid are byte-identical to 10.9, and PR/XP to their D96C restatements',
       pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5' && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' &&
-      pin('programDayState') === 'bfd2453f055f85bb' && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
+      crypto.createHash('sha256').update(fnSrc(asOf1065Html(src.split('\r\n').join('\n')) || '', 'programDayState').replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === 'bfd2453f055f85bb' /* D143 restated: the Program map's marks read the plan on the day's date; read at 10.65 (Contract 267) */ && pin('programPlannedSlots') === 'e09703bacb6d628a' &&
       pin('dateIsSuspended') === '0e8f48036cced387' && pin('pauseSpansOf') === '00f0412bae612770' && pin('programDateFor') === 'f4181c72c9c3ab8f' &&
       pinAsOf1036('computeXPTimeline') === 'c4bf2e0f636c3f20' && pin('getSessionPRs') === '2a121bed25bfa6ab');
     T('computeConsistencyData and weekOverview are byte-identical to 10.9 too: only momentumWeek changed',
@@ -44015,9 +44079,12 @@ async function testStartProvenanceD103(){
   sub('a moved day moves its session, once');
   await guard('move', async () => {
     useProgram({ mon: OWN('pull', A), thu: OWN('pull', B) }); clock('2026-09-21T09:00:00');
+    const D143_SW = fnSrc(asOf1065Html(src.split('\r\n').join('\n')) || '', 'swapScheduledDays');   /* D143 restated: 10.65's own move, read back — 10.66 moves this Thursday's session now (Contract 267) */
+    require('vm').runInContext('async ' + D143_SW, ctx);
     await ctx.swapScheduledDays('thu', 'fri'); await H.settle(150); ctx.invalidateProgramCache();
+    require('vm').runInContext('async ' + fnSrc(src, 'swapScheduledDays'), ctx);
     const p = ctx.getActiveProgram();
-    T('a move on a running program is a forward revision (the scheduler\'s own rule): this Thursday is still B',
+    T('10.65 replay — a move on a running program is a forward revision (the scheduler\'s own rule): this Thursday is still B',
       Array.isArray(p.revisions) && p.revisions.length === 2 && same(bare((await journey('thu')).started.exercises), B));
     const fri = await startCapture(() => ctx.startTemplateLog('pull', 'own_pull', '2026-10-02'));
     T('from its effective date Friday holds B and starts B', same(bare(fri.exercises), B), JSON.stringify(fri.exercises));
@@ -44149,7 +44216,7 @@ async function testStartProvenanceD103(){
       pin('programPlanOn') === '035c98b8fc53aa5e' && pin('assignWorkoutsToPlannedSlots') === '792c981894886bf5'
       && pin('deriveProgramPlanFulfillment') === '96c87d25e493037d' && pin('workoutBelongsToProgram') === '018fcf9c294a3a41');
     T('D51 revisions and the move writer are byte-identical', pin('materializeProgramPlan') === 'f92e59a226b1b4b6'
-      && pin('addProgramRevision') === '551132a15c639918' && pin('updateProgramInMemory') === '6078239ad623aa33' && pin('swapScheduledDays') === 'b460198e9e2cdb5b');
+      && pin('addProgramRevision') === '551132a15c639918' && pin('updateProgramInMemory') === '6078239ad623aa33' && crypto.createHash('sha256').update(fnSrc(asOf1065Html(src.split('\r\n').join('\n')) || '', 'swapScheduledDays').replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16) === 'b460198e9e2cdb5b'); /* D143 restated: 10.65's writer, read back (Contract 267 holds 10.66's) */
     /* D105 restated: showWorkoutSummary's time figure changed on purpose; Contract
        219 proves it differs from this pin in those two lines and nothing else. */
     /* D107 restated: both changed on purpose, for E30 — see Contract 222. */
@@ -48070,7 +48137,7 @@ async function testStartupRevealD114(){
      With it taken out it must still hash to 10.30's pin. */
   const D140_START = '  onboardingDeck = null;\n';
   T('startOnboarding carries the one D140 statement, once', fnSrc(raw, 'startOnboarding').split(D140_START).length === 2);
-  const moved = Object.keys(PINS).filter(n => sha(D134_EDITS[n] ? fnSrc(asOf1052Html(raw) || '', n) : n === 'renderAll' ?   // D134 restated: renderResumeBanner and renderTodayWorkout read at 10.52 (Contract 253)
+  const moved = Object.keys(PINS).filter(n => sha(n === 'renderToday' ? fnSrc(asOf1065Html(raw) || '', n) /* D143 restated: Today's header reads the program (Contract 267); read at 10.65 */ : D134_EDITS[n] ? fnSrc(asOf1052Html(raw) || '', n) : n === 'renderAll' ?   // D134 restated: renderResumeBanner and renderTodayWorkout read at 10.52 (Contract 253)
      fnSrc(raw, n).replace(D118_RENDER_ALL, '') : n === 'startOnboarding' ? fnSrc(raw, n).replace(D140_START, '') : n === 'restoreDraftToSheet' ? fnSrc(raw, n).split(D131B_RESTORE[0]).join(D131B_RESTORE[1]).split(D131A_RESTORE[0]).join(D131A_RESTORE[1]).split(D125_RESTORE[0]).join(D125_RESTORE[1]) : fnSrc(raw, n)) !== PINS[n]);
   T('all 18 startup-adjacent functions are unchanged: boot, both screens, the D106 tour decision and start, the draft load/restore/banner/flush, the update reload, tabs, Today',
     moved.length === 0, moved);
@@ -56009,7 +56076,7 @@ async function testWorkoutRoomD133(){
     T('26  E56 and E58 stay CLOSED (D131B); E59 and E62 stay OPEN and are not fixed: the split still gives a hand-added exercise and its replacement a plan, and D47 still ignores the order of the work',
       /CLOSED in D131B/.test(status('E56')) && /CLOSED in D131B/.test(status('E58')) && /· (OPEN|\*\*CLOSED in D135)/.test(status('E59')) /* D135 restated: open in 10.52, closed in 10.54 */ && /· (OPEN|\*\*CLOSED in D136)/.test(status('E62')) /* D136 restated: open in 10.52, closed in 10.55 */ && same('splitRowForSwap') && same('sessionPreparation') && same('generalPrepSatisfiedBy'));
     T('27  the other findings D133 was told to leave are all still open (E16 held; E22, E25–E27, E33, E38, E39, E43, E48, E49, E50, E52, E54, E55, E60, E61)',
-      /HELD/.test(status('E16')) && ['E22', 'E25', 'E26', 'E27', 'E33', 'E38', 'E39', 'E43', 'E48', 'E49', 'E50', 'E52', 'E54', 'E55', 'E60', 'E61'].every(id => (/OPEN|HELD/.test(status(id)) || (['E48', 'E49', 'E50'].includes(id) && /CLOSED in D137/.test(status(id)))) && !/\bCLOSED in D133\b/.test(status(id)))   /* D137 restated: E48–E50 open in 10.52, closed in 10.56 */, ['E16', 'E22', 'E25', 'E26', 'E27', 'E33'].map(id => status(id).slice(0, 60)));
+      /HELD/.test(status('E16')) && ['E22', 'E25', 'E26', 'E27', 'E33', 'E38', 'E39', 'E43', 'E48', 'E49', 'E50', 'E52', 'E54', 'E55', 'E60', 'E61'].every(id => (/OPEN|HELD/.test(status(id)) || (['E48', 'E49', 'E50'].includes(id) && /CLOSED in D137/.test(status(id))) || (id === 'E27' && /CLOSED in D143/.test(status(id))) /* D143 restated: E27 open in 10.52, closed in 10.66 */) && !/\bCLOSED in D133\b/.test(status(id)))   /* D137 restated: E48–E50 open in 10.52, closed in 10.56 */, ['E16', 'E22', 'E25', 'E26', 'E27', 'E33'].map(id => status(id).slice(0, 60)));
     const dk = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw), dkw = /const DATA_KEYS = \[([\s\S]*?)\];/.exec(was);
     T('28  nothing is stored for a layout: 16 DATA_KEYS (the same sixteen), data schema 1, no migration, the trainer 0.1.1-shadow', !!dk && !!dkw && dk[1] === dkw[1] && dk[1].split(',').map(s => s.trim()).filter(Boolean).length === 16 && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /0\.1\.1-shadow/.test(raw) && !/localStorage|LOOPStore|DATA_KEY/.test(D133_CSS));
     T('29  D132’s rendered system is untouched: the block sits inside it after D132.1’s two rules, and the stylesheet outside the block is 10.51’s',
@@ -56070,7 +56137,7 @@ async function testWorkoutRoomD133(){
       /id: 'v10-52',\s*version: 'LOOP 10\.52',\s*title: 'More Room to Train',\s*date: '2026-10-0\d',\s*swVersion: 'loop-v229'/.test(raw) && /improvements: \[\s*'[^']+',\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D133_WHATSNEW) && /CACHE_VERSION = 'loop-v2(29|[3-9]\d)'/.test(sw));   // D134 restated: sw.js serves the newest release (Contract 253 holds loop-v230)
     const ps = JSON.parse(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'PROJECT-STATUS.json'), 'utf8'));
     /* D134 restated: PROJECT-STATUS moves with every release; 10.52 or later */
-    T('38  PROJECT-STATUS says 10.52 (or later), needs QA (the owner’s iPhone pass), and its next action is under 200 characters', /^10\.(5[2-9]|[6-9]\d)$/.test(ps.version) && (ps.needsQa === true || (ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) /* D142C restated: 10.65 closes E64 and needs no phone check (Contract 266) */) && ps.nextAction.length <= 200 && ps.nextAction.length > 20, [ps.version, ps.nextAction.length]);
+    T('38  PROJECT-STATUS says 10.52 (or later), needs QA (the owner’s iPhone pass), and its next action is under 200 characters', /^10\.(5[2-9]|[6-9]\d)$/.test(ps.version) && (ps.needsQa === true || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */) /* D142C restated: 10.65 closes E64 and needs no phone check (Contract 266) */) && ps.nextAction.length <= 200 && ps.nextAction.length > 20, [ps.version, ps.nextAction.length]);
     const tc = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'TRAINER-CONTRACT.md'), 'utf8');
     T('39  TRAINER-CONTRACT §174 records that the workout page is full-height and that D133 touched no engine', /§174|## 174/.test(tc) && /full-height|full height/.test(tc.slice(tc.indexOf('174'))) && /Contract 252/.test(tc));
     T('40  the app shell the service worker precaches is still one page: no new file, no new asset', /index\.html/.test(sw) && (sw.match(/\.(css|js|png|webp|svg)\b/g) || []).length === (fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').match(/\.(css|js|png|webp|svg)\b/g) || []).length);
@@ -56911,6 +56978,315 @@ async function testWarmupApplicabilityD136(){
 }
 
 /* =========================================================
+   CONTRACT 267 — D143 (LOOP 10.66): CHANGE DAY MOVES THIS WEEK WHEN THE DAY IS STILL AHEAD (E27)
+   Change day on a running program used to become a D51 revision effective next Monday, so a move within the current week
+   never happened, Today's header contradicted its card, and a paused program was never written. A move now takes
+   effect today when every session it moves is still ahead this week (both days today or later, nothing under way today,
+   D43 pairing every logged workout exactly as before); otherwise next Monday, as before. History never moves.
+   Everything here goes through the athlete's own Change day (moveDayTo → swapScheduledDays). 10.65's own functions,
+   read back, are run beside 10.66's to show the defect before and its absence after.
+   ========================================================= */
+async function testChangeDayD143(){
+  section('CONTRACT 267 — Change day moves this week when the day is still ahead; past truth stays past (D143, E27)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const was = asOf1065Html(raw);   /* 5162514: LOOP 10.65 */
+  const styleOf = t => t ? t.slice(t.indexOf('<style>'), t.indexOf('</style>')) : '';
+  const outside = t => t ? t.slice(0, t.indexOf('<script>')) + t.slice(t.lastIndexOf('</script>')) : '';
+  const sameFn = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+  const read = n => fs.readFileSync(H.APP_PATH.replace(/index\.html$/, n), 'utf8').split('\r\n').join('\n');
+  const CHANGED = ['programRevisionDate', 'swapScheduledDays', 'renderToday', 'renderTodayWorkout', 'myTrainingNextSession', 'snapshotWeekForUndo', 'undoWeekMove', 'programMapHtml', 'programMapWeekHtml', 'myTrainingProgramMapHtml', 'programDayState'];
+  const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const ex = n => ({ name: n, sets: 3, reps: '8-10', effort: '8' });
+  const OWN = (cat, name) => ({ type: 'workout', planId: null, category: cat, name, exercises: [ex(name + ' Lift A'), ex(name + ' Lift B')] });
+  const REST = { type: 'rest' };
+  const W = (id, date, cat, extra) => Object.assign({ id, date, category: cat, title: cat, notes: '', origin: 'program', programId: 'p1',
+    exercises: [{ name: 'Bench Press', bodyweight: false, sets: [{ weight: '135', reps: '8', rir: '2', type: 'working', completed: true }] }] }, extra || {});
+
+  /* one app per scenario; `old` installs 10.65's own versions of the changed functions (read back from this file) */
+  const boot = async (clock, old) => {
+    const a = H.loadApp({ dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced') }); const ctx = a.ctx;
+    const release = pinClock(ctx, clock); await H.settle(200);
+    if(old) CHANGED.forEach(n => vm.runInContext((was.indexOf('async function ' + n + '(') !== -1 ? 'async ' : '') + fnSrc(was, n), ctx));
+    return { a, ctx, release };
+  };
+  const setup = async (b, o) => {
+    const ctx = b.ctx;
+    const sched = o.schedule || { mon: OWN('push', 'Push'), tue: REST, wed: OWN('pull', 'Pull'), thu: REST, fri: OWN('legs', 'Legs'), sat: REST, sun: REST };
+    const p = Object.assign({ id: 'p1', name: 'Program A', goal: 'hypertrophy', status: 'active', durationWeeks: 8, startDate: '2026-09-14',
+      schedule: JSON.parse(JSON.stringify(sched)) }, o.program ? JSON.parse(JSON.stringify(o.program)) : {});
+    ctx.programsStore = Object.assign(ctx.defaultProgramsStore(), { version: 1, activeProgramId: 'p1', programs: [p] });
+    Object.keys(ctx.schedule || {}).forEach(k => { delete ctx.schedule[k]; });
+    DAYS.forEach(k => { ctx.schedule[k] = sched[k] && sched[k].type === 'workout' ? sched[k].category : 'rest'; });
+    ctx.workoutLog = (o.log || []).map(x => JSON.parse(JSON.stringify(x)));
+    ['invalidateSortedLogCache', 'invalidateXPTimelineCache', 'invalidateConsistencyCache', 'invalidateCapabilityCache', 'invalidateProgramCache'].forEach(f => { try{ ctx[f](); }catch(e){} });
+    b.a.store.workoutLog = JSON.stringify(ctx.workoutLog); await ctx.persistSchedule(); await ctx.persistPrograms();
+  };
+  const plus = (ctx, d, n) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return ctx.localDateStr(x); };
+  const progOn = (ctx, date) => { const pd = ctx.getProgramWorkoutForDate(date, ctx.getActiveProgram()); return pd && pd.entry && pd.entry.type === 'workout' ? pd.category : 'rest'; };
+  const weekOf = (ctx, offset) => { const T = ctx.localDateStr(); return DAYS.map(k => progOn(ctx, ctx.weekDateForDayKey(k, plus(ctx, T, 7 * offset)))); };
+  const claims = ctx => { const f = ctx.deriveProgramPlanFulfillment(ctx.getActiveProgram(), ctx.workoutLog); return { pairs: f.slots.filter(s => s.workoutId).map(s => s.workoutId + '@' + s.date).sort().join('|'), fulfilled: f.fulfilled, additional: f.additional, planned: f.planned,
+    past: f.slots.filter(s => s.date < ctx.localDateStr()).map(s => s.date + ':' + s.category + ':' + (s.workoutId ? 'done' : 'missed')).join('|') }; };
+  const surfaces = ctx => {
+    const doc = ctx.document, T = ctx.localDateStr(), out = {};
+    ctx.renderToday(); out.header = (doc.getElementById('todayDateLine').innerHTML.match(/today-focus">([^<]*)</) || [])[1] || null;
+    ctx.setSelectedDay(ctx.todayKey()); ctx.renderTodayWorkout(); const h = doc.getElementById('todayWorkout').innerHTML;
+    out.card = /tw-rest/.test(h) ? 'rest' : ((h.match(/class="tw tw-(\w+)/) || [])[1] || null);
+    out.cardTitle = ((h.match(/<div class="tw-title[^"]*">(?:<[^>]*>)*([^<]+)/) || [])[1] || '').trim();
+    out.next = ((h.match(/<span class="tw-next-v">([^<]*)</) || [])[1] || null);
+    out.strip = ctx.weekOverview().days.map(d => d.cat);
+    out.row = ctx.myTrainingState().days.map(d => d.cat);
+    const n = ctx.myTrainingNextSession(); out.programNext = n ? n.key + ':' + n.cat : null;
+    out.today = progOn(ctx, T);
+    try{ const h = ctx.myTrainingProgramMapHtml(ctx.myTrainingState()); out.map = [...h.matchAll(/<div class="pm-day (?:pm-rest|pm-cat-(\w+)(?: pm-(done|missed|today))?)/g)].map(m => m[1] ? m[1] + (m[2] ? ':' + m[2] : '') : 'rest'); }catch(e){ out.map = 'ERR ' + e.message; }
+    return out;
+  };
+  const move = async (ctx, from, to) => { ctx.currentEditDay = from; ctx.moveDayTo(to); await H.settle(40); };
+  const scen = async (o, old) => {
+    const b = await boot(o.clock, old); await setup(b, o);
+    const ctx = b.ctx;
+    if(o.before) await o.before(ctx, b);
+    const s0 = { log: JSON.stringify(ctx.workoutLog), claims: claims(ctx), week: ctx.getCurrentProgramWeek(ctx.getActiveProgram(), ctx.localDateStr()),
+      phase: JSON.stringify(ctx.getCurrentTrainingPhase(ctx.getActiveProgram(), ctx.localDateStr())), status: ctx.getActiveProgram().status,
+      pauses: JSON.stringify(ctx.getActiveProgram().pauses || null), start: ctx.getActiveProgram().startDate, dur: ctx.getActiveProgram().durationWeeks,
+      end: ctx.programEndDate(ctx.getActiveProgram()), thisWeek: weekOf(ctx, 0), nextWeek: weekOf(ctx, 1) };
+    for(const m of o.moves) await move(ctx, m[0], m[1]);
+    const p = ctx.getActiveProgram();
+    const s1 = { log: JSON.stringify(ctx.workoutLog), claims: claims(ctx), week: ctx.getCurrentProgramWeek(p, ctx.localDateStr()), phase: JSON.stringify(ctx.getCurrentTrainingPhase(p, ctx.localDateStr())),
+      status: p.status, pauses: JSON.stringify(p.pauses || null), start: p.startDate, dur: p.durationWeeks, end: ctx.programEndDate(p),
+      thisWeek: weekOf(ctx, 0), nextWeek: weekOf(ctx, 1), ui: surfaces(ctx), revs: (p.revisions || []).map(r => r.effectiveFrom) };
+    /* reload: a fresh app from the very store the move wrote */
+    const store = JSON.parse(JSON.stringify(b.a.store)); b.release();
+    const a2 = H.loadApp(store); const rel2 = pinClock(a2.ctx, o.clock); await H.settle(220);
+    if(old) CHANGED.forEach(n => vm.runInContext((was.indexOf('async function ' + n + '(') !== -1 ? 'async ' : '') + fnSrc(was, n), a2.ctx));
+    a2.ctx.invalidateProgramCache();
+    const s2 = { thisWeek: weekOf(a2.ctx, 0), nextWeek: weekOf(a2.ctx, 1), claims: claims(a2.ctx), ui: surfaces(a2.ctx) };
+    rel2();
+    return { s0, s1, s2, ctx, store: b.a.store };
+  };
+  const same = (x, y) => JSON.stringify(x) === JSON.stringify(y);
+  const inv = r => r.s1.log === r.s0.log && same(r.s1.claims, r.s0.claims) && r.s1.week === r.s0.week && r.s1.phase === r.s0.phase && r.s1.status === r.s0.status
+    && r.s1.pauses === r.s0.pauses && r.s1.start === r.s0.start && r.s1.dur === r.s0.dur && r.s1.end === r.s0.end;
+  const agree = r => { const u = r.s1.ui; const cat = u.today; return (u.header === (cat === 'rest' ? 'Rest' : null) || u.header === (r.ctx.CAT_LABEL[cat] || null)) && (cat === 'rest' ? u.card === 'rest' : u.card === cat) && same(u.strip, r.s1.thisWeek) && same(u.row, r.s1.thisWeek); };
+  const reloaded = r => same(r.s2.thisWeek, r.s1.thisWeek) && same(r.s2.nextWeek, r.s1.nextWeek) && same(r.s2.claims, r.s1.claims) && same(r.s2.ui, r.s1.ui);
+  const sw = (week, a, b) => { const w = week.slice(); const i = DAYS.indexOf(a), j = DAYS.indexOf(b); const t = w[i]; w[i] = w[j]; w[j] = t; return w; };
+
+  sub('drift');
+  await guard('drift', async () => {
+    T('the release is twelve hunks — the effective-date choice, the Change day block, three readers, the undo pair, the Program map’s four, and What’s New — and putting them back reads LOOP 10.65 (5162514) to the byte', !!was && sha(was) === SHA_1065_HTML && D143_RAW.length === 12, was && sha(was));
+    T('no stylesheet or markup change: both are 10.65’s byte for byte', !!was && styleOf(raw) === styleOf(was) && outside(raw) === outside(was));
+    T('the program engines are 10.65’s: the revision writer, the plan on a date, the slots, D43’s matcher and fulfilment, the program week, pause and end, start provenance',
+      ['addProgramRevision', 'reviseProgramPlan', 'updateProgramInMemory', 'programPlanOn', 'getProgramWorkoutForDate', 'programPlannedSlots', 'assignWorkoutsToPlannedSlots', 'deriveProgramPlanFulfillment',
+        'getCurrentProgramWeek', 'programCalendarWeek', 'programDateFor', 'programEndDate', 'pauseProgram', 'resumeProgramInMemory', 'dateIsSuspended', 'workoutBelongsToProgram', 'resolveStartWorkout', 'setScheduledCategory', 'computeConsistencyData', 'weekOverview', 'myTrainingState'].every(sameFn));
+    T('…and only Change day can ask for today: reviseProgramPlan still maps every choice to next week or tomorrow, and moveProgramDaysFrom is the one caller of the ‘today’ choice',
+      /return addProgramRevision\(program, schedule, programRevisionDate\(when === 'next' \? 'next' : 'week'\)\);/.test(fnSrc(raw, 'reviseProgramPlan')) && (raw.match(/moveProgramDaysFrom\(/g) || []).length === 3 && !/programRevisionDate\('today'\)/.test(raw) && /const from = programRevisionDate\(when\);/.test(fnSrc(raw, 'moveProgramDaysFrom'))
+      && /moveProgramDaysFrom\(q, a, b, 'today'\)/.test(fnSrc(raw, 'swapScheduledDays')) && /moveProgramDaysFrom\(JSON\.parse\(JSON\.stringify\(program\)\), a, b, 'today'\)/.test(fnSrc(raw, 'changeDayMovesThisWeek')));
+  });
+
+  sub('E27 on 10.65, replayed with its own functions');
+  await guard('replay', async () => {
+    const A = await scen({ clock: '2026-09-21T09:00:00', moves: [['wed', 'thu']] }, true);
+    T('10.65 replay — A: Monday, Wednesday’s Pull moved to Thursday stays on Wednesday this week (the move waits for next Monday)', same(A.s1.thisWeek, A.s0.thisWeek) && same(A.s1.nextWeek, sw(A.s0.nextWeek, 'wed', 'thu')) && same(A.s1.revs, ['2026-09-14', '2026-09-28']), A.s1);
+    const D = await scen({ clock: '2026-09-23T09:00:00', moves: [['wed', 'sat']] }, true);
+    T('10.65 replay — D: Wednesday’s own Pull moved to Saturday: the header says Rest over a card still offering Pull', D.s1.ui.header === 'Rest' && D.s1.ui.card === 'pull', D.s1.ui);
+    const Hp = await scen({ clock: '2026-09-23T09:00:00', program: { status: 'paused', pausedOnDate: '2026-09-20', pauses: [{ from: '2026-09-20', to: null }] }, moves: [['wed', 'thu']] }, true);
+    T('10.65 replay — H: a paused program is not written: its plan keeps Pull on Wednesday for every week ahead', same(Hp.s1.nextWeek, Hp.s0.nextWeek) && !Hp.s1.revs.length, Hp.s1);
+    const E5 = await scen({ clock: '2026-09-23T09:00:00', moves: [['mon', 'thu']] }, true);
+    T('10.65 replay — the Program map after a move that waits for next week: Monday’s missed Push vanishes and Thursday shows Push this week, while the program keeps it on Monday', same(E5.s1.ui.map, ['rest', 'rest', 'pull:today', 'push', 'legs', 'rest', 'rest']) && E5.s1.thisWeek[0] === 'push' && E5.s1.thisWeek[3] === 'rest', [E5.s1.ui.map, E5.s1.thisWeek]);
+  });
+
+  sub('the matrix, through the athlete’s own Change day');
+  await guard('matrix', async () => {
+    const r1 = await scen({ clock: '2026-09-21T09:00:00', moves: [['wed', 'thu']] });
+    T('1  future → future (Mon; Wed Pull → Thu): this week moves now — Wednesday rests, Thursday holds Pull — and every week after; nothing else moves', same(r1.s1.thisWeek, sw(r1.s0.thisWeek, 'wed', 'thu')) && same(r1.s1.nextWeek, sw(r1.s0.nextWeek, 'wed', 'thu')) && inv(r1) && agree(r1), r1.s1);
+    T('…the Program screen’s map draws this week as it now is — Pull on Thursday, Wednesday resting — and marks Monday as today', same(r1.s1.ui.map, ['push:today', 'rest', 'rest', 'pull', 'legs', 'rest', 'rest']), r1.s1.ui.map);
+    const r1b = await scen({ clock: '2026-09-21T09:00:00', moves: [['wed', 'fri']] });
+    T('9  occupied target: the existing swap, never an overwrite — Wednesday gets Legs, Friday gets Pull, this week and after; no session lost or doubled', same(r1b.s1.thisWeek, sw(r1b.s0.thisWeek, 'wed', 'fri')) && r1b.s1.thisWeek.filter(c => c !== 'rest').length === 3 && inv(r1b) && agree(r1b), r1b.s1.thisWeek);
+    const r2 = await scen({ clock: '2026-09-23T09:00:00', moves: [['wed', 'sat']] });
+    T('2  today, unstarted → future (Wed; Pull → Sat): Today rests at once — header Rest, card Rest Day — and Saturday holds Pull this week', r2.s1.thisWeek[2] === 'rest' && r2.s1.thisWeek[5] === 'pull' && r2.s1.ui.header === 'Rest' && r2.s1.ui.card === 'rest' && inv(r2) && agree(r2), r2.s1.ui);
+    const r3 = await scen({ clock: '2026-09-22T09:00:00', moves: [['wed', 'tue']] });
+    T('3  future → today (Tue; Wed Pull → Tue): today holds Pull at once — header Pull, card Pull — and Wednesday rests', r3.s1.thisWeek[1] === 'pull' && r3.s1.thisWeek[2] === 'rest' && r3.s1.ui.header === 'Pull' && r3.s1.ui.card === 'pull' && inv(r3) && agree(r3), r3.s1.ui);
+    const r4 = await scen({ clock: '2026-09-24T09:00:00', moves: [['fri', 'tue']] });
+    T('4  future → a day already over (Thu; Fri Legs → Tue): Tuesday is never given a session it did not have — this week keeps Legs on Friday; Tuesday holds it from next Monday', same(r4.s1.thisWeek, r4.s0.thisWeek) && same(r4.s1.nextWeek, sw(r4.s0.nextWeek, 'fri', 'tue')) && inv(r4) && agree(r4), r4.s1);
+    T('…and Today’s rest-day “Next” names Friday’s Legs, the program’s next session this week — not the plan layer’s, which already rests Friday', /^Friday · /.test(r4.s1.ui.next || ''), r4.s1.ui.next);
+    const r5 = await scen({ clock: '2026-09-23T09:00:00', moves: [['mon', 'thu']] });
+    T('…and the Program screen’s next session is Friday’s Legs, as the program has this week — not Thursday’s Push, which only the plan layer holds yet', r5.s1.ui.programNext === 'fri:legs', r5.s1.ui.programNext);
+    T('5  missed → future (Wed; Monday’s Push missed → Thu): Monday stays missed, nothing rescues it this week, Thursday holds Push from next Monday', same(r5.s1.thisWeek, r5.s0.thisWeek) && /09-21:push:missed/.test(r5.s1.claims.past) && same(r5.s1.nextWeek, sw(r5.s0.nextWeek, 'mon', 'thu')) && inv(r5) && agree(r5), r5.s1.claims);
+    T('…and the Program screen’s map keeps this week as it was: Monday still marked missed with its Push, nothing on Thursday (10.65 drew next week’s days here and dropped the mark)', same(r5.s1.ui.map, ['push:missed', 'rest', 'pull:today', 'rest', 'legs', 'rest', 'rest']), r5.s1.ui.map);
+    const r6 = await scen({ clock: '2026-09-23T09:00:00', log: [W('w1', '2026-09-21', 'push')], moves: [['mon', 'thu']] });
+    T('6  completed → future (Wed; Monday’s Push done → Thu): the workout stays on Monday, still fulfilling it; Thursday holds Push from next Monday', same(r6.s1.thisWeek, r6.s0.thisWeek) && /w1@2026-09-21/.test(r6.s1.claims.pairs) && same(r6.s1.nextWeek, sw(r6.s0.nextWeek, 'mon', 'thu')) && inv(r6), r6.s1.claims);
+    const r7 = await scen({ clock: '2026-09-24T09:00:00', log: [W('w1', '2026-09-21', 'push')], moves: [['mon', 'tue']] });
+    T('7  completed → a day already over (Thu; Monday’s Push done → Tue): history stays, this week stays, the move starts next Monday', same(r7.s1.thisWeek, r7.s0.thisWeek) && same(r7.s1.nextWeek, sw(r7.s0.nextWeek, 'mon', 'tue')) && inv(r7), r7.s1);
+    const r7b = await scen({ clock: '2026-09-23T18:00:00', log: [W('w2', '2026-09-23', 'pull')], moves: [['wed', 'sat']] });
+    T('…today’s session already trained (Wed; Pull done today → Sat): it stays today’s and fulfilled; Saturday gets Pull from next Monday — never a second Pull this week', same(r7b.s1.thisWeek, r7b.s0.thisWeek) && /w2@2026-09-23/.test(r7b.s1.claims.pairs) && same(r7b.s1.nextWeek, sw(r7b.s0.nextWeek, 'wed', 'sat')) && inv(r7b), r7b.s1);
+    T('…and Today still names it: the header says Pull over the completed card, though the plan layer already rests Wednesday', r7b.s1.ui.header === 'Pull' && r7b.s1.ui.card === 'pull' && agree(r7b), r7b.s1.ui);
+    const r7d = await scen({ clock: '2026-09-23T19:00:00', log: [W('f1', '2026-09-23', 'push', { origin: 'freeform', programId: undefined })], moves: [['wed', 'sat']] });
+    T('…a freeform workout logged today is not program work: today’s Pull still moves to Saturday now, and the freeform workout keeps its date and every byte', r7d.s1.thisWeek[2] === 'rest' && r7d.s1.thisWeek[5] === 'pull' && inv(r7d) && /"date":"2026-09-23"/.test(r7d.s1.log), r7d.s1);
+    const r7c = await scen({ clock: '2026-09-22T19:00:00', log: [W('w3', '2026-09-22', 'pull')], moves: [['wed', 'fri']] });
+    T('…a session trained a day early (Tue; Wednesday’s Pull done Tuesday → Fri): it has happened — D43 still pairs it with Wednesday — so this week stays and the move starts next Monday', same(r7c.s1.thisWeek, r7c.s0.thisWeek) && /w3@2026-09-23/.test(r7c.s1.claims.pairs) && inv(r7c), r7c.s1.claims);
+    const P = { status: 'paused', pausedOnDate: '2026-09-20', pauses: [{ from: '2026-09-20', to: null }] };
+    const r8 = await scen({ clock: '2026-09-23T09:00:00', program: P, moves: [['wed', 'thu']] });
+    T('8  paused (paused since Sun; Wed Pull → Thu): the program’s plan changes — this week and after — and it stays paused: same status, same open pause, same week', r8.s1.status === 'paused' && r8.s1.pauses === r8.s0.pauses && same(r8.s1.thisWeek, sw(r8.s0.thisWeek, 'wed', 'thu')) && same(r8.s1.nextWeek, sw(r8.s0.nextWeek, 'wed', 'thu')) && inv(r8), r8.s1);
+    const b9 = await boot('2026-09-23T09:00:00'); await setup(b9, { program: P }); await move(b9.ctx, 'wed', 'thu'); await b9.ctx.setActiveProgram('p1'); b9.ctx.invalidateProgramCache();
+    T('8b resumed after the move: the program runs again from today with Pull on Thursday this week and every week after; nothing before today changes', b9.ctx.getActiveProgram().status === 'active' && weekOf(b9.ctx, 0)[3] === 'pull' && weekOf(b9.ctx, 0)[2] === 'rest' && weekOf(b9.ctx, 1)[3] === 'pull', [weekOf(b9.ctx, 0), weekOf(b9.ctx, 1)]);
+    b9.release();
+    const r10 = await scen({ clock: '2026-09-21T09:00:00', moves: [['wed', 'wed']] });
+    T('10 the same weekday: a true no-op — no revision, the plan and every surface as before', same(r10.s1.thisWeek, r10.s0.thisWeek) && same(r10.s1.nextWeek, r10.s0.nextWeek) && !r10.s1.revs.length && inv(r10), r10.s1.revs);
+    const r11 = await scen({ clock: '2026-09-21T09:00:00', moves: [['wed', 'thu'], ['thu', 'sat']] });
+    T('11 edited twice (Wed → Thu, then Thu → Sat): the latest move wins — Pull on Saturday only, this week and after, no duplicate, one revision for today', same(r11.s1.thisWeek, ['push', 'rest', 'rest', 'rest', 'legs', 'pull', 'rest']) && same(r11.s1.nextWeek, ['push', 'rest', 'rest', 'rest', 'legs', 'pull', 'rest']) && same(r11.s1.revs, ['2026-09-14', '2026-09-21']) && inv(r11), r11.s1);
+    const r11b = await scen({ clock: '2026-09-21T09:00:00', moves: [['wed', 'thu'], ['wed', 'thu']] });
+    T('…and the same move twice puts the week back, as the sheet promises (“Do it again to put the week back”)', same(r11b.s1.thisWeek, r11b.s0.thisWeek) && same(r11b.s1.nextWeek, r11b.s0.nextWeek) && inv(r11b), r11b.s1);
+    const r11c = await scen({ clock: '2026-09-23T09:00:00', moves: [['mon', 'thu'], ['wed', 'sat']] });
+    T('…a next-Monday move then a today move (Wed; Mon Push → Thu waits; Pull → Sat now): this week Pull on Saturday, Push still Monday; next week both moves hold', same(r11c.s1.thisWeek, ['push', 'rest', 'rest', 'rest', 'legs', 'pull', 'rest']) && same(r11c.s1.nextWeek, ['rest', 'rest', 'rest', 'push', 'legs', 'pull', 'rest']) && inv(r11c), r11c.s1);
+    const all = [r1, r1b, r2, r3, r4, r5, r6, r7, r7b, r7c, r8, r10, r11, r11b, r11c];
+    T('12 reload: a fresh app from the store each move wrote gives the same weeks, D43 pairing and surfaces — every case', all.every(reloaded), all.map((r, i) => i + ':' + reloaded(r)).join(' '));
+  });
+
+  sub('boundaries, drafts, other workouts, undo');
+  await guard('boundaries', async () => {
+    const J = await scen({ clock: '2026-09-27T09:00:00', moves: [['mon', 'tue']] });
+    T('J  Sunday → Monday (Sun; Mon Push → Tue): this week’s Monday is over, so the move starts tomorrow’s week — Monday rests, Tuesday holds Push', same(J.s1.thisWeek, J.s0.thisWeek) && J.s1.nextWeek[0] === 'rest' && J.s1.nextWeek[1] === 'push' && inv(J), J.s1);
+    const tz0 = process.env.TZ;
+    let LA = null, TK = null, CA = null;
+    try{
+      process.env.TZ = 'America/Los_Angeles'; LA = await scen({ clock: '2026-09-23T22:30:00', moves: [['wed', 'sat']] });
+      process.env.TZ = 'Asia/Tokyo'; TK = await scen({ clock: '2026-09-23T06:30:00', moves: [['wed', 'sat']] });
+      process.env.TZ = 'Africa/Cairo'; CA = await scen({ clock: '2026-10-30T09:00:00', moves: [['fri', 'sat']] });
+    } finally { if(tz0 === undefined) delete process.env.TZ; else process.env.TZ = tz0; }
+    T('O  civil day, not UTC: at 22:30 on Wednesday in Los Angeles (Thursday in UTC) and 06:30 on Wednesday in Tokyo (Tuesday in UTC), Wednesday is today — its unstarted Pull moves to Saturday now, and nothing else changes',
+      LA.s1.thisWeek[2] === 'rest' && LA.s1.thisWeek[5] === 'pull' && TK.s1.thisWeek[2] === 'rest' && TK.s1.thisWeek[5] === 'pull' && inv(LA) && inv(TK), [LA.s1.thisWeek, TK.s1.thisWeek]);
+    T('…and across a clock change in the middle of a week: Friday after Cairo’s Thursday-midnight fall-back, Friday is still today — its Legs moves to Saturday now', CA.s1.thisWeek[4] === 'rest' && CA.s1.thisWeek[5] === 'legs' && inv(CA), CA.s1.thisWeek);
+    const blocks = [{ id: 'b1', name: 'Build', startWeek: 1, endWeek: 2, phaseType: 'accumulation' }, { id: 'b2', name: 'Peak', startWeek: 3, endWeek: 4, phaseType: 'intensification' }];
+    const I = await scen({ clock: '2026-09-25T09:00:00', program: { durationWeeks: 4, blocks }, moves: [['fri', 'sun']] });
+    T('I  at a phase boundary (Fri of week 2, Peak from Monday; Legs → Sun): Legs moves to Sunday this week, still in Build; the week, the phase and the block weeks are unchanged', I.s1.thisWeek[6] === 'legs' && I.s1.thisWeek[4] === 'rest' && inv(I) && I.s1.week === 2 && /Build/.test(I.s1.phase), [I.s1.thisWeek, I.s1.phase]);
+    const I2 = await scen({ clock: '2026-10-11T09:00:00', program: { durationWeeks: 4, blocks }, moves: [['mon', 'tue']] });
+    T('…and on the program’s last day (Sun of week 4): nothing is created past the end — the program ends as it would have', inv(I2) && I2.s1.nextWeek.every(c => c === 'rest') && I2.s1.end === I2.s0.end, [I2.s1.nextWeek, I2.s1.end]);
+    const DRAFT = JSON.stringify({ id: 'draft_q', title: 'Pull', category: 'pull', date: '2026-09-23', startedAt: '2026-09-23T08:30:00', origin: 'program', programId: 'p1', exercises: [{ name: 'Lat Pulldown', effort: '8', bodyweight: false, sets: [{ weight: '100', reps: '8', rir: '2', type: 'working', completed: true }] }] });
+    const Q = await scen({ clock: '2026-09-23T09:00:00', moves: [['wed', 'sat']], before: async (ctx, b) => { b.a.store.activeWorkoutDraft = DRAFT; await ctx.renderResumeBanner(); } });
+    T('Q  a workout under way today: the move does not pull today’s session out from under it — this week stays, Saturday from next Monday; the draft is untouched', same(Q.s1.thisWeek, Q.s0.thisWeek) && same(Q.s1.nextWeek, sw(Q.s0.nextWeek, 'wed', 'sat')) && inv(Q) && Q.ctx.hasActiveDraftNow === true && Q.store.activeWorkoutDraft === DRAFT, Q.s1);
+    const gen = [W('g1', '2026-09-23', 'push', { origin: 'generated', programId: undefined }), W('m1', '2026-09-23', 'push', { origin: 'freeform', programId: undefined })];
+    const R = await scen({ clock: '2026-09-23T19:00:00', log: gen, moves: [['mon', 'wed']] });
+    T('R  generated and freeform workouts never become program fulfilment: a Build-for-me and a freeform Push logged today stay outside the program after Push is moved onto days around them', inv(R) && R.s1.claims.fulfilled === 0 && !/g1|m1/.test(R.s1.claims.pairs), R.s1.claims);
+    /* the week drag's undo: snapshot → move → undo restores both layers, revisions included */
+    const bU = await boot('2026-09-21T09:00:00'); await setup(bU, {});
+    const ctxU = bU.ctx; const p0 = JSON.stringify(ctxU.getActiveProgram()), plan0 = JSON.stringify(ctxU.schedule);
+    const snap = ctxU.snapshotWeekForUndo(); await ctxU.swapScheduledDays('wed', 'thu'); const moved = weekOf(ctxU, 0)[3];
+    ctxU._weekUndo = { snapshot: snap, timer: null }; await ctxU.undoWeekMove(); await H.settle(20);
+    const p1 = ctxU.getActiveProgram();
+    T('undo: the week drag’s Undo puts back the program exactly — schedule and revisions — and the plan layer; a move that took effect today does not outlive its Undo',
+      moved === 'pull' && JSON.stringify(p1.schedule) === JSON.stringify(JSON.parse(p0).schedule) && JSON.stringify(p1.revisions || null) === JSON.stringify(JSON.parse(p0).revisions || null) && JSON.stringify(ctxU.schedule) === plan0 && weekOf(ctxU, 0)[2] === 'pull', [moved, weekOf(ctxU, 0)]);
+    bU.release();
+  });
+
+  sub('properties: generated programs, fixed seed, four time zones');
+  await guard('properties', async () => {
+    const rnd = (seed => () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; })(0xD143);
+    const pick = arr => arr[Math.floor(rnd() * arr.length)];
+    const CATS = ['push', 'pull', 'legs', 'upper', 'lower', 'fullbody'];
+    const LAYOUTS = [['mon', 'wed', 'fri'], ['tue', 'thu', 'sat'], ['mon', 'tue', 'thu', 'fri'], ['mon', 'wed', 'thu', 'sat'], ['mon', 'tue', 'wed', 'fri', 'sat'], ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'], ['tue', 'wed', 'fri', 'sun']];
+    const ZONES = ['America/New_York', 'America/Los_Angeles', 'Europe/London', 'Asia/Tokyo'];
+    const fails = [], counts = { cases: 0, now: 0, nextWeek: 0, zones: 0 };
+    const tz0 = process.env.TZ;
+    const days0 = ['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27', '2026-10-04', '2026-11-01', '2026-03-08', '2026-03-29', '2026-10-25'];
+    const cases = [];
+    for(let i = 0; i < 96; i++){
+      const layout = pick(LAYOUTS), dur = pick([4, 6, 8]);
+      const sched = {}; DAYS.forEach(k => { sched[k] = REST; }); layout.forEach((k, j) => { sched[k] = OWN(CATS[j % CATS.length], 'S' + j); });
+      const today = pick(days0);
+      const startMon = (() => { const d = new Date(today + 'T00:00:00'); d.setDate(d.getDate() - ((d.getDay() + 6) % 7) - 7 * Math.floor(rnd() * 3)); return d; })();
+      const start = startMon.getFullYear() + '-' + String(startMon.getMonth() + 1).padStart(2, '0') + '-' + String(startMon.getDate()).padStart(2, '0');
+      const paused = rnd() < 0.2;
+      const a = pick(DAYS); let b = pick(DAYS); if(b === a) b = DAYS[(DAYS.indexOf(a) + 3) % 7];
+      cases.push({ i, sched, dur, today, start, paused, a, b, logSeed: Math.floor(rnd() * 1e9), reverse: rnd() < 0.5 });
+    }
+    for(const c of cases){
+      const zones = c.i % 12 === 0 ? ZONES : [ZONES[c.i % ZONES.length]];
+      const answers = [];
+      for(const z of zones){
+        process.env.TZ = z;
+        const bb = await boot(c.today + 'T12:00:00');
+        const ctx = bb.ctx;
+        /* a log of the program's own sessions on some planned days so far (completed), the rest missed, plus reversed order */
+        const lr = (s => () => { s = (s * 1103515245 + 12345) >>> 0; return s / 4294967296; })(c.logSeed);
+        const log = [];
+        const prog = { status: c.paused ? 'paused' : 'active', startDate: c.start, durationWeeks: c.dur };
+        if(c.paused) Object.assign(prog, { pausedOnDate: c.today, pauses: [{ from: c.today, to: null }] });
+        let d = new Date(c.start + 'T00:00:00');
+        while(true){ const ds = ctx.localDateStr(d); if(ds > c.today) break; const e = c.sched[DAYS[(d.getDay() + 6) % 7]];
+          if(e.type === 'workout' && lr() < 0.6) log.push(W('L' + ds, ds === c.today ? ds : ds, e.category)); d.setDate(d.getDate() + 1); }
+        if(c.reverse) log.reverse();
+        await setup(bb, { schedule: c.sched, program: prog, log });
+        const s0 = { log: JSON.stringify(ctx.workoutLog), claims: claims(ctx), week: ctx.getCurrentProgramWeek(ctx.getActiveProgram(), ctx.localDateStr()), status: ctx.getActiveProgram().status,
+          thisWeek: weekOf(ctx, 0), nextWeek: weekOf(ctx, 1), next2: weekOf(ctx, 2) };
+        const T0 = ctx.localDateStr();
+        const dA = ctx.weekDateForDayKey(c.a, T0), dB = ctx.weekDateForDayKey(c.b, T0);
+        await move(ctx, c.a, c.b);
+        const p = ctx.getActiveProgram();
+        const s1 = { log: JSON.stringify(ctx.workoutLog), claims: claims(ctx), week: ctx.getCurrentProgramWeek(p, ctx.localDateStr()), status: p.status, thisWeek: weekOf(ctx, 0), nextWeek: weekOf(ctx, 1), next2: weekOf(ctx, 2) };
+        const tag = '#' + c.i + ' ' + z + ' ' + c.today + ' ' + c.a + '→' + c.b + (c.paused ? ' paused' : '');
+        const bad = m => fails.push(tag + ': ' + m);
+        if(s1.log !== s0.log) bad('P1 the log moved');
+        if(!same(s1.claims, s0.claims)) bad('P2/P3/P8 D43 pairing or past slots changed ' + JSON.stringify([s0.claims, s1.claims]).slice(0, 300));
+        if(s1.week !== s0.week || s1.status !== s0.status) bad('P7 week or status moved');
+        const ended = w => w.every(x => x === 'rest');
+        if(!ended(s0.next2) && !same(s1.next2, sw(s0.next2, c.a, c.b))) bad('P5 a later week does not follow the move');
+        const movedNow = same(s1.thisWeek.map((x, k) => ctx.weekDateForDayKey(DAYS[k], T0) >= T0 ? x : null), sw(s0.thisWeek, c.a, c.b).map((x, k) => ctx.weekDateForDayKey(DAYS[k], T0) >= T0 ? x : null))
+          && !same(s0.thisWeek, s1.thisWeek);
+        const stayed = same(s1.thisWeek, s0.thisWeek);
+        const sessionsMoved = [[c.a, dA], [c.b, dB]].filter(([k]) => s0.thisWeek[DAYS.indexOf(k)] !== 'rest');
+        const ahead = [dA, dB].every(x => x >= T0);
+        if(!movedNow && !stayed) bad('P6 this week is neither moved nor kept ' + JSON.stringify([s0.thisWeek, s1.thisWeek]));
+        if(movedNow && !ahead) bad('P6 a day already over took part in a move this week');
+        if(movedNow && s1.thisWeek.filter((x, k) => ctx.weekDateForDayKey(DAYS[k], T0) < T0).join() !== s0.thisWeek.filter((x, k) => ctx.weekDateForDayKey(DAYS[k], T0) < T0).join()) bad('P1 a past day of this week changed');
+        /* a move that waits must be explained by something already happened: a day over, or a logged program workout within D43's reach */
+        if(stayed && sessionsMoved.length && ahead){
+          const near = (ctx.workoutLog || []).some(w => [dA, dB].some(x => Math.abs(ctx.daysBetweenDates(x, w.date)) <= vm.runInContext('PLAN_SHIFT_DAYS', ctx)));
+          if(!near && !c.paused) bad('P6 the move waited for next Monday with nothing to explain it');
+        }
+        if(movedNow) counts.now++; else if(stayed && !same(s0.nextWeek, s1.nextWeek)) counts.nextWeek++;
+        /* P9 the same move again puts the week back; P10 reload agrees */
+        const store = JSON.parse(JSON.stringify(bb.a.store));
+        await move(ctx, c.a, c.b);
+        if(!same(weekOf(ctx, 0), s0.thisWeek) || !same(weekOf(ctx, 1), s0.nextWeek)) bad('P9 the same move twice did not put the week back');
+        bb.release();
+        const a2 = H.loadApp(store); const rel2 = pinClock(a2.ctx, c.today + 'T12:00:00'); await H.settle(150); a2.ctx.invalidateProgramCache();
+        if(!same(weekOf(a2.ctx, 0), s1.thisWeek) || !same(weekOf(a2.ctx, 1), s1.nextWeek) || !same(claims(a2.ctx), s1.claims)) bad('P10 reload differs');
+        rel2();
+        answers.push(JSON.stringify([s1.thisWeek, s1.nextWeek, s1.claims.fulfilled]));
+        counts.cases++;
+      }
+      if(zones.length > 1){ counts.zones++; if(new Set(answers).size !== 1) fails.push('#' + c.i + ' P12 the answer differs across time zones'); }
+    }
+    if(tz0 === undefined) delete process.env.TZ; else process.env.TZ = tz0;
+    T('P1–P12 over ' + counts.cases + ' generated moves (3–6 training days, 4/6/8 weeks, active and paused, completed and missed sessions, reversed log order; ' + counts.zones + ' of them in four time zones incl. both DST changes): no workout moves, D43’s pairing and every past slot are unchanged, week and status hold, later weeks follow the move, this week moves only when every moved day is still ahead, a wait is always explained, the same move twice restores the week, reload agrees, zones agree',
+      fails.length === 0 && counts.now > 10 && counts.nextWeek > 10, fails.slice(0, 6).concat([JSON.stringify(counts)]));
+  });
+
+  sub('protected, data, the record, the release');
+  await guard('release', async () => {
+    const a = H.loadApp({ selectedPlan: JSON.stringify('balanced') }); const g = e => vm.runInContext(e, a.ctx); await H.settle(150);
+    T('16 DATA_KEYS, data schema 1, trainer 0.1.1-shadow in the running app', g('DATA_KEYS.length') === 16 && g('DATA_SCHEMA_VERSION') === 1 && g('TRAINER_ENGINE_VERSION') === '0.1.1-shadow', [g('DATA_KEYS.length'), g('DATA_SCHEMA_VERSION')]);
+    T('…and the sixteen are 10.65’s, in the file', (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw) || [])[1] === (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '') || [])[1]);
+    T('D139, D139.1, D140, D141, D49/D50B, D137, the low dock and the workout are 10.65’s', ['composeInstantSession', 'saveBuiltWorkout', 'openProgramGuide', 'deriveWorthKnowing', 'renderTodayInsights', 'progressionFor', 'buildProgressionRecommendation',
+      'compareProgressionEvidence', 'refreshSetCoach', 'deriveNextSetCoach', 'workoutBottomFacts', 'syncWorkoutBottomMode', 'openLogSheet', 'closeLogSheet', 'saveLog', 'computePRs', 'computeXPEvents', 'deriveSessionExecution', 'evaluateObjectives'].every(sameFn));
+    const fx = read('FINDINGS-D88.md'), tc = read('TRAINER-CONTRACT.md'), ps = JSON.parse(read('PROJECT-STATUS.json'));
+    const status = id => { const m = new RegExp('## ' + id + ' — [^\\n]*', 'm').exec(fx); return m ? m[0] : ''; };
+    T('E27 is CLOSED in D143; E65 is recorded OPEN (setting what a day holds); E64 stays CLOSED; E16 HELD and the other findings untouched',
+      /CLOSED in D143 \(LOOP 10\.66\)/.test(status('E27')) && /· OPEN$/.test(status('E65')) && /CLOSED in D142C/.test(status('E64')) && /HELD/.test(status('E16'))
+      && ['E22', 'E25', 'E26', 'E33', 'E38', 'E39', 'E43', 'E52', 'E54', 'E55', 'E60', 'E61'].every(id => /OPEN/.test(status(id)) && !/CLOSED/.test(status(id))));
+    T('§189 records the rule: past truth stays past, a move takes effect today only when every moved day is still ahead, otherwise next Monday; only Change day can ask for today', /## §189/.test(tc) && /past truth stays past; what is still ahead follows the edit/.test(tc) && /`'today'`, which only\s+`moveProgramDaysFrom` asks for/.test(tc));
+    T('PROJECT-STATUS 10.66 asks for the owner’s phone check of a move this week', ps.version === '10.66' && ps.needsQa === true && /Change day/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
+    T('What’s New v10-66 “Moved Training Days Update This Week” is LOOP 10.66 / loop-v243, dated in New York, three fixes, no E-number, and sw.js serves loop-v243',
+      /id: 'v10-66',\s*version: 'LOOP 10\.66',\s*title: 'Moved Training Days Update This Week',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v243',[\s\S]*bugFixes: \[\s*'[^']+',\s*'[^']+',\s*'[^']+'\s*\],\s*changes: \[\]/.test(D143_WHATSNEW)
+      && !/\bE\d\d\b|revision|D51|plan layer/i.test(D143_WHATSNEW) && raw.indexOf(D143_WHATSNEW) !== -1 && g('getLatestUpdateId()') === 'v10-66' && /CACHE_VERSION = 'loop-v243'/.test(read('sw.js')));
+    if(a.release) a.release();
+  });
+}
+
+/* =========================================================
    CONTRACT 266 — D142C (LOOP 10.65): E64 CLOSED — THE LOW DOCK STAYS, THE VIEWPORT DIAGNOSTICS GO
    The owner reviewed 10.64 on the installed Home Screen iPhone and accepted it. This release takes the temporary Viewport
    Diagnostics out in one hunk (D138.1's block, with D138.3's clip chain and Paint and D142B's BOTTOM MODE rows), keeps
@@ -57026,11 +57402,11 @@ async function testDiagnosticsRemovedD142C(){
       /physical phone is the authority/.test(s188) && /The production invariant \(D142B, unchanged\)/.test(s188) && /Do not restore D138\.2's full canvas/.test(s188) && /`screen\.height` is not a layout target/.test(s188)
       && /Contract 258, which held the instrument, is retired/.test(s188) && /^## §180[^\n]*\n\n> \*\*Removed in D142C \(LOOP 10\.65, §188\)\.\*\*/.test(s180));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('PROJECT-STATUS 10.65: the roadmap resumes — E64 is no longer the next action, no phone check is pending, nothing asks for the diagnostics', ps.version === '10.65' && ps.needsQa === false && ps.status === 'stable'
-      && /^Roadmap resumed: E64 closed/.test(ps.nextAction) && !/Paint|7 taps|Measure|Copy diagnostics|BOTTOM MODE/.test(ps.nextAction) && /E60, E61/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
+    T('PROJECT-STATUS 10.65: the roadmap resumes — E64 is no longer the next action, no phone check is pending, nothing asks for the diagnostics', (ps.version === '10.65' && ps.needsQa === false || ps.version === '10.66' /* D143 restated: the next phase asks for its own phone check (Contract 267) */) && ps.status === 'stable'
+      && (/^Roadmap resumed: E64 closed/.test(ps.nextAction) && /E60, E61/.test(ps.nextAction) || ps.version === '10.66') && !/Paint|7 taps|Measure|Copy diagnostics|BOTTOM MODE/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-65 “Workout Controls Stay Within Reach” is LOOP 10.65 / loop-v242, dated in New York, one change line and no fix claimed, names no E64, diagnostics, viewport, WebKit or Paint, and sw.js serves loop-v242',
       /id: 'v10-65',\s*version: 'LOOP 10\.65',\s*title: 'Workout Controls Stay Within Reach',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v242',[\s\S]*newFeatures: \[\],\s*improvements: \[\],\s*bugFixes: \[\],\s*changes: \[\s*'[^']+'\s*\]\s*$/.test(D142C_WHATSNEW)
-      && !/E64|diagnos|viewport|WebKit|Paint|fixed|bug/i.test(D142C_WHATSNEW.replace('bugFixes: [],', '')) && raw.indexOf(D142C_WHATSNEW) !== -1 && g('getLatestUpdateId()') === 'v10-65' && /CACHE_VERSION = 'loop-v242'/.test(read('sw.js')));
+      && !/E64|diagnos|viewport|WebKit|Paint|fixed|bug/i.test(D142C_WHATSNEW.replace('bugFixes: [],', '')) && raw.indexOf(D142C_WHATSNEW) !== -1 && g('getLatestUpdateId()') === 'v10-66' && /CACHE_VERSION = 'loop-v243'/.test(read('sw.js'))); /* D143 restated: v10-65 stays in the history; sw.js serves 10.66's cache (Contract 267) */
   });
   if(a.release) a.release();
 }
@@ -57130,10 +57506,10 @@ async function testWorkoutBottomModeD142B(){
     T('E64 is OPEN with its root boundary classified and the workaround awaiting the owner — until D142C closes it on the owner’s physical review; E60 and E61 still OPEN', /## E64 — [^\n]*\*\*(OPEN — PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA \(D142B, LOOP 10\.64\)|CLOSED in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone \(10\.64's low dock\); the temporary diagnostics removed)/.test(read('FINDINGS-D88.md')) && !/## E64 — [^\n]*CLOSED(?! in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone)/.test(read('FINDINGS-D88.md')) /* D142C restated: closed only by the owner's physical review (Contract 266) */
       && ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(read('FINDINGS-D88.md'))));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('the roadmap waits on the phone: PROJECT-STATUS 10.64 needs QA and asks for the final E64 check', (ps.version === '10.64' && ps.needsQa === true && /^E64: update to 10\.64,/.test(ps.nextAction) && /Paint/.test(ps.nextAction) || (ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction))) && ps.nextAction.length <= 200 /* D142C restated: the phone confirmed it, so the roadmap resumes in 10.65 (Contract 266) */, ps.nextAction);
+    T('the roadmap waits on the phone: PROJECT-STATUS 10.64 needs QA and asks for the final E64 check', (ps.version === '10.64' && ps.needsQa === true && /^E64: update to 10\.64,/.test(ps.nextAction) && /Paint/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */)) && ps.nextAction.length <= 200 /* D142C restated: the phone confirmed it, so the roadmap resumes in 10.65 (Contract 266) */, ps.nextAction);
     T('What’s New v10-64 “Workout Controls Use the Available Space” is LOOP 10.64 / loop-v241, dated in New York, claims no full screen and no iOS fix, and sw.js serves loop-v241',
       /id: 'v10-64',\s*version: 'LOOP 10\.64',\s*title: 'Workout Controls Use the Available Space',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v241',[\s\S]*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D142B_WHATSNEW)
-      && !/full screen|whole screen|fixed|iOS bug/i.test(D142B_WHATSNEW) && /CACHE_VERSION = 'loop-v24[12]'/.test(read('sw.js')) /* D142C restated: sw.js serves the newest release (Contract 266 holds loop-v242) */);
+      && !/full screen|whole screen|fixed|iOS bug/i.test(D142B_WHATSNEW) && /CACHE_VERSION = 'loop-v24[1-3]'/.test(read('sw.js')) /* D143 restated */ /* D142C restated: sw.js serves the newest release (Contract 266 holds loop-v242) */);
   });
   if(a.release) a.release();
 }
@@ -57494,7 +57870,7 @@ async function testWorthKnowingD141(){
   /* ---------------------------------------------------------------- */
   sub('29–31  Today, accessibility, motion');
   await guard('a11y', async () => {
-    T('29  Today is laid out as in 10.62: the same order of blocks, Worth Knowing in its place, drawn only when it has a row', sameFn('renderToday') && raw.indexOf('<div id="todayInsights"></div>') > raw.indexOf('<div id="readinessCard"></div>') && raw.indexOf('<div id="todayInsights"></div>') < raw.indexOf('<div id="todayMuscles"></div>'));
+    T('29  Today is laid out as in 10.62: the same order of blocks, Worth Knowing in its place, drawn only when it has a row', (sameFn('renderToday') || !!was && col(fnSrc(asOf1065Html(raw) || '', 'renderToday')) === col(fnSrc(was, 'renderToday'))) /* D143 restated: renderToday read at 10.65 — D143 changed only its header's source (Contract 267) */ && raw.indexOf('<div id="todayInsights"></div>') > raw.indexOf('<div id="readinessCard"></div>') && raw.indexOf('<div id="todayInsights"></div>') < raw.indexOf('<div id="todayMuscles"></div>'));
     const A = await load(FX['reduce-ready-trend'].log);
     const h = A.html(), rs = rows(h), items = A.items();
     T('30  every row is one button with one name that says the state and every number on it; the picture and chevron are hidden from assistive tech, no control inside a control',
@@ -57522,10 +57898,10 @@ async function testWorthKnowingD141(){
     T('27  E64 is frozen: the diagnostics are 10.62’s byte for byte, the stylesheet is 10.62’s outside the D141 block, E64 still OPEN', diagOf(asOf1064Html(raw) || '').length > 1000 /* D142C restated: the diagnostics as 10.64 shipped them, read back — removed in 10.65 (Contract 266) */ && diagOf(asOf1063Html(raw) || '') === diagOf(was) /* D142B restated: the readout read back as 10.63 (it gained the bottom mode, Contract 265) */ && /OPEN — (10\.58's full-screen dock|PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA)|CLOSED in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone \(10\.64's low dock\); the temporary diagnostics removed/ /* D142C restated: open until the owner's physical review closed it (Contract 266) */ /* D142B restated: E64 open, its boundary classified (Contract 265) */.test(read('FINDINGS-D88.md')));
     T('28  E60 and E61 still OPEN', ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(read('FINDINGS-D88.md'))));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('the roadmap resumes where it paused: PROJECT-STATUS 10.63 still needs QA and its next action is the E64 phone check', (/^10\.6[34]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[34],/.test(ps.nextAction) && /Paint/.test(ps.nextAction) /* D142B restated */ || (ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
+    T('the roadmap resumes where it paused: PROJECT-STATUS 10.63 still needs QA and its next action is the E64 phone check', (/^10\.6[34]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[34],/.test(ps.nextAction) && /Paint/.test(ps.nextAction) /* D142B restated */ || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-63 “Worth Knowing Shows the Why” is LOOP 10.63 / loop-v240, dated in New York, and sw.js serves loop-v240',
       /id: 'v10-63',\s*version: 'LOOP 10\.63',\s*title: 'Worth Knowing Shows the Why',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v240',[\s\S]*newFeatures: \[\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+',\s*'[^']+'\s*\],\s*bugFixes: \[\s*'[^']+'\s*\],\s*changes: \[\]/.test(D141_WHATSNEW)
-      && !/\b(smart|AI|intelligent)\b/.test(D141_WHATSNEW) && /id: 'v10-63'/.test(raw) && /CACHE_VERSION = 'loop-v242'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D142B restated */);
+      && !/\b(smart|AI|intelligent)\b/.test(D141_WHATSNEW) && /id: 'v10-63'/.test(raw) && /CACHE_VERSION = 'loop-v243'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D142B restated */);
   });
 }
 
@@ -57704,10 +58080,10 @@ async function testProgramGuideD140(){
     T('15–16  16 DATA_KEYS, data schema 1, trainer 0.1.1-shadow; E60 and E61 still OPEN', (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw) || [])[1] === (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '') || [])[1] && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /const TRAINER_ENGINE_VERSION = '0\.1\.1-shadow';/.test(raw)
       && ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(read('FINDINGS-D88.md'))));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('the roadmap resumes where it paused: PROJECT-STATUS 10.62 still needs QA and its next action is the E64 phone check', (/^10\.6[2-4]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[2-4],/.test(ps.nextAction) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ && /tap Paint/.test(ps.nextAction) || (ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
+    T('the roadmap resumes where it paused: PROJECT-STATUS 10.62 still needs QA and its next action is the E64 phone check', (/^10\.6[2-4]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[2-4],/.test(ps.nextAction) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ && /tap Paint/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-62 “Learn Programs Before You Build” is LOOP 10.62 / loop-v239, dated in New York, says what was built, and sw.js serves loop-v239',
       /id: 'v10-62',\s*version: 'LOOP 10\.62',\s*title: 'Learn Programs Before You Build',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v239',[\s\S]*newFeatures: \[\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D140_WHATSNEW)
-      && /id: 'v10-62'/.test(raw) && /CACHE_VERSION = 'loop-v242'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D142B restated */ /* D141 restated: v10-62 stays in the history; sw.js now serves 10.63's cache (Contract 264) */);
+      && /id: 'v10-62'/.test(raw) && /CACHE_VERSION = 'loop-v243'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D142B restated */ /* D141 restated: v10-62 stays in the history; sw.js now serves 10.63's cache (Contract 264) */);
   });
 }
 
@@ -58015,10 +58391,10 @@ async function testSaveBuiltWorkoutD1391(){
     T('16 DATA_KEYS, data schema 1, trainer 0.1.1-shadow; E60 and E61 still OPEN', (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw) || [])[1] === (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '') || [])[1] && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /const TRAINER_ENGINE_VERSION = '0\.1\.1-shadow';/.test(raw)
       && ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(read('FINDINGS-D88.md'))));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('the roadmap resumes where it paused: PROJECT-STATUS 10.61 still needs QA and its next action is the E64 phone check', (/^10\.6[1-4]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[1-4],/.test(ps.nextAction) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ /* D140 restated: 10.62 keeps the E64 next action (Contract 263) */ && /tap Paint/.test(ps.nextAction) || (ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
+    T('the roadmap resumes where it paused: PROJECT-STATUS 10.61 still needs QA and its next action is the E64 phone check', (/^10\.6[1-4]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[1-4],/.test(ps.nextAction) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ /* D140 restated: 10.62 keeps the E64 next action (Contract 263) */ && /tap Paint/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-61 “Save Built Workouts” is LOOP 10.61 / loop-v238, dated in New York, says what was built and nothing more, and sw.js serves loop-v238',
       /id: 'v10-61',\s*version: 'LOOP 10\.61',\s*title: 'Save Built Workouts',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v238',[\s\S]*newFeatures: \[\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\s*'[^']+'\s*\]/.test(D1391_WHATSNEW)
-      && !/\b(smart|perfect|AI)\b/.test(D1391_WHATSNEW) && /id: 'v10-61'/.test(raw) && /CACHE_VERSION = 'loop-v242'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D142B restated */ /* D141 restated: sw.js now serves 10.63's cache (Contract 264) */ /* D140 restated: v10-61 stays in the history; sw.js now serves 10.62's cache (Contract 263) */);
+      && !/\b(smart|perfect|AI)\b/.test(D1391_WHATSNEW) && /id: 'v10-61'/.test(raw) && /CACHE_VERSION = 'loop-v243'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D142B restated */ /* D141 restated: sw.js now serves 10.63's cache (Contract 264) */ /* D140 restated: v10-61 stays in the history; sw.js now serves 10.62's cache (Contract 263) */);
   });
 }
 
@@ -58306,10 +58682,10 @@ async function testInstantBuilderD139(){
     const fx = read('FINDINGS-D88.md');
     T('51  E60 and E61 untouched (still OPEN)', ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(fx)));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('52  the roadmap resumes where it paused: PROJECT-STATUS still needs QA and its next action is the E64 phone check', (/^10\.6[0-4]$/.test(ps.version) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ /* D140 restated: 10.62 keeps the E64 next action (Contract 263) */ /* D139.1 restated: 10.61 keeps the E64 next action (Contract 262) */ && ps.needsQa === true && /^E64:/.test(ps.nextAction) || (ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
+    T('52  the roadmap resumes where it paused: PROJECT-STATUS still needs QA and its next action is the E64 phone check', (/^10\.6[0-4]$/.test(ps.version) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ /* D140 restated: 10.62 keeps the E64 next action (Contract 263) */ /* D139.1 restated: 10.61 keeps the E64 next action (Contract 262) */ && ps.needsQa === true && /^E64:/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-60 “Build Today’s Workout” is LOOP 10.60 / loop-v237, dated in New York, says what was built and nothing more, and sw.js serves loop-v237',
       /id: 'v10-60',\s*version: 'LOOP 10\.60',\s*title: 'Build Today’s Workout',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v237',[\s\S]*newFeatures: \[\s*'[^']+',\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D139_WHATSNEW)
-      && !/\b(pump|optimal|smart|perfect|intelligent)\b/i.test(D139_WHATSNEW) && !/\bAI\b/.test(D139_WHATSNEW) &&/id: 'v10-60'/.test(raw0) && /CACHE_VERSION = 'loop-v242'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D142B restated */ /* D141 restated: sw.js now serves 10.63's cache (Contract 264) */ /* D140 restated: sw.js now serves 10.62's cache (Contract 263) */ /* D139.1 restated: v10-60 stays in the history; sw.js now serves 10.61's cache (Contract 262) */);
+      && !/\b(pump|optimal|smart|perfect|intelligent)\b/i.test(D139_WHATSNEW) && !/\bAI\b/.test(D139_WHATSNEW) &&/id: 'v10-60'/.test(raw0) && /CACHE_VERSION = 'loop-v243'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D142B restated */ /* D141 restated: sw.js now serves 10.63's cache (Contract 264) */ /* D140 restated: sw.js now serves 10.62's cache (Contract 263) */ /* D139.1 restated: v10-60 stays in the history; sw.js now serves 10.61's cache (Contract 262) */);
   });
 }
 
@@ -58471,10 +58847,10 @@ async function testVisibleDockD1383(){
     T('41  E60 and E61 are untouched (still OPEN)', ['E60', 'E61'].every(id => /· OPEN$/.test(status(id))), ['E60', 'E61'].map(status));
     T('42  E64 is OPEN, never CLOSED by automation: only the owner’s screenshot with both buttons whole can close it (D142C restated: and the owner’s physical review closed it in 10.65) — PROJECT-STATUS still needs QA and asks for the Paint test, a screenshot and the report',
       /^## E64 — [^\n]*· \*\*(CLOSED in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone \(10\.64's low dock\); the temporary diagnostics removed|OPEN — (PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA \(D142B, LOOP 10\.64\)[^*]*|10\.58's full-screen dock was cut off by the iPhone's own viewport; 10\.59 puts the buttons back in view \(D138\.3\)))\*\*$/ /* D142C restated */ /* D142B restated */.test(e64.split('\n')[0]) && !/CLOSED(?! in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone)/.test(e64.split('\n')[0])
-      && (ps.needsQa === true && /^10\.(59|6[0-4])$/.test(ps.version) /* D142B restated: 10.64 keeps it too */ /* D141 restated: 10.63 keeps it too */ /* D140 restated: 10.62 keeps it too */ /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64:/.test(ps.nextAction) && /Paint/.test(ps.nextAction) && /screenshot/.test(ps.nextAction) || (ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, e64.split('\n')[0]);
+      && (ps.needsQa === true && /^10\.(59|6[0-4])$/.test(ps.version) /* D142B restated: 10.64 keeps it too */ /* D141 restated: 10.63 keeps it too */ /* D140 restated: 10.62 keeps it too */ /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64:/.test(ps.nextAction) && /Paint/.test(ps.nextAction) && /screenshot/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, e64.split('\n')[0]);
     T('What’s New v10-59 “Workout Buttons Back in Full View” is LOOP 10.59 / loop-v236, dated in New York; its one fix is the cut-off buttons 10.58 shipped, its one change the withdrawn layout; it does not claim the bottom band is gone; sw.js serves loop-v236',
       /id: 'v10-59',\s*version: 'LOOP 10\.59',\s*title: 'Workout Buttons Back in Full View',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v236',[\s\S]*newFeatures: \[\],\s*improvements: \[\],\s*bugFixes: \[\s*'[^']+'\s*\],\s*changes: \[\s*'[^']+'\s*\]/.test(D1383_WHATSNEW)
-      && !/gap|band|E64|D138|full screen\b|fixed the/i.test(D1383_WHATSNEW) && /id: 'v10-59'/.test(raw0) && c.getLatestUpdateId() === 'v10-65' && /CACHE_VERSION = 'loop-v242'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D142B restated: now 10.64's */ /* D141 restated: now 10.63's */ /* D140 restated: now 10.62's */ /* D139.1 restated: now 10.61's */ /* D139 restated: v10-59 stays in the history; the newest is 10.60's (Contract 261) */);
+      && !/gap|band|E64|D138|full screen\b|fixed the/i.test(D1383_WHATSNEW) && /id: 'v10-59'/.test(raw0) && c.getLatestUpdateId() === 'v10-66' /* D143 restated */ && /CACHE_VERSION = 'loop-v243'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D142B restated: now 10.64's */ /* D141 restated: now 10.63's */ /* D140 restated: now 10.62's */ /* D139.1 restated: now 10.61's */ /* D139 restated: v10-59 stays in the history; the newest is 10.60's (Contract 261) */);
   });
 }
 
@@ -58674,10 +59050,10 @@ async function testFullCanvasShellD1382(){
     T('39  E60 and E61 are untouched (still OPEN)', ['E60', 'E61'].every(id => /· OPEN$/.test(status(id))), ['E60', 'E61'].map(status));
     T('40  E64 is a FIX CANDIDATE, never CLOSED: only the owner’s phone can close it (D142C restated: and the owner’s physical review closed it in 10.65) — PROJECT-STATUS still needs QA and asks for Capture A, and the note says what the phone must show',
       /^## E64 — [^\n]*· \*\*(FIX CANDIDATE — awaiting the owner's iPhone confirmation \(D138\.2, LOOP 10\.58\)|OPEN — 10\.58's full-screen dock was cut off by the iPhone's own viewport; 10\.59 puts the buttons back in view \(D138\.3\)|OPEN — PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA \(D142B, LOOP 10\.64\)[^*]*|CLOSED in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone \(10\.64's low dock\); the temporary diagnostics removed)\*\*$/ /* D142B restated */ /* D142C restated */.test(e64.split('\n')[0]) && !/CLOSED(?! in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone)/.test(e64.split('\n')[0]) && /NOT closed/.test(note) && /screen − dock ≈ 0/.test(note)
-      && (ps.needsQa === true && /^10\.(5[89]|6[0-4])$/.test(ps.version) /* D142B restated: 10.64 keeps it too */ /* D141 restated: 10.63 keeps it too */ /* D140 restated: 10.62 keeps it too */ /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64/.test(ps.nextAction) || (ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200 /* D138.3 restated: the phone showed the dock cut off; E64 is OPEN again, never CLOSED, and PROJECT-STATUS asks for the paint test (Contract 260) */, e64.split('\n')[0]);
+      && (ps.needsQa === true && /^10\.(5[89]|6[0-4])$/.test(ps.version) /* D142B restated: 10.64 keeps it too */ /* D141 restated: 10.63 keeps it too */ /* D140 restated: 10.62 keeps it too */ /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200 /* D138.3 restated: the phone showed the dock cut off; E64 is OPEN again, never CLOSED, and PROJECT-STATUS asks for the paint test (Contract 260) */, e64.split('\n')[0]);
     T('What’s New v10-58 “Full-Screen Workout Layout” is LOOP 10.58 / loop-v235, dated in New York, says what changed and claims no fix (the phone has not confirmed one), and sw.js serves loop-v235',
       /id: 'v10-58',\s*version: 'LOOP 10\.58',\s*title: 'Full-Screen Workout Layout',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v235',[\s\S]*newFeatures: \[\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D1382_WHATSNEW)
-      && !/\bfix|gap|E64|D138|iPhone/i.test(D1382_WHATSNEW) && /id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-65' && /CACHE_VERSION = 'loop-v242'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D142B restated: now 10.64's */ /* D141 restated: now 10.63's */ /* D140 restated: now 10.62's */ /* D139.1 restated: now 10.61's */ /* D139 restated: the newest is 10.60's (Contract 261) */ /* D138.3 restated: v10-58 stays in the history; the newest is 10.59's (Contract 260) */);
+      && !/\bfix|gap|E64|D138|iPhone/i.test(D1382_WHATSNEW) && /id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-66' /* D143 restated */ && /CACHE_VERSION = 'loop-v243'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D142B restated: now 10.64's */ /* D141 restated: now 10.63's */ /* D140 restated: now 10.62's */ /* D139.1 restated: now 10.61's */ /* D139 restated: the newest is 10.60's (Contract 261) */ /* D138.3 restated: v10-58 stays in the history; the newest is 10.59's (Contract 260) */);
   });
 }
 
@@ -59049,7 +59425,7 @@ async function testProductExperienceD132(){
     T('1  every D132 change is where it was written, once — the file reads back as LOOP 10.48', wasRaw !== null);
     T('2  …and that read-back is LOOP 10.48 to the byte (index.html of 4948cc7): no engine, no renderer, no handler, no record, no rule outside the system block moved', !!wasRaw && sha(wasRaw) === SHA_1048_HTML, wasRaw && sha(wasRaw));
     const PINS = {"deriveSessionExecution":"0498f3f2c0dd3c2c","sessionScore":"842e5699f8ac0835","computeAllPREvents":"94af217dbcf1f9ed","computePRs":"ff1f540c2ae3b46a","computeXPEvents":"cec5fa2cffc42db5","getCurrentProgression":"bf3a7572296c620c","computeMuscleRecovery":"d3589033bdb54c67","recoveryStripHtml":"6eb427476c25e796","progressionFor":"a992f11698e3e9e7","getProgramWorkoutForDate":"496d8572d640dc24","objectiveProgress":"e0889920b620163e","syncObjectives":"406ea6f01ae1b62e","deriveWorkingSetPlan":"b5c00dac1e00d09b","coachMayWriteSet":"0de96792fab27ca4","seedWarmupTargets":"9c048567ff49a1f1","suggestedWarmupSteps":"7e37069140f2527b","maybeRefreshWarmup":"bf55b39f07a6e2e4","splitRowForSwap":"78ed482b25517739","captureActiveDraft":"7ed552854d7f4526","restoreDraftToSheet":"33f0e4de3ce21e63","addLogExerciseRow":"be4678472bf41b62","appendSetRow":"61f2b7e061afde48","toggleSetComplete":"ed4187ee4b7b5e61","saveLog":"66c63714822ef5ee","openWorkoutSummary":"58c0ec576bb1bad2","renderSummaryScore":"be7971b69696ae40","openMasteryExercise":"d5ed0205fd603c1c","deriveExerciseDetail":"2e7f87f1c8567b0a","masteryPodiumCardHtml":"0c85f5f236685801","masteryViewHtml":"cfeb04f7ef9796a6","renderWeeklyReview":"b8e25f3b77b18cb5","renderToday":"4eddd61a7575f0e7","renderTodayWorkout":"7957f591c99febed","switchTab":"de35ef75d197810e","renderProgress":"45badcbf3a0defd5","renderExDetail":"752755306eaa5a44","renderProgramDetail":"2b47b25b6540176e","renderSettingsSocialRow":"4cd1dbb1731fbca4","computeConsistencyData":"5bfe9ebbb27ff11e","paintTabIcons":"db23ee85cb7633b8","tabIconSvg":"2386e6e0cddb2e3a"};
-    const moved = Object.keys(PINS).filter(n => (D135_EDITS[n] ? pinAsOf1053(n) : D134_EDITS[n] ? pinAsOf1052(n) : D131B_EDITS[n] ? pinAsOf1050(n) : D137_EDITS[n] ? pinAsOf1055(n) : pin(n)) !== PINS[n]);   // D137 restated: a function D137 changed is read as 10.55 (Contract 256)   // D135 restated: the split read at 10.53 (Contract 254)   // D134 restated: renderTodayWorkout read at 10.52 (Contract 253)   // D131B restated: toggleSetComplete, restoreDraftToSheet and maybeRefreshWarmup read at 10.50 (Contract 251)
+    const moved = Object.keys(PINS).filter(n => (n === 'renderToday' ? sha(col(fnSrc(asOf1065Html(raw) || '', n))) /* D143 restated: read at 10.65 (Contract 267) */ : D135_EDITS[n] ? pinAsOf1053(n) : D134_EDITS[n] ? pinAsOf1052(n) : D131B_EDITS[n] ? pinAsOf1050(n) : D137_EDITS[n] ? pinAsOf1055(n) : pin(n)) !== PINS[n]);   // D137 restated: a function D137 changed is read as 10.55 (Contract 256)   // D135 restated: the split read at 10.53 (Contract 254)   // D134 restated: renderTodayWorkout read at 10.52 (Contract 253)   // D131B restated: toggleSetComplete, restoreDraftToSheet and maybeRefreshWarmup read at 10.50 (Contract 251)
     T('3  the engines and surfaces it must not move are byte-identical to 10.48 — Session Score and the execution analysis, PRs, XP and level, recovery, D49, programs, objectives, D125’s plan, D127’s write boundary, D130’s warm-ups, D131A’s draft, E56/E58/E59 as recorded, the summary, Mastery (D128/D129), Exercise Detail, Weekly Review, Today — ' + Object.keys(PINS).length + ' pins',
       moved.length === 0, moved.join(','));
     T('3  the one statement D132 added to a function is switchProgTab’s aria-selected — and that function is otherwise 10.48’s',
@@ -59504,6 +59880,7 @@ async function main(){
   await testWorthKnowingD141();
   await testWorkoutBottomModeD142B();
   await testDiagnosticsRemovedD142C();
+  await testChangeDayD143();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

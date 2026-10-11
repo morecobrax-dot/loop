@@ -20145,6 +20145,22 @@ const LOOP_UPDATES = [
     changes: [
       'Previous, Skip, Next and Finish keep the position LOOP 10.64 gave them on affected Home Screen iPhones, now confirmed on a physical iPhone'
     ]
+  },
+  {
+    id: 'v10-66',
+    version: 'LOOP 10.66',
+    title: 'Moved Training Days Update This Week',
+    date: '2026-10-11',
+    swVersion: 'loop-v243',
+    summary: 'Moving a training day in a running program now moves it this week when that day is still ahead. Workouts you have already done or missed stay where they happened.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'Moving an upcoming program workout to another day this week now moves it this week, instead of only from next week',
+      'Today’s heading now names the same day’s workout as the card beneath it after a day is moved',
+      'A day moved while your program is paused now stays moved when you resume'
+    ],
+    changes: []
   }
 ];
 
@@ -31696,9 +31712,12 @@ let _weekUndo = null;
 function snapshotWeekForUndo(){
   const snap = { schedule: Object.assign({}, schedule), program: null };
   try{
-    if(hasActiveProgram()){
-      const p = getActiveProgram();
-      snap.program = { id: p.id, schedule: JSON.parse(JSON.stringify(p.schedule || {})) };
+    /* D143 — the program a move writes (running or paused), with its revisions: a move can now take effect today,
+       and only the revisions as they were can take that back. */
+    const p = dayEditProgram();
+    if(p){
+      snap.program = { id: p.id, schedule: JSON.parse(JSON.stringify(p.schedule || {})),
+        revisions: Array.isArray(p.revisions) ? JSON.parse(JSON.stringify(p.revisions)) : null };
     }
   }catch(e){}
   return snap;
@@ -31730,7 +31749,16 @@ async function undoWeekMove(){
     Object.assign(schedule, s.schedule);
     persistSchedule();
     if(s.program){
-      await updateProgram(s.program.id, { schedule: s.program.schedule });
+      /* D143 — restored exactly, revisions included, not re-revised: a fresh revision would leave a move made today in
+         force for the rest of the week. */
+      await commitProgramChange(() => {
+        const q = getProgram(s.program.id);
+        if(!q) return false;
+        q.schedule = JSON.parse(JSON.stringify(s.program.schedule));
+        if(s.program.revisions) q.revisions = JSON.parse(JSON.stringify(s.program.revisions)); else delete q.revisions;
+        q.updatedAt = new Date().toISOString();
+        return { ok:true, errors:[], program:q };
+      });
       invalidateProgramCache();
     }
   }catch(e){}
@@ -32116,8 +32144,19 @@ function renderTodayWorkout(){
        start, so the athlete can see what they are resting FOR. Training today
        stays available, but as an override of the plan rather than the card's
        primary action. */
-    const nextDay = findNextTrainingDay(tKey);
-    const nextCat = nextDay ? schedule[nextDay] : null;
+    let nextDay = findNextTrainingDay(tKey);
+    let nextCat = nextDay ? schedule[nextDay] : null;
+    /* D143 — with a program running, the next session is the program's next workout day, read date by date as the
+       card for each day reads it; the plan layer can already hold a change the program applies only next week. */
+    if(programDay && !programDay.ended){
+      nextDay = null; nextCat = null;
+      for(let i = 1; i <= 7 && !nextCat; i++){
+        const d = addDaysISO(todayStr, i);
+        let pd = null;
+        try{ pd = getProgramWorkoutForDate(d); }catch(e){ pd = null; }
+        if(pd && pd.entry && pd.entry.type === 'workout'){ nextDay = JS_DAY_TO_KEY[new Date(d + 'T00:00:00').getDay()]; nextCat = pd.category; }
+      }
+    }
     let nextPreview = '';
     if(nextCat){
       const tpl = (getTemplates(nextCat) || [])[0];
@@ -33004,7 +33043,16 @@ function renderToday(){
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { weekday:'long', month:'short', day:'numeric' });
   const tKey = todayKey();
-  const cat = schedule ? schedule[tKey] : 'rest';
+  let cat = schedule ? schedule[tKey] : 'rest';
+  /* D143 — an active program owns today, exactly as the card below reads it (renderTodayWorkout). The header used to
+     read the plan layer alone, which a Change day updates at once, so it named one day's session over a card offering
+     another until the program's change began. */
+  try{
+    if(hasActiveProgram()){
+      const pd = getProgramWorkoutForDate(localDateStr());
+      if(pd) cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';
+    }
+  }catch(e){}
   /* The level sits in the header, across from the greeting — the athlete's
      standing is the first thing Home says, not something found by scrolling
      into Momentum. Same progression read as everywhere else; tapping it opens
@@ -33138,6 +33186,70 @@ async function setScheduledCategory(dayKey, cat){
   }catch(e){ /* the plan layer above still stands on its own */ }
 }
 
+/* =========================================================
+   CHANGE DAY ON A RUNNING PROGRAM  (Phase D143 — E27)
+   ---------------------------------------------------------
+   Change day swaps two weekdays. The plan layer (`schedule`) always changed at once, but the program's change was a D51
+   revision effective NEXT MONDAY, so a move within the current week never happened: Today's card kept the session on
+   its old day while the header, reading the plan layer, named the new one. A paused program was not written at all, so
+   resuming brought the old days back.
+
+   PAST TRUTH STAYS PAST; WHAT IS STILL AHEAD FOLLOWS THE EDIT. A move takes effect TODAY when every session it moves is
+   still ahead of the athlete this week:
+     · its old day is today or later, and its new day is today or later — a day already over is never given a
+       session it did not have, and a session whose day has passed (trained or missed) has already had its week;
+     · no workout is under way today when today is one of the two days;
+     · nothing already logged counts differently — D43's own matcher, asked of the program with and without the move,
+       must pair the same workouts with the same dates. A session trained early inside the shift window has happened,
+       and a missed one is never rescued.
+   Otherwise the move takes effect next Monday, exactly as before (D51). Either way no workout in the log is touched,
+   the program week, phase and status stay where they are, and a paused program stays paused.
+   ========================================================= */
+/* The program a day edit writes: the active one, running or paused. */
+function dayEditProgram(){
+  let p = null;
+  try{ p = getActiveProgram(); }catch(e){ p = null; }
+  return (p && (p.status === 'active' || p.status === 'paused')) ? p : null;
+}
+function swapProgramDays(sched, a, b){
+  const next = Object.assign({}, sched || {});
+  const ta = next[a];
+  next[a] = next[b] || { type:'rest' };
+  next[b] = ta || { type:'rest' };
+  return next;
+}
+/* The move, from programRevisionDate(when) on: the plan in force then has its two days swapped and recorded as one
+   revision; a revision already set to begin later (next Monday) is swapped too, so the move holds after it. */
+function moveProgramDaysFrom(p, a, b, when){
+  const from = programRevisionDate(when);
+  const later = Array.isArray(p.revisions) ? p.revisions.filter(r => r && r.schedule && String(r.effectiveFrom) > from) : [];
+  const base = later.length ? programPlanOn(p, from) : p.schedule;
+  const latest = swapProgramDays(p.schedule, a, b);
+  later.forEach(r => { r.schedule = swapProgramDays(r.schedule, a, b); });
+  addProgramRevision(p, swapProgramDays(base, a, b), from);
+  p.schedule = latest;
+  return p;
+}
+/* Whether swapping these two days can move this week's sessions now (see the rule above). */
+function changeDayMovesThisWeek(program, a, b){
+  const today = localDateStr();
+  if(!program || !programHasBegun(program) || programTimelineEnded(program, today)) return false;
+  const dA = weekDateForDayKey(a, today), dB = weekDateForDayKey(b, today);
+  if(!dA || !dB) return false;
+  const plan = programPlanOn(program, today);
+  const moves = [];
+  if(plan[a] && plan[a].type === 'workout') moves.push([dA, dB]);
+  if(plan[b] && plan[b].type === 'workout') moves.push([dB, dA]);
+  if(!moves.length || !moves.every(m => m[0] >= today && m[1] >= today)) return false;
+  if(hasActiveDraftNow && (dA === today || dB === today)) return false;
+  const claims = p => {
+    const f = deriveProgramPlanFulfillment(p, workoutLog || []);
+    return f.slots.filter(s => s.workoutId).map(s => s.workoutId + '@' + s.date).sort().join('|') + '#' + f.additional;
+  };
+  const trial = moveProgramDaysFrom(JSON.parse(JSON.stringify(program)), a, b, 'today');
+  return claims(trial) === claims(program);
+}
+
 /* Swapping two days has to move BOTH layers, or the program keeps the old week
    while the plan claims the new one. */
 async function swapScheduledDays(a, b){
@@ -33147,13 +33259,22 @@ async function swapScheduledDays(a, b){
   schedule[b] = tmp;
   persistSchedule();
   try{
-    if(hasActiveProgram()){
-      const p = getActiveProgram();
-      const next = Object.assign({}, p.schedule || {});
-      const ta = next[a];
-      next[a] = next[b] || { type:'rest' };
-      next[b] = ta || { type:'rest' };
-      await updateProgram(p.id, { schedule: next });
+    const p = dayEditProgram();
+    if(p){
+      if(changeDayMovesThisWeek(p, a, b)){
+        await commitProgramChange(() => {
+          const q = getProgram(p.id);
+          if(!q) return false;
+          const check = validateProgram(Object.assign({}, q, { schedule: swapProgramDays(q.schedule, a, b) }));
+          if(!check.valid) return { ok:false, errors:check.errors, program:null };
+          moveProgramDaysFrom(q, a, b, 'today');
+          try{ refreshProgramName(q); }catch(e){}
+          q.updatedAt = new Date().toISOString();
+          return { ok:true, errors:[], program:q };
+        });
+      } else {
+        await updateProgram(p.id, { schedule: swapProgramDays(p.schedule, a, b) });
+      }
       invalidateProgramCache();
     }
   }catch(e){}
@@ -44771,6 +44892,10 @@ function materializeProgramPlan(schedule){
 function programRevisionDate(when){
   const today = new Date(localDateStr() + 'T00:00:00');
   const tomorrow = new Date(today); tomorrow.setDate(tomorrow.getDate() + 1);
+  /* D143 — 'today' is Change day's alone: moveProgramDaysFrom asks for it only after changeDayMovesThisWeek has shown
+     that nothing on today has been trained, started or counted for the sessions that move. reviseProgramPlan still
+     maps every choice it is given to 'next' or 'week', so no other edit can reach it. */
+  if(when === 'today') return localDateStr(today);
   if(when === 'next') return localDateStr(tomorrow);
   const d = new Date(today);
   const delta = (8 - (d.getDay() || 7)) % 7 || 7;   // the next Monday, never today
@@ -50405,9 +50530,9 @@ function programMapHtml(def, opts){
   if(week > weeks) week = Math.min(o.week || 1, weeks);
   programMapWeek[prefix] = week;
   programMapDefs[prefix] = def;
-  programMapOpts[prefix] = { interactive:o.interactive, today:o.today, dayState:o.dayState };
+  programMapOpts[prefix] = { interactive:o.interactive, today:o.today, dayState:o.dayState, dated:o.dated };
   const inner = programMapInnerHtml(def,
-    { week, interactive:o.interactive, idPrefix:prefix, today:o.today, dayState:o.dayState });
+    { week, interactive:o.interactive, idPrefix:prefix, today:o.today, dayState:o.dayState, dated:o.dated });
   return `<div class="pmap" id="${prefix}Host">${inner}</div>`;
 }
 
@@ -50467,6 +50592,14 @@ function programMapInnerHtml(def, opts){
    category and enough structure to be understood without opening them. */
 function programMapWeekHtml(def, week, o){
   const opts = o || {};
+  /* D143 — a running program's map shows the selected week as it was or will be planned on its own dates (D51C), not
+     the latest plan for every week: a move that starts next Monday leaves this week as it is, and a missed day keeps
+     its mark. Studio's preview of a draft passes no `dated` and draws the draft. */
+  if(opts.dated && def && def.startDate){
+    const plan = {};
+    PROGRAM_DAY_KEYS.forEach(k => { const d = programDateFor(def, week, k); plan[k] = (d ? programPlanOn(def, d)[k] : null) || { type:'rest' }; });
+    def = Object.assign({}, def, { schedule: plan });
+  }
   const full = { mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Sat', sun:'Sun' };
   /* Roles for the whole week at once: what each session is about, and what
      separates the A session from the B when a category repeats. */
@@ -53390,7 +53523,7 @@ function myTrainingProgramMapHtml(t){
   try{ program = getActiveProgram(); }catch(e){ return ''; }
   if(!program) return '';
   return programMapHtml(program, {
-    week: t.week || 1, today: t.week || 1, interactive: true, idPrefix: 'mtMap',
+    week: t.week || 1, today: t.week || 1, interactive: true, idPrefix: 'mtMap', dated: true,
     dayState: (dayKey, week) => programDayState(program, dayKey, week)
   });
 }
@@ -53401,10 +53534,12 @@ function myTrainingProgramMapHtml(t){
    it existed. */
 function programDayState(program, dayKey, week){
   try{
-    const entry = program.schedule[dayKey];
-    if(!entry || entry.type !== 'workout') return null;
+    /* D143 — the plan in force on the day's own date (D51C), as the slots and the map read it: the latest plan named a
+       day by a session it never had, and dropped the mark of a missed one whose session had since moved. */
     const date = programDateFor(program, week, dayKey);
     if(!date) return null;
+    const entry = programEntryOn(program, dayKey, date);
+    if(!entry || entry.type !== 'workout') return null;
     const today = localDateStr();
     if(date > today) return null;                       // upcoming: say nothing
     if(date < program.startDate) return null;           // before the program existed
@@ -54011,7 +54146,16 @@ function myTrainingNextSession(){
   const todayIdx = (today.getDay() + 6) % 7;   // Mon = 0
   for(let i = 1; i <= 7; i++){
     const key = PROGRAM_DAY_KEYS[(todayIdx + i) % 7];
-    const cat = schedule && schedule[key];
+    let cat = schedule && schedule[key];
+    /* D143 — and whether there IS a session that day is the program's answer too, not the plan layer's: a day moved
+       from next week on must not be named as this week's next session. */
+    try{
+      if(hasActiveProgram()){
+        const on = new Date(today); on.setDate(on.getDate() + i);
+        const pd = getProgramWorkoutForDate(localDateStr(on));
+        if(pd && !pd.ended) cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';
+      }
+    }catch(e){}
     if(!cat || cat === 'rest') continue;
     let workoutName = null;
     try{

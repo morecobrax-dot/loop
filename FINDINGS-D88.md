@@ -917,7 +917,22 @@ but the tag claims it is Thursday's session.
 and D103 left them unchanged; whether a tag should follow the occurrence or be
 dropped when the day owns its exercises is a Train-tab presentation decision.
 
-## E27 — "Change day" on a running Program moves nothing this week · P3 · PROVEN · OPEN
+## E27 — "Change day" on a running Program moves nothing this week · P3 · PROVEN · **CLOSED in D143 (LOOP 10.66)**
+
+> **D143 — closed.** Reproduced on 10.65 through the athlete's own Change day (`moveDayTo` → `swapScheduledDays`):
+> every move under a running program became a D51 revision effective next Monday, so this week's session never moved.
+> Today's header (the plan layer, changed at once) named a different session from the card beneath it (the program).
+> The Program screen's "next" also read the plan layer. A paused program was not written at all, so resuming brought the
+> old days back. Root cause: `programRevisionDate` could express only tomorrow and next Monday, and Change day always
+> asked for next Monday.
+> 10.66: a move takes effect TODAY when every session it moves is still ahead this week. Its old and new days must both
+> be today or later. No workout may be under way today if today is one of the days. D43's matcher must pair the same
+> logged workouts with the same dates with and without the move. Otherwise it takes effect next Monday as before.
+> Completed and missed sessions never move. Nothing in the log is rewritten. Program week, phase, status and completion
+> are unchanged. A paused program is written and stays paused. The header, the rest-day "Next" and the Program screen's
+> next session read the program. The Program screen's week map reads the plan in force on each date. The week drag's
+> Undo restores the revisions exactly. Occupied days keep the existing explicit swap. TRAINER-CONTRACT §189,
+> Contract 267.
 
 Found by D103's audit of the move path, which the brief asked to be followed on
 the scheduler's own terms. `swapScheduledDays` writes BOTH layers, but they do
@@ -2352,6 +2367,21 @@ home-indicator space beneath it, with the keyboard, in landscape, after exit and
 **If the gap is still there.** Do not widen the CSS. Get the facts that decide it: the iOS version; whether the app is launched from the
 Home Screen or a Safari tab; whether the keyboard was used before the screenshot; and a screenshot of Today and of the workout in the same
 state. A `visualViewport.offsetTop` left over after the keyboard closes, or an iOS 26 viewport change, are the candidates the CSS cannot reach.
+
+## E65 — Setting what a day holds on a running program reaches the program only from next Monday, and a paused program not at all · P3 · PROVEN · OPEN
+
+Found by D143's trace of the day-edit sheet, which E27 did not cover. The sheet has two actions:
+- **Move this day** (Change day), which D143 fixed.
+- **Set what the day holds**: the category buttons, `setDayValue` → `setScheduledCategory`.
+
+The second still writes the plan layer at once. It writes an active program only as a D51 revision effective next
+Monday, and does not write a paused program at all. Since D143 every program surface reads the program, so all of them
+agree. But a day set to Legs today still holds its old session this week. Resuming a paused program brings back the old
+category, while the plan layer and D44 keep the new one.
+
+**Why it was not fixed in D143.** The brief targeted E27 (moves) alone. Whether a change of session (rather than of
+day) should reach the current week is its own decision. A new category can collide with sessions already trained this
+week, which a swap never introduces.
 
 ## Not findings — checked and clean
 

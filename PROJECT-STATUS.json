@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.65",
+  "version": "10.66",
   "phase": null,
   "status": "stable",
-  "needsQa": false,
+  "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Roadmap resumed: E64 closed on the owner's iPhone (10.64 low dock kept, diagnostics removed in 10.65). Next phase awaits the owner's choice; E60, E61 and other findings stay open.",
+  "nextAction": "Owner iPhone check (10.66): in a running program, Change day on a workout later this week; Today, This Week and the Program screen show it on the new day now.",
   "blocker": null,
-  "updatedAt": "2026-10-11T12:33:59Z"
+  "updatedAt": "2026-10-11T15:38:22Z"
 }

@@ -19989,3 +19989,76 @@ read 10.64 back instead of running the instrument. Contract 266 checks four thin
 - the low-dock rule still holds on the owner's numbers and their neighbours, and writes nothing.
 The browser rig compares 10.65 with 10.64 (diagnostics off) box for box at 13 sizes and in the owner's relationship. It also
 taps the version line seven times and counts listeners and timers.
+
+## §189 — CHANGE DAY MOVES THIS WEEK WHEN THE DAY IS STILL AHEAD (D143 · LOOP 10.66 · loop-v243)
+
+**The defect (E27).** Change day is a swap of two weekdays (D12/D14). It is reached from Today's sheet, the This Week
+drag (§97) and the Program screen's day pencil, and all three funnel into `swapScheduledDays`. The plan layer
+(`schedule`) changed at once. Under a running program, the program's change went through `updateProgram`, which since
+D51 has recorded a plan change on a begun program as a forward-only revision effective next Monday (§75, §77).
+
+So a move within the current week never happened:
+- Wednesday's Pull moved to Saturday still sat on Wednesday this week.
+- Today's header read the plan layer and said Rest above a card offering Pull.
+- The Program screen's next session also read the plan layer.
+- A paused program was skipped (`hasActiveProgram` is false while paused), so resuming brought the old days back.
+
+§97 had recorded the first half as "a move within the current week can look undone after it lands".
+
+**The rule: past truth stays past; what is still ahead follows the edit.** A move takes effect today when every session it
+moves is still ahead of the athlete this week (`changeDayMovesThisWeek`):
+- its old day and its new day are both today or later (Monday-first civil weeks, `weekDateForDayKey`);
+- no workout is under way today when today is one of the two days;
+- D43's matcher, run on the program with and without the move, pairs the same logged workouts with the same dates. So
+  a session trained early inside the shift window counts as happened, and a missed one is never rescued.
+
+Otherwise the move takes effect next Monday, exactly as D51 has always done. In practice:
+- A missed or completed session keeps its day this week, and the new day starts next week.
+- A move onto a day already over gives that day nothing this week.
+- An occupied target is the existing explicit swap. Both days are shown in the sheet before the tap, and the same move
+  again restores the week.
+
+**How the date is expressed (§77 kept).** `programRevisionDate` gains a third choice, `'today'`, which only
+`moveProgramDaysFrom` asks for, after the rule above holds. `reviseProgramPlan` still maps every choice to next week or
+tomorrow, so no Studio edit and no `updateProgram` call can reach today.
+
+`moveProgramDaysFrom` swaps the two days in the plan in force on the effective date and records that as one revision.
+A revision already set to begin later (next Monday) is swapped too, so a second edit holds after it. The edit's own
+earlier revision is replaced, not stacked: a second move the same day replaces the first, and the same move twice is
+the original week. `program.schedule` stays the latest plan.
+
+**What never moves.**
+- No workout in the log is written.
+- The program's start, length, week (`getCurrentProgramWeek`), phase, status, pause spans and completion are unchanged.
+  D43 fulfilment of every logged workout is identical before and after.
+- A paused program is written (its next days follow the move after resume) and stays paused.
+- D44 consistency still reads the plan layer as a target for every week, its stated rule. Today's missed banner (yesterday,
+  plan layer) is unchanged too.
+- DATA_KEYS 16, schema 1. A revision is the existing D51 record; no new field.
+
+**Readers.** With a program running, the program owns the day, the precedence the cards, This Week and the Program row
+already used. The three readers that still read the plan layer for a program's day now read the program:
+- Today's header;
+- the rest-day "Next" on Today;
+- the Program screen's next session (`myTrainingNextSession`).
+
+The Program screen's week map read the program's LATEST plan for every week. It now reads the plan in force on each
+date (D51C), as the slots do:
+- `programMapWeekHtml` takes a `dated` option that only the running program's map passes;
+- `programDayState` asks for the entry on the day's date.
+Before this, a move that waits for next week drew next week's days on this week's map and dropped a missed day's mark.
+Studio's preview of a draft is unchanged.
+
+The week drag's Undo snapshots and restores the program's revisions exactly, instead of revising again. A move made
+today would otherwise survive its own Undo for the rest of the week.
+
+**Not changed (E65 recorded).** Setting what a day holds (the category buttons in the same sheet) still reaches a running
+program only from next Monday and a paused program not at all.
+
+**Proof here.** Contract 267:
+- runs the athlete's own Change day (`moveDayTo`) on the matrix, against 10.65 read back and against 10.66;
+- runs a generated property sweep over programs of 3–6 training days, active and paused, completed and missed sessions,
+  reversed log order, and four time zones;
+- holds the log byte for byte, D43 fulfilment, program week and phase, and reload.
+
+The browser rig drives the sheet and the drag by touch at 13 sizes.
