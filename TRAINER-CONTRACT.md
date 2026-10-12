@@ -20277,3 +20277,89 @@ programTimelineEnded, getRunningProgram). A paused program has not ended: its en
 **Not changed:** the program's date reader, its lifecycle, Mark complete, D43 matching and membership, D145's dated plan
 on every date a program's weeks cover, This Week's presentation (D146), the not-yet-started state (E74), the paused
 state (E73), a replaced program's days (E75), E66's revision precedence and E72's count. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow.
+
+## §194 — TRAIN SHOWS EACH KIND OF WORKOUT; LOOP'S VISUAL-COMMUNICATION LANGUAGE (D148 · LOOP 10.71 · loop-v248)
+
+**The problem.** Train told the athlete what each kind of workout was rather than showing it.
+- The eight kinds in "All" were one dark card each, introduced by an 11px faint label.
+- The only colour was each row's 22px icon.
+- 32 Start buttons carried the same weight.
+- Quick start showed three nearly identical blue marks.
+
+**The principle.** Show first, explain second, details on demand. Meaning the eye can take from structure, colour or a mark is not left to a sentence. Every number and every name stays as text.
+
+**The family identity map (presentation only).** A kind of workout's identity is LOOP's own category tone, the colour the Log calendar, the recent list and the workout icons (D81) already give it. The stylesheet maps `[data-fam]` to it:
+
+| kind | `data-fam` | token | colour |
+|---|---|---|---|
+| Full Body | fullbody | `--full` | #4B9C81 |
+| Upper Body | upper | `--upper` | #4FA3C7 |
+| Lower Body | lower | `--lower` | #C77F4F |
+| Push | push | `--push` | #5B8CFF |
+| Pull | pull | `--pull` | #BD9260 |
+| Legs | legs | `--legs` | #8579B0 |
+| Arms | arms | `--arms` | #A3B25A |
+| Core | core | `--core` | #B8748C |
+| a kind LOOP does not know | other | — | #9AA6B8 (neutral slate) |
+
+- `trainFamilyOf(cat)` returns the id; anything outside `TRAIN_FAMILY_IDS` is `other`.
+- `--fam-rgb` repeats each colour as a triplet, for the header band's alpha. Change a token and its triplet together.
+- Separation was measured (CIEDE2000):
+  - the closest pairs are Pull/Lower (8.9) and Push/Upper (14.9); neither pair is ever adjacent in LOOP's display order;
+  - every kind is told apart by its mark and its name, never by colour alone;
+  - every colour is at least 4.6:1 on the card surface.
+
+**Where identity may appear.**
+- The family block's header band (≤ 20% at its strongest edge) and the kind's mark drawn large and faint (28%).
+- A 3px edge down the family card, so a row still says its kind after the header has scrolled away.
+- The header's icon tile, and the filter chip's dot and the chosen chip's underline.
+- The dot before a saved workout's kind.
+
+**Where it must not appear.**
+- On a Start, the next session's row or its Today/Next label: these are the action colour.
+- On any state: done, missed, paused, ready, plateau, warning.
+- As the whole row's background.
+- On "All", which is not a kind.
+
+**Category vs state.** State always wins and always carries a non-colour cue (a word, a tick, a slash). Full Body's green equals the old `--success` token, so a family colour never draws a state mark.
+
+**The next session.** It keeps the action colour: a soft accent wash on its row, its Today/Next label as a pill, and the only filled Start on the screen. Every other Start is a calm outline. Its place is the existing one: Train opens on its kind (defaultTrainCategory), never on a guess.
+
+**Quick start.** Build for me is the one coloured action: an accent-filled mark and a soft accent wash. Empty workout and Build workout are neutral and told apart by their marks. My workouts stays the athlete's own neutral list, each workout marked with its kind's dot.
+
+**Artwork.**
+- Only LOOP's own marks: the D81 sprite, drawn by `<use>`, stroked in the family's colour.
+- No images, no fonts, nothing fetched.
+- Decorative art is `aria-hidden` and takes no taps (`pointer-events: none`).
+- It may name the kind; it never carries information the text does not.
+
+**Density.**
+- Rows keep their height. The family's chrome is its 44px header band.
+- Measured at 390×844: All grows from 3,204px to 3,422px (+6.8%); a single kind grows by 49px.
+- A future surface may add identity chrome only where it replaces reading.
+
+**Motion.**
+- Only a press on Quick start (scale 0.985, 120ms), which Reduce Motion stops.
+- No animation loops, no scroll listeners for decoration.
+
+**Mobile interaction.**
+- Unchanged: the row opens Details, Start starts that workout, the filter track swipes sideways without trapping the page's vertical scroll, and the chosen kind is brought into view (D139).
+- Every target is at least 44px.
+
+**Not changed:** every Train engine (the next session, the default kind, Start, Details, My workouts, Build for me, Save workout), the workout identity primitive, D139–D147, E64's low dock, storage. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow.
+
+**App-wide roadmap (design, not built in D148).**
+1. **Today:**
+   - carry the kind's identity into the hero and This Week's day labels (the same map);
+   - turn the Training Foundation's sentence into structure (weeks, phase, split chips);
+   - show Objectives' progress as marks, not sentences.
+2. **Program:**
+   - the split as family chips, the weeks as a strip coloured by phase;
+   - the next session with its kind's mark;
+   - the half-width stat box made whole.
+3. **Exercise Detail:** the lift's own art at the top beside its performance (the logger already shows it); empty states as one line.
+4. **Log:** keep (calendar and recent rows already speak the family colours); align its row marks with the family block.
+5. **Progress:** already the most visual. Keep the evidence charts; give Weekly Review's line of counts a visual form.
+6. **Rank / Mastery:** keep the earned assets; no new decoration.
+7. **Workout logger:** speed first; no decoration.
+8. **Settings:** stays quiet.

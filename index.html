@@ -10261,6 +10261,72 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
   .wk2-sum, .wk2-rail, .wk2-ctx, .wk2-eyebrow{ transition: none; }
 }
 /* ==== D146 THIS WEEK 2.0 END ==== */
+/* ==== D148 TRAIN IDENTITY BEGIN ==== */
+/* =========================================================
+   TRAIN SHOWS EACH KIND OF WORKOUT (Phase D148) — the last layer of the sheet, as one block.
+   Show first: a kind of workout is a family the eye finds before it reads a title. Its identity is LOOP's own
+   category tone — the colour the Log calendar, the recent list and the workout icons already give it — carried by the
+   family block (a header band with the kind's mark drawn large and faint, and an edge down the whole card, so a row
+   still says its kind once the header has scrolled away) and by the filter's dot.
+   Identity, never state: the session LOOP says is next keeps the action colour, its label and the one filled Start;
+   every other Start is a calm outline. Build for me is Quick start's one coloured action (a solid accent mark: the
+   action gradient stays within D21's budget); Empty workout and Build workout are told apart by their marks. Rows
+   keep their height; the family's chrome is the header. The large mark is the one icon primitive (D81), drawn large.
+   ========================================================= */
+/* the identity map: a kind LOOP does not know draws the neutral slate */
+[data-fam]{ --fam: #9AA6B8; --fam-rgb: 154,166,184; }
+[data-fam="fullbody"]{ --fam: var(--full);  --fam-rgb: 75,156,129; }
+[data-fam="upper"]{ --fam: var(--upper); --fam-rgb: 79,163,199; }
+[data-fam="lower"]{ --fam: var(--lower); --fam-rgb: 199,127,79; }
+[data-fam="push"]{ --fam: var(--push);  --fam-rgb: 91,140,255; }
+[data-fam="pull"]{ --fam: var(--pull);  --fam-rgb: 189,146,96; }
+[data-fam="legs"]{ --fam: var(--legs);  --fam-rgb: 133,121,176; }
+[data-fam="arms"]{ --fam: var(--arms);  --fam-rgb: 163,178,90; }
+[data-fam="core"]{ --fam: var(--core);  --fam-rgb: 184,116,140; }
+/* the family block: one card, the kind's edge down its left side, a header band that names it */
+.tl-fam{
+  overflow: hidden; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card);
+  box-shadow: inset 3px 0 0 var(--fam), var(--elev-1);
+}
+.tl-fam-head{
+  position: relative; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 14px 6px 15px; overflow: hidden;
+  background: linear-gradient(100deg, rgba(var(--fam-rgb), 0.20) 0%, rgba(var(--fam-rgb), 0.07) 50%, rgba(var(--fam-rgb), 0) 100%);
+  border-bottom: 1px solid var(--hairline);
+}
+.tl-fam .tl-group-k{
+  position: relative; min-width: 0; margin: 0; overflow-wrap: anywhere;
+  font-family: var(--font-display); font-size: 16px; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; text-transform: none; color: var(--text);
+}
+.tl-fam-n{ position: relative; flex: 0 0 auto; margin-left: auto; margin-right: 38px; font-size: var(--fs-meta); color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* the kind's own mark (the one icon primitive, drawn large) faint: atmosphere that still names the kind; never a target */
+.tl-fam-art{
+  position: absolute; right: -2px; top: 50%; width: 50px; height: 50px; transform: translateY(-50%) rotate(-10deg);
+  opacity: 0.28; pointer-events: none;
+}
+.tl-fam-art .wi{ width: 100%; height: 100%; color: var(--fam); }
+.tl-fam-art .wi svg{ stroke-width: 1.4; }
+.tl-fam .tl-list{ background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+/* the next session: the action colour, its label and the one filled Start — never the family's colour */
+.tl-row.is-next{ background: linear-gradient(90deg, rgba(76,194,255,0.11), rgba(76,194,255,0.03) 60%, transparent); }
+.tl-row.is-next .tl-tag{ display: inline-block; padding: 1px 6px; border-radius: 6px; background: var(--accent-soft); }
+.tl-start:not(.is-next){ background: transparent; border-color: var(--hairline-strong); color: var(--text); font-weight: 600; }
+/* the filter: each kind's dot; the chosen kind underlined in its colour; All stays neutral */
+.tr-chips .tc-dot{ flex: 0 0 auto; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: var(--fam); opacity: 0.75; }
+.tr-chips .filter-chip.active .tc-dot{ opacity: 1; }
+.tr-chips .filter-chip.active[data-fam]{ box-shadow: inset 0 -2px 0 var(--fam), inset 0 1px 0 var(--edge-hi), 0 1px 3px rgba(0,0,0,0.45), 0 0 0 1px rgba(148,170,205,0.10); }
+/* Quick start: Build for me the one coloured action; the other two neutral, told apart by their marks */
+.tq-build{
+  background: radial-gradient(120% 140% at 0% 0%, rgba(76,194,255,0.16), rgba(46,107,255,0.05) 55%, transparent 80%), var(--surface-1);
+  border-color: rgba(76,194,255,0.30);
+}
+.tq-build .tq-ic{ background: var(--accent); color: #06121F; box-shadow: 0 6px 16px -8px rgba(46,107,255,0.8); }
+.tq-btn .tq-ic{ background: var(--surface-3); color: var(--text); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.tq-build, .tq-btn{ transition: transform 0.12s var(--ease), background-color 0.15s var(--ease); }
+.tq-build:active, .tq-btn:active{ transform: scale(0.985); }
+/* My workouts stays the athlete's own, neutral: each one says its kind with the family's dot */
+.tl-kind[data-fam]::before{ content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--fam); vertical-align: 1px; }
+@media (prefers-reduced-motion: reduce){ .tq-build, .tq-btn{ transition: none; } .tq-build:active, .tq-btn:active{ transform: none; } }
+/* ==== D148 TRAIN IDENTITY END ==== */
 </style>
 </head>
 <body>
@@ -20365,6 +20431,24 @@ const LOOP_UPDATES = [
       'A workout you start after your program ends stays an ordinary workout instead of joining the finished program',
       'On your program’s final rest days, Today says no sessions are left'
     ],
+    changes: []
+  },
+  {
+    id: 'v10-71',
+    version: 'LOOP 10.71',
+    title: 'Training, With More Character',
+    date: '2026-10-12',
+    swVersion: 'loop-v248',
+    summary: 'Each kind of workout on Train now has its own colour and mark, so you can tell Push, Pull, Legs and the rest apart at a glance.',
+    newFeatures: [],
+    improvements: [
+      'Train shows each kind of workout as its own block, with a coloured header and edge',
+      'The filter above your plan shows each kind’s colour',
+      'Your next session has the one highlighted Start on Train; the others are quieter',
+      'Build for me is the one coloured Quick start option',
+      'Your saved workouts show their kind with a coloured dot'
+    ],
+    bugFixes: [],
     changes: []
   }
 ];
@@ -34041,7 +34125,8 @@ function trainRowHtml(kind, cat, t, view){
   const meta = [];
   if(next) meta.push('<span class="tl-tag">' + whole(next.today ? 'Today' : 'Next · ' + DAY_LABEL[next.key]) + '</span>');
   if(days.length) meta.push('<span class="tl-days">' + whole(days.map(d => DAY_LABEL[d]).join(' · ')) + '</span>');
-  if(kind === 'saved') meta.push('<span class="tl-kind">' + escapeHtml(whole(CAT_LABEL[cat] || cat)) + '</span>');
+  /* D148 — a saved workout's kind carries its family's dot */
+  if(kind === 'saved') meta.push('<span class="tl-kind" data-fam="' + trainFamilyOf(cat) + '">' + escapeHtml(whole(CAT_LABEL[cat] || cat)) + '</span>');
   meta.push(whole(n + ' exercise' + (n === 1 ? '' : 's')));
   if(dur) meta.push(whole('~' + dur + ' min'));
   const muscles = trainMusclesHtml(shown);
@@ -34118,6 +34203,27 @@ function trainRevealActiveChip(){
   try{ trainChipsEdges(); }catch(e){}   /* D139 — the row says whether more lies off either edge */
 }
 
+/* D148 — TRAIN SHOWS EACH KIND OF WORKOUT. A kind of workout is one family block: its mark (the D81 icon the kind
+   already has), its name, how many workouts it holds, then its rows. The family is presentation only: its id picks the
+   colour in the stylesheet ([data-fam] — LOOP's own category tones, the ones the calendar, the Log and the workout
+   icons already use), and a kind LOOP does not know draws the neutral slate. Nothing here decides what a workout is,
+   which session is next, or what Start trains. */
+const TRAIN_FAMILY_IDS = ['fullbody', 'upper', 'lower', 'push', 'pull', 'legs', 'arms', 'core'];
+function trainFamilyOf(cat){ return TRAIN_FAMILY_IDS.indexOf(cat) !== -1 ? cat : 'other'; }
+function trainFamilyHtml(cat, list, view){
+  const n = list.length, icon = workoutCategoryIcon(cat);
+  return `
+      <div class="tl-group tl-fam" data-fam="${trainFamilyOf(cat)}">
+        <div class="tl-fam-head">
+          ${workoutIconHtml({ iconId: icon }, 'sm', { tile: true })}
+          <h3 class="tl-group-k">${escapeHtml(CAT_LABEL[cat] || cat)}</h3>
+          <span class="tl-fam-n">${n} workout${n === 1 ? '' : 's'}</span>
+          <span class="tl-fam-art" aria-hidden="true">${workoutIconHtml({ iconId: icon }, 'lg')}</span>
+        </div>
+        <ul class="tl-list" role="list">${list.map(t => trainRowHtml('plan', cat, t, view)).join('')}</ul>
+      </div>`;
+}
+
 function renderTrainPlan(view){
   const host = document.getElementById('trainPlan');
   if(!host) return;
@@ -34141,7 +34247,8 @@ function renderTrainPlan(view){
     chipsEl.innerHTML = ['all'].concat(chipCats).map(c => {
       const on = c === active;
       const empty = c !== 'all' && !trainPlanWorkouts(c).length;
-      return `<button type="button" class="filter-chip${on ? ' active' : ''}${empty ? ' is-empty' : ''}" aria-pressed="${on}" onclick="setTrainCategory('${c}')">${c === 'all' ? 'All' : CAT_LABEL[c]}</button>`;
+      /* D148 — each kind carries its family's dot; All carries none, so it never reads as a kind of its own. */
+      return `<button type="button" class="filter-chip${on ? ' active' : ''}${empty ? ' is-empty' : ''}"${c === 'all' ? '' : ` data-fam="${trainFamilyOf(c)}"`} aria-pressed="${on}" onclick="setTrainCategory('${c}')">${c === 'all' ? 'All' : `<span class="tc-dot" aria-hidden="true"></span>${CAT_LABEL[c]}`}</button>`;
     }).join('');
     if(hadFocus){
       const again = chipsEl.querySelector ? chipsEl.querySelector('.filter-chip.active') : null;
@@ -34150,17 +34257,13 @@ function renderTrainPlan(view){
     try{ trainRevealActiveChip(); }catch(e){}
   }
   if(active === 'all'){
-    host.innerHTML = cats.length ? cats.map(c => `
-      <div class="tl-group">
-        <h3 class="tl-group-k">${escapeHtml(CAT_LABEL[c])}</h3>
-        <ul class="tl-list" role="list">${trainPlanWorkouts(c).map(t => trainRowHtml('plan', c, t, view)).join('')}</ul>
-      </div>`).join('') : trainEmptyStateHtml();
+    /* D148 — every kind as its family block */
+    host.innerHTML = cats.length ? cats.map(c => trainFamilyHtml(c, trainPlanWorkouts(c), view)).join('') : trainEmptyStateHtml();
     return;
   }
   const list = trainPlanWorkouts(active);
-  host.innerHTML = list.length
-    ? `<ul class="tl-list" role="list">${list.map(t => trainRowHtml('plan', active, t, view)).join('')}</ul>`
-    : trainEmptyStateHtml();
+  /* D148 — one kind on its own is the same family block, so a kind reads the same chosen or among the rest */
+  host.innerHTML = list.length ? trainFamilyHtml(active, list, view) : trainEmptyStateHtml();
 }
 
 /* ---------- Details: one workout, before committing to it ----------

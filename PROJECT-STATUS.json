@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.70",
+  "version": "10.71",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check (10.70): in a program past its last day, Today, This Week and the Program screen name no further session; Train anyway still starts a workout.",
+  "nextAction": "Owner visual review (10.71): on Train, each kind of workout reads at a glance, today's session stands out, the filter swipes, and Start and Details open the right workout.",
   "blocker": null,
-  "updatedAt": "2026-10-12T04:57:09Z"
+  "updatedAt": "2026-10-12T16:12:18Z"
 }
