@@ -2494,6 +2494,9 @@ active. 22 Sep is covered by both and answers from the plan layer. A's own earli
 
 ## E70 — Dates no program covered are still judged by today's weekly plan, so a day's change restates them · P3 · PROVEN · OPEN
 
+> **D147:** the days after a program's end, until it is completed, are now that program's own, with nothing scheduled (E71,
+> §193). E70 remains for the weeks before a program began, the days after it was completed, and every date with no program.
+
 Found by D145. For dates no program covers, the plan layer (`schedule`, the athlete's weekday plan) remains the only
 target:
 - the weeks before a program began;
@@ -2511,7 +2514,32 @@ twelve weeks into missed days. With no program, all twelve turn.
 so these dates cannot be told apart from today without recording it. That is a new stored fact (a DATA_KEY or a dated
 record of schedule changes), or a policy decision about what such dates are judged against. Both are the owner's call.
 
-## E71 — After a program's last day, while it is still the active program, Today's readers disagree about the days that follow · P3 · PROVEN · OPEN
+## E71 — After a program's last day, while it is still the active program, Today's readers disagree about the days that follow · P3 · PROVEN · **CLOSED in D147 (LOOP 10.70)**
+
+> **D147 — closed.** Reproduced on 10.69 through LOOP's own readers.
+> - **The case.** A program from Mon 31 Aug for four weeks, whose grid ends Sun 27 Sep, still the active program.
+> - **The week and day cards agreed nothing was scheduled.** On Tue 29 Sep, This Week, Today's card and each day's card
+>   read rest.
+> - **Four other readers named the weekly plan's Wednesday Pull A:** Today's rest-day Next, the Program screen's next
+>   session, the Weekly Review's next session, and (on the final Saturday and Sunday) This Week's Up next.
+> - **D44 and the Log calendar called each weekly-plan day after the end missed.** By 21 Oct that was eighteen days.
+> - **On the last Sunday the rest card said "No training days set yet".**
+> - **A library Push A started after the end was recorded as the finished program's workout.**
+>
+> 10.70 follows D38 (§61) everywhere. After its last day a program schedules nothing, and the weekly plan is not its
+> continuation until the athlete completes it (or chooses another program). Changes:
+> - The rest-day Next and the next-session reader stop at the program's end.
+> - The rest card says "Your program’s scheduled weeks are finished", or "No sessions left in your program" on its last
+>   days.
+> - planTargetOn treats the days after the end as the program's own, with nothing scheduled: open-ended while it is still
+>   the active program, and up to the day before `completedAt` once completed.
+> - A library workout is the program's only while the program is still running (getRunningProgram).
+>
+> Nothing is stored, and no status changes on its own. Mark complete is unchanged. Ordinary training stays open and
+> stays ordinary.
+>
+> TRAINER-CONTRACT §193, Contract 271.
+
 
 Found by D146 (This Week 2.0), on 10.68 and unchanged by it.
 
@@ -2558,6 +2586,58 @@ D44's consistency counts something else: planned sessions fulfilled, matched by 
 **What D146 does.** It shows the same count and total. The percentage is the share of the bar the count fills, as 10.68's
 bar did, so a week trained past its plan reads 100%. The brief asked that no new completion formula be invented and that
 D44 not be recalibrated. Changing what This Week counts is a policy decision for the owner.
+
+## E73 — While a program is paused, the missed-yesterday banner names a paused day as skipped · P3 · PROVEN · OPEN
+
+Found by D147's reproduction, on 10.69 and unchanged by it.
+
+**What happens.** While a program is paused, `hasActiveProgram()` is false, so the missed-yesterday banner
+(checkMissedWorkout) reads the weekly plan for yesterday. The other readers treat that day as paused:
+- This Week marks it paused (two bars);
+- D44 and the Log calendar leave it out (D90).
+
+**Measured.** A program paused since Thu 24 Sep, read on Tue 29 Sep:
+- the banner says "Looks like Push got skipped yesterday";
+- This Week marks Monday paused;
+- D44 does not count it.
+
+**Why it was not fixed in D147.** It is a pause question, not an end-state one, and it touches the banner's reading of
+paused programs (D90). It needs a decision on what a paused program's days are for the forward-looking readers: the
+weekly plan, or nothing.
+
+## E74 — A program set to start on a later date already schedules its sessions before its start · P3 · PROVEN · OPEN
+
+Found by D147's reproduction, on 10.69 and unchanged by it.
+
+**What happens.** The program's date reader (getProgramWorkoutForDate) does not check the program's start date. A
+program made today to start tomorrow therefore answers for today with its own week-1 session. Today and This Week offer
+that session, and a workout started from it is recorded as the program's. Meanwhile:
+- the Training Foundation says "Starts Tue, Sep 29";
+- D44 judges the date by the weekly plan (D145: a date no program covers).
+
+**Measured.** A program starting Tue 29 Sep, read Mon 28 Sep:
+- Today shows "Today's Workout · Push A — Chest Focus", and the Program screen says "Week 1 of 4 · Active";
+- a library Push A started then records `program:p1`;
+- the Foundation says the program starts tomorrow.
+
+**Why it was not fixed in D147.** E71 is the end of a schedule; this is its beginning. The not-yet-started state is
+deliberately left exactly as 10.69 had it (Contract 271) and needs its own phase.
+
+## E75 — A program another has replaced gives the days after its end back to the weekly plan · P3 · PROVEN · OPEN
+
+Found by D147, on the rule it set (§193), and left as 10.69 had it.
+
+**What happens.** Choosing another program (setActiveProgram) leaves the old one's status `active`. While the old program
+was the active one, the days after its end read as nothing scheduled (§193). Once another program replaces it, those same
+days are read by the weekly plan again, as in 10.69: D44 and the Log calendar can then mark them missed. LOOP keeps no date
+for the switch, so it cannot tell the days the old program still owned from the days after the athlete moved on.
+
+**Measured.** p1 ended Sun 27 Sep and was never completed; p2, begun Mon 12 Oct, replaced it. Read on Wed 14 Oct, the
+14 days from 28 Sep to 11 Oct read by the weekly plan, the untrained training days missed: exactly as in 10.69
+(Contract 271, check 16c).
+
+**Why it was not fixed in D147.** Closing it needs the date the athlete chose another program, which LOOP does not store.
+D147 adds nothing to storage and does not guess that date.
 
 ## Not findings — checked and clean
 

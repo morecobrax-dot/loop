@@ -20347,6 +20347,25 @@ const LOOP_UPDATES = [
     changes: [
       'This Week no longer repeats your training streak or a line of gesture instructions'
     ]
+  },
+  {
+    id: 'v10-70',
+    version: 'LOOP 10.70',
+    title: 'Your Program Ends When Its Schedule Does',
+    date: '2026-10-12',
+    swVersion: 'loop-v247',
+    summary: 'When your program’s scheduled weeks end, Today and the Program screen stop naming more of its sessions. Any workout you start afterwards is ordinary training.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'After your program’s last scheduled day, Today no longer offers a next workout from your weekly plan',
+      'This Week and the Program screen no longer name a session after your program’s final day',
+      'Today no longer names a program session you have already logged as your next one',
+      'Days after your program ends no longer show as missed in the Log or count against your consistency',
+      'A workout you start after your program ends stays an ordinary workout instead of joining the finished program',
+      'On your program’s final rest days, Today says no sessions are left'
+    ],
+    changes: []
   }
 ];
 
@@ -32360,13 +32379,19 @@ function renderTodayWorkout(){
     let nextTpl = null;
     /* D143 — with a program running, the next session is the program's next workout day, read date by date as the
        card for each day reads it; the plan layer can already hold a change the program applies only next week. */
-    if(programDay && !programDay.ended){
+    /* D147 (E71) — and when the program's weeks run out it schedules nothing (D38): the weekly plan is not its next
+       session. Past its end there is no next; inside its last days, the search stops at the end. A day already trained
+       (its session logged early, on its own date) is not next either — This Week reads it as done. */
+    let programDone = false;
+    if(programDay){
       nextDay = null; nextCat = null;
-      for(let i = 1; i <= 7 && !nextCat; i++){
+      if(programDay.ended) programDone = true;
+      for(let i = 1; i <= 7 && !nextCat && !programDone; i++){
         const d = addDaysISO(todayStr, i);
         let pd = null;
         try{ pd = getProgramWorkoutForDate(d); }catch(e){ pd = null; }
-        if(pd && pd.entry && pd.entry.type === 'workout'){ nextDay = JS_DAY_TO_KEY[new Date(d + 'T00:00:00').getDay()]; nextCat = pd.category; nextTpl = pd.template || null; }
+        if(pd && pd.ended) programDone = true;
+        else if(pd && pd.entry && pd.entry.type === 'workout' && !workoutsOnDate(d).length){ nextDay = JS_DAY_TO_KEY[new Date(d + 'T00:00:00').getDay()]; nextCat = pd.category; nextTpl = pd.template || null; }
       }
     }
     let nextPreview = '';
@@ -32401,7 +32426,7 @@ function renderTodayWorkout(){
       <div class="tw tw-rest">
         <div class="tw-label">Today</div>
         <div class="tw-title">Rest Day</div>
-        ${nextPreview || `<div class="tw-meta">No training days set yet</div>`}
+        ${nextPreview || `<div class="tw-meta">${programDone ? (programDay.ended ? 'Your program’s scheduled weeks are finished' : 'No sessions left in your program') : 'No training days set yet'}</div>`}
         <button class="tw-change tw-override" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
         ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(null)}</div>` : ''}
       </div>`;
@@ -45165,16 +45190,31 @@ function dateIsSuspended(program, dateStr, todayStr){
 
    Derived on every call from what is stored; nothing is written and nothing is cached beyond the caller's one pass.
    ========================================================= */
-/* The programs that can own a date, each with the civil-date window it covers. Read once per pass. */
+/* The programs that can own a date, each with the civil-date window it covers. Read once per pass.
+   D147 (E71) — and the days after it. A program whose weeks are over schedules nothing (D38), yet it is still the
+   athlete's program until they complete it: those days are nobody's training day, not the weekly plan's. `after` is
+   that stretch — from the day after the end, open while the program is still the active one, or up to the day before
+   it was completed (completedAt). A paused program has not ended (programTimelineEnded), so it has none. */
 function planTargetWindows(){
   let list = [];
   try{ list = getPrograms(); }catch(e){ list = []; }
+  let activeId = null;
+  try{ activeId = programsStore.activeProgramId || null; }catch(e){ activeId = null; }
   const out = [];
   list.forEach(p => {
     if(!p || !p.startDate) return;
     let to = null;
     try{ to = programEndDate(p); }catch(e){ to = null; }
-    if(to && String(to) >= String(p.startDate)) out.push({ program: p, from: String(p.startDate), to: String(to) });
+    if(!(to && String(to) >= String(p.startDate))) return;
+    let after = null;
+    const from = addDaysISO(String(to), 1);
+    if(p.status === 'active' && p.id === activeId) after = { from, to: null };
+    else if(p.status === 'completed' && p.completedAt){
+      const done = new Date(p.completedAt);
+      const last = isNaN(done) ? null : addDaysISO(localDateStr(done), -1);
+      if(last && last >= from) after = { from, to: last };
+    }
+    out.push({ program: p, from: String(p.startDate), to: String(to), after });
   });
   return out;
 }
@@ -45191,6 +45231,12 @@ function planTargetOn(dateStr, windows){
     const workout = !!(e && e.type === 'workout');
     return { source: 'program', program: p, planned: workout, category: workout ? (e.category || null) : 'rest',
       suspended: !!dateIsSuspended(p, dateStr) };
+  }
+  /* D147 (E71) — a date no program's weeks cover, inside the stretch after a program's end that is still its own:
+     nothing was scheduled, by the program or by the weekly plan. */
+  if(!own.length){
+    const done = ws.find(w => w.after && dateStr >= w.after.from && (!w.after.to || dateStr <= w.after.to));
+    if(done) return { source: 'finished', program: done.program, planned: false, category: 'rest', suspended: false };
   }
   let suspended = false;
   try{ suspended = !!dateIsSuspended(getActiveProgram(), dateStr); }catch(e){ suspended = false; }
@@ -54692,7 +54738,9 @@ function myTrainingNextSession(){
       if(hasActiveProgram()){
         const on = new Date(today); on.setDate(on.getDate() + i);
         const pd = getProgramWorkoutForDate(localDateStr(on));
-        if(pd && !pd.ended) cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';
+        /* D147 (E71) — a date past the program's end has nothing on it (D38); the weekly plan is not the program's next
+           session. And a program day already trained (logged early, on its own date) is not next, as This Week reads it. */
+        if(pd) cat = (!pd.ended && pd.entry && pd.entry.type === 'workout' && !workoutsOnDate(localDateStr(on)).length) ? pd.category : 'rest';
       }
     }catch(e){}
     if(!cat || cat === 'rest') continue;
@@ -58818,7 +58866,9 @@ async function startTemplateLog(cat, tplId, date){
     pendingWorkoutPhase = pick.phase;
   } else {
     try{
-      const _op = hasActiveProgram() ? getActiveProgram() : null;
+      /* D147 (E71) — only a program still running owns a workout: one whose weeks are over has no session left to give it
+         (D38), so a library workout started after its end is extra training, never the finished program's. */
+      const _op = getRunningProgram();
       if(_op && _op.id && programPrescribesTemplate(_op, cat, tplId)){
         pendingWorkoutOrigin = 'program';
         pendingWorkoutProgramId = _op.id;

@@ -741,6 +741,62 @@ const D131B_RAW = [
     "  const row = checkbox.closest('.ex-log-row');\n  row.querySelectorAll('.set-weight-in').forEach(inp => { inp.disabled = checkbox.checked; if(checkbox.checked) inp.value=''; });\n}\n\n"
    ]
 ];
+/* D147 (LOOP 10.70) — a program ends when its schedule does (E71). Seven hunks: the program windows' after-end
+   stretch (planTargetWindows), planTargetOn's answer for it, the rest day's Next and its words (renderTodayWorkout, two),
+   the next-session reader (myTrainingNextSession), the library start's owner (startTemplateLog), and What's New.
+   asOf1069Html(raw) puts them back and reads back LOOP 10.69 (dc31494) to the byte. Every older read-back starts there.
+   Contract 271 holds what the release does. */
+const D147_RAW = [
+ [
+  "/* The programs that can own a date, each with the civil-date window it covers. Read once per pass.\n   D147 (E71) — and the days after it. A program whose weeks are over schedules nothing (D38), yet it is still the\n   athlete's program until they complete it: those days are nobody's training day, not the weekly plan's. `after` is\n   that stretch — from the day after the end, open while the program is still the active one, or up to the day before\n   it was completed (completedAt). A paused program has not ended (programTimelineEnded), so it has none. */\nfunction planTargetWindows(){\n  let list = [];\n  try{ list = getPrograms(); }catch(e){ list = []; }\n  let activeId = null;\n  try{ activeId = programsStore.activeProgramId || null; }catch(e){ activeId = null; }\n  const out = [];\n  list.forEach(p => {\n    if(!p || !p.startDate) return;\n    let to = null;\n    try{ to = programEndDate(p); }catch(e){ to = null; }\n    if(!(to && String(to) >= String(p.startDate))) return;\n    let after = null;\n    const from = addDaysISO(String(to), 1);\n    if(p.status === 'active' && p.id === activeId) after = { from, to: null };\n    else if(p.status === 'completed' && p.completedAt){\n      const done = new Date(p.completedAt);\n      const last = isNaN(done) ? null : addDaysISO(localDateStr(done), -1);\n      if(last && last >= from) after = { from, to: last };\n    }\n    out.push({ program: p, from: String(p.startDate), to: String(to), after });\n  });\n  return out;\n}\n",
+  "/* The programs that can own a date, each with the civil-date window it covers. Read once per pass. */\nfunction planTargetWindows(){\n  let list = [];\n  try{ list = getPrograms(); }catch(e){ list = []; }\n  const out = [];\n  list.forEach(p => {\n    if(!p || !p.startDate) return;\n    let to = null;\n    try{ to = programEndDate(p); }catch(e){ to = null; }\n    if(to && String(to) >= String(p.startDate)) out.push({ program: p, from: String(p.startDate), to: String(to) });\n  });\n  return out;\n}\n"
+ ],
+ [
+  "    return { source: 'program', program: p, planned: workout, category: workout ? (e.category || null) : 'rest',\n      suspended: !!dateIsSuspended(p, dateStr) };\n  }\n  /* D147 (E71) — a date no program's weeks cover, inside the stretch after a program's end that is still its own:\n     nothing was scheduled, by the program or by the weekly plan. */\n  if(!own.length){\n    const done = ws.find(w => w.after && dateStr >= w.after.from && (!w.after.to || dateStr <= w.after.to));\n    if(done) return { source: 'finished', program: done.program, planned: false, category: 'rest', suspended: false };\n  }\n  let suspended = false;\n",
+  "    return { source: 'program', program: p, planned: workout, category: workout ? (e.category || null) : 'rest',\n      suspended: !!dateIsSuspended(p, dateStr) };\n  }\n  let suspended = false;\n"
+ ],
+ [
+  "    /* D147 (E71) — and when the program's weeks run out it schedules nothing (D38): the weekly plan is not its next\n       session. Past its end there is no next; inside its last days, the search stops at the end. A day already trained\n       (its session logged early, on its own date) is not next either — This Week reads it as done. */\n    let programDone = false;\n    if(programDay){\n      nextDay = null; nextCat = null;\n      if(programDay.ended) programDone = true;\n      for(let i = 1; i <= 7 && !nextCat && !programDone; i++){\n        const d = addDaysISO(todayStr, i);\n        let pd = null;\n        try{ pd = getProgramWorkoutForDate(d); }catch(e){ pd = null; }\n        if(pd && pd.ended) programDone = true;\n        else if(pd && pd.entry && pd.entry.type === 'workout' && !workoutsOnDate(d).length){ nextDay = JS_DAY_TO_KEY[new Date(d + 'T00:00:00').getDay()]; nextCat = pd.category; nextTpl = pd.template || null; }\n      }\n    }\n",
+  "    if(programDay && !programDay.ended){\n      nextDay = null; nextCat = null;\n      for(let i = 1; i <= 7 && !nextCat; i++){\n        const d = addDaysISO(todayStr, i);\n        let pd = null;\n        try{ pd = getProgramWorkoutForDate(d); }catch(e){ pd = null; }\n        if(pd && pd.entry && pd.entry.type === 'workout'){ nextDay = JS_DAY_TO_KEY[new Date(d + 'T00:00:00').getDay()]; nextCat = pd.category; nextTpl = pd.template || null; }\n      }\n    }\n"
+ ],
+ [
+  "        ${nextPreview || `<div class=\"tw-meta\">${programDone ? (programDay.ended ? 'Your program’s scheduled weeks are finished' : 'No sessions left in your program') : 'No training days set yet'}</div>`}\n",
+  "        ${nextPreview || `<div class=\"tw-meta\">No training days set yet</div>`}\n"
+ ],
+ [
+  "        /* D147 (E71) — a date past the program's end has nothing on it (D38); the weekly plan is not the program's next\n           session. And a program day already trained (logged early, on its own date) is not next, as This Week reads it. */\n        if(pd) cat = (!pd.ended && pd.entry && pd.entry.type === 'workout' && !workoutsOnDate(localDateStr(on)).length) ? pd.category : 'rest';\n",
+  "        if(pd && !pd.ended) cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';\n"
+ ],
+ [
+  "      /* D147 (E71) — only a program still running owns a workout: one whose weeks are over has no session left to give it\n         (D38), so a library workout started after its end is extra training, never the finished program's. */\n      const _op = getRunningProgram();\n      if(_op && _op.id && programPrescribesTemplate(_op, cat, tplId)){\n",
+  "      const _op = hasActiveProgram() ? getActiveProgram() : null;\n      if(_op && _op.id && programPrescribesTemplate(_op, cat, tplId)){\n"
+ ],
+ [
+  "      'On a rest day, This Week now still shows your next workout'\n    ],\n    changes: [\n      'This Week no longer repeats your training streak or a line of gesture instructions'\n    ]\n  },\n  {\n    id: 'v10-70',\n    version: 'LOOP 10.70',\n    title: 'Your Program Ends When Its Schedule Does',\n    date: '2026-10-12',\n    swVersion: 'loop-v247',\n    summary: 'When your program’s scheduled weeks end, Today and the Program screen stop naming more of its sessions. Any workout you start afterwards is ordinary training.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [\n      'After your program’s last scheduled day, Today no longer offers a next workout from your weekly plan',\n      'This Week and the Program screen no longer name a session after your program’s final day',\n      'Today no longer names a program session you have already logged as your next one',\n      'Days after your program ends no longer show as missed in the Log or count against your consistency',\n      'A workout you start after your program ends stays an ordinary workout instead of joining the finished program',\n      'On your program’s final rest days, Today says no sessions are left'\n    ],\n    changes: []\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)",
+  "      'On a rest day, This Week now still shows your next workout'\n    ],\n    changes: [\n      'This Week no longer repeats your training streak or a line of gesture instructions'\n    ]\n  }\n];\n\n/* =========================================================\n   SOCIAL  (Phase D52)"
+ ]
+];
+const D147_WHATSNEW = "  },\n  {\n    id: 'v10-70',\n    version: 'LOOP 10.70',\n    title: 'Your Program Ends When Its Schedule Does',\n    date: '2026-10-12',\n    swVersion: 'loop-v247',\n    summary: 'When your program’s scheduled weeks end, Today and the Program screen stop naming more of its sessions. Any workout you start afterwards is ordinary training.',\n    newFeatures: [],\n    improvements: [],\n    bugFixes: [\n      'After your program’s last scheduled day, Today no longer offers a next workout from your weekly plan',\n      'This Week and the Program screen no longer name a session after your program’s final day',\n      'Today no longer names a program session you have already logged as your next one',\n      'Days after your program ends no longer show as missed in the Log or count against your consistency',\n      'A workout you start after your program ends stays an ordinary workout instead of joining the finished program',\n      'On your program’s final rest days, Today says no sessions are left'\n    ],\n    changes: []\n";
+const SHA_1069_HTML = '7ca58fc29a166c4a';   /* index.html of LOOP 10.69 (dc31494), LF */
+function asOf1069Html(raw){
+  let t = raw;
+  for(const [now, then] of D147_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
+  return t;
+}
+/* a function's pin as LOOP 10.69 had it, read back from today's file (null when D147's own lines moved) */
+function pinAsOf1069(src, n){
+  const t = asOf1069Html(String(src).split(String.fromCharCode(13, 10)).join(String.fromCharCode(10)));
+  return t === null ? null : require('crypto').createHash('sha256').update(fnSrc(t, n).replace(/\s+/g, ' ').trim()).digest('hex').slice(0, 16);
+}
+/* D147 restated: an older contract's "this function is still release X's" asks it of 10.69's text for the five functions
+   10.70 changed — the program windows, planTargetOn, the rest day's Next, the next-session reader and the library start
+   (Contract 271 holds what changed). `was` is that contract's own read-back. */
+const D147_FUNCS = ['planTargetWindows', 'planTargetOn', 'renderTodayWorkout', 'myTrainingNextSession', 'startTemplateLog'];
+function sameAsOf1069(raw, was, n){
+  if(D147_FUNCS.indexOf(n) === -1 || !was) return false;
+  const t = asOf1069Html(String(raw).split(String.fromCharCode(13, 10)).join(String.fromCharCode(10)));
+  return t !== null && fnSrc(t, n).replace(/\s+/g, ' ').trim() === fnSrc(was, n).replace(/\s+/g, ' ').trim();
+}
 /* D146 (LOOP 10.69) — THIS WEEK 2.0. Five hunks: the This Week block (deriveThisWeek and its helpers, renderWeekCard
    drawn from it), the tap that returns to today (weekDayClick), the stylesheet's last layer (the D146 block), the draft
    redraw (renderResumeBanner redraws the week when a workout starts or ends), and What's New. asOf1068Html(raw) puts them
@@ -773,7 +829,8 @@ const SHA_1068_HTML = 'fe0969dd168b6897';   /* index.html of LOOP 10.68 (a2767b1
 /* the stylesheet's D146 block, as hunk 3 put it before </style> */
 const D146_CSS = D146_RAW[2][0].slice(D146_RAW[2][1].length - '</style>'.length, D146_RAW[2][0].length - '</style>'.length);
 function asOf1068Html(raw){
-  let t = raw;
+  let t = asOf1069Html(raw);   // D147 restated: 10.70's hunks come out first
+  if(t === null) return null;
   for(const [now, then] of D146_RAW){ if(t.split(now).length !== 2) return null; t = t.replace(now, () => then); }
   return t;
 }
@@ -56009,7 +56066,7 @@ async function testLiveWarmupD131B(){
       pinAsOf1055('deriveWorkingSetPlan') === 'b5c00dac1e00d09b' /* D137 restated */ && pin('coachMayWriteSet') === '0de96792fab27ca4' && pin('coachLoadNow') === '38299e411614887d' && pin('seedWorkingTarget') === '64ed113f75a5573e' &&
       pinAsOf1053('splitRowForSwap') === '78ed482b25517739' /* D135 restated */ && pin('captureActiveDraft') === '7ed552854d7f4526' && pin('addLogExerciseRow') === 'be4678472bf41b62' && pin('applySetTypeToRow') === '9fab51981238989b' &&
       pin('appendSetRow') === '61f2b7e061afde48' && pin('renumberSets') === '6a65d511509ef489' && pin('setIdxHtml') === '3614080a0cb6a1f2' && pin('refreshSetCoach') === '5c84cf297638cae2' && pin('applyCoachToFutureSets') === '10add8e901495f2d' &&
-      pin('startTemplateLog') === 'd2264fc049660e8e' && pin('progressionFor') === 'a992f11698e3e9e7' && pin('capturedPrescription') === '4b741af98b989695' && pin('saveLog') === '66c63714822ef5ee');
+      pinAsOf1069(raw, 'startTemplateLog') === 'd2264fc049660e8e' /* D147 restated: read at 10.69 — 10.70 changed only which program owns a library start (Contract 271) */ && pin('progressionFor') === 'a992f11698e3e9e7' && pin('capturedPrescription') === '4b741af98b989695' && pin('saveLog') === '66c63714822ef5ee');
     const was = asOf1050Html(raw);
     T('45  the file reads back as LOOP 10.50 to the byte (index.html of 0f72dba) once D131B’s statements and What’s New entry are taken out', !!was && sha(was) === SHA_1050_HTML, was && sha(was));
     const css = s => s.slice(s.indexOf('<style>'), s.indexOf('</style>'));
@@ -56312,7 +56369,7 @@ async function testWorkoutRoomD133(){
       /id: 'v10-52',\s*version: 'LOOP 10\.52',\s*title: 'More Room to Train',\s*date: '2026-10-0\d',\s*swVersion: 'loop-v229'/.test(raw) && /improvements: \[\s*'[^']+',\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D133_WHATSNEW) && /CACHE_VERSION = 'loop-v2(29|[3-9]\d)'/.test(sw));   // D134 restated: sw.js serves the newest release (Contract 253 holds loop-v230)
     const ps = JSON.parse(fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'PROJECT-STATUS.json'), 'utf8'));
     /* D134 restated: PROJECT-STATUS moves with every release; 10.52 or later */
-    T('38  PROJECT-STATUS says 10.52 (or later), needs QA (the owner’s iPhone pass), and its next action is under 200 characters', /^10\.(5[2-9]|[6-9]\d)$/.test(ps.version) && (ps.needsQa === true || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */) /* D142C restated: 10.65 closes E64 and needs no phone check (Contract 266) */) && ps.nextAction.length <= 200 && ps.nextAction.length > 20, [ps.version, ps.nextAction.length]);
+    T('38  PROJECT-STATUS says 10.52 (or later), needs QA (the owner’s iPhone pass), and its next action is under 200 characters', /^10\.(5[2-9]|[6-9]\d)$/.test(ps.version) && (ps.needsQa === true || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */ || (ps.version === '10.70' && ps.needsQa === true && /^Owner iPhone check \(10\.70\)/.test(ps.nextAction)) /* D147 restated: and on to D147 (Contract 271) */) /* D142C restated: 10.65 closes E64 and needs no phone check (Contract 266) */) && ps.nextAction.length <= 200 && ps.nextAction.length > 20, [ps.version, ps.nextAction.length]);
     const tc = fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'TRAINER-CONTRACT.md'), 'utf8');
     T('39  TRAINER-CONTRACT §174 records that the workout page is full-height and that D133 touched no engine', /§174|## 174/.test(tc) && /full-height|full height/.test(tc.slice(tc.indexOf('174'))) && /Contract 252/.test(tc));
     T('40  the app shell the service worker precaches is still one page: no new file, no new asset', /index\.html/.test(sw) && (sw.match(/\.(css|js|png|webp|svg)\b/g) || []).length === (fs.readFileSync(H.APP_PATH.replace(/index\.html$/, 'sw.js'), 'utf8').match(/\.(css|js|png|webp|svg)\b/g) || []).length);
@@ -57153,6 +57210,300 @@ async function testWarmupApplicabilityD136(){
 }
 
 /* =========================================================
+   CONTRACT 271 — D147 (LOOP 10.70): A PROGRAM ENDS WHEN ITS SCHEDULE DOES (E71)
+   After a program's last day it schedules nothing (D38), and it stays the athlete's program until they complete it. In
+   10.69 three readers fell back to the weekly plan there — Today's rest-day Next, the next-session reader the Program
+   screen, the Weekly Review and This Week share (myTrainingNextSession), and D44 / the Log calendar (planTargetOn) — and
+   a library workout started then was stamped as the finished program's. Now every reader gives the one answer: nothing
+   is scheduled after the end until the program is completed; ordinary training stays open and stays ordinary.
+   10.69's own functions, read back, are run beside 10.70's to show the defect and its absence.
+   ========================================================= */
+async function testProgramEndStateD147(){
+  section('CONTRACT 271 — a program ends when its schedule does: after its last day nothing is scheduled until it is completed (D147, E71)');
+  const fs = require('fs'), crypto = require('crypto'), vm = require('vm');
+  const raw = fs.readFileSync(H.APP_PATH, 'utf8').split('\r\n').join('\n');
+  const guard = async (label, fn) => { try{ await fn(); }catch(e){ T(label + ' — threw ' + (e && e.stack || e), false); } };
+  const sha = s => crypto.createHash('sha256').update(s).digest('hex').slice(0, 16);
+  const col = s => String(s).replace(/\s+/g, ' ').trim();
+  const was = asOf1069Html(raw);   /* dc31494: LOOP 10.69 */
+  const sameFn = n => !!was && col(fnSrc(raw, n)) === col(fnSrc(was, n)) && col(fnSrc(raw, n)).length > 20;
+  const read = n => fs.readFileSync(H.APP_PATH.replace(/index\.html$/, n), 'utf8').split('\r\n').join('\n');
+  const CHANGED = ['planTargetWindows', 'planTargetOn', 'renderTodayWorkout', 'myTrainingNextSession', 'startTemplateLog'];
+  const DAYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const PLAN = { mon: 'push', tue: 'rest', wed: 'pull', thu: 'rest', fri: 'legs', sat: 'fullbody', sun: 'rest' };
+  const setv = (ctx, n, v) => vm.runInContext(n + ' = ' + JSON.stringify(v), ctx);
+  const plain = s => String(s || '').replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const W = (id, date, cat, extra) => Object.assign({ id, date, category: cat, title: cat + ' session', notes: '', origin: 'program', programId: 'p1',
+    exercises: [{ name: 'Bench Press', bodyweight: false, sets: [1, 2, 3].map(() => ({ weight: '135', reps: '8', rir: '2', type: 'working', completed: true })) }] }, extra || {});
+  const refs = (ctx, plan) => { const s = {}; DAYS.forEach(k => { const c = plan[k]; s[k] = c === 'rest' ? { type: 'rest' } : { type: 'workout', planId: 'balanced', category: c, templateId: ctx.getTemplates(c)[0].id }; }); return s; };
+  const programLog = (start, weeks, until, skip) => { const out = []; const d = new Date(start + 'T00:00:00'); for(let i = 0; i < weeks * 7; i++){
+    const ds = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); if(ds >= until) break;
+    const c = PLAN[DAYS[(d.getDay() + 6) % 7]]; if(c !== 'rest' && !(skip || []).includes(ds)) out.push([ds, c]); d.setDate(d.getDate() + 1); } return out; };
+  const install = ctx => CHANGED.forEach(n => vm.runInContext((was.indexOf('async function ' + n + '(') !== -1 ? 'async ' : '') + fnSrc(was, n), ctx));
+  /* o: { programs: [{ id, startDate, durationWeeks, status?, pauses?, completedAt?, plan? }], active?, plan?, log: [[date, cat, extra]] } */
+  const boot = async (o, clock, old, store) => {
+    const a = H.loadApp(store || { dataSchemaVersion: '1', selectedPlan: JSON.stringify('balanced'), 'planStart:balanced': JSON.stringify('2026-08-01') });
+    const release = pinClock(a.ctx, clock); await H.settle(150); const ctx = a.ctx;
+    if(old) install(ctx);
+    if(!store){
+      const progs = (o.programs || []).map(p => Object.assign({ name: 'Program ' + p.id, goal: 'hypertrophy', status: 'active', schedule: refs(ctx, p.plan || PLAN) }, p, { plan: undefined }));
+      ctx.programsStore = Object.assign(ctx.defaultProgramsStore(), { version: 1, activeProgramId: o.active === undefined ? (progs[0] ? progs[0].id : null) : o.active, programs: progs });
+      Object.keys(ctx.schedule).forEach(k => delete ctx.schedule[k]); Object.assign(ctx.schedule, o.plan || PLAN);
+      /* nothing is logged ahead of the clock unless a scenario says so (a session started early, on its own date) */
+      ctx.workoutLog = (o.log || []).map(([d, c, x], i) => W('w' + i + '-' + d, d, c, x)).filter(w => o.future || w.date <= clock.slice(0, 10));
+      a.store.workoutLog = JSON.stringify(ctx.workoutLog); await ctx.persistSchedule(); await ctx.persistPrograms();
+    }
+    ['invalidateSortedLogCache', 'invalidateConsistencyCache', 'invalidateProgramCache'].forEach(f => { try{ ctx[f](); }catch(e){} });
+    setv(ctx, 'selectedDayKey', null); setv(ctx, 'hasActiveDraftNow', false);
+    return { a, ctx, release };
+  };
+  /* every surface's answer about the schedule, read through the app */
+  const reads = ctx => {
+    const T = ctx.localDateStr(), r = { T };
+    const p = ctx.getActiveProgram();
+    r.end = p ? ctx.programEndDate(p) : null;
+    r.lifecycle = p ? ctx.deriveProgramLifecycle(p, T) : 'none';
+    setv(ctx, 'selectedDayKey', null); ctx.renderTodayWorkout();
+    const h = ctx.document.getElementById('todayWorkout').innerHTML;
+    r.hero = { title: plain((h.match(/<div class="tw-title[^"]*">([\s\S]*?)<\/div>/) || [])[1]), meta: plain((h.match(/<div class="tw-meta">([\s\S]*?)<\/div>/) || [])[1]),
+      next: plain((h.match(/<span class="tw-next-v">([\s\S]*?)<\/span>/) || [])[1]) || null, trainAnyway: /Train anyway/.test(h) };
+    const m = ctx.deriveThisWeek();
+    r.week = m.days.map(d => d.category + ':' + d.status); r.weekToday = m.today; r.upNext = m.upNext ? { date: m.upNext.date, key: m.upNext.key, title: m.upNext.title } : null;
+    const n = ctx.myTrainingNextSession(); r.programNext = n ? { key: n.key, cat: n.cat, name: n.workoutName } : null;
+    try{ r.stats = plain(ctx.myTrainingStatsHtml(ctx.myTrainingState())); }catch(e){ r.stats = 'ERR'; }
+    try{ const wr = ctx.deriveWeeklyReview(null); r.reviewNext = wr && wr.context ? wr.context.next : 'none'; }catch(e){ r.reviewNext = 'ERR ' + e.message; }
+    ctx.invalidateConsistencyCache(); const c = ctx.computeConsistencyData();
+    r.d44 = {}; c.weeks.forEach(w => w.days.forEach(d => { if(d.date <= T) r.d44[d.date] = d.state + (d.planned ? '+p' : ''); }));
+    r.totals = { planned: c.totalPlanned, fulfilled: c.totalFulfilled };
+    r.train = (s => s ? s.cat : null)(ctx.trainSessionOn(new ctx.Date(T + 'T00:00:00')));
+    ctx.renderMissedBanner(); r.banner = plain(ctx.document.getElementById('missedBanner').innerHTML);
+    r.d43 = (ctx.programsStore.programs || []).map(q => { const f = ctx.deriveProgramPlanFulfillment(q, ctx.workoutLog); return q.id + ':' + f.fulfilled + '+' + f.additional + '/' + f.planned + ':' + f.slots.filter(s => s.workoutId).map(s => s.workoutId + '@' + s.date).join('|'); }).join(' ');
+    r.log = JSON.stringify(ctx.workoutLog);
+    return r;
+  };
+  const at = async (o, clock, old) => { const b = await boot(o, clock, old); const r = reads(b.ctx); r.store = JSON.parse(JSON.stringify(b.a.store)); b.release(); return r; };
+  const stampOf = async (o, clock, old, cat) => { const b = await boot(o, clock, old); const c = b.ctx;
+    try{ await c.startTemplateLog(cat || 'push', c.getTemplates(cat || 'push')[0].id); }catch(e){}
+    const s = vm.runInContext('pendingWorkoutOrigin + ":" + pendingWorkoutProgramId', c); b.release(); return s; };
+  const gapOf = r => Object.keys(r.d44).filter(d => d > '2026-09-27' && d < '2026-10-12').map(d => d + ' ' + r.d44[d]);   /* p1's end to p2's start */
+  const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  const P4 = extra => [Object.assign({ id: 'p1', startDate: '2026-08-31', durationWeeks: 4 }, extra || {})];   /* its grid ends Sun 27 Sep */
+  const A = { programs: P4(), log: programLog('2026-08-31', 4, '2026-09-27') };
+  const B = { programs: P4(), log: programLog('2026-08-31', 4, '2026-09-27', ['2026-09-26']) };
+  const C = { programs: P4(), log: programLog('2026-08-31', 4, '2026-09-26') };
+  const E = { programs: P4(), log: programLog('2026-08-31', 4, '2026-09-26').concat([['2026-09-25', 'fullbody']]) };
+  const E2 = { programs: P4(), log: programLog('2026-08-31', 4, '2026-09-24').concat([['2026-09-25', 'legs']]), future: true };   /* Friday's session started early, logged on its own date */
+  const F2 = { programs: P4({ pauses: [{ from: '2026-09-24', to: '2026-09-29' }], pausedDays: 5 }), log: programLog('2026-08-31', 4, '2026-09-24') };
+  const G = { programs: P4({ status: 'completed', completedAt: '2026-10-02T15:00:00.000Z' }), active: null, log: programLog('2026-08-31', 4, '2026-09-27') };
+  const H_ = { programs: [{ id: 'p0', startDate: '2026-07-06', durationWeeks: 4, status: 'completed', completedAt: '2026-08-03T15:00:00.000Z' }], active: null, log: programLog('2026-07-06', 4, '2026-08-03').concat([['2026-09-28', 'push']]) };
+  const J = { programs: [], active: null, log: [['2026-09-21', 'push'], ['2026-09-23', 'pull']] };
+  /* p1 ended Sun 27 Sep and was never completed; p2, begun Mon 12 Oct, replaced it as the active program */
+  const K = { programs: P4().concat([{ id: 'p2', startDate: '2026-10-12', durationWeeks: 4 }]), active: 'p2', log: programLog('2026-08-31', 4, '2026-09-27').concat([['2026-10-12', 'push', { programId: 'p2' }]]) };
+
+  sub('the defect, replayed: 10.69’s readers, read back');
+  await guard('replay', async () => {
+    const o = await at(A, '2026-09-29T10:00:00', true), c = await at(C, '2026-09-26T09:00:00', true), d = await at(A, '2026-09-27T10:00:00', true);
+    T('10.69 replay — after the program’s last day (Tue 29 Sep, its weeks ended Sun 27) the week reads rest and Up next says nothing, yet the rest day’s Next names the weekly plan’s “Wednesday · Pull A”, so do the Program screen and the Weekly Review, and D44 calls Monday 28 missed',
+      o.week.every(x => x === 'rest:rest') && !o.upNext && /^Wednesday · Pull A/.test(o.hero.next || '') && o.programNext && o.programNext.key === 'wed' && o.reviewNext && o.reviewNext.when === 'Wednesday' && o.d44['2026-09-28'] === 'missed+p',
+      [o.hero.next, o.programNext, o.reviewNext, o.d44['2026-09-28']]);
+    T('10.69 replay — on the final Saturday (its last workout today) This Week’s Up next names next Monday’s Push A, a date after the end; on the last Sunday it says “Tomorrow · Push A” beside a rest card that says “No training days set yet”',
+      c.upNext && c.upNext.date === '2026-09-28' && d.upNext && d.upNext.date === '2026-09-28' && d.hero.meta === 'No training days set yet', [c.upNext, d.upNext, d.hero.meta]);
+    T('10.69 replay — a library Push A started after the end records the finished program as its own (program:p1)', (await stampOf(A, '2026-09-29T10:00:00', true)) === 'program:p1', '');
+    const x = await at(E2, '2026-09-24T10:00:00', true);
+    T('10.69 replay — on Thursday, with Friday’s Legs already logged early, the rest card still names “Friday · Legs A” while This Week names Saturday',
+      /^Friday · /.test(x.hero.next || '') && x.upNext && x.upNext.key === 'sat', [x.hero.next, x.upNext]);
+  });
+
+  sub('1–10  the end, the last days, and training after');
+  await guard('end', async () => {
+    const clocks = ['2026-09-28T10:00:00', '2026-09-29T10:00:00', '2026-10-05T10:00:00', '2026-10-21T10:00:00'];
+    const rs = []; for(const k of clocks) rs.push(await at(A, k));
+    const pd = (await boot(A, '2026-09-29T10:00:00')); const ended = ['2026-09-28', '2026-09-30', '2026-10-02', '2026-10-10'].every(d => { const x = pd.ctx.getProgramWorkoutForDate(d); return x && x.ended && x.category === 'rest'; }); pd.release();
+    T('2  no program workout after its end: on 28 and 29 Sep, 5 and 21 Oct the program’s date reader answers ended, the week is seven rest days, Up next, the Program screen’s next, the Weekly Review’s next and Train’s session are empty, and the rest card has no Next',
+      ended && rs.every(r => r.lifecycle === 'ended' && r.week.every(x => x === 'rest:rest') && !r.upNext && r.programNext === null && !r.reviewNext && r.train === null && r.hero.next === null), rs.map(r => [r.T, r.hero.next, r.programNext, r.reviewNext]));
+    T('…and the rest card says so: “Your program’s scheduled weeks are finished”, with Train anyway still offered',
+      rs.every(r => r.hero.title === 'Rest Day' && r.hero.meta === 'Your program’s scheduled weeks are finished' && r.hero.trainAnyway), rs.map(r => r.hero));
+    const c = await at(C, '2026-09-26T09:00:00'), d = await at(A, '2026-09-27T10:00:00');
+    T('3  the last workout stays on its day: on Saturday 26 Sep Today offers Full Body A, This Week shows it planned, Train starts it — and nothing after it is named (Up next and the Program screen’s next are empty)',
+      c.hero.title === 'Full Body' && c.week[5] === 'fullbody:planned' && c.train === 'fullbody' && c.lifecycle === 'active' && !c.upNext && c.programNext === null, [c.hero, c.week[5], c.train, c.upNext]);
+    T('…and on its last day, a rest day, the card says “No sessions left in your program” — not “No training days set yet”, and not tomorrow’s weekly plan',
+      d.lifecycle === 'active' && d.hero.title === 'Rest Day' && d.hero.meta === 'No sessions left in your program' && d.hero.next === null && !d.upNext, [d.hero, d.upNext]);
+    const b1 = await at(B, '2026-09-27T10:00:00'), b2 = await at(B, '2026-09-29T10:00:00');
+    T('4  a final session missed stays missed: Sunday shows Saturday missed and asks about it (“Full Body got skipped yesterday”); after the end D44 still calls 26 Sep missed, and nothing after it',
+      b1.week[5] === 'fullbody:missed' && /Full Body got skipped yesterday/.test(b1.banner) && b2.d44['2026-09-26'] === 'missed+p' && b2.d44['2026-09-28'] === 'rest' && b2.d44['2026-09-29'] === 'rest' && b2.banner === '', [b1.week[5], b1.banner, b2.d44['2026-09-26']]);
+    const e1 = await at(E, '2026-09-28T10:00:00');
+    T('5  the final workout done early adds nothing afterwards: D43 still pairs every logged workout as before, and the days after the end hold nothing',
+      e1.week.every(x => x === 'rest:rest') && !e1.upNext && e1.programNext === null && (m => !!m && +m[1] + +m[2] === 16)(/^p1:(\d+)\+(\d+)\/16:/.exec(e1.d43)), e1.d43.slice(0, 40));
+    const x = await at(E2, '2026-09-24T10:00:00');
+    T('5b a session already logged on its own date is not next: on Thursday, Friday’s Legs already logged early, Today, This Week and the Program screen all name Saturday’s Full Body — none repeats Friday',
+      /^Saturday · /.test(x.hero.next || '') && x.upNext && x.upNext.key === 'sat' && x.programNext && x.programNext.key === 'sat' && x.week[4] === 'legs:completed', [x.hero.next, x.upNext, x.programNext, x.week[4]]);
+    const f = []; for(const k of ['2026-10-02T10:00:00', '2026-10-04T10:00:00', '2026-10-05T10:00:00']) f.push(await at(F2, k));
+    T('6  a pause moves the end: paused 24–29 Sep, the program ends Sun 4 Oct — Friday 2 Oct is still Legs, Sunday 4 still its own, Monday 5 the first day after; a paused program is never ended',
+      f[0].end === '2026-10-04' && f[0].hero.title === 'Legs' && f[1].lifecycle === 'active' && f[2].lifecycle === 'ended' && f[2].week.every(x => x === 'rest:rest') && f[2].hero.next === null
+        && (await (async () => { const b = await boot({ programs: P4({ status: 'paused', pausedOnDate: '2026-09-24', pauses: [{ from: '2026-09-24', to: null }] }) }, '2026-11-30T10:00:00'); const v = b.ctx.programTimelineEnded(b.ctx.getProgram('p1'), '2026-11-30'); b.release(); return v === false; })()),
+      [f[0].end, f[0].hero.title, f[1].lifecycle, f[2].lifecycle]);
+    /* complete it on Fri 2 Oct, through the app's own action */
+    const g = await boot(A, '2026-10-02T11:00:00'); const before = reads(g.ctx);
+    const ok = await g.ctx.completeProgram('p1'); await H.settle(60); const q = g.ctx.getProgram('p1'); const gr = reads(g.ctx); g.release();
+    T('7  Mark complete is unchanged and stays the athlete’s: it alone sets the program completed (completedAt, no active program); afterwards the weekly plan is the schedule again (Today Legs, and D44 plans the completion day itself) — and the days between the end and the completion keep reading as nothing scheduled, before and after (28 Sep – 1 Oct)',
+      before.lifecycle === 'ended' && ok !== false && q.status === 'completed' && !!q.completedAt && vm.runInContext('programsStore.activeProgramId', g.ctx) === null
+        && gr.hero.title === 'Legs' && /\+p$/.test(gr.d44['2026-10-02'] || '') && ['2026-09-28', '2026-09-29', '2026-09-30', '2026-10-01'].every(d => before.d44[d] === 'rest' && gr.d44[d] === 'rest'), [q.status, gr.hero.title, ['2026-09-28', '2026-09-30', '2026-10-02'].map(d => gr.d44[d])]);
+    T('8  ordinary training stays open after the end: Train anyway on the rest card, the library and Build-for-me untouched, and a library Push A started then is ordinary (freeform)',
+      rs[1].hero.trainAnyway && (await stampOf(A, '2026-09-29T10:00:00')) === 'freeform:null', '');
+    T('7b …completeProgram, the library start’s resolver, the free log and Build-for-me are 10.69’s', ['completeProgram', 'resolveStartWorkout', 'openFreeformLog', 'startGeneratedWorkout', 'programPrescribesTemplate'].every(sameFn), '');
+    /* an ordinary and a Build-for-me workout logged after the end */
+    const extra = [['2026-09-29', 'push', { origin: 'freeform', programId: null }], ['2026-10-01', 'legs', { origin: 'generated', programId: null }]];
+    const mx = await at(Object.assign({}, A, { log: A.log.concat(extra) }), '2026-10-02T10:00:00'), m0 = await at(A, '2026-10-02T10:00:00');
+    const pw = (await (async () => { const b = await boot(Object.assign({}, A, { log: A.log.concat(extra) }), '2026-10-02T10:00:00'); const ids = b.ctx.programWorkouts(b.ctx.getProgram('p1')).map(w => w.id); b.release(); return ids; })());
+    T('9  a manual workout after the end fulfils no slot of the finished program and is not its workout: D43’s pairing is what it was without it',
+      mx.d43 === m0.d43 && !pw.some(id => /2026-09-29/.test(id)), [mx.d43.slice(0, 30), m0.d43.slice(0, 30)]);
+    /* and one started after the end through Build for me's own Start */
+    const gen = await (async () => { const b = await boot(A, '2026-10-01T10:00:00'); const c = b.ctx; const keep = {};
+      ['addLogExerciseRow', 'openLogSheet', 'confirmOverwriteDraft', 'persistDraftNow'].forEach(k => { keep[k] = c[k]; });
+      Object.assign(c, { addLogExerciseRow(){}, openLogSheet(){}, confirmOverwriteDraft: async () => true, persistDraftNow(){} });
+      let s = 'none';
+      try{ c.openBuildForMe(); c.bfmBuild(); await c.startGeneratedWorkout(); s = vm.runInContext('pendingWorkoutOrigin + ":" + pendingWorkoutProgramId', c); }catch(e){ s = 'threw ' + e.message; }
+      finally{ Object.assign(c, keep); }
+      b.release(); return s; })();
+    T('10 a Build-for-me workout after the end likewise: started, it is stamped generated with no program; logged, it is not the program’s and fills no slot',
+      gen === 'generated:null' && !pw.some(id => /2026-10-01/.test(id)) && mx.d43 === m0.d43, [gen, pw.slice(-2)]);
+    /* and a built workout saved to My Workouts (D139.1), started after the end from the library */
+    const kept = await (async () => { const b = await boot(A, '2026-10-01T10:00:00'); const c = b.ctx; let s = 'none';
+      try{ c.openBuildForMe(); c.bfmBuild(); const res = await c.saveBuiltWorkout(vm.runInContext('bfmState.session', c), 'After the end');
+        try{ await c.startTemplateLog(res.cat, res.id); }catch(e){}   /* the vm's DOM stops the logger after the stamp, as in stampOf */
+        s = res.ok + ':' + c.isSavedWorkoutId(res.id) + ':' + vm.runInContext('pendingWorkoutOrigin + ":" + pendingWorkoutProgramId', c); }catch(e){ s = 'threw ' + e.message; }
+      b.release(); return s; })();
+    T('10b a built workout saved to My Workouts and started after the end is ordinary training as well: freeform, no program', kept === 'true:true:freeform:null', kept);
+  });
+
+  sub('11–16  one answer on every surface');
+  await guard('surfaces', async () => {
+    const pts = [[A, '2026-09-21T10:00:00'], [A, '2026-09-22T10:00:00'], [A, '2026-09-24T10:00:00'], [A, '2026-09-27T10:00:00'], [A, '2026-09-28T10:00:00'], [B, '2026-09-29T10:00:00'], [F2, '2026-10-01T10:00:00'], [F2, '2026-10-03T10:00:00'], [J, '2026-09-29T10:00:00'], [G, '2026-10-06T10:00:00']];
+    const rs = []; for(const [o, k] of pts) rs.push(await at(o, k));
+    const restDays = rs.filter(r => r.hero.title === 'Rest Day');
+    T('11 Today and This Week agree: on every rest day sampled the card’s Next is This Week’s Up next (same day, same workout), and when the card names none, neither does the week',
+      restDays.length >= 6 && restDays.every(r => (r.hero.next === null) === (r.upNext === null) && (!r.upNext || r.hero.next.indexOf(r.upNext.title) !== -1)), restDays.map(r => [r.T, r.hero.next, r.upNext && r.upNext.title]));
+    T('12 Today and the Program screen agree: the next session the Program screen names is the rest card’s Next, and both are empty after the end',
+      restDays.every(r => (r.programNext === null) === (r.hero.next === null) && (!r.programNext || r.hero.next.indexOf(r.programNext.name || '') !== -1)), restDays.map(r => [r.T, r.programNext, r.hero.next]));
+    const fin = []; for(const k of ['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28']) fin.push(await at(A, k + 'T10:00:00'));
+    T('13 the Program screen’s next session never names a date after the program’s end: every day of the final week and the day after',
+      fin.every(r => !r.programNext || (() => { const ti = DAYS.indexOf(['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date(r.T + 'T00:00:00').getDay()]); const ahead = ((DAYS.indexOf(r.programNext.key) - ti + 7) % 7) || 7; const dt = new Date(r.T + 'T00:00:00'); dt.setDate(dt.getDate() + ahead); return ymd(dt) <= r.end; })()), fin.map(r => [r.T, r.programNext && r.programNext.key]));
+    const late = await at(A, '2026-10-21T10:00:00'), early = await at(A, '2026-09-28T10:00:00');
+    T('14 D44 adds no obligations after the end: on 28 Sep and three weeks later every date after 27 Sep is unplanned and none is missed — the weekly plan’s days are not counted',
+      [early, late].every(r => { const post = Object.keys(r.d44).filter(d => d > '2026-09-27'); return post.length >= 1 && post.every(d => r.d44[d] === 'rest'); }) && Object.keys(late.d44).filter(d => d > '2026-09-27').length === 24,
+      Object.keys(late.d44).filter(d => d > '2026-09-27' && late.d44[d] !== 'rest'));
+    const h1 = await at(H_, '2026-09-30T10:00:00');
+    T('16 a program completed months ago does not reach today: the weekly plan answers (Pull today, Up next Friday’s Legs), and D44 judges September by the weekly plan',
+      h1.hero.title === 'Pull' && h1.upNext && h1.upNext.key === 'fri' && /^(trained|pr)\+p$/.test(h1.d44['2026-09-28']), [h1.hero, h1.upNext, h1.d44['2026-09-28']]);
+    const k = await at(K, '2026-10-14T10:00:00'), g = gapOf(k);
+    T('16c a program another has replaced claims no days after its end: with p2 the active program, the 14 days between p1’s end and p2’s start read by the weekly plan, its eight untrained training days missed — LOOP keeps no date for the switch (E75)',
+      g.length === 14 && g.filter(x => / missed\+p$/.test(x)).length === 8 && g.filter(x => / rest$/.test(x)).length === 6, g);
+    const j = await at(J, '2026-09-29T10:00:00');
+    T('15a no program: the weekly plan answers — Monday 28 Sep missed, the rest card’s Next and Up next Wednesday’s Pull, D44 planning the plan’s days',
+      j.lifecycle === 'none' && j.hero.title === 'Rest Day' && /^Wednesday · /.test(j.hero.next || '') && j.upNext && j.upNext.key === 'wed' && j.week[0] === 'push:missed' && j.d44['2026-09-28'] === 'missed+p' && /^trained\+p$|^pr\+p$/.test(j.d44['2026-09-23']),
+      [j.hero, j.upNext, j.week[0], j.d44['2026-09-28']]);
+  });
+
+  sub('15–16, 19, 23  beside 10.69, read back');
+  await guard('replay beside', async () => {
+    const j1 = await at(J, '2026-09-29T10:00:00'), j0 = await at(J, '2026-09-29T10:00:00', true);
+    T('15 no program: the weekly plan answers exactly as in 10.69 — the card, its Next, the week, Up next, the next session, D44 and Train',
+      JSON.stringify([j1.hero, j1.week, j1.upNext, j1.programNext, j1.d44, j1.train]) === JSON.stringify([j0.hero, j0.week, j0.upNext, j0.programNext, j0.d44, j0.train]), [j1.hero, j0.hero]);
+    const h1 = await at(H_, '2026-09-30T10:00:00'), h0 = await at(H_, '2026-09-30T10:00:00', true);
+    T('16b …exactly as in 10.69', JSON.stringify([h1.hero, h1.week, h1.upNext, h1.programNext, h1.d44]) === JSON.stringify([h0.hero, h0.week, h0.upNext, h0.programNext, h0.d44]), [h1.hero, h0.hero]);
+    const k1 = await at(K, '2026-10-14T10:00:00'), k0 = await at(K, '2026-10-14T10:00:00', true);
+    T('16d …exactly as in 10.69', JSON.stringify(gapOf(k1)) === JSON.stringify(gapOf(k0)), [gapOf(k1).slice(0, 4), gapOf(k0).slice(0, 4)]);
+    const r1 = await at(A, '2026-10-05T10:00:00'), r0 = await at(A, '2026-10-05T10:00:00', true);
+    T('19 D145: every date the program’s weeks covered reads exactly as in 10.69 — only the dates after its end changed',
+      Object.keys(r1.d44).filter(d => d <= '2026-09-27').every(d => r1.d44[d] === r0.d44[d]) && Object.keys(r1.d44).some(d => d > '2026-09-27' && r1.d44[d] !== r0.d44[d]), '');
+    T('23b …and D43 pairs exactly as in 10.69', r1.d43 === r0.d43, '');
+  });
+
+  sub('17–23  what must not move');
+  await guard('protected', async () => {
+    /* in the final week, a move and a content edit still apply this week (D143, D144) */
+    const b = await boot(A, '2026-09-21T09:00:00'); const c = b.ctx;
+    c.currentEditDay = 'fri'; c.moveDayTo('sun'); await H.settle(60); const wk1 = c.weekOverview().days.map(d => d.cat);
+    c.currentEditDay = 'wed'; c.setDayValue('core'); await H.settle(60); const wk2 = c.weekOverview().days.map(d => d.cat);
+    b.release();
+    T('17 D143: in the program’s final week, Friday moved to Sunday moves this week at once', wk1[4] === 'rest' && wk1[6] === 'legs', wk1);
+    T('18 D144: Wednesday set to Core in the final week changes this week', wk2[2] === 'core', wk2);
+    const s = await at(A, '2026-10-05T10:00:00');
+    T('23 history is untouched: reading every surface leaves the log byte for byte as seeded, and D43 pairs every logged workout with its own date',
+      s.log === JSON.stringify(A.log.map(([d, c, x], i) => W('w' + i + '-' + d, d, c, x))) && /^p1:16\+0\/16:/.test(s.d43) && A.log.every(([d], i) => s.d43.indexOf('w' + i + '-' + d + '@' + d) !== -1), s.d43.slice(0, 40));
+  });
+
+  sub('17b–22  the engines this phase does not touch');
+  T('17b D143’s writers are 10.69’s', ['swapScheduledDays', 'moveProgramDaysFrom', 'changeDayMovesThisWeek', 'programWorkClaims', 'moveDayTo'].every(sameFn), '');
+  T('18b D144’s writers are 10.69’s', ['setScheduledCategory', 'setProgramDayFrom', 'dayContentChangesThisWeek', 'setDayValue'].every(sameFn), '');
+  T('19b D145’s readers are 10.69’s apart from planTargetOn’s window', ['computeConsistencyData', 'renderHistoryCalendar', 'renderSelectedDay', 'planDayIsSuspended', 'programPlanOn'].every(sameFn), '');
+  T('20 D146: This Week’s presentation is 10.69’s — deriveThisWeek, renderWeekCard, the tap and the stylesheet block',
+    ['deriveThisWeek', 'renderWeekCard', 'weekDayClick', 'thisWeekDayStatus', 'thisWeekDayName'].every(sameFn) && !!was && raw.indexOf(D146_CSS) !== -1 && was.indexOf(D146_CSS) !== -1, '');
+  T('21 D49 / D50B / D137 untouched', ['progressionFor', 'progressionEvidence', 'compareProgressionEvidence', 'coachMayWriteSet', 'deriveWorkingSetPlan'].every(sameFn), '');
+  T('22 E64 stays closed: the low dock rule and the workout’s bottom are 10.69’s',
+    raw.indexOf('#logOverlay.ws-low-dock .ws-nav, #logOverlay.ws-low-dock .sheet-actions{ padding-bottom: var(--space-2); }') !== -1 && ['syncWorkoutBottomMode', 'workoutBottomFacts'].every(sameFn), '');
+
+  sub('24–29  storage, reload, dates and the findings left open');
+  await guard('rest', async () => {
+    const b = await boot(A, '2026-10-05T10:00:00'); const g = x => vm.runInContext(x, b.ctx);
+    T('24–25 DATA_KEYS 16 and data schema 1 in the running app', g('DATA_KEYS.length') === 16 && g('DATA_SCHEMA_VERSION') === 1, [g('DATA_KEYS.length'), g('DATA_SCHEMA_VERSION')]);
+    const before = reads(b.ctx); const store = JSON.parse(JSON.stringify(b.a.store)); b.release();
+    T('24–25b …the sixteen are 10.69’s, in the file; nothing new is stored',
+      (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw) || [])[1] === (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '') || [])[1], '');
+    const b2 = await boot(A, '2026-10-05T10:00:00', false, store); const again = reads(b2.ctx); b2.release();
+    T('26 reload: a fresh app from the stored data gives the same card, week, next session and D44', JSON.stringify([before.hero, before.week, before.programNext, before.d44]) === JSON.stringify([again.hero, again.week, again.programNext, again.d44]), '');
+    /* programs whose last day is a clock-change Sunday, read in four zones at the edges of the civil day: 23:30 on the last day
+       (already the next day in UTC west of Greenwich) and 00:30 the day after (still the last day in UTC east of it) */
+    const tz0 = process.env.TZ; const zones = ['America/New_York', 'America/Los_Angeles', 'Europe/London', 'Asia/Tokyo']; const rows = [];
+    for(const z of zones){
+      process.env.TZ = z;
+      for(const [start, end] of [['2026-10-05', '2026-11-01'], ['2026-09-28', '2026-10-25'], ['2027-02-15', '2027-03-14'], ['2026-12-07', '2027-01-03'], ['2027-01-04', '2027-01-31']]){
+        const o = { programs: [{ id: 'p1', startDate: start, durationWeeks: 4 }], log: [] };
+        const on = await at(o, end + 'T23:30:00'), nx = await at(o, (d => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + 1); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0'); })(end) + 'T00:30:00');
+        rows.push(z + ' ' + end + ': ' + on.end + ' ' + on.lifecycle + (on.hero.meta === 'No sessions left in your program' ? '' : ' card ' + on.hero.meta + '!') + ' → ' + nx.lifecycle
+          + (nx.hero.meta === 'Your program’s scheduled weeks are finished' ? '' : ' card ' + nx.hero.meta + '!') + (nx.programNext ? ' next!' : '') + (nx.hero.next ? ' heroNext!' : ''));
+      }
+    }
+    if(tz0 === undefined) delete process.env.TZ; else process.env.TZ = tz0;
+    T('27 civil dates, every zone: programs ending on the clock-change Sundays (1 Nov US, 25 Oct EU), 14 Mar 2027, across the year (3 Jan 2027) and at a month’s end (31 Jan 2027) end that Sunday in New York, Los Angeles, London and Tokyo — at 23:30 on it still running (“No sessions left”), at 00:30 the next day ended (“scheduled weeks are finished”), with nothing named after',
+      rows.length === 20 && rows.every(x => / (2026-11-01|2026-10-25|2027-03-14|2027-01-03|2027-01-31) active → ended$/.test(x)), rows.filter(x => !/ active → ended$/.test(x)));
+    /* E66: a Studio change from tomorrow after one waiting for next Monday is still undone the week after */
+    const e = await boot({ programs: [{ id: 'p1', startDate: '2026-08-31', durationWeeks: 8 }] }, '2026-09-23T09:00:00'); const c = e.ctx;
+    c.currentEditDay = 'mon'; c.setDayValue('core'); await H.settle(60);
+    const p = c.getActiveProgram();
+    await c.updateProgram('p1', { schedule: Object.assign({}, p.schedule, { fri: { type: 'workout', planId: 'balanced', category: 'push', templateId: c.getTemplates('push')[1].id } }), applyFrom: 'next' }); c.invalidateProgramCache();
+    const on = d => { const x = c.getProgramWorkoutForDate(d, c.getActiveProgram()); return x.entry.type === 'workout' ? x.category : 'rest'; };
+    T('28 E66 is untouched: the Studio change still holds this Friday and is still undone the Friday after (25 Sep Push, 2 Oct Legs)', on('2026-09-25') === 'push' && on('2026-10-02') === 'legs', [on('2026-09-25'), on('2026-10-02')]);
+    T('28b …and the revision writers are 10.69’s', ['addProgramRevision', 'reviseProgramPlan'].every(sameFn), '');
+    e.release();
+    const w = await boot({ programs: P4(), log: programLog('2026-08-31', 4, '2026-09-22').concat([['2026-09-22', 'arms', { origin: 'generated', programId: null }]]) }, '2026-09-23T09:00:00');
+    const wk = w.ctx.weekOverview(); w.release();
+    T('29 E72 is untouched: This Week still counts trained days (Mon and a trained rest Tuesday: 2 of 4)', wk.done === 2 && wk.planned === 4, [wk.done, wk.planned]);
+    T('29b …and weekOverview is 10.69’s', sameFn('weekOverview'), '');
+  });
+
+  sub('the release');
+  const ps = JSON.parse(read('PROJECT-STATUS.json'));
+  const styleOf = t => t.slice(t.indexOf('<style>'), t.indexOf('</style>'));
+  const markupOf = t => t.slice(t.indexOf('</style>'), t.indexOf('<script>'));
+  T('the release is seven hunks — the program windows’ after-end stretch, planTargetOn’s answer for it, the rest day’s Next and its words, the next-session reader, the library start’s owner, and What’s New — and putting them back reads LOOP 10.69 (dc31494) to the byte',
+    !!was && sha(was) === SHA_1069_HTML && D147_RAW.length === 7, was ? sha(was) : 'no read-back');
+  T('no stylesheet or markup change: both are 10.69’s byte for byte', !!was && styleOf(raw) === styleOf(was) && markupOf(raw) === markupOf(was), '');
+  T('only these readers changed: the program’s date reader, its lifecycle, D43, the writers, This Week, the day cards, the missed banner, Train and the Program screen are 10.69’s',
+    ['getProgramWorkoutForDate', 'programTimelineEnded', 'deriveProgramLifecycle', 'programIsFinished', 'getRunningProgram', 'programEndDate', 'programPlannedSlots', 'deriveProgramPlanFulfillment', 'programWorkouts',
+      'renderOtherDayCard', 'dayTemplateFor', 'checkMissedWorkout', 'trainSessionOn', 'myTrainingState', 'myTrainingStatsHtml', 'renderMyTraining', 'deriveTrainingFoundation', 'programContextHtml', 'findNextTrainingDay'].every(sameFn),
+    ['getProgramWorkoutForDate', 'checkMissedWorkout', 'myTrainingState'].filter(n => !sameFn(n)));
+  const status = id => ((read('FINDINGS-D88.md').match(new RegExp('^## ' + id + ' [^\\n]*', 'm')) || [''])[0]);
+  T('E71 is CLOSED in D147; E73, E74 and E75 are recorded OPEN; E66, E72 and the other open findings untouched',
+    /CLOSED in D147 \(LOOP 10\.70\)/.test(status('E71')) && /· OPEN$/.test(status('E73')) && /· OPEN$/.test(status('E74')) && /· OPEN$/.test(status('E75')) && /· OPEN$/.test(status('E66')) && /· OPEN$/.test(status('E72')), [status('E71'), status('E73'), status('E74'), status('E75')]);
+  T('§193 records the rule: after its last day a program schedules nothing, and the weekly plan is not its continuation, until it is completed', /^## §193 — /m.test(read('TRAINER-CONTRACT.md')) && /completedAt/.test(read('TRAINER-CONTRACT.md').split('## §193')[1] || ''), '');
+  T('PROJECT-STATUS 10.70 asks for the owner’s phone check of a program’s end', ps.version === '10.70' && ps.needsQa === true && /10\.70/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
+  T('What’s New v10-70 “Your Program Ends When Its Schedule Does” is LOOP 10.70 / loop-v247, dated in New York, claims no automatic completion, and sw.js serves loop-v247',
+    raw.indexOf(D147_WHATSNEW) !== -1 && /id: 'v10-70',\n    version: 'LOOP 10\.70',\n    title: 'Your Program Ends When Its Schedule Does',\n    date: '\d{4}-\d\d-\d\d',\n    swVersion: 'loop-v247'/.test(raw)
+      && !/automatic|completes your program|marks? (it|your program) complete/i.test(D147_WHATSNEW) && /CACHE_VERSION = 'loop-v247'/.test(read('sw.js')), '');
+}
+
+/* =========================================================
    CONTRACT 270 — D146 (LOOP 10.69): THIS WEEK 2.0
    Today's This Week block, rebuilt as one glance: the week's progress (a whole percentage, the count behind it, one
    segment per planned workout), the seven days with what each trains and one mark per state, and today beside what
@@ -57325,8 +57676,8 @@ async function testThisWeekD146(){
     const z = await scen({ clock: '2026-10-21T10:00:00', programExtra: { startDate: '2026-08-31', durationWeeks: 6 }, noHistory: true }); const zv = view(z.ctx), zm = z.ctx.deriveThisWeek();
     setv(z.ctx, 'selectedDayKey', 'fri'); z.ctx.renderTodayWorkout(); const friCard = z.ctx.document.getElementById('todayWorkout').innerHTML;
     setv(z.ctx, 'selectedDayKey', null); z.ctx.renderTodayWorkout(); const hero = z.ctx.document.getElementById('todayWorkout').innerHTML;
-    T('14b the card never names a next workout its own week does not show: after a program’s last day, while it is still the active program, every day reads rest and up next says “Nothing scheduled” — not Friday, which the week and Friday’s card read as rest (the hero’s Next still names the weekly plan’s Friday: E71, recorded)',
-      zm.upNext === null && zv.cells.every(c => st(c) === 'rest') && zv.cols[1].v === 'Nothing scheduled' && /Nothing scheduled for Friday/.test(friCard) && /<span class="tw-next-v">Friday ·/.test(hero),
+    T('14b the card never names a next workout its own week does not show: after a program’s last day, while it is still the active program, every day reads rest and up next says “Nothing scheduled” — not Friday, which the week and Friday’s card read as rest — and the hero names none either (D147 restated: E71 closed, Contract 271)',
+      zm.upNext === null && zv.cells.every(c => st(c) === 'rest') && zv.cols[1].v === 'Nothing scheduled' && /Nothing scheduled for Friday/.test(friCard) && !/<span class="tw-next-v">/.test(hero) && /Your program’s scheduled weeks are finished/.test(hero),
       [zm.upNext, zv.cols, (hero.match(/tw-next-v">[^<]*/) || [''])[0], /Nothing scheduled for Friday/.test(friCard)]);
     z.release();
   });
@@ -57413,10 +57764,10 @@ async function testThisWeekD146(){
         && !/localStorage|persist[A-Z]\w*\(|saveData|writeKey/.test(fnSrc(raw, 'deriveThisWeek') + fnSrc(raw, 'renderWeekCard')), '');
     T('32 D143 and D144 are untouched: Change day, the day sheet, their this-week rules, D43’s answer, setSelectedDay, the hero and the day’s card are 10.68’s',
       ['swapScheduledDays', 'moveProgramDaysFrom', 'changeDayMovesThisWeek', 'setScheduledCategory', 'setProgramDayFrom', 'dayContentChangesThisWeek', 'programWorkClaims', 'openDayEdit', 'moveDayTo', 'setDayValue',
-        'setSelectedDay', 'stepSelectedDay', 'renderTodayWorkout', 'renderOtherDayCard', 'dayTemplateFor', 'weekOverview', 'myTrainingNextSession', 'findNextTrainingDay'].every(sameFn),
+        'setSelectedDay', 'stepSelectedDay', 'renderTodayWorkout', 'renderOtherDayCard', 'dayTemplateFor', 'weekOverview', 'myTrainingNextSession', 'findNextTrainingDay'].every(n => sameFn(n) || sameAsOf1069(raw, was, n)) /* D147 restated: renderTodayWorkout and myTrainingNextSession read at 10.69 (Contract 271) */,
       ['swapScheduledDays', 'changeDayMovesThisWeek', 'setScheduledCategory', 'weekOverview', 'renderTodayWorkout', 'renderOtherDayCard'].filter(n => !sameFn(n)));
     T('33 D145 is untouched: the plan in force on a date, D44, the Log calendar and its day line are 10.68’s',
-      ['planTargetWindows', 'planTargetOn', 'planDayIsSuspended', 'computeConsistencyData', 'renderHistoryCalendar', 'renderSelectedDay', 'programPlanOn'].every(sameFn), '');
+      ['planTargetWindows', 'planTargetOn', 'planDayIsSuspended', 'computeConsistencyData', 'renderHistoryCalendar', 'renderSelectedDay', 'programPlanOn'].every(n => sameFn(n) || sameAsOf1069(raw, was, n)) /* D147 restated: the program windows and planTargetOn read at 10.69 — 10.70 adds the after-end stretch (Contract 271) */, '');
     T('34 E64 stays closed: the low dock rule and the workout’s bottom are 10.68’s byte for byte',
       raw.indexOf('#logOverlay.ws-low-dock .ws-nav, #logOverlay.ws-low-dock .sheet-actions{ padding-bottom: var(--space-2); }') !== -1 && ['syncWorkoutBottomMode', 'workoutBottomFacts'].every(sameFn), '');
     T('35 D141 Worth Knowing is unchanged: its engine and its rows are 10.68’s', ['deriveWorthKnowing', 'worthKnowingRowHtml', 'renderTodayInsights'].every(sameFn), '');
@@ -57431,10 +57782,10 @@ async function testThisWeekD146(){
   const noBlock = raw.replace(/\/\* ==== D146 THIS WEEK 2\.0 BEGIN ==== \*\/[\s\S]*?\/\* ==== D146 THIS WEEK 2\.0 END ==== \*\/\n/, '');
   T('only the card changed: the stylesheet outside the D146 block, and the markup, are 10.68’s byte for byte',
     !!was && noBlock !== raw && styleOf(noBlock) === styleOf(was) && markupOf(raw) === markupOf(was), '');
-  T('PROJECT-STATUS 10.69 asks for the owner’s phone check of This Week', ps.version === '10.69' && ps.needsQa === true && /This Week/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
+  T('PROJECT-STATUS 10.69 asks for the owner’s phone check of This Week', (ps.version === '10.69' && /This Week/.test(ps.nextAction) || ps.version === '10.70' /* D147 restated: the next phase asks for its own phone check (Contract 271) */) && ps.needsQa === true && ps.nextAction.length <= 200, ps.nextAction);
   T('What’s New v10-69 “A Clearer View of Your Training Week” is LOOP 10.69 / loop-v246, dated in New York, and sw.js serves loop-v246',
     raw.indexOf(D146_WHATSNEW) !== -1 && /id: 'v10-69',\n    version: 'LOOP 10\.69',\n    title: 'A Clearer View of Your Training Week',\n    date: '\d{4}-\d\d-\d\d',\n    swVersion: 'loop-v246'/.test(raw)
-      && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')), '');
+      && (/CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) || /CACHE_VERSION = 'loop-v247'/.test(read('sw.js')) /* D147 restated: v10-69 stays in the history; sw.js serves 10.70’s cache (Contract 271) */), '');
 }
 
 /* =========================================================
@@ -57557,7 +57908,7 @@ async function testHistoricalPlanD145(){
       ['addProgramRevision', 'reviseProgramPlan', 'updateProgramInMemory', 'programPlanOn', 'materializeProgramPlan', 'programPlannedSlots', 'programIntendedSlotCount', 'assignWorkoutsToPlannedSlots', 'deriveProgramPlanFulfillment',
         'dateIsSuspended', 'pauseSpansOf', 'programEndDate', 'programDateFor', 'programCalendarWeek', 'getCurrentProgramWeek', 'getProgramWorkoutForDate', 'pauseProgram', 'resumeProgramInMemory', 'completeProgram',
         'setScheduledCategory', 'swapScheduledDays', 'moveProgramDaysFrom', 'setProgramDayFrom', 'dayContentChangesThisWeek', 'changeDayMovesThisWeek', 'weekOverview', 'checkMissedWorkout', 'renderToday', 'renderTodayWorkout', 'renderOtherDayCard',
-        'programDayState', 'myTrainingProgramMapHtml', 'weeklyReviewDay', 'weeklyReviewGlance', 'deriveWeeklyReview', 'calendarDayState', 'workoutsOnDate', 'workoutBelongsToProgram'].every(sameFn));
+        'programDayState', 'myTrainingProgramMapHtml', 'weeklyReviewDay', 'weeklyReviewGlance', 'deriveWeeklyReview', 'calendarDayState', 'workoutsOnDate', 'workoutBelongsToProgram'].every(n => sameFn(n) || sameAsOf1069(raw, was, n)) /* D147 restated: renderTodayWorkout read at 10.69 — 10.70 stops its Next at a program's end (Contract 271) */);
     T('D44 changed only where it asks what was planned: its formula, window, history start, matching, open-today rule and totals are 10.67’s line for line (the read-back above restores exactly those lines)',
       /assignWorkoutsToPlannedSlots\(planSlots, inWindow, slotWeekOf, \{ requireCategory: false \}\);/.test(fnSrc(raw, 'computeConsistencyData')) && /const trackingStart = \[planStartDate, firstLogDate\]/.test(fnSrc(raw, 'computeConsistencyData'))
       && /const target = planTargetOn\(key, targetWindows\);/.test(fnSrc(raw, 'computeConsistencyData')) && /&& target\.suspended;/.test(fnSrc(raw, 'computeConsistencyData')));
@@ -57620,8 +57971,8 @@ async function testHistoricalPlanD145(){
       programs: [PROG('pA', '2026-08-31', 4, withDay(PLAN, 'tue', 'push'), () => ({ status: 'completed', completedAt: '2026-10-04T20:00:00.000Z', pauses: [{ from: '2026-09-07', to: '2026-09-14' }], pausedDays: 7 })), PROG('pB', '2026-10-05', 8, PLAN)], probe: ['2026-09-08'] });
     T('12 a pause belongs to its own program: a finished program’s paused Tuesday (8 Sep) is “program paused”, though another program is active now (10.67 asked the active one, and called it missed)', K2.s0.src['2026-09-08'] === 'program:push:paused' && /cal-paused/.test(K2.s0.days['2026-09-08'].cal) && /Program paused/.test(K2.s0.days['2026-09-08'].line), K2.s0.days['2026-09-08']);
     const J = await scen({ clock: '2026-10-07T09:00:00', programs: [PROG('p1', '2026-08-31', 4, PLAN)], probe: ['2026-09-15', '2026-10-06', '2026-08-25'], edits: [['set', 'tue', 'push']] });
-    T('13 the program’s window: inside its weeks (31 Aug – 27 Sep) its Tuesdays stay rest; before it began and after it ended, no program covered the day, so today’s plan answers as it always did (6 Oct, 25 Aug read Push missed now)',
-      keptProgramPast(J) && J.s1.days['2026-09-15'].cal === 'cal-rest' && J.s1.days['2026-10-06'].cal === 'cal-missed' && J.s1.days['2026-08-25'].cal === 'cal-missed' && /^plan:/.test(J.s1.src['2026-10-06']), [J.s1.days['2026-10-06'], J.s1.src['2026-09-15']]);
+    T('13 the program’s window: inside its weeks (31 Aug – 27 Sep) its Tuesdays stay rest; before it began no program covered the day, so today’s plan answers as it always did (25 Aug reads Push missed now) — after it ended, while it is still the active program, nothing is scheduled (6 Oct rest; D147 restated, Contract 271)',
+      keptProgramPast(J) && J.s1.days['2026-09-15'].cal === 'cal-rest' && J.s1.days['2026-10-06'].cal === 'cal-rest' /* D147 restated: was cal-missed by the weekly plan (E71) */ && J.s1.days['2026-08-25'].cal === 'cal-missed' && J.s1.src['2026-10-06'] === 'finished:rest' /* D147 restated */ && /^plan:/.test(J.s1.src['2026-08-25']), [J.s1.days['2026-10-06'], J.s1.src['2026-09-15']]);
     const L = await scen({ clock: '2026-10-07T09:00:00', active: null, programs: [PROG('p1', '2026-08-31', 4, PLAN, () => ({ status: 'completed', completedAt: '2026-09-27T20:00:00.000Z' }))], probe: ['2026-09-15'], edits: [['set', 'tue', 'push']] });
     T('14 a finished program, none active: its past still answers for its own dates after today’s edit — its Tuesdays stay rest', keptProgramPast(L) && ['2026-09-01', '2026-09-08', '2026-09-15', '2026-09-22'].every(d => L.s1.days[d].cal === 'cal-rest'), L.s1.days['2026-09-15']);
     const M = await scen({ clock: '2026-09-23T09:00:00', active: 'pB', plan: withDay(PLAN, 'tue', 'push'), probe: ['2026-08-11', '2026-09-15'], skip: ['2026-09-15'],
@@ -57642,8 +57993,8 @@ async function testHistoricalPlanD145(){
     const now = await run(false), then = await run(true);
     T('19 a date no program covers answers exactly as 10.67 did — every D44 state, calendar cell, accessible name, day line and total, before and after an edit', same(now, then), [now.s1.totals, then.s1.totals]);
     const runJ = async old => { const r = await scen({ clock: '2026-10-07T09:00:00', programs: [PROG('p1', '2026-08-31', 4, PLAN)], probe: ['2026-10-06', '2026-08-25'], edits: [['set', 'tue', 'push']] }, old);
-      const pick = s => Object.keys(s.days).filter(d => d < '2026-08-31' || d > '2026-09-27').map(d => d + JSON.stringify(s.days[d])).join(); return [pick(r.s0), pick(r.s1)]; };
-    T('…and so do the dates before a program began and after it ended', same(await runJ(false), await runJ(true)));
+      const pick = s => Object.keys(s.days).filter(d => d < '2026-08-31' /* D147 restated: the dates after its end, while it is still the active program, are nothing scheduled (Contract 271) */).map(d => d + JSON.stringify(s.days[d])).join(); return [pick(r.s0), pick(r.s1)]; };
+    T('…and so do the dates before a program began (D147 restated: after it ended, while it is still the active program, nothing is scheduled — Contract 271)', same(await runJ(false), await runJ(true)));
   });
 
   sub('the civil day, not UTC');
@@ -57775,10 +58126,10 @@ async function testHistoricalPlanD145(){
       && /CLOSED in D144/.test(status('E65')) && /CLOSED in D143/.test(status('E27')) && /CLOSED in D142C/.test(status('E64')) && /HELD/.test(status('E16'))
       && ['E22', 'E25', 'E26', 'E33', 'E38', 'E39', 'E43', 'E52', 'E54', 'E55', 'E60', 'E61'].every(id => /OPEN/.test(status(id)) && !/CLOSED/.test(status(id))));
     T('§191 records the rule: past plan truth is dated truth — a program’s date answers to the plan in force on it and to its own pauses; other dates keep the plan layer', /## §191/.test(tc) && /past plan truth is dated truth/i.test(tc.slice(tc.indexOf('## §191'))) && /planTargetOn/.test(tc.slice(tc.indexOf('## §191'))));
-    T('PROJECT-STATUS 10.68 asks for the owner’s phone check of past weeks after a change', (ps.version === '10.68' && /10\.68/.test(ps.nextAction) || ps.version === '10.69' /* D146 restated: the next phase asks for its own phone check (Contract 270) */) && ps.needsQa === true && ps.nextAction.length <= 200, ps.nextAction);
+    T('PROJECT-STATUS 10.68 asks for the owner’s phone check of past weeks after a change', (ps.version === '10.68' && /10\.68/.test(ps.nextAction) || ps.version === '10.69' /* D146 restated: the next phase asks for its own phone check (Contract 270) */ || ps.version === '10.70' /* D147 restated (Contract 271) */) && ps.needsQa === true && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-68 “Past Program Weeks Stay Accurate” is LOOP 10.68 / loop-v245, dated in New York, three fixes, no E-number, and sw.js serves loop-v245',
       /id: 'v10-68',\s*version: 'LOOP 10\.68',\s*title: 'Past Program Weeks Stay Accurate',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v245',[\s\S]*bugFixes: \[\s*'[^']+',\s*'[^']+',\s*'[^']+'\s*\],\s*changes: \[\]/.test(D145_WHATSNEW)
-      && !/\bE\d\d\b|revision|D44|D51|plan layer/i.test(D145_WHATSNEW) && raw.indexOf(D145_WHATSNEW) !== -1 && (g('getLatestUpdateId()') === 'v10-68' && /CACHE_VERSION = 'loop-v245'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-69' && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')))); /* D146 restated: v10-68 stays in the history; sw.js serves 10.69’s cache (Contract 270) */
+      && !/\bE\d\d\b|revision|D44|D51|plan layer/i.test(D145_WHATSNEW) && raw.indexOf(D145_WHATSNEW) !== -1 && (g('getLatestUpdateId()') === 'v10-68' && /CACHE_VERSION = 'loop-v245'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-69' && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-70' && /CACHE_VERSION = 'loop-v247'/.test(read('sw.js')) /* D147 restated: and 10.70’s (Contract 271) */)); /* D146 restated: v10-68 stays in the history; sw.js serves 10.69’s cache (Contract 270) */
     if(a.release) a.release();
   });
 }
@@ -57905,7 +58256,7 @@ async function testDayContentD144(){
     T('the program engines are 10.66’s: the revision writer, the plan on a date, the slots, D43’s matcher and fulfilment, the program week, pause and end, start provenance, Change day’s move, the sheet, Today’s header, the Program screen’s row, map and marks',
       ['addProgramRevision', 'reviseProgramPlan', 'updateProgramInMemory', 'programPlanOn', 'materializeProgramPlan', 'getProgramWorkoutForDate', 'programPlannedSlots', 'assignWorkoutsToPlannedSlots', 'deriveProgramPlanFulfillment',
         'getCurrentProgramWeek', 'programCalendarWeek', 'programDateFor', 'programEndDate', 'pauseProgram', 'resumeProgramInMemory', 'dateIsSuspended', 'workoutBelongsToProgram', 'resolveStartWorkout',
-        'leastUsedTemplateId', 'dayEditProgram', 'swapProgramDays', 'moveProgramDaysFrom', 'swapScheduledDays', 'openDayEdit', 'setDayValue', 'computeConsistencyData', 'myTrainingState', 'programDayState', 'programMapWeekHtml', 'renderToday', 'myTrainingNextSession'].every(n => sameFn(n) || n === 'computeConsistencyData' && !!was && col(fnSrc(asOf1067Html(raw) || '', n)) === col(fnSrc(was, n)))); /* D145 restated: D44 asks planTargetOn (Contract 269); read at 10.67 it is 10.66’s */
+        'leastUsedTemplateId', 'dayEditProgram', 'swapProgramDays', 'moveProgramDaysFrom', 'swapScheduledDays', 'openDayEdit', 'setDayValue', 'computeConsistencyData', 'myTrainingState', 'programDayState', 'programMapWeekHtml', 'renderToday', 'myTrainingNextSession'].every(n => sameFn(n) || sameAsOf1069(raw, was, n) /* D147 restated: myTrainingNextSession read at 10.69 — 10.70 stops it at a program's end (Contract 271) */ || n === 'computeConsistencyData' && !!was && col(fnSrc(asOf1067Html(raw) || '', n)) === col(fnSrc(was, n)))); /* D145 restated: D44 asks planTargetOn (Contract 269); read at 10.67 it is 10.66’s */
     const sc = fnSrc(raw, 'setScheduledCategory'), sc0 = fnSrc(was, 'setScheduledCategory');
     const choice = s => (/if\(cat === 'rest'\)\{[\s\S]*?: \{ type:'rest' \};\n      \}/.exec(s) || [''])[0];
     T('the session a day is given is chosen exactly as 10.66 chose it — the same lines: rest, or the week’s least-used variant of the category on the selected plan', choice(sc).length > 100 && choice(sc) === choice(sc0) && /leastUsedTemplateId\(p, cat, dayKey\)/.test(choice(sc)));
@@ -58162,10 +58513,10 @@ async function testDayContentD144(){
     T('E65 is CLOSED in D144; E27 and E64 stay CLOSED; E16 HELD; E60, E61 and the other open findings untouched', /CLOSED in D144 \(LOOP 10\.67\)/.test(status('E65')) && /CLOSED in D143/.test(status('E27')) && /CLOSED in D142C/.test(status('E64')) && /HELD/.test(status('E16'))
       && ['E22', 'E25', 'E26', 'E33', 'E38', 'E39', 'E43', 'E52', 'E54', 'E55', 'E60', 'E61'].every(id => /OPEN/.test(status(id)) && !/CLOSED/.test(status(id))));
     T('§190 records the rule: what a day holds follows Change day’s — past truth stays past; the change takes effect today only while this week’s occurrence is still ahead, otherwise next Monday', /## §190/.test(tc) && /past truth stays past; what is still ahead follows the edit/.test(tc.slice(tc.indexOf('## §190'))) && /setProgramDayFrom/.test(tc.slice(tc.indexOf('## §190'))));
-    T('PROJECT-STATUS 10.67 asks for the owner’s phone check of a day changed this week', (ps.version === '10.67' && /10\.67/.test(ps.nextAction) || ps.version === '10.68' /* D145 restated: the next phase asks for its own phone check (Contract 269) */ || ps.version === '10.69' /* D146 restated (Contract 270) */) && ps.needsQa === true && ps.nextAction.length <= 200, ps.nextAction);
+    T('PROJECT-STATUS 10.67 asks for the owner’s phone check of a day changed this week', (ps.version === '10.67' && /10\.67/.test(ps.nextAction) || ps.version === '10.68' /* D145 restated: the next phase asks for its own phone check (Contract 269) */ || ps.version === '10.69' /* D146 restated (Contract 270) */ || ps.version === '10.70' /* D147 restated (Contract 271) */) && ps.needsQa === true && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-67 “Program Day Changes Update This Week” is LOOP 10.67 / loop-v244, dated in New York, four fixes, no E-number, and sw.js serves loop-v244',
       /id: 'v10-67',\s*version: 'LOOP 10\.67',\s*title: 'Program Day Changes Update This Week',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v244',[\s\S]*bugFixes: \[\s*'[^']+',\s*'[^']+',\s*'[^']+',\s*'[^']+'\s*\],\s*changes: \[\]/.test(D144_WHATSNEW)
-      && !/\bE\d\d\b|revision|D43|D51|plan layer/i.test(D144_WHATSNEW) && raw.indexOf(D144_WHATSNEW) !== -1 && (g('getLatestUpdateId()') === 'v10-67' && /CACHE_VERSION = 'loop-v244'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-68' && /CACHE_VERSION = 'loop-v245'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-69' && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) /* D146 restated: and 10.69’s */)); /* D145 restated: v10-67 stays in the history; sw.js serves 10.68’s cache (Contract 269) */
+      && !/\bE\d\d\b|revision|D43|D51|plan layer/i.test(D144_WHATSNEW) && raw.indexOf(D144_WHATSNEW) !== -1 && (g('getLatestUpdateId()') === 'v10-67' && /CACHE_VERSION = 'loop-v244'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-68' && /CACHE_VERSION = 'loop-v245'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-69' && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) /* D146 restated: and 10.69’s */ || g('getLatestUpdateId()') === 'v10-70' && /CACHE_VERSION = 'loop-v247'/.test(read('sw.js')) /* D147 restated: and 10.70’s */)); /* D145 restated: v10-67 stays in the history; sw.js serves 10.68’s cache (Contract 269) */
     if(a.release) a.release();
   });
 }
@@ -58471,10 +58822,10 @@ async function testChangeDayD143(){
       /CLOSED in D143 \(LOOP 10\.66\)/.test(status('E27')) && (/· OPEN$/.test(status('E65')) || /CLOSED in D144 \(LOOP 10\.67\)/.test(status('E65')) /* D144 restated: E65 open in 10.66, closed in 10.67 */) && /CLOSED in D142C/.test(status('E64')) && /HELD/.test(status('E16'))
       && ['E22', 'E25', 'E26', 'E33', 'E38', 'E39', 'E43', 'E52', 'E54', 'E55', 'E60', 'E61'].every(id => /OPEN/.test(status(id)) && !/CLOSED/.test(status(id))));
     T('§189 records the rule: past truth stays past, a move takes effect today only when every moved day is still ahead, otherwise next Monday; only Change day can ask for today', /## §189/.test(tc) && /past truth stays past; what is still ahead follows the edit/.test(tc) && /`'today'`, which only\s+`moveProgramDaysFrom` asks for/.test(tc));
-    T('PROJECT-STATUS 10.66 asks for the owner’s phone check of a move this week', (ps.version === '10.66' && /Change day/.test(ps.nextAction) || ps.version === '10.67' /* D144 restated: the next phase asks for its own phone check (Contract 268) */ || ps.version === '10.68' /* D145 restated (Contract 269) */ || ps.version === '10.69' /* D146 restated (Contract 270) */) && ps.needsQa === true && ps.nextAction.length <= 200, ps.nextAction);
+    T('PROJECT-STATUS 10.66 asks for the owner’s phone check of a move this week', (ps.version === '10.66' && /Change day/.test(ps.nextAction) || ps.version === '10.67' /* D144 restated: the next phase asks for its own phone check (Contract 268) */ || ps.version === '10.68' /* D145 restated (Contract 269) */ || ps.version === '10.69' /* D146 restated (Contract 270) */ || ps.version === '10.70' /* D147 restated (Contract 271) */) && ps.needsQa === true && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-66 “Moved Training Days Update This Week” is LOOP 10.66 / loop-v243, dated in New York, three fixes, no E-number, and sw.js serves loop-v243',
       /id: 'v10-66',\s*version: 'LOOP 10\.66',\s*title: 'Moved Training Days Update This Week',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v243',[\s\S]*bugFixes: \[\s*'[^']+',\s*'[^']+',\s*'[^']+'\s*\],\s*changes: \[\]/.test(D143_WHATSNEW)
-      && !/\bE\d\d\b|revision|D51|plan layer/i.test(D143_WHATSNEW) && raw.indexOf(D143_WHATSNEW) !== -1 && (g('getLatestUpdateId()') === 'v10-66' && /CACHE_VERSION = 'loop-v243'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-67' && /CACHE_VERSION = 'loop-v244'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-68' && /CACHE_VERSION = 'loop-v245'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-69' && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) /* D146 restated: and 10.69’s */)); /* D145 restated: and 10.68’s */ /* D144 restated: v10-66 stays in the history; sw.js serves 10.67's cache (Contract 268) */
+      && !/\bE\d\d\b|revision|D51|plan layer/i.test(D143_WHATSNEW) && raw.indexOf(D143_WHATSNEW) !== -1 && (g('getLatestUpdateId()') === 'v10-66' && /CACHE_VERSION = 'loop-v243'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-67' && /CACHE_VERSION = 'loop-v244'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-68' && /CACHE_VERSION = 'loop-v245'/.test(read('sw.js')) || g('getLatestUpdateId()') === 'v10-69' && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) /* D146 restated: and 10.69’s */ || g('getLatestUpdateId()') === 'v10-70' && /CACHE_VERSION = 'loop-v247'/.test(read('sw.js')) /* D147 restated: and 10.70’s */)); /* D145 restated: and 10.68’s */ /* D144 restated: v10-66 stays in the history; sw.js serves 10.67's cache (Contract 268) */
     if(a.release) a.release();
   });
 }
@@ -58595,11 +58946,11 @@ async function testDiagnosticsRemovedD142C(){
       /physical phone is the authority/.test(s188) && /The production invariant \(D142B, unchanged\)/.test(s188) && /Do not restore D138\.2's full canvas/.test(s188) && /`screen\.height` is not a layout target/.test(s188)
       && /Contract 258, which held the instrument, is retired/.test(s188) && /^## §180[^\n]*\n\n> \*\*Removed in D142C \(LOOP 10\.65, §188\)\.\*\*/.test(s180));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('PROJECT-STATUS 10.65: the roadmap resumes — E64 is no longer the next action, no phone check is pending, nothing asks for the diagnostics', (ps.version === '10.65' && ps.needsQa === false || ps.version === '10.66' /* D143 restated: the next phase asks for its own phone check (Contract 267) */ || ps.version === '10.67' /* D144 restated (Contract 268) */ || ps.version === '10.68' /* D145 restated (Contract 269) */ || ps.version === '10.69' /* D146 restated (Contract 270) */) && ps.status === 'stable'
-      && (/^Roadmap resumed: E64 closed/.test(ps.nextAction) && /E60, E61/.test(ps.nextAction) || ps.version === '10.66' || ps.version === '10.67' /* D144 restated */ || ps.version === '10.68' /* D145 restated */ || ps.version === '10.69' /* D146 restated */) && !/Paint|7 taps|Measure|Copy diagnostics|BOTTOM MODE/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
+    T('PROJECT-STATUS 10.65: the roadmap resumes — E64 is no longer the next action, no phone check is pending, nothing asks for the diagnostics', (ps.version === '10.65' && ps.needsQa === false || ps.version === '10.66' /* D143 restated: the next phase asks for its own phone check (Contract 267) */ || ps.version === '10.67' /* D144 restated (Contract 268) */ || ps.version === '10.68' /* D145 restated (Contract 269) */ || ps.version === '10.69' /* D146 restated (Contract 270) */ || ps.version === '10.70' /* D147 restated (Contract 271) */) && ps.status === 'stable'
+      && (/^Roadmap resumed: E64 closed/.test(ps.nextAction) && /E60, E61/.test(ps.nextAction) || ps.version === '10.66' || ps.version === '10.67' /* D144 restated */ || ps.version === '10.68' /* D145 restated */ || ps.version === '10.69' /* D146 restated */ || ps.version === '10.70' /* D147 restated */) && !/Paint|7 taps|Measure|Copy diagnostics|BOTTOM MODE/.test(ps.nextAction) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-65 “Workout Controls Stay Within Reach” is LOOP 10.65 / loop-v242, dated in New York, one change line and no fix claimed, names no E64, diagnostics, viewport, WebKit or Paint, and sw.js serves loop-v242',
       /id: 'v10-65',\s*version: 'LOOP 10\.65',\s*title: 'Workout Controls Stay Within Reach',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v242',[\s\S]*newFeatures: \[\],\s*improvements: \[\],\s*bugFixes: \[\],\s*changes: \[\s*'[^']+'\s*\]\s*$/.test(D142C_WHATSNEW)
-      && !/E64|diagnos|viewport|WebKit|Paint|fixed|bug/i.test(D142C_WHATSNEW.replace('bugFixes: [],', '')) && raw.indexOf(D142C_WHATSNEW) !== -1 && g('getLatestUpdateId()') === 'v10-69' && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js'))); /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D143 restated: v10-65 stays in the history; sw.js serves 10.66's cache (Contract 267) */
+      && !/E64|diagnos|viewport|WebKit|Paint|fixed|bug/i.test(D142C_WHATSNEW.replace('bugFixes: [],', '')) && raw.indexOf(D142C_WHATSNEW) !== -1 && g('getLatestUpdateId()') === 'v10-70' && /CACHE_VERSION = 'loop-v247'/.test(read('sw.js'))); /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D147 restated: now 10.70's */ /* D143 restated: v10-65 stays in the history; sw.js serves 10.66's cache (Contract 267) */
   });
   if(a.release) a.release();
 }
@@ -58699,10 +59050,10 @@ async function testWorkoutBottomModeD142B(){
     T('E64 is OPEN with its root boundary classified and the workaround awaiting the owner — until D142C closes it on the owner’s physical review; E60 and E61 still OPEN', /## E64 — [^\n]*\*\*(OPEN — PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA \(D142B, LOOP 10\.64\)|CLOSED in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone \(10\.64's low dock\); the temporary diagnostics removed)/.test(read('FINDINGS-D88.md')) && !/## E64 — [^\n]*CLOSED(?! in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone)/.test(read('FINDINGS-D88.md')) /* D142C restated: closed only by the owner's physical review (Contract 266) */
       && ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(read('FINDINGS-D88.md'))));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('the roadmap waits on the phone: PROJECT-STATUS 10.64 needs QA and asks for the final E64 check', (ps.version === '10.64' && ps.needsQa === true && /^E64: update to 10\.64,/.test(ps.nextAction) && /Paint/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */)) && ps.nextAction.length <= 200 /* D142C restated: the phone confirmed it, so the roadmap resumes in 10.65 (Contract 266) */, ps.nextAction);
+    T('the roadmap waits on the phone: PROJECT-STATUS 10.64 needs QA and asks for the final E64 check', (ps.version === '10.64' && ps.needsQa === true && /^E64: update to 10\.64,/.test(ps.nextAction) && /Paint/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */ || (ps.version === '10.70' && ps.needsQa === true && /^Owner iPhone check \(10\.70\)/.test(ps.nextAction)) /* D147 restated: and on to D147 (Contract 271) */)) && ps.nextAction.length <= 200 /* D142C restated: the phone confirmed it, so the roadmap resumes in 10.65 (Contract 266) */, ps.nextAction);
     T('What’s New v10-64 “Workout Controls Use the Available Space” is LOOP 10.64 / loop-v241, dated in New York, claims no full screen and no iOS fix, and sw.js serves loop-v241',
       /id: 'v10-64',\s*version: 'LOOP 10\.64',\s*title: 'Workout Controls Use the Available Space',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v241',[\s\S]*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D142B_WHATSNEW)
-      && !/full screen|whole screen|fixed|iOS bug/i.test(D142B_WHATSNEW) && /CACHE_VERSION = 'loop-v24[1-6]'/.test(read('sw.js')) /* D143 restated */ /* D144 restated */ /* D145 restated */ /* D146 restated */ /* D142C restated: sw.js serves the newest release (Contract 266 holds loop-v242) */);
+      && !/full screen|whole screen|fixed|iOS bug/i.test(D142B_WHATSNEW) && /CACHE_VERSION = 'loop-v24[1-7]'/.test(read('sw.js')) /* D143 restated */ /* D144 restated */ /* D145 restated */ /* D146 restated */ /* D147 restated */ /* D142C restated: sw.js serves the newest release (Contract 266 holds loop-v242) */);
   });
   if(a.release) a.release();
 }
@@ -59091,10 +59442,10 @@ async function testWorthKnowingD141(){
     T('27  E64 is frozen: the diagnostics are 10.62’s byte for byte, the stylesheet is 10.62’s outside the D141 block, E64 still OPEN', diagOf(asOf1064Html(raw) || '').length > 1000 /* D142C restated: the diagnostics as 10.64 shipped them, read back — removed in 10.65 (Contract 266) */ && diagOf(asOf1063Html(raw) || '') === diagOf(was) /* D142B restated: the readout read back as 10.63 (it gained the bottom mode, Contract 265) */ && /OPEN — (10\.58's full-screen dock|PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA)|CLOSED in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone \(10\.64's low dock\); the temporary diagnostics removed/ /* D142C restated: open until the owner's physical review closed it (Contract 266) */ /* D142B restated: E64 open, its boundary classified (Contract 265) */.test(read('FINDINGS-D88.md')));
     T('28  E60 and E61 still OPEN', ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(read('FINDINGS-D88.md'))));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('the roadmap resumes where it paused: PROJECT-STATUS 10.63 still needs QA and its next action is the E64 phone check', (/^10\.6[34]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[34],/.test(ps.nextAction) && /Paint/.test(ps.nextAction) /* D142B restated */ || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
+    T('the roadmap resumes where it paused: PROJECT-STATUS 10.63 still needs QA and its next action is the E64 phone check', (/^10\.6[34]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[34],/.test(ps.nextAction) && /Paint/.test(ps.nextAction) /* D142B restated */ || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */ || (ps.version === '10.70' && ps.needsQa === true && /^Owner iPhone check \(10\.70\)/.test(ps.nextAction)) /* D147 restated: and on to D147 (Contract 271) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-63 “Worth Knowing Shows the Why” is LOOP 10.63 / loop-v240, dated in New York, and sw.js serves loop-v240',
       /id: 'v10-63',\s*version: 'LOOP 10\.63',\s*title: 'Worth Knowing Shows the Why',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v240',[\s\S]*newFeatures: \[\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+',\s*'[^']+'\s*\],\s*bugFixes: \[\s*'[^']+'\s*\],\s*changes: \[\]/.test(D141_WHATSNEW)
-      && !/\b(smart|AI|intelligent)\b/.test(D141_WHATSNEW) && /id: 'v10-63'/.test(raw) && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D142B restated */);
+      && !/\b(smart|AI|intelligent)\b/.test(D141_WHATSNEW) && /id: 'v10-63'/.test(raw) && /CACHE_VERSION = 'loop-v247'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D147 restated: now 10.70's */ /* D142B restated */);
   });
 }
 
@@ -59263,7 +59614,7 @@ async function testProgramGuideD140(){
   sub('15–24  everything else unchanged');
   await guard('protected', async () => {
     T('17  programs run exactly as in 10.61: scheduling, the week, phases and their prescription, completion, pause, the builder, membership', ['getProgramWorkoutForDate', 'createProgramInMemory', 'resumeProgramInMemory', 'deriveEffectivePrescription', 'generateProgram', 'openProgramBuilderFlow', 'programPlannedSlots', 'programWeekMonday', 'programEndDate', 'completeProgram', 'getRunningProgram', 'workoutBelongsToProgram', 'getActiveProgram', 'hasActiveProgram', 'renderTrainingProgramTab'].every(sameFn));
-    T('…and D49, D125, D50B and the logger are 10.61’s', ['progressionFor', 'buildProgressionRecommendation', 'deriveWorkingSetPlan', 'deriveNextSetCoach', 'startTemplateLog', 'saveLog'].every(sameFn));
+    T('…and D49, D125, D50B and the logger are 10.61’s', ['progressionFor', 'buildProgressionRecommendation', 'deriveWorkingSetPlan', 'deriveNextSetCoach', 'startTemplateLog', 'saveLog'].every(n => sameFn(n) || sameAsOf1069(raw, was, n)) /* D147 restated: startTemplateLog read at 10.69 (Contract 271) */);
     T('18–19  Build for me and Save workout are 10.61’s text (D139, D139.1)', ['composeInstantSession', 'buildKnown', 'buildIntent', 'startGeneratedWorkout', 'renderBuildForMe', 'bfmPreviewHtml', 'saveBuiltWorkout', 'bfmSavedTemplateOf', 'openBfmSave', 'trainChipsEdges'].every(sameFn));
     const diagOf = t => { const a = t ? t.indexOf('/* =========================================================\n   VIEWPORT DIAGNOSTICS') : -1; const b = a === -1 ? -1 : t.indexOf('function backToSettings(fromOverlayId){', a); return a === -1 || b === -1 ? '' : t.slice(a, b); };
     T('20  E64 is frozen: the diagnostics are 10.61’s byte for byte, the stylesheet is 10.61’s outside the D140 block, E64 still OPEN', diagOf(asOf1064Html(raw) || '').length > 1000 /* D142C restated: the diagnostics as 10.64 shipped them, read back — removed in 10.65 (Contract 266) */ && diagOf(asOf1063Html(raw) || '') === diagOf(was) /* D142B restated: the readout read back as 10.63 (it gained the bottom mode, Contract 265) */ && /OPEN — (10\.58's full-screen dock|PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA)|CLOSED in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone \(10\.64's low dock\); the temporary diagnostics removed/ /* D142C restated: open until the owner's physical review closed it (Contract 266) */ /* D142B restated: E64 open, its boundary classified (Contract 265) */.test(read('FINDINGS-D88.md')));
@@ -59273,10 +59624,10 @@ async function testProgramGuideD140(){
     T('15–16  16 DATA_KEYS, data schema 1, trainer 0.1.1-shadow; E60 and E61 still OPEN', (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw) || [])[1] === (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '') || [])[1] && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /const TRAINER_ENGINE_VERSION = '0\.1\.1-shadow';/.test(raw)
       && ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(read('FINDINGS-D88.md'))));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('the roadmap resumes where it paused: PROJECT-STATUS 10.62 still needs QA and its next action is the E64 phone check', (/^10\.6[2-4]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[2-4],/.test(ps.nextAction) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ && /tap Paint/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
+    T('the roadmap resumes where it paused: PROJECT-STATUS 10.62 still needs QA and its next action is the E64 phone check', (/^10\.6[2-4]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[2-4],/.test(ps.nextAction) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ && /tap Paint/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */ || (ps.version === '10.70' && ps.needsQa === true && /^Owner iPhone check \(10\.70\)/.test(ps.nextAction)) /* D147 restated: and on to D147 (Contract 271) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-62 “Learn Programs Before You Build” is LOOP 10.62 / loop-v239, dated in New York, says what was built, and sw.js serves loop-v239',
       /id: 'v10-62',\s*version: 'LOOP 10\.62',\s*title: 'Learn Programs Before You Build',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v239',[\s\S]*newFeatures: \[\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D140_WHATSNEW)
-      && /id: 'v10-62'/.test(raw) && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D142B restated */ /* D141 restated: v10-62 stays in the history; sw.js now serves 10.63's cache (Contract 264) */);
+      && /id: 'v10-62'/.test(raw) && /CACHE_VERSION = 'loop-v247'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D147 restated: now 10.70's */ /* D142B restated */ /* D141 restated: v10-62 stays in the history; sw.js now serves 10.63's cache (Contract 264) */);
   });
 }
 
@@ -59577,17 +59928,17 @@ async function testSaveBuiltWorkoutD1391(){
   sub('everything else unchanged');
   await guard('protected', async () => {
     T('Build for me composes exactly as in 10.60: the composer and every stage are 10.60’s text', ['composeInstantSession', 'buildKnown', 'buildCandidates', 'buildHardReject', 'buildScore', 'buildIntent', 'buildDemand', 'buildRowRx', 'validateComposedSession', 'buildSessionReasons', 'startGeneratedWorkout', 'bfmSwapTo', 'bfmRemove', 'bfmAnother', 'bfmPrefer', 'bfmNever', 'trainChipsEdges'].every(sameFn));
-    T('the saved-workout machinery it reuses is unchanged: the editor, Save to My Workouts, ids, names, the list and Start', ['saveTemplate', 'openEditTemplate', 'deleteTemplate', 'importSharedWorkout', 'nextSavedWorkoutId', 'uniqueSavedWorkoutName', 'trainSavedWorkouts', 'renderTrainMine', 'startTemplateLog', 'persistPlanData'].every(sameFn));
+    T('the saved-workout machinery it reuses is unchanged: the editor, Save to My Workouts, ids, names, the list and Start', ['saveTemplate', 'openEditTemplate', 'deleteTemplate', 'importSharedWorkout', 'nextSavedWorkoutId', 'uniqueSavedWorkoutName', 'trainSavedWorkouts', 'renderTrainMine', 'startTemplateLog', 'persistPlanData'].every(n => sameFn(n) || sameAsOf1069(raw, was, n)) /* D147 restated: startTemplateLog read at 10.69 — 10.70 changed only which program owns a library start (Contract 271) */);
     T('D49, D125, D50B, D134–D137, PRs, XP and Session Score are 10.60’s text', ['progressionFor', 'buildProgressionRecommendation', 'deriveWorkingSetPlan', 'deriveNextSetCoach', 'refreshSetCoach', 'workoutElapsedSeconds', 'workoutTimeOf', 'refreshSuggestedWarmups', 'detectPlateau', 'computePRs', 'computeXPEvents', 'sessionScore', 'rowStartsAsBodyweight'].every(sameFn));
     const diagOf = t => { const a = t ? t.indexOf('/* =========================================================\n   VIEWPORT DIAGNOSTICS') : -1; const b = a === -1 ? -1 : t.indexOf('function backToSettings(fromOverlayId){', a); return a === -1 || b === -1 ? '' : t.slice(a, b); };
     T('E64 is frozen: the diagnostics are 10.60’s byte for byte, the workout shell’s stylesheet is 10.60’s, E64 is still OPEN', diagOf(asOf1064Html(raw) || '').length > 1000 /* D142C restated: the diagnostics as 10.64 shipped them, read back — removed in 10.65 (Contract 266) */ && diagOf(asOf1063Html(raw) || '') === diagOf(was) /* D142B restated: the readout read back as 10.63 (it gained the bottom mode, Contract 265) */ && styleOf(raw).replace(D142B_CSS, () => '').replace(D146_CSS, () => '' /* D146 restated: and without D146's block (Contract 270) */).replace(D141_CSS, () => '').replace(D140_CSS, () => '').replace(D1391_CSS, () => '') === styleOf(was) && /OPEN — (10\.58's full-screen dock|PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA)|CLOSED in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone \(10\.64's low dock\); the temporary diagnostics removed/ /* D142C restated: open until the owner's physical review closed it (Contract 266) */ /* D142B restated: E64 open, its boundary classified (Contract 265) */.test(read('FINDINGS-D88.md'))); /* D140 restated: and without D140's block (Contract 263) */ /* D141 restated: and without D141's block (Contract 264) */
     T('16 DATA_KEYS, data schema 1, trainer 0.1.1-shadow; E60 and E61 still OPEN', (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(raw) || [])[1] === (/const DATA_KEYS = \[([\s\S]*?)\];/.exec(was || '') || [])[1] && /const DATA_SCHEMA_VERSION = 1;/.test(raw) && /const TRAINER_ENGINE_VERSION = '0\.1\.1-shadow';/.test(raw)
       && ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(read('FINDINGS-D88.md'))));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('the roadmap resumes where it paused: PROJECT-STATUS 10.61 still needs QA and its next action is the E64 phone check', (/^10\.6[1-4]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[1-4],/.test(ps.nextAction) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ /* D140 restated: 10.62 keeps the E64 next action (Contract 263) */ && /tap Paint/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
+    T('the roadmap resumes where it paused: PROJECT-STATUS 10.61 still needs QA and its next action is the E64 phone check', (/^10\.6[1-4]$/.test(ps.version) && ps.needsQa === true && /^E64: update to 10\.6[1-4],/.test(ps.nextAction) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ /* D140 restated: 10.62 keeps the E64 next action (Contract 263) */ && /tap Paint/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */ || (ps.version === '10.70' && ps.needsQa === true && /^Owner iPhone check \(10\.70\)/.test(ps.nextAction)) /* D147 restated: and on to D147 (Contract 271) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-61 “Save Built Workouts” is LOOP 10.61 / loop-v238, dated in New York, says what was built and nothing more, and sw.js serves loop-v238',
       /id: 'v10-61',\s*version: 'LOOP 10\.61',\s*title: 'Save Built Workouts',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v238',[\s\S]*newFeatures: \[\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\s*'[^']+'\s*\]/.test(D1391_WHATSNEW)
-      && !/\b(smart|perfect|AI)\b/.test(D1391_WHATSNEW) && /id: 'v10-61'/.test(raw) && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D142B restated */ /* D141 restated: sw.js now serves 10.63's cache (Contract 264) */ /* D140 restated: v10-61 stays in the history; sw.js now serves 10.62's cache (Contract 263) */);
+      && !/\b(smart|perfect|AI)\b/.test(D1391_WHATSNEW) && /id: 'v10-61'/.test(raw) && /CACHE_VERSION = 'loop-v247'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D147 restated: now 10.70's */ /* D142B restated */ /* D141 restated: sw.js now serves 10.63's cache (Contract 264) */ /* D140 restated: v10-61 stays in the history; sw.js now serves 10.62's cache (Contract 263) */);
   });
 }
 
@@ -59875,10 +60226,10 @@ async function testInstantBuilderD139(){
     const fx = read('FINDINGS-D88.md');
     T('51  E60 and E61 untouched (still OPEN)', ['E60', 'E61'].every(id => new RegExp('## ' + id + ' — [^\\n]*· OPEN\\s*$', 'm').test(fx)));
     const ps = JSON.parse(read('PROJECT-STATUS.json'));
-    T('52  the roadmap resumes where it paused: PROJECT-STATUS still needs QA and its next action is the E64 phone check', (/^10\.6[0-4]$/.test(ps.version) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ /* D140 restated: 10.62 keeps the E64 next action (Contract 263) */ /* D139.1 restated: 10.61 keeps the E64 next action (Contract 262) */ && ps.needsQa === true && /^E64:/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
+    T('52  the roadmap resumes where it paused: PROJECT-STATUS still needs QA and its next action is the E64 phone check', (/^10\.6[0-4]$/.test(ps.version) /* D142B restated */ /* D141 restated: 10.63 keeps the E64 next action (Contract 264) */ /* D140 restated: 10.62 keeps the E64 next action (Contract 263) */ /* D139.1 restated: 10.61 keeps the E64 next action (Contract 262) */ && ps.needsQa === true && /^E64:/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */ || (ps.version === '10.70' && ps.needsQa === true && /^Owner iPhone check \(10\.70\)/.test(ps.nextAction)) /* D147 restated: and on to D147 (Contract 271) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, ps.nextAction);
     T('What’s New v10-60 “Build Today’s Workout” is LOOP 10.60 / loop-v237, dated in New York, says what was built and nothing more, and sw.js serves loop-v237',
       /id: 'v10-60',\s*version: 'LOOP 10\.60',\s*title: 'Build Today’s Workout',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v237',[\s\S]*newFeatures: \[\s*'[^']+',\s*'[^']+'\s*\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D139_WHATSNEW)
-      && !/\b(pump|optimal|smart|perfect|intelligent)\b/i.test(D139_WHATSNEW) && !/\bAI\b/.test(D139_WHATSNEW) &&/id: 'v10-60'/.test(raw0) && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D142B restated */ /* D141 restated: sw.js now serves 10.63's cache (Contract 264) */ /* D140 restated: sw.js now serves 10.62's cache (Contract 263) */ /* D139.1 restated: v10-60 stays in the history; sw.js now serves 10.61's cache (Contract 262) */);
+      && !/\b(pump|optimal|smart|perfect|intelligent)\b/i.test(D139_WHATSNEW) && !/\bAI\b/.test(D139_WHATSNEW) &&/id: 'v10-60'/.test(raw0) && /CACHE_VERSION = 'loop-v247'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D147 restated: now 10.70's */ /* D142B restated */ /* D141 restated: sw.js now serves 10.63's cache (Contract 264) */ /* D140 restated: sw.js now serves 10.62's cache (Contract 263) */ /* D139.1 restated: v10-60 stays in the history; sw.js now serves 10.61's cache (Contract 262) */);
   });
 }
 
@@ -60040,10 +60391,10 @@ async function testVisibleDockD1383(){
     T('41  E60 and E61 are untouched (still OPEN)', ['E60', 'E61'].every(id => /· OPEN$/.test(status(id))), ['E60', 'E61'].map(status));
     T('42  E64 is OPEN, never CLOSED by automation: only the owner’s screenshot with both buttons whole can close it (D142C restated: and the owner’s physical review closed it in 10.65) — PROJECT-STATUS still needs QA and asks for the Paint test, a screenshot and the report',
       /^## E64 — [^\n]*· \*\*(CLOSED in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone \(10\.64's low dock\); the temporary diagnostics removed|OPEN — (PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA \(D142B, LOOP 10\.64\)[^*]*|10\.58's full-screen dock was cut off by the iPhone's own viewport; 10\.59 puts the buttons back in view \(D138\.3\)))\*\*$/ /* D142C restated */ /* D142B restated */.test(e64.split('\n')[0]) && !/CLOSED(?! in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone)/.test(e64.split('\n')[0])
-      && (ps.needsQa === true && /^10\.(59|6[0-4])$/.test(ps.version) /* D142B restated: 10.64 keeps it too */ /* D141 restated: 10.63 keeps it too */ /* D140 restated: 10.62 keeps it too */ /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64:/.test(ps.nextAction) && /Paint/.test(ps.nextAction) && /screenshot/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, e64.split('\n')[0]);
+      && (ps.needsQa === true && /^10\.(59|6[0-4])$/.test(ps.version) /* D142B restated: 10.64 keeps it too */ /* D141 restated: 10.63 keeps it too */ /* D140 restated: 10.62 keeps it too */ /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64:/.test(ps.nextAction) && /Paint/.test(ps.nextAction) && /screenshot/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */ || (ps.version === '10.70' && ps.needsQa === true && /^Owner iPhone check \(10\.70\)/.test(ps.nextAction)) /* D147 restated: and on to D147 (Contract 271) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200, e64.split('\n')[0]);
     T('What’s New v10-59 “Workout Buttons Back in Full View” is LOOP 10.59 / loop-v236, dated in New York; its one fix is the cut-off buttons 10.58 shipped, its one change the withdrawn layout; it does not claim the bottom band is gone; sw.js serves loop-v236',
       /id: 'v10-59',\s*version: 'LOOP 10\.59',\s*title: 'Workout Buttons Back in Full View',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v236',[\s\S]*newFeatures: \[\],\s*improvements: \[\],\s*bugFixes: \[\s*'[^']+'\s*\],\s*changes: \[\s*'[^']+'\s*\]/.test(D1383_WHATSNEW)
-      && !/gap|band|E64|D138|full screen\b|fixed the/i.test(D1383_WHATSNEW) && /id: 'v10-59'/.test(raw0) && c.getLatestUpdateId() === 'v10-69' /* D143 restated */ /* D144 restated */ /* D145 restated */ /* D146 restated */ && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D142B restated: now 10.64's */ /* D141 restated: now 10.63's */ /* D140 restated: now 10.62's */ /* D139.1 restated: now 10.61's */ /* D139 restated: v10-59 stays in the history; the newest is 10.60's (Contract 261) */);
+      && !/gap|band|E64|D138|full screen\b|fixed the/i.test(D1383_WHATSNEW) && /id: 'v10-59'/.test(raw0) && c.getLatestUpdateId() === 'v10-70' /* D143 restated */ /* D144 restated */ /* D145 restated */ /* D146 restated */ /* D147 restated */ && /CACHE_VERSION = 'loop-v247'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D147 restated: now 10.70's */ /* D142B restated: now 10.64's */ /* D141 restated: now 10.63's */ /* D140 restated: now 10.62's */ /* D139.1 restated: now 10.61's */ /* D139 restated: v10-59 stays in the history; the newest is 10.60's (Contract 261) */);
   });
 }
 
@@ -60243,10 +60594,10 @@ async function testFullCanvasShellD1382(){
     T('39  E60 and E61 are untouched (still OPEN)', ['E60', 'E61'].every(id => /· OPEN$/.test(status(id))), ['E60', 'E61'].map(status));
     T('40  E64 is a FIX CANDIDATE, never CLOSED: only the owner’s phone can close it (D142C restated: and the owner’s physical review closed it in 10.65) — PROJECT-STATUS still needs QA and asks for Capture A, and the note says what the phone must show',
       /^## E64 — [^\n]*· \*\*(FIX CANDIDATE — awaiting the owner's iPhone confirmation \(D138\.2, LOOP 10\.58\)|OPEN — 10\.58's full-screen dock was cut off by the iPhone's own viewport; 10\.59 puts the buttons back in view \(D138\.3\)|OPEN — PHYSICAL ROOT BOUNDARY CLASSIFIED; WORKAROUND AWAITING OWNER QA \(D142B, LOOP 10\.64\)[^*]*|CLOSED in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone \(10\.64's low dock\); the temporary diagnostics removed)\*\*$/ /* D142B restated */ /* D142C restated */.test(e64.split('\n')[0]) && !/CLOSED(?! in D142C \(LOOP 10\.65\) — accepted on the owner's physical iPhone)/.test(e64.split('\n')[0]) && /NOT closed/.test(note) && /screen − dock ≈ 0/.test(note)
-      && (ps.needsQa === true && /^10\.(5[89]|6[0-4])$/.test(ps.version) /* D142B restated: 10.64 keeps it too */ /* D141 restated: 10.63 keeps it too */ /* D140 restated: 10.62 keeps it too */ /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200 /* D138.3 restated: the phone showed the dock cut off; E64 is OPEN again, never CLOSED, and PROJECT-STATUS asks for the paint test (Contract 260) */, e64.split('\n')[0]);
+      && (ps.needsQa === true && /^10\.(5[89]|6[0-4])$/.test(ps.version) /* D142B restated: 10.64 keeps it too */ /* D141 restated: 10.63 keeps it too */ /* D140 restated: 10.62 keeps it too */ /* D139.1 restated: 10.61 keeps it too */ /* D139 restated: 10.60 keeps the E64 next action (Contract 261) */ && /^E64/.test(ps.nextAction) || ((ps.version === '10.65' && ps.needsQa === false && /^Roadmap resumed: E64 closed/.test(ps.nextAction)) || (ps.version === '10.66' && ps.needsQa === true && /^Owner iPhone check \(10\.66\)/.test(ps.nextAction)) /* D143 restated: the roadmap moved on to D143 (Contract 267) */ || (ps.version === '10.67' && ps.needsQa === true && /^Owner iPhone check \(10\.67\)/.test(ps.nextAction)) /* D144 restated: and on to D144 (Contract 268) */ || (ps.version === '10.68' && ps.needsQa === true && /^Owner iPhone check \(10\.68\)/.test(ps.nextAction)) /* D145 restated: and on to D145 (Contract 269) */ || (ps.version === '10.69' && ps.needsQa === true && /^Owner iPhone check \(10\.69\)/.test(ps.nextAction)) /* D146 restated: and on to D146 (Contract 270) */ || (ps.version === '10.70' && ps.needsQa === true && /^Owner iPhone check \(10\.70\)/.test(ps.nextAction)) /* D147 restated: and on to D147 (Contract 271) */) /* D142C restated: E64 closed, the roadmap resumes (Contract 266) */) && ps.nextAction.length <= 200 /* D138.3 restated: the phone showed the dock cut off; E64 is OPEN again, never CLOSED, and PROJECT-STATUS asks for the paint test (Contract 260) */, e64.split('\n')[0]);
     T('What’s New v10-58 “Full-Screen Workout Layout” is LOOP 10.58 / loop-v235, dated in New York, says what changed and claims no fix (the phone has not confirmed one), and sw.js serves loop-v235',
       /id: 'v10-58',\s*version: 'LOOP 10\.58',\s*title: 'Full-Screen Workout Layout',\s*date: '2026-\d\d-\d\d',\s*swVersion: 'loop-v235',[\s\S]*newFeatures: \[\],\s*improvements: \[\s*'[^']+'\s*\],\s*bugFixes: \[\],\s*changes: \[\]/.test(D1382_WHATSNEW)
-      && !/\bfix|gap|E64|D138|iPhone/i.test(D1382_WHATSNEW) && /id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-69' /* D143 restated */ /* D144 restated */ /* D145 restated */ /* D146 restated */ && /CACHE_VERSION = 'loop-v246'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D142B restated: now 10.64's */ /* D141 restated: now 10.63's */ /* D140 restated: now 10.62's */ /* D139.1 restated: now 10.61's */ /* D139 restated: the newest is 10.60's (Contract 261) */ /* D138.3 restated: v10-58 stays in the history; the newest is 10.59's (Contract 260) */);
+      && !/\bfix|gap|E64|D138|iPhone/i.test(D1382_WHATSNEW) && /id: 'v10-58'/.test(raw) && c.getLatestUpdateId() === 'v10-70' /* D143 restated */ /* D144 restated */ /* D145 restated */ /* D146 restated */ /* D147 restated */ && /CACHE_VERSION = 'loop-v247'/.test(read('sw.js')) /* D142C restated: now 10.65's */ /* D143 restated: now 10.66's */ /* D144 restated: now 10.67's */ /* D145 restated: now 10.68's */ /* D146 restated: now 10.69's */ /* D147 restated: now 10.70's */ /* D142B restated: now 10.64's */ /* D141 restated: now 10.63's */ /* D140 restated: now 10.62's */ /* D139.1 restated: now 10.61's */ /* D139 restated: the newest is 10.60's (Contract 261) */ /* D138.3 restated: v10-58 stays in the history; the newest is 10.59's (Contract 260) */);
   });
 }
 
@@ -61081,6 +61432,7 @@ async function main(){
   await testDayContentD144();
   await testHistoricalPlanD145();
   await testThisWeekD146();
+  await testProgramEndStateD147();
   testD16Layout(H.loadApp());
   testCardioHistory(H.loadApp());
   testSetTypeRegistry(H.loadApp());

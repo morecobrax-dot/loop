@@ -20232,3 +20232,48 @@ instruction. The hold-to-move gesture (D66) is unchanged; it explains itself whi
 
 **Unchanged:** weekOverview, D43, D44, D145's dated plan, Change day and the day sheet (D143/D144), the hero and each
 day's card, the drag engine, E64's low dock, D141. DATA_KEYS 16, schema 1.
+
+## §193 — A PROGRAM ENDS WHEN ITS SCHEDULE DOES (D147 · LOOP 10.70 · loop-v247)
+
+**The defect (E71).** §61 (D38) made a program whose weeks are over schedule nothing. getProgramWorkoutForDate answers
+`ended`, and Today's card, This Week, each day's card and the Training Foundation read it so. Four readers still fell back
+to the weekly plan after the end, while the program was still the athlete's:
+- Today's rest-day "Next" (renderTodayWorkout kept the weekly plan's findNextTrainingDay once the program had ended);
+- the next-session reader shared by the Program screen, the Weekly Review and This Week's Up next beyond Sunday
+  (myTrainingNextSession);
+- D44 and the Log calendar (planTargetOn: a date no program's weeks cover kept the plan layer);
+- the library start (startTemplateLog asked hasActiveProgram, which is still true for an ended program), which stamped
+  a workout started after the end as the finished program's.
+So the athlete read "Nothing scheduled" and "Next: Pull A" at once, and missed days built up after the program had
+finished.
+
+**The rule.** After its last day a program schedules nothing, and it stays the athlete's program until they complete it
+or choose another. Until then:
+- the days after its end hold nothing scheduled, by the program or by the weekly plan;
+- the forward readers name no next session (the search stops at the end);
+- D44 and the calendar judge those days unplanned.
+Once completed (`completedAt`), the weekly plan is the schedule again from the completion day on. The days between the end
+and the completion keep reading as nothing scheduled, so completing a program never restates them. A program another has
+replaced has no such stretch: LOOP keeps no date for the switch, so its days after the end read as 10.69 read them, by the
+weekly plan (E75, open).
+
+No new status, nothing stored, and nothing completes on its own. The lifecycle stays derived (deriveProgramLifecycle,
+programTimelineEnded, getRunningProgram). A paused program has not ended: its end moves (D90).
+
+**One answer, two forms.**
+- Forward readers ask getProgramWorkoutForDate's `ended`: the rest-day Next, myTrainingNextSession, and This Week through
+  it.
+- Readers of the past ask planTargetOn, whose program windows now carry their `after` stretch: open while the program is
+  the active one, or up to the day before `completedAt`. A date no program's weeks cover inside that stretch answers
+  `{ source: 'finished', planned: false }`. Every other date is answered exactly as §191 set out.
+
+**What the athlete sees.**
+- After the end, the rest card says "Your program’s scheduled weeks are finished".
+- On the last days, when no session is left, it says "No sessions left in your program".
+- Train anyway, the Train tab, Build for me and the free log stay open.
+- A workout started after the end is ordinary training: only a running program (getRunningProgram) owns a library
+  workout.
+
+**Not changed:** the program's date reader, its lifecycle, Mark complete, D43 matching and membership, D145's dated plan
+on every date a program's weeks cover, This Week's presentation (D146), the not-yet-started state (E74), the paused
+state (E73), a replaced program's days (E75), E66's revision precedence and E72's count. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow.

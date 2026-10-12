@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.69",
+  "version": "10.70",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check (10.69): open Today; This Week shows progress, each day's workout, Today and Up next. Tap a day, tap it again; hold a later workout and move it.",
+  "nextAction": "Owner iPhone check (10.70): in a program past its last day, Today, This Week and the Program screen name no further session; Train anyway still starts a workout.",
   "blocker": null,
-  "updatedAt": "2026-10-12T01:06:03Z"
+  "updatedAt": "2026-10-12T04:57:09Z"
 }
