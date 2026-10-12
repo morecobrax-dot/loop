@@ -2511,6 +2511,54 @@ twelve weeks into missed days. With no program, all twelve turn.
 so these dates cannot be told apart from today without recording it. That is a new stored fact (a DATA_KEY or a dated
 record of schedule changes), or a policy decision about what such dates are judged against. Both are the owner's call.
 
+## E71 — After a program's last day, while it is still the active program, Today's readers disagree about the days that follow · P3 · PROVEN · OPEN
+
+Found by D146 (This Week 2.0), on 10.68 and unchanged by it.
+
+**What happens.** A program whose weeks are over stays the active program until the athlete completes it. For the dates
+after its end, the program's date reader (getProgramWorkoutForDate) answers `ended`, with a rest entry. Readers split on
+what that means:
+- **Rest:** This Week (weekOverview), Today's own card (renderTodayWorkout's category) and each day's card
+  (renderOtherDayCard). They read the entry as given.
+- **The weekly plan:** Today's rest-day "Next" line, the Program screen's next session (myTrainingNextSession), and D44 /
+  the Log calendar. D145 has dates no program covers keep the plan layer.
+
+**Measured** (a generated program, no owner data): a program from Mon 31 Aug for six weeks ends Sun 11 Oct. On Wed 21 Oct:
+- every day of the week reads rest in This Week, and Friday's card says "Rest Day — Nothing scheduled for Friday";
+- Today's rest-day card says "Next: Friday · Legs A" from the weekly plan;
+- D44 calls Monday 19 Oct, a weekly-plan training day, missed.
+
+A related facet: Today's rest-day "Next" walks the schedule only, so it names a day whose workout is already logged (Friday
+logged early; This Week names Saturday).
+
+**What D146 does.** This Week shows only what its own week shows. Up next is the first planned day the week shows, else
+next week's first session; it is never a day the week reads as rest. In the case above it reads "Nothing scheduled".
+Contract 270 (14b) and the D146 study (63 generated weeks; the only differences from the hero's "Next" are these cases).
+
+**Why it was not fixed in D146.** This needs a decision on what an ended-but-not-completed program's days hold: rest
+until it is completed, or the weekly plan. The fix lies in the program's readers (D143/D144's, protected in this phase),
+not in This Week. Owner's decision.
+
+## E72 — This Week's count counts trained days, not planned workouts done · P4 · PROVEN · OPEN
+
+Found by D146's audit of the "1 of 4" metric. Unchanged since D11 (weekOverview).
+
+**What the count is.**
+- The total (Y) is the planned training days of this week's plan: the program's week when one is running, else the
+  weekly plan.
+- The count (X) is the days this week with any logged workout: any category, on any day.
+
+**What follows.**
+- A rest day trained counts: a week trained beyond its plan reads "5 of 4 workouts".
+- Two workouts on one day count once.
+- A planned day inside a pause stays in the total and can never be done.
+
+D44's consistency counts something else: planned sessions fulfilled, matched by D43.
+
+**What D146 does.** It shows the same count and total. The percentage is the share of the bar the count fills, as 10.68's
+bar did, so a week trained past its plan reads 100%. The brief asked that no new completion formula be invented and that
+D44 not be recalibrated. Changing what This Week counts is a policy decision for the owner.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

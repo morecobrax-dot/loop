@@ -20188,3 +20188,47 @@ weeks — holds only on shared dates (E69).
 - the clock-change Sundays in four zones;
 - 72 generated histories in four time zones.
 The browser rig reads the Log calendar month by touch at 13 sizes.
+
+## §192 — THIS WEEK IS ONE DERIVED PRESENTATION OF THE WEEK (D146 · LOOP 10.69 · loop-v246)
+
+**What the card answers, in order.**
+1. How far through the week's planned training the athlete is.
+2. What each of the seven days trains.
+3. What today holds, beside what comes next.
+A tapped day swaps the last row for that day's own evidence; the week stays in view.
+
+**One presentation, derived and never stored.** deriveThisWeek() builds it once per render from the engines that already
+answer each question:
+- the days, the count and the total: weekOverview(). That is D11 with D44's day states, and the program's own week when
+  one is running (D143/D144).
+- which workout a day runs: dayTemplateFor(), the same answer that day's card gives.
+- what a logged day was: workoutsOnDate() and the Log card's own facts — its time (workoutTimeShort, D105.1) and its set
+  count.
+- a workout under way: the hero's draft state.
+- next week's first session: myTrainingNextSession().
+renderWeekCard draws only from that object. Nothing here schedules, matches, counts or writes.
+
+**Progress.** The percentage is weekOverview()'s count over its total, filled exactly as 10.68's bar was. A week trained
+past its plan reads 100% beside its real count. The count is "X of Y workouts", with one segment per planned workout. No
+new formula: E72 records what the count does and does not mean.
+
+**States.** Each day has exactly one status:
+- completed, missed, planned, rest — from weekOverview()'s state;
+- active — a workout under way, today only, outranking the plan as it does on the hero;
+- paused — a planned day already over that D90 suspended.
+Each status has its own mark, told apart by shape before colour: a ticked disc, a slashed ring, a ring, a ringed dot, a
+dash, two bars. Today is a mark on the day's letter and aria-current. Selection is a tint on the cell and aria-pressed.
+Neither ever borrows the other's.
+
+**Up next** is the first planned day after today that the week itself shows. When the week has none left, it is next
+week's first session. It is never today, and never a day the week reads as rest (E71).
+
+**The selected day** is the one Today already shares with its card (setSelectedDay), so the two cannot disagree. The card
+still carries the day's actions (Start, View, Change day). Tapping the selected day again, or today, returns to Today /
+Up next.
+
+**Removed from the card:** the streak row (it stays on the Workout Summary and in XP) and the standing gesture
+instruction. The hold-to-move gesture (D66) is unchanged; it explains itself while it happens.
+
+**Unchanged:** weekOverview, D43, D44, D145's dated plan, Change day and the day sheet (D143/D144), the hero and each
+day's card, the drag engine, E64's low dock, D141. DATA_KEYS 16, schema 1.

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.68",
+  "version": "10.69",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone check (10.68): in a running program, change a day of the week, then open Log; earlier program weeks keep their missed and rest days as they were.",
+  "nextAction": "Owner iPhone check (10.69): open Today; This Week shows progress, each day's workout, Today and Up next. Tap a day, tap it again; hold a later workout and move it.",
   "blocker": null,
-  "updatedAt": "2026-10-11T22:32:01Z"
+  "updatedAt": "2026-10-12T01:06:03Z"
 }

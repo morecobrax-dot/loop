@@ -10130,6 +10130,137 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
    the page can paint. There the workout's bottom surfaces keep only their own 8px minimum. Nowhere else does this apply. */
 #logOverlay.ws-low-dock .ws-nav, #logOverlay.ws-low-dock .sheet-actions{ padding-bottom: var(--space-2); }
 /* ==== D132 SYSTEM END ==== */
+/* ==== D146 THIS WEEK 2.0 BEGIN ==== */
+/* =========================================================
+   THIS WEEK 2.0 (Phase D146) — the last layer of the sheet, as one
+   block, over the D11/D12/D28/D132 rules it supersedes for this card.
+   Three layers and one hierarchy: the percentage, its count and its
+   rail; seven equal days; today beside what is next. One mark per
+   state, told apart by SHAPE before colour — a filled tick, a slashed
+   ring, a ring, a ringed dot, a dash, two bars. Today is the letter's
+   mark; selection is the cell's tint. A hold lifts the day and sets
+   the rest of the card back; nothing says how in words.
+   ========================================================= */
+.wk2{ padding: 14px 14px 12px; }
+.wk2-eyebrow{
+  font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--eyebrow-track); text-transform: uppercase;
+  color: var(--text-dim); line-height: 1;
+}
+/* 1 — progress */
+.wk2-sum{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 8px; }
+.wk2-pct{ display: inline-flex; align-items: baseline; gap: 7px; min-width: 0; }
+.wk2-pct b{
+  font-family: var(--font-display); font-size: 28px; font-weight: 700; line-height: 1; letter-spacing: -0.02em;
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+.wk2-pct-k{
+  font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--eyebrow-track); text-transform: uppercase;
+  color: var(--text-dim);
+}
+.wk2-pct-none{ font-size: var(--fs-body); font-weight: 600; color: var(--text-dim); }
+.wk2-count{ font-size: var(--fs-meta); color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wk2-rail{ display: flex; gap: 4px; margin-top: 10px; }
+.wk2-seg{ flex: 1; height: 6px; border-radius: 3px; background: var(--surface-inset); box-shadow: inset 0 0 0 1px var(--hairline); }
+.wk2-seg.on{ background: var(--grad-progress); box-shadow: none; }
+.wk2-full .wk2-pct b, .wk2-full .wk2-pct-k{ color: var(--c-progress); }
+
+/* 2 — the seven days: equal columns across the card's full width, no tiles */
+.wk2 .wk-days{ display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0; margin: 8px -14px 0; padding: 0; }
+.wk2 .wk-day{
+  display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px;
+  position: relative; isolation: isolate;
+  min-width: 0; min-height: 58px; padding: 6px 0 7px; margin: 0; cursor: pointer;
+  background: transparent; border: 0; border-radius: var(--r-control); box-shadow: none;
+  color: inherit; font: inherit;
+}
+/* the cell's tint sits inside it, so the first and last days never meet the card's edge */
+.wk2 .wk-day::before{
+  content: ''; position: absolute; inset: 2px 3px; z-index: -1; pointer-events: none;
+  border-radius: var(--r-control); background: transparent;
+}
+@media (hover: hover){ .wk2 .wk-day:hover::before{ background: rgba(148,170,205,0.05); } }
+.wk2 .wk-day:active{ transform: scale(0.97); }
+.wk2 .wk-day:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.wk2 .wk-dl{
+  width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%;
+  font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0; line-height: 1; color: var(--text-faint);
+}
+.wk2 .wk-dc{
+  min-height: 11px; font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.02em; line-height: 1;
+  color: var(--text-dim); white-space: nowrap; text-transform: uppercase;
+}
+/* below 360px seven capitalised labels would touch (LOWER is wider than its day): the same 11px, in title case */
+@media (max-width: 359px){ .wk2 .wk-dc{ text-transform: none; letter-spacing: 0; } }
+/* today: a mark on the day itself, which nothing else moves */
+.wk2 .wk2-today .wk-dl{ background: var(--accent-soft); color: var(--accent); font-weight: 700; box-shadow: inset 0 0 0 1px rgba(76,194,255,0.55); }
+.wk2 .wk2-today .wk-dc{ color: var(--text); }
+/* selected: a quiet tint on the cell, never the today mark */
+.wk2 .wk-day.wk-selected{ background: transparent; box-shadow: none; }
+.wk2 .wk-day.wk-selected::before{ background: rgba(148,170,205,0.09); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.wk2 .wk-day.wk-selected .wk-dl{ font-weight: 700; }
+.wk2 .wk-day.wk-selected:not(.wk2-today) .wk-dl{ color: var(--text); }
+
+/* the marks: one per state, by shape */
+.wk2 .wk-mark{
+  position: relative; box-sizing: border-box; width: 12px; height: 12px; border-radius: 50%;
+  border: 1.5px solid var(--text-faint); background: transparent;
+}
+.wk2 .wk2-planned .wk-mark{ border-color: var(--text-dim); }
+.wk2 .wk2-today.wk2-planned .wk-mark{ border-color: var(--accent); border-width: 2px; }
+.wk2 .wk2-completed .wk-mark{ background: var(--c-progress); border-color: var(--c-progress); }
+.wk2 .wk2-completed .wk-mark::after{
+  content: ''; position: absolute; left: 3.2px; top: 1.2px; width: 2.6px; height: 5.4px;
+  border: solid #06231A; border-width: 0 1.6px 1.6px 0; transform: rotate(45deg);
+}
+.wk2 .wk2-completed .wk-dc{ color: var(--c-progress); }
+.wk2 .wk2-missed .wk-mark{ border-color: var(--c-warning); }
+.wk2 .wk2-missed .wk-mark::after{
+  content: ''; position: absolute; left: 50%; top: -1.5px; width: 1.5px; height: 12px; margin-left: -0.75px;
+  background: var(--c-warning); transform: rotate(45deg);
+}
+.wk2 .wk2-missed .wk-dc{ color: var(--c-warning); }
+.wk2 .wk2-active .wk-mark{ border-color: var(--accent); border-width: 2px; }
+.wk2 .wk2-active .wk-mark::after{
+  content: ''; position: absolute; left: 50%; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px;
+  border-radius: 50%; background: var(--accent);
+}
+.wk2 .wk2-active .wk-dc{ color: var(--accent); }
+.wk2 .wk2-rest .wk-mark{ width: 10px; height: 2px; margin: 5px 0; border: 0; border-radius: 1px; background: rgba(115,126,146,0.6); }
+.wk2 .wk2-paused .wk-mark{ width: 8px; height: 9px; margin: 1.5px 0; border: 0; border-radius: 0;
+  border-left: 2px solid var(--text-faint); border-right: 2px solid var(--text-faint); background: transparent; }
+.wk2 .wk2-paused .wk-dc{ color: var(--text-faint); }
+
+/* the hold: the day lifts, the days it can land on open up, and the rest of the card steps back */
+.wk2 .wk-day.wk-dragging{ background: var(--surface-2); box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--hairline-strong); }
+.wk2 .wk-day.wk-drop-ok{ outline-color: var(--hairline-strong); }
+.wk2 .wk-day.wk-drop-over{ background: transparent; outline-color: var(--accent); }
+.wk2 .wk-day.wk-drop-over::before{ background: var(--accent-soft); }
+.wk2-sum, .wk2-rail, .wk2-ctx, .wk2-eyebrow{ transition: opacity 160ms var(--ease); }
+.wk2:has(.wk-drag-mode) .wk2-sum, .wk2:has(.wk-drag-mode) .wk2-rail,
+.wk2:has(.wk-drag-mode) .wk2-ctx, .wk2:has(.wk-drag-mode) .wk2-eyebrow{ opacity: 0.35; }
+
+/* 3 — context: today and up next, equal; or the tapped day */
+.wk2-ctx{ display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-top: 6px; padding-top: 11px; border-top: 1px solid var(--hairline); }
+.wk2-col{ display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wk2-k{
+  font-size: var(--fs-micro); font-weight: 600; letter-spacing: var(--eyebrow-track); text-transform: uppercase;
+  color: var(--text-faint); line-height: 1.1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.wk2-v{ font-size: 15px; font-weight: 600; line-height: 1.25; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wk2-s{ min-height: 1.3em; font-size: var(--fs-meta); line-height: 1.3; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.wk2-col.wk2-completed .wk2-s{ color: var(--c-progress); }
+.wk2-col.wk2-active .wk2-s{ color: var(--accent); }
+.wk2-col.wk2-rest .wk2-v, .wk2-col.wk2-paused .wk2-v, .wk2-none .wk2-v{ color: var(--text-dim); }
+.wk2-snap{ grid-column: 1 / -1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.wk2-snap-top{ display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.wk2-st{ display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; font-size: var(--fs-meta); font-weight: 600; line-height: 1; color: var(--text-dim); }
+.wk2-snap.wk2-completed .wk2-st{ color: var(--c-progress); }
+.wk2-snap.wk2-missed .wk2-st{ color: var(--c-warning); }
+.wk2-snap.wk2-rest .wk2-st, .wk2-snap.wk2-paused .wk2-st{ color: var(--text-faint); }
+@media (prefers-reduced-motion: reduce){
+  .wk2-sum, .wk2-rail, .wk2-ctx, .wk2-eyebrow{ transition: none; }
+}
+/* ==== D146 THIS WEEK 2.0 END ==== */
 </style>
 </head>
 <body>
@@ -20194,6 +20325,28 @@ const LOOP_UPDATES = [
       'The Log calendar and your consistency keep earlier program weeks as they were actually planned, including after the program has finished'
     ],
     changes: []
+  },
+  {
+    id: 'v10-69',
+    version: 'LOOP 10.69',
+    title: 'A Clearer View of Your Training Week',
+    date: '2026-10-11',
+    swVersion: 'loop-v246',
+    summary: 'This Week now shows your progress, today’s plan and what comes next at a glance.',
+    newFeatures: [],
+    improvements: [
+      'This Week leads with how much of your planned week is done, as a percentage, with the workouts behind it',
+      'Done and missed days carry their own marks, a tick and a slash, and a workout in progress shows on today',
+      'Today and your next workout sit side by side, and the next workout is always one after today',
+      'Tap a day to see what it holds without leaving the week, and tap it again to go back',
+      'Today and the day you’re looking at no longer look alike'
+    ],
+    bugFixes: [
+      'On a rest day, This Week now still shows your next workout'
+    ],
+    changes: [
+      'This Week no longer repeats your training streak or a line of gesture instructions'
+    ]
   }
 ];
 
@@ -31907,7 +32060,8 @@ function weekDayClick(ev){
   }
   if(_wkDrag) return;
   const cell = ev.target && ev.target.closest ? ev.target.closest('.wk-day') : null;
-  if(cell) setSelectedDay(cell.dataset.key);
+  /* D146 — the day already selected, tapped again, puts This Week back on today and what is next. */
+  if(cell) setSelectedDay(cell.dataset.key === selectedDayKey ? todayKey() : cell.dataset.key);
 }
 
 /* Losing the page ends a gesture: the app switcher, a phone call, a rotation. */
@@ -32986,65 +33140,249 @@ function weekOverview(){
   return { days, planned, done, next };
 }
 
-/* The week, as one card: how much is done, which days, and what is next.
-   Each cell opens the existing day editor — no second editing path. */
+/* =========================================================
+   THIS WEEK 2.0  (Phase D146)
+   ---------------------------------------------------------
+   The week as one glance: how far through its planned training the
+   athlete is, all seven days with what each one trains, and what
+   today holds beside what comes next. A tapped day swaps that last
+   row for the day's own evidence; the week stays in view.
+
+   Everything is one derived presentation, built once per render
+   from the engines that already answer each question:
+     the days, the count and the total  weekOverview() (D11, D44,
+                                         D143/D144: the program's
+                                         week when one is running)
+     what comes next                    myTrainingNextSession()
+     which workout a day runs           dayTemplateFor(), the card's
+     what a logged day was              workoutsOnDate() and the
+                                         Log's own facts (D105.1)
+     a workout under way                the hero's draft state
+   Nothing here schedules, matches, counts or stores. The selected
+   day is the one Today already shares with the hero card
+   (setSelectedDay), so the two can never disagree.
+   ========================================================= */
+
+/* A workout's name without its subtitle ("Pull A — Back Width" → "Pull A"), for the two narrow columns. The full name is
+   the snapshot's and the card's. */
+function thisWeekShortName(name){
+  const s = String(name == null ? '' : name);
+  const i = s.indexOf(' — ');
+  return i > 0 ? s.slice(0, i) : s;
+}
+
+/* What the day's cell and its snapshot say it is. One status per day, read from weekOverview()'s state and nothing
+   else, except a workout under way, which outranks today's plan exactly as it does on the hero. */
+function thisWeekDayStatus(d, isToday, active){
+  if(isToday && active) return 'active';
+  if(d.state === 'done' || d.state === 'done-today') return 'completed';
+  if(d.state === 'missed') return 'missed';
+  if(d.state === 'today' || d.state === 'upcoming') return d.cat === 'rest' ? 'rest' : 'planned';
+  /* A day already over that was planned but never due: D44 leaves a suspended day out (D90), and so does this. */
+  if(d.cat !== 'rest'){
+    let paused = false;
+    try{ paused = !!(d.date && planDayIsSuspended(d.date)); }catch(e){ paused = false; }
+    if(paused) return 'paused';
+  }
+  return 'rest';
+}
+
+/* A day's category as the timeline prints it: the short name in title case ("Upper"). The stylesheet sets it in capitals,
+   except on the narrowest phones, where seven capitalised UPPER / LOWER labels would touch. */
+function thisWeekCatText(cat){
+  const s = CAT_SHORT[cat] || '';
+  return s.charAt(0) + s.slice(1).toLowerCase();
+}
+
+const THIS_WEEK_STATUS_WORD = { completed: 'Completed', missed: 'Missed', planned: 'Planned', rest: 'Rest', active: 'In progress', paused: 'Paused' };
+
+function deriveThisWeek(){
+  const wk = weekOverview();
+  const tKey = todayKey(), T = localDateStr();
+  const todayIdx = DAY_ORDER.indexOf(tKey);
+  const active = !!hasActiveDraftNow;
+  const selKey = (selectedDayKey && selectedDayKey !== tKey && DAY_ORDER.indexOf(selectedDayKey) !== -1) ? selectedDayKey : null;
+
+  const days = wk.days.map((d, i) => {
+    const isToday = i === todayIdx;
+    const status = thisWeekDayStatus(d, isToday, active);
+    const date = d.date || weekDateForDayKey(d.key, T);
+    /* The cell names what the day trains. A rest day trained anyway names what was trained, so a completed day never
+       reads as a completed rest. */
+    let category = d.cat;
+    if(category === 'rest' && status === 'completed'){
+      const e = workoutsOnDate(date)[0];
+      if(e && CAT_LABEL[e.category]) category = e.category;
+    }
+    return { key: d.key, date, letter: d.label, dayName: d.fullLabel, category, status, state: d.state,
+      isToday, isSelected: d.key === selKey };
+  });
+
+  /* The week's progress is the count and total This Week has always shown: weekOverview()'s trained days of the week
+     against its planned training days. The percentage is the share of the bar that count fills, so a week trained
+     past its plan reads 100%, as the full bar always did. */
+  const planned = wk.planned, completed = wk.done;
+  const filled = Math.min(completed, planned);
+  const progress = { completed, planned, filled, percent: planned ? Math.round(100 * filled / planned) : null };
+
+  const td = days[todayIdx];
+  let today;
+  if(td.status === 'active'){
+    const info = activeDraftInfo || {};
+    today = { status: 'active', title: info.title || 'Workout', sub: 'In progress' };
+  } else if(td.status === 'completed'){
+    /* The hero's own reading: the day's last workout (D107). */
+    const e = workoutsOnDate(T).slice(-1)[0] || null;
+    today = { status: 'completed', title: e ? (e.title || CAT_LABEL[e.category] || 'Workout') : (CAT_LABEL[td.category] || 'Workout'), sub: 'Completed' };
+  } else if(td.status === 'planned'){
+    const tpl = dayTemplateFor(td.category, T);
+    today = { status: 'planned', title: tpl ? tpl.name : CAT_LABEL[td.category], sub: 'Planned' };
+  } else {
+    today = { status: td.status === 'paused' ? 'paused' : 'rest', title: 'Rest day', sub: 'Nothing scheduled' };
+  }
+
+  /* Up next is the next training day AFTER today, so it never repeats today's workout, done or not. Inside this week it
+     is the first planned day the week itself shows — the card never names a next workout its own days do not. When the
+     week has none left, it is next week's first session, from the reader the Program screen uses
+     (myTrainingNextSession), which looks a week ahead. A session that reader places inside this week but the week does
+     not show is not named: after a program's last day, while it is still the active program, it names the weekly
+     plan's day where the week and that day's card read rest (E71). */
+  let upNext = null;
+  const named = (key, date, cat, name) => {
+    const ahead = daysBetweenDates(T, date);
+    const tpl = dayTemplateFor(cat, date);
+    return { key, date, category: cat, title: (tpl && tpl.name) || name || CAT_LABEL[cat],
+      when: ahead === 1 ? 'Tomorrow' : (todayIdx + ahead > 6 ? 'Next ' + DAY_LABEL_FULL[key] : DAY_LABEL_FULL[key]) };
+  };
+  try{
+    const ahead = days.find(x => x.date > T && x.status === 'planned');
+    if(ahead) upNext = named(ahead.key, ahead.date, ahead.category, null);
+    else {
+      const n = myTrainingNextSession();
+      if(n){
+        const date = addDaysISO(T, ((DAY_ORDER.indexOf(n.key) - todayIdx + 7) % 7) || 7);
+        if(date > days[6].date) upNext = named(n.key, date, n.cat, n.workoutName);
+      }
+    }
+  }catch(e){ upNext = null; }
+
+  /* The tapped day's evidence: what it is, where it stands, and at most two facts LOOP already holds for it. */
+  let selected = null;
+  const sd = selKey ? days.find(x => x.key === selKey) : null;
+  if(sd){
+    const head = sd.dayName.slice(0, 3) + (sd.category !== 'rest' && CAT_LABEL[sd.category] ? ' · ' + CAT_LABEL[sd.category] : '');
+    let title, facts = [];
+    if(sd.status === 'completed'){
+      /* The Log's day card, read for the day's first workout (D107): its title, its sets, its time when LOOP has one. */
+      const entries = workoutsOnDate(sd.date);
+      const e = entries[0];
+      title = e.title || CAT_LABEL[e.category] || 'Workout';
+      const sets = (e.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
+      const time = workoutTimeShort(e);
+      if(time) facts.push(time);
+      facts.push(sets + ' set' + (sets === 1 ? '' : 's'));
+      if(entries.length > 1) facts.push('+' + (entries.length - 1) + ' more');
+    } else if(sd.status === 'planned' || sd.status === 'missed'){
+      const tpl = dayTemplateFor(sd.category, sd.date);
+      title = tpl ? tpl.name : CAT_LABEL[sd.category];
+      if(sd.status === 'missed') facts.push('Nothing logged');
+      else if(tpl){
+        /* The card's own preview of it: the same exercises and estimate the day's card and Start use. */
+        const shown = applyTimeModeToTemplate(tpl);
+        const n = shown.exercises.length;
+        const dur = computeWorkoutDuration(shown);
+        if(n) facts.push(n + ' exercise' + (n === 1 ? '' : 's'));
+        if(dur) facts.push('~' + dur + ' min');
+      }
+    } else if(sd.status === 'paused'){
+      title = 'Program paused';
+      facts.push('Nothing was due');
+    } else {
+      title = 'No workout scheduled';
+    }
+    selected = { key: sd.key, date: sd.date, status: sd.status, head, title, facts };
+  }
+
+  return { progress, days, today, upNext, selected };
+}
+
+/* What a screen reader hears for a day: its name, what it trains, and the state the marks show. Selected is the
+   button's own pressed state; today is aria-current as well. */
+function thisWeekDayName(d){
+  const parts = [d.dayName, d.category === 'rest' ? 'Rest' : (CAT_LABEL[d.category] || 'Workout')];
+  if(d.isToday) parts.push('today');
+  if(d.status === 'completed') parts.push('completed');
+  else if(d.status === 'missed') parts.push('missed');
+  else if(d.status === 'active') parts.push('in progress');
+  else if(d.status === 'paused') parts.push('paused');
+  return parts.join(', ');
+}
+
+/* Whether the week was last drawn with a workout in progress — renderResumeBanner resolves the draft after the week is
+   drawn, and redraws it only when this differs. */
+let _wkDrewActive = false;
+
+/* The week, as one card: progress, the seven days, and today beside what is next (or the tapped day). Each cell selects
+   its day; holding one moves its workout (D66). No second editing path. */
 function renderWeekCard(){
   const el = document.getElementById('weekCard');
   if(!el) return;
   /* D66 — the cells a gesture holds are about to be replaced: end it first. */
   if(_wkDrag) cancelWeekDrag({ immediate: true });
-  const wk = weekOverview();
+  const m = deriveThisWeek();
+  const p = m.progress;
+  _wkDrewActive = !!hasActiveDraftNow;
 
-  // One segment per planned session. A visual the athlete can read without
-  // parsing the number next to it, rather than the number three times over.
-  const segs = wk.planned
-    ? `<div class="wk-bar" role="img" aria-label="${wk.done} of ${wk.planned} sessions completed">${
-        Array.from({length: wk.planned}, (_, i) =>
-          `<span class="wk-seg${i < wk.done ? ' on' : ''}"></span>`).join('')
+  /* 1 — progress. The percentage leads, the count explains it, and one segment per planned workout draws it. */
+  const head = p.planned
+    ? `<div class="wk2-sum">
+        <span class="wk2-pct"><b>${p.percent}%</b><span class="wk2-pct-k">complete</span></span>
+        <span class="wk2-count">${p.completed} of ${p.planned} workout${p.planned === 1 ? '' : 's'}</span>
+      </div>
+      <div class="wk2-rail" role="progressbar" aria-label="This week" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p.percent}"
+           aria-valuetext="${p.percent}% complete, ${p.completed} of ${p.planned} workout${p.planned === 1 ? '' : 's'}">${
+        Array.from({ length: p.planned }, (_, i) => `<span class="wk2-seg${i < p.filled ? ' on' : ''}"></span>`).join('')
       }</div>`
-    : '';
+    : `<div class="wk2-sum">
+        <span class="wk2-pct wk2-pct-none">No workouts planned</span>
+        ${p.completed ? `<span class="wk2-count">${p.completed} logged</span>` : ''}
+      </div>`;
 
-  const selKey = effectiveSelectedKey();
-  const cells = wk.days.map(d => `
-    <button type="button" class="wk-day wk-${d.state} ${d.cat}${d.key === selKey ? ' wk-selected' : ''}"
-            data-key="${d.key}" aria-pressed="${d.key === selKey ? 'true' : 'false'}"
-            aria-label="${escapeAttr(d.fullLabel)} — ${escapeAttr(d.workoutName || CAT_LABEL[d.cat] || 'Rest')}">
-      <span class="wk-dl">${d.label}</span>
-      <span class="wk-mark"></span>
-      <span class="wk-dc">${d.cat === 'rest' ? '' : escapeHtml(d.catShort)}</span>
+  /* 2 — the seven days. Today is the letter's mark; selection is the cell's. Neither borrows the other's. */
+  const cells = m.days.map(d => `
+    <button type="button" class="wk-day wk-${d.state} wk2-${d.status}${d.isToday ? ' wk2-today' : ''}${d.isSelected ? ' wk-selected' : ''}"
+            data-key="${d.key}" aria-pressed="${d.isSelected ? 'true' : 'false'}"${d.isToday ? ' aria-current="date"' : ''}
+            aria-label="${escapeAttr(thisWeekDayName(d))}">
+      <span class="wk-dl">${d.letter}</span>
+      <span class="wk-mark" aria-hidden="true"></span>
+      <span class="wk-dc">${d.category === 'rest' ? '' : escapeHtml(thisWeekCatText(d.category))}</span>
     </button>`).join('');
 
-  /* The foot answers "what is next" rather than restating the count that is
-     already in the header and the bar. */
-  let foot = '';
-  if(wk.next && wk.next.cat !== 'rest'){
-    const when = wk.next.isToday ? 'Today' : wk.next.fullLabel;
-    foot = `<div class="wk-foot"><span class="wk-foot-k">Next</span>${when} · ${escapeHtml(wk.next.workoutName || CAT_LABEL[wk.next.cat])}</div>`;
-  } else if(wk.planned && wk.done >= wk.planned){
-    foot = `<div class="wk-foot wk-foot-done"><span class="wk-foot-k">Done</span>Every planned session this week is logged.</div>`;
-  }
-  /* D45B — the streak moved here from Momentum, which the owner asked to have
-     replaced. It was the one reading Momentum carried that nothing else on the
-     screen said: its week sentence restated this card, and its lifts line
-     restated Progress, which the button directly below it opens. A streak
-     belongs beside the week it counts. Still only shown once it means
-     something — one week is not a streak. */
-  let streak = 0;
-  try{ streak = computeWeekStreak(); }catch(e){}
-  if(streak >= 2){
-    foot += `<div class="wk-foot wk-foot-streak"><span class="wk-foot-k">Streak</span>${streak} weeks trained in a row</div>`;
+  /* 3 — context: today and up next side by side, or the tapped day. */
+  const col = (k, v, s, cls) => `<div class="wk2-col ${cls}"><span class="wk2-k">${k}</span><span class="wk2-v">${escapeHtml(v)}</span><span class="wk2-s">${escapeHtml(s)}</span></div>`;
+  let ctx;
+  if(m.selected){
+    const s = m.selected;
+    ctx = `<div class="wk2-snap wk2-${s.status}">
+        <div class="wk2-snap-top">
+          <span class="wk2-k">${escapeHtml(s.head)}</span>
+          <span class="wk2-st"><span class="wk-mark" aria-hidden="true"></span>${THIS_WEEK_STATUS_WORD[s.status]}</span>
+        </div>
+        <span class="wk2-v">${escapeHtml(s.title)}</span>
+        <span class="wk2-s">${escapeHtml(s.facts.join(' · '))}</span>
+      </div>`;
+  } else {
+    const t = m.today, n = m.upNext;
+    ctx = col('Today', thisWeekShortName(t.title), t.sub, 'wk2-' + t.status)
+      + (n ? col('Up next', thisWeekShortName(n.title), n.when, 'wk2-next') : col('Up next', 'Nothing scheduled', '', 'wk2-next wk2-none'));
   }
 
   el.innerHTML = `
-    <div class="wk-card">
-      <div class="wk-top">
-        <span class="wk-title">This Week</span>
-        <span class="wk-count">${wk.planned ? `<b>${wk.done}</b> of ${wk.planned}` : 'No days set'}</span>
-      </div>
-      ${segs}
-      <div class="wk-days">${cells}</div>
-      ${foot}
-      <div class="wk-hint">Tap a day to see it · hold to move a workout</div>
+    <div class="wk-card wk2${m.selected ? ' wk2-inspect' : ''}${p.percent === 100 ? ' wk2-full' : ''}">
+      <div class="wk2-eyebrow">This Week</div>
+      ${head}
+      <div class="wk-days" role="group" aria-label="Days this week">${cells}</div>
+      <div class="wk2-ctx">${ctx}</div>
     </div>
     <div id="weekUndo" class="wk-undo-host"></div>`;
   /* Re-attached after every render; the guard keeps it to one listener set. */
@@ -57740,6 +58078,9 @@ async function renderResumeBanner(){
   }
   renderTodayWorkout();
   try{ renderTrainView(); }catch(e){}
+  /* D146 — This Week marks today's workout in progress from this same draft: when the draft has started or ended since
+     the week was drawn, it is redrawn with the hero. Only then — a redraw replaces the week's Undo (D66). */
+  if(_wkDrewActive !== !!hasActiveDraftNow){ try{ renderWeekCard(); }catch(e){} }
 }
 
 let workoutHistoryPushed = false;
