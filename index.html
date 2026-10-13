@@ -10372,6 +10372,79 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
 .obj-row[data-fam]:not(.obj-row-done) .obj-bar > span{ background: var(--fam); }
 .obj-row[data-fam] .obj-t::before{ content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--fam); vertical-align: 1px; }
 /* ==== D149 TODAY AT A GLANCE END ==== */
+/* ==== D150 PROGRAM JOURNEY BEGIN ==== */
+/* =========================================================
+   THE PROGRAM, AS A JOURNEY (Phase D150) — the last layer of the sheet, as one block.
+   One card on Training → Program: the program's status and name, its split as D148's kinds (D149's chips), its weeks
+   as a strip in the program's own colour — elapsed, the one it is in (raised), the ones ahead, a pause hatched in the
+   warning colour — grouped and named by its written phases, each week's planned sessions as ticks beneath (done in the
+   progress colour, missed as an outline in the warning colour, today in the action colour); then where it is and how
+   much is done, in words; this week by D146's day model (the state's mark first, the kind's bar under its word); and
+   the next session, tinted in its kind. State outranks family: a completed day is the progress colour, a missed day
+   the warning colour, whatever its kind. Nothing here animates, fetches or takes a tap except the next session and
+   the resume path, which are buttons.
+   ========================================================= */
+.pj{ position: relative; margin: 2px 0 6px; padding: 16px 16px 14px; border: 1px solid rgba(143,124,247,0.22); border-radius: var(--radius-xl);
+  background: linear-gradient(180deg, rgba(143,124,247,0.12) 0, rgba(143,124,247,0.03) 96px, rgba(143,124,247,0) 160px), var(--surface); }
+.pj-top{ display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pj-status{ display: inline-flex; align-items: center; min-height: 22px; padding: 2px 9px; border-radius: 999px; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--c-progress); background: var(--c-progress-soft); }
+.pj-is-paused .pj-status{ color: var(--c-warning); background: var(--c-warning-soft); }
+.pj-is-upcoming .pj-status{ color: var(--accent); background: rgba(76,194,255,0.12); }
+.pj-count{ font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+.pj-count b{ font-family: var(--font-display); font-size: 17px; color: var(--text); }
+.pj-name{ margin: 7px 0 0; font-family: var(--font-display); font-size: 22px; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; color: var(--text); overflow-wrap: anywhere; }
+.pj-meta{ margin-top: 3px; font-size: 13px; color: var(--text-dim); }
+/* the weeks */
+.pj-time{ display: block; margin-top: 14px; }
+.pj-phs{ display: flex; gap: 6px; margin-bottom: 6px; }
+.pj-ph{ min-width: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pj-ph.is-now{ min-width: max-content; color: var(--c-program); }
+.pj-wks{ display: flex; gap: 3px; align-items: flex-start; }
+.pj-wk{ flex: 1 1 0; display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.pj-ph-start{ margin-left: 6px; }
+.pj-bar{ display: block; height: 6px; border-radius: 3px; background: var(--surface-3); }
+.pj-wk.is-past .pj-bar{ background: rgba(143,124,247,0.45); }
+.pj-wk.is-now .pj-bar{ height: 10px; margin-top: -2px; background: var(--c-program); }
+.pj-wk.is-paused .pj-bar{ background: repeating-linear-gradient(135deg, var(--c-warning) 0 3px, rgba(232,150,63,0.25) 3px 6px); }
+.pj-ticks{ display: flex; gap: 2px; padding: 0 1px; }
+.pj-t{ flex: 1 1 0; max-width: 7px; height: 3px; border-radius: 1px; background: var(--surface-3); }
+.pj-t-done{ background: var(--c-progress); }
+.pj-t-missed{ background: none; box-shadow: inset 0 0 0 1px var(--c-warning); }
+.pj-t-today{ background: var(--accent); }
+/* where it is, and how much is done, in words */
+.pj-facts{ display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; margin-top: 9px; font-size: var(--fs-meta); color: var(--text-dim); }
+.pj-work b{ color: var(--c-progress); font-weight: 700; }
+/* this week: the state's mark first, the kind's bar under its word */
+.pj-days{ display: grid; grid-template-columns: repeat(7, 1fr); margin: 12px 0 0; padding: 12px 0 0; list-style: none; border-top: 1px solid var(--border-quiet); }
+.pj-day{ display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
+.pj-dl{ font-size: var(--fs-micro); font-weight: 600; color: var(--text-faint); }
+.pj-d-today .pj-dl{ color: var(--accent); }
+.pj-dm{ position: relative; width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--text-faint); color: #07120D; display: flex; align-items: center; justify-content: center; }
+.pj-d-rest .pj-dm, .pj-d-paused .pj-dm{ width: 10px; height: 2px; margin: 6px 0; border: 0; border-radius: 1px; background: var(--surface-3); }
+.pj-d-completed .pj-dm{ background: var(--c-progress); border-color: var(--c-progress); }
+.pj-d-missed .pj-dm{ border-color: var(--c-warning); }
+.pj-d-missed .pj-dm::after{ content: ''; position: absolute; width: 1.5px; height: 12px; background: var(--c-warning); transform: rotate(45deg); }
+.pj-d-today.pj-d-planned .pj-dm{ border-color: var(--accent); }
+.pj-d-active .pj-dm{ background: var(--accent); border-color: var(--accent); }
+.pj-dc{ min-height: 14px; font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); white-space: nowrap; }
+.pj-day[data-fam] .pj-dc::after{ content: ''; display: block; width: 14px; height: 3px; margin: 4px auto 0; border-radius: 2px; background: var(--fam); }
+.pj-d-missed[data-fam] .pj-dc::after{ opacity: 0.4; }
+.pj-d-completed .pj-dc{ color: var(--c-progress); }
+.pj-d-missed .pj-dc{ color: var(--c-warning); }
+/* what is next, in its kind */
+.pj-next{ display: flex; align-items: center; gap: 12px; width: 100%; min-height: 56px; margin-top: 12px; padding: 10px 12px; text-align: left; font: inherit; color: inherit; border-radius: var(--radius-lg);
+  border: 1px solid var(--border-quiet); background: linear-gradient(90deg, rgba(var(--fam-rgb), 0.15), rgba(var(--fam-rgb), 0.04) 70%, rgba(var(--fam-rgb), 0)), var(--surface-2); }
+.pj-next-none{ background: var(--surface-2); }
+.pj-next-ic{ flex: 0 0 auto; }
+.pj-next-ic .wi{ color: var(--fam); }
+.pj-next-b{ display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.pj-next-k{ font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-dim); }
+.pj-next-n{ font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+.pj-next-s{ font-size: var(--fs-meta); color: var(--text-dim); }
+.pj-next-go{ flex: 0 0 auto; color: var(--text-faint); }
+.pj-next:focus-visible, .pj-resume:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.pj-resume{ display: block; width: 100%; min-height: 44px; margin-top: 12px; font: inherit; font-weight: 600; color: var(--accent); background: var(--surface-2); border: 1px solid var(--border-quiet); border-radius: var(--radius-lg); }
+/* ==== D150 PROGRAM JOURNEY END ==== */
 </style>
 </head>
 <body>
@@ -20513,6 +20586,24 @@ const LOOP_UPDATES = [
     bugFixes: [
       'A completed workout’s card now shows the completion colour along its top edge'
     ],
+    changes: []
+  },
+  {
+    id: 'v10-73',
+    version: 'LOOP 10.73',
+    title: 'See Your Training Journey',
+    date: '2026-10-13',
+    swVersion: 'loop-v250',
+    summary: 'Your program now shows its weeks, phases and next workout at a glance.',
+    newFeatures: [],
+    improvements: [
+      'Your program shows where you are across its weeks and phases, with each week’s sessions marked done or missed',
+      'How many of your program’s planned sessions you’ve done so far is shown apart from how many weeks have passed',
+      'This week’s training days sit under your program, each day’s status first and its kind beneath',
+      'Your next program workout is one tap away, in its kind’s colours',
+      'A paused program shows where it was paused, and one that hasn’t started yet shows when it starts'
+    ],
+    bugFixes: [],
     changes: []
   }
 ];
@@ -54758,6 +54849,153 @@ function toggleMtExplain(){
    instead of stacking a second sheet on top of this one. */
 function mtChangePlan(){ switchTrainingTab('plan'); }
 
+/* =========================================================
+   THE PROGRAM, AS A JOURNEY  (Phase D150)
+   ---------------------------------------------------------
+   One card answers the program's questions before anything has to be read: which program, its status, where the
+   athlete is in its weeks and its written phases, how much of the planned work is done, what this week holds, and
+   what is next. Presentation only — every fact is asked of the reader that already owns it:
+     lifecycle   deriveProgramLifecycle — an ended or completed program is not drawn here (D147: the finished panel
+                 below says so, and completing it stays the athlete's act)
+     position    getProgramProgress → getCurrentProgramWeek (D89/D90: pause-adjusted, frozen while paused)
+     phases      program.blocks as written; the single 'custom' block every program starts with is not a phase
+     work        getProgramProgress (completed of planned-to-date, from D43's slots) and, week by week, those slots
+     this week   deriveThisWeek (D146's day model: the day's state first, then its kind)
+     next        the reader 10.72's Next used (weekOverview().next, else myTrainingNextSession), opened as its own
+                 dated occurrence (D103)
+   Time and work are different quantities and are drawn as different things: the weeks are the strip, the sessions
+   the ticks beneath it. The ticks are drawn only while a calendar week is a program week — a program never paused
+   (D89/D90). A program not yet begun has no week to be in, and nothing is claimed for its days (E74 is open).
+   ========================================================= */
+function programJourneyModel(p, todayStr){
+  const today = todayStr || localDateStr();
+  if(!p || !p.startDate) return null;
+  const life = deriveProgramLifecycle(p, today);
+  if(life !== 'active' && life !== 'paused') return null;
+  const total = Math.max(1, parseInt(p.durationWeeks, 10) || 1);
+  const upcoming = p.startDate > today;
+  let prog = null;
+  try{ prog = getProgramProgress(p, today); }catch(e){ prog = null; }
+  const week = upcoming || !prog || !prog.week ? null : prog.week;
+  const written = (p.blocks || []).slice().sort((a, b) => a.startWeek - b.startWeek);
+  const blocks = written.length === 1 && written[0].phaseType === 'custom' ? [] : written;
+  const phases = blocks.map(b => ({ name: b.name || phaseTypeLabel(b), from: b.startWeek, to: b.endWeek, type: b.phaseType,
+    now: week !== null && week >= b.startWeek && week <= b.endWeek }));
+  const paused = life === 'paused';
+  let ticks = null;
+  if(!paused && !upcoming && !pauseSpansOf(p).length){
+    try{
+      const f = deriveProgramPlanFulfillment(p);
+      ticks = {};
+      (f.slots || []).forEach(s => {
+        (ticks[s.week] = ticks[s.week] || []).push(s.workoutId ? 'done' : s.date < today ? 'missed' : s.date === today ? 'today' : 'ahead');
+      });
+    }catch(e){ ticks = null; }
+  }
+  const plan = programPlanOn(p, today) || {};
+  const days = PROGRAM_DAY_KEYS.filter(k => plan[k] && plan[k].type === 'workout');
+  return { id: p.id, name: p.name || 'Your program', life,
+    goal: p.goal && TRAINING_GOALS[p.goal] ? TRAINING_GOALS[p.goal].label : null,
+    days: days.length,
+    split: foundationSplitCats(days.map(k => [CAT_LABEL[plan[k].category] || programShortName(plan[k].name), plan[k].category])),
+    total, week, upcoming, paused, start: p.startDate, end: programEndDate(p), pausedOn: paused ? (p.pausedOnDate || null) : null,
+    phases, ticks,
+    done: prog && !upcoming ? prog.completedSessions : 0,
+    plannedToDate: prog && !upcoming ? prog.plannedSessions : 0,
+    plannedAll: prog ? prog.totalPlannedSessions : null };
+}
+/* The program's weeks as a strip: elapsed, the one it is in, the ones ahead; grouped and named by its written phases;
+   each week's planned sessions as ticks beneath it (done, missed, today, ahead). The strip is a picture of facts the
+   card also says in words, so it is one image with one spoken summary, never a row of controls. */
+function programJourneyTimelineHtml(m){
+  const segs = [];
+  for(let w = 1; w <= m.total; w++){
+    const ph = m.phases.find(x => w >= x.from && w <= x.to);
+    const cls = m.week === null ? 'is-ahead' : w < m.week ? 'is-past' : w === m.week ? (m.paused ? 'is-now is-paused' : 'is-now') : 'is-ahead';
+    const start = m.phases.length > 1 && ph && ph.from === w && w > 1;
+    const ticks = m.ticks && m.ticks[w] ? '<span class="pj-ticks">' + m.ticks[w].map(s => '<i class="pj-t pj-t-' + s + '"></i>').join('') + '</span>' : '';
+    segs.push('<span class="pj-wk ' + cls + (start ? ' pj-ph-start' : '') + '"><span class="pj-bar"></span>' + ticks + '</span>');
+  }
+  const labels = m.phases.length > 1
+    ? '<span class="pj-phs">' + m.phases.map(x => '<span class="pj-ph' + (x.now ? ' is-now' : '') + '" style="flex:' + (x.to - x.from + 1) + '">' + escapeHtml(x.name) + '</span>').join('') + '</span>'
+    : '';
+  const spoken = (m.week === null ? 'Not started; ' + m.total + ' weeks. ' : 'Week ' + m.week + ' of ' + m.total + (m.paused ? ', paused' : '') + '. ')
+    + (m.phases.length > 1 ? m.phases.map(x => x.name + ', weeks ' + x.from + ' to ' + x.to + (x.now ? ', now' : '')).join('; ') + '. ' : '')
+    + (m.week !== null && m.plannedToDate ? m.done + ' of ' + m.plannedToDate + ' planned sessions so far done.' : '');
+  return '<div class="pj-time" role="img" aria-label="' + escapeAttr(spoken.trim()) + '">' + labels + '<span class="pj-wks">' + segs.join('') + '</span></div>';
+}
+/* This week, as D146 reads it: the day's state, then its kind. Not drawn while paused (nothing is owed) or before the
+   start (E74). Still and untappable — the week itself is Today's, and the program's weeks are the map below. */
+function programJourneyWeekHtml(m){
+  if(m.paused || m.upcoming) return '';
+  let tw = null;
+  try{ tw = deriveThisWeek(); }catch(e){ return ''; }
+  return '<ul class="pj-days" aria-label="This week">' + tw.days.map(d =>
+    '<li class="pj-day pj-d-' + d.status + (d.isToday ? ' pj-d-today' : '') + '"' + (d.category === 'rest' ? '' : ' data-fam="' + trainFamilyOf(d.category) + '"') + '>'
+      + '<span class="sr-only">' + escapeHtml(thisWeekDayName(d)) + '</span>'
+      + '<span class="pj-dl" aria-hidden="true">' + escapeHtml(d.letter) + '</span>'
+      + '<span class="pj-dm" aria-hidden="true">' + (d.status === 'completed' ? checkIconSvg(11) : '') + '</span>'
+      + '<span class="pj-dc" aria-hidden="true">' + (d.category === 'rest' ? '' : escapeHtml(thisWeekCatText(d.category))) + '</span>'
+    + '</li>').join('') + '</ul>';
+}
+/* What is next: the session 10.72's Next named, with its kind, its own name and its size, opening that occurrence. */
+function programJourneyNextHtml(m){
+  if(m.paused || m.upcoming) return '';
+  const today = localDateStr();
+  let n = null;
+  try{
+    const wk = weekOverview();
+    n = (wk.next && wk.next.cat !== 'rest') ? wk.next : myTrainingNextSession();
+  }catch(e){ n = null; }
+  if(!n){
+    const last = m.end && m.end <= civilAddDays(today, 7);
+    return '<div class="pj-next pj-next-none"><span class="pj-next-b"><span class="pj-next-k">Next</span>'
+      + '<span class="pj-next-n">' + (last ? 'No sessions left in your program' : 'Nothing scheduled') + '</span></span></div>';
+  }
+  const off = (PROGRAM_DAY_KEYS.indexOf(n.key) - PROGRAM_DAY_KEYS.indexOf(todayKey()) + 7) % 7;
+  const date = n.isToday ? today : civilAddDays(today, off === 0 ? 7 : off);
+  let pd = null;
+  try{ pd = getProgramWorkoutForDate(date); }catch(e){ pd = null; }
+  const tpl = pd && pd.template ? pd.template : null;
+  let size = '';
+  try{ const shown = tpl ? applyTimeModeToTemplate(tpl) : null; if(shown) size = shown.exercises.length + ' exercise' + (shown.exercises.length === 1 ? '' : 's') + ' · ~' + computeWorkoutDuration(shown) + ' min'; }catch(e){ size = ''; }
+  const when = n.isToday ? 'Today' : off === 1 ? 'Tomorrow' : n.fullLabel;
+  const name = tpl ? tpl.name : (n.workoutName || CAT_LABEL[n.cat]);
+  const open = tpl ? ' onclick="openTrainDetail(\'' + n.cat + '\',\'' + onclickArg(tpl.id) + '\',\'' + date + '\')"' : ' disabled';
+  return '<button type="button" class="pj-next" data-fam="' + trainFamilyOf(n.cat) + '"' + open
+      + ' aria-label="' + escapeAttr('Next: ' + name + ', ' + when + '. Opens the workout.') + '">'
+    + '<span class="pj-next-ic" aria-hidden="true">' + workoutIconHtml(workoutIdentity(tpl, n.cat), 'md') + '</span>'
+    + '<span class="pj-next-b"><span class="pj-next-k">Next · ' + escapeHtml(when) + '</span>'
+      + '<span class="pj-next-n">' + escapeHtml(name) + '</span>'
+      + '<span class="pj-next-s">' + escapeHtml([CAT_LABEL[n.cat], size].filter(Boolean).join(' · ')) + '</span></span>'
+    + '<span class="pj-next-go" aria-hidden="true">' + chevronRightSvg() + '</span></button>';
+}
+function programJourneyHtml(m){
+  if(!m) return '';
+  const status = m.paused ? 'Paused' : m.upcoming ? 'Starts ' + blockDateLabel(m.start, true) : 'Active';
+  const count = m.week === null
+    ? '<span class="pj-count">' + m.total + ' weeks</span>'
+    : '<span class="pj-count">Week <b>' + m.week + '</b> of ' + m.total + '</span>';
+  const cur = m.phases.find(x => x.now);
+  const where = m.paused ? 'Paused since ' + blockDateLabel(m.pausedOn || localDateStr(), true)
+    : m.upcoming ? m.days + ' day' + (m.days === 1 ? '' : 's') + ' a week from ' + blockDateLabel(m.start, true)
+    : (cur ? cur.name + ' · ends ' : 'Ends ') + blockDateLabel(m.end, true);
+  const work = !m.upcoming && m.plannedToDate
+    ? '<span class="pj-work"><b>' + m.done + '</b> of ' + m.plannedToDate + ' sessions done so far</span>'
+    : m.plannedAll ? '<span class="pj-work">' + m.plannedAll + ' sessions planned</span>' : '';
+  /* 10.72's way back from a pause, unchanged: the athlete's programs, where Resume lives */
+  const resume = m.paused ? '<button type="button" class="pj-resume" onclick="closeMyTraining(); openPrograms();">Resume or start a program</button>' : '';
+  return '<section class="pj pj-is-' + (m.paused ? 'paused' : m.upcoming ? 'upcoming' : 'active') + '" aria-label="' + escapeAttr('Program: ' + m.name) + '">'
+    + '<div class="pj-top"><span class="pj-status">' + escapeHtml(status) + '</span>' + count + '</div>'
+    + '<h3 class="pj-name">' + escapeHtml(m.name) + '</h3>'
+    + '<div class="pj-meta">' + escapeHtml([m.goal, m.days + ' day' + (m.days === 1 ? '' : 's') + ' a week'].filter(Boolean).join(' · ')) + '</div>'
+    + foundationChipsHtml({ splitCats: m.split })
+    + programJourneyTimelineHtml(m)
+    + '<div class="pj-facts"><span class="pj-where">' + escapeHtml(where) + '</span>' + work + '</div>'
+    + programJourneyWeekHtml(m) + programJourneyNextHtml(m) + resume
+    + '</section>';
+}
+
 function renderMyTraining(){
   const el = document.getElementById('myTrainingBody');
   if(!el) return;
@@ -54778,6 +55016,11 @@ function renderMyTraining(){
       if(last){ finishedId = last.id; finishedSum = deriveProgramCompletion(last, localDateStr()); }
     }
   }catch(e){}
+
+  /* D150 — a program being trained, paused, or not yet begun is drawn as its journey (programJourneyHtml), in place of
+     the title, the time bar and the two stat cells below; with none, the page is 10.72's. */
+  let journey = null;
+  if(!finishedSum){ try{ journey = programJourneyModel(getActiveProgram()); }catch(e){ journey = null; } }
 
   /* The program says where the athlete is, once. A second progress bar
      underneath the map would be the same fact twice. */
@@ -54807,7 +55050,7 @@ function renderMyTraining(){
   }).join('');
 
   el.innerHTML = `
-    ${finishedSum ? '' : `<div class="mt-hero">
+    ${finishedSum ? '' : journey ? programJourneyHtml(journey) : `<div class="mt-hero">
       <div class="mt-title">${escapeHtml(t.title)}</div>
       <div class="mt-sub">${t.trainingDays} day${t.trainingDays===1?'':'s'} a week${t.structure ? ' · ' + escapeHtml(t.structure) : ''}${t.goal ? ' · ' + escapeHtml(t.goal) : ''}${
         expl && expl.minutes.max ? ' · ~' + (expl.minutes.min === expl.minutes.max ? expl.minutes.min : expl.minutes.min + '\u2013' + expl.minutes.max) + ' min' : ''}${
@@ -54815,7 +55058,7 @@ function renderMyTraining(){
       ${progressLine}
     </div>`}
 
-    ${finishedSum ? '' : myTrainingStatsHtml(t)}
+    ${finishedSum || journey ? '' : myTrainingStatsHtml(t)}
 
     ${/* D51D — unfinished work, offered where the athlete's programs live.
           Below the current program because current training is what this page
@@ -54829,7 +55072,7 @@ function renderMyTraining(){
           when none is running the way into it is stated here, once, above the
           week rather than under it. It never appears while a program is
           running, and it does not disparage training without one. */''}
-    ${(!t.hasProgram && !finishedSum) ? (() => {
+    ${(!t.hasProgram && !finishedSum && !journey) ? (() => {
       let saved = [];
       try{ saved = getPrograms(); }catch(e){}
       /* D140 — the current program, when it is paused: the card above says Paused, so this says how to resume it */

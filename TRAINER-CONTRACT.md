@@ -20403,3 +20403,45 @@ state (E73), a replaced program's days (E75), E66's revision precedence and E72'
 5. **Rank / Mastery:** keep the earned assets; no new decoration.
 6. **Workout logger:** speed first; no decoration.
 7. **Settings:** stays quiet.
+
+## §196 — THE PROGRAM, AS A JOURNEY; TIME AND WORK DRAWN APART (D150 · LOOP 10.73 · loop-v250)
+
+**The problem.** Training → Program described the program rather than showing it.
+- The program was a title and one wrapping sentence: days, the split as "Push / Pull / Legs / Full Body", the goal, minutes.
+- Its position was "Week 4 of 8 · Foundation" over a bar that filled with TIME, which read as progress.
+- "1 / 4 THIS WEEK" sat in a half-width cell beside nothing; the next session was plain text in a second cell.
+- The weeks, the phases and the week's states lived in the map, below the fold.
+
+**The principle (§194, §195).** Show first, explain second, details on demand. Every number and every name stays as text; a colour or a mark never carries information the words do not.
+
+**The journey card.** A program being trained, paused, or not yet begun is one card at the top of the Program tab, in place of the title, the time bar and the two stat cells (and of the paused card):
+- **Status and name:** Active / Paused / Starts <date> as a pill (the progress, warning and action colours), the program's name, its goal and days a week.
+- **Split:** D149's chips — the program's kinds in its order, each in D148's family colour (`foundationChipsHtml`).
+- **The weeks:** a strip of the program's weeks — elapsed, the one it is in (raised), the ones ahead — in the program colour (`--c-program`), a paused week hatched in the warning colour. Grouped and named by the program's **written phases** (`program.blocks`); the single `custom` block every program starts with is not a phase, and no phase, deload or boundary is drawn that the program does not store. The current phase's name is always whole.
+- **The work:** under each week, its planned sessions as ticks — done (progress), missed (a warning outline), today (action), ahead (quiet) — from D43's slots (`deriveProgramPlanFulfillment`).
+- **In words:** where it is ("Foundation · ends Sun, Nov 15", the pause-adjusted end) and "13 of 14 sessions done so far" (`getProgramProgress`: completed of planned-to-date).
+- **This week:** D146's day model (`deriveThisWeek`), still and untappable — the state's mark first (tick, slash, ring, dash), the kind's bar under its word, each day said in words.
+- **Next:** the session 10.72's Next named (`weekOverview().next`, else `myTrainingNextSession`), with its kind's mark and tint, its name and size; it opens that day's own occurrence (`openTrainDetail(cat, id, date)`, D103). After a program's last session: "No sessions left in your program" (D147).
+
+**Time and work are different quantities.** The strip is time (`getCurrentProgramWeek`, pause-adjusted, frozen while paused); the ticks and the count are work (D43's slots). A week elapsed is never a session done; a missed session is never done; a rest day is never missed. The ticks are drawn only while a calendar week is a program week — a program never paused (D89/D90); after a pause the strip and the words carry the position and the pause-adjusted end alone.
+
+**States.**
+- Active: everything above.
+- Paused: "Paused since <date>", the week frozen and hatched; no ticks, no week row and no next (nothing is owed); 10.72's way back ("Resume or start a program" → the athlete's programs, where Resume lives).
+- Not yet begun (E74 is open): "Starts <date>", every week ahead, no week claimed, no week row, no next — only its own planned count.
+- Ended (D147) and completed: not drawn as running. 10.72's finished panel is unchanged; an ended program still offers Program details, where Mark complete stays the athlete's act.
+- No program: 10.72's page byte for byte.
+
+**State vs family.** A completed day is the progress colour and a missed day the warning colour, whatever its kind; the kind is the bar beneath, dimmed when missed. No status, strip or tick reads a family colour.
+
+**Density.** Measured at 390×844 on a program in week 4 of 8: the top region (hero + stats → the card) grows from 328px to 427px because the card now holds this week's states and the next session, which in 10.72 started below the fold at y 680 and later. At 390 the whole card — status, position, phases, work, this week and next — is on the first screen. The page grows by 100px (+3%).
+
+**Not changed:** every reader and writer (lifecycle, progress, week, end, fulfilment, the week model, the next readers), pause / resume / Mark complete / delete, Program Detail, the map, the builder, the Program Guide, Today, Train, D143–D149, E64's low dock, storage. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow.
+
+**App-wide visual roadmap (design, not built in D150).**
+1. **Exercise Detail:** the lift's own art beside its performance evidence; empty states as one line.
+2. **Program Detail and the Program Builder:** the same strip and phase grouping in the detail head; the builder's review as the journey it will become.
+3. **Progress:** keep the evidence charts; a visual form for Weekly Review's count line.
+4. **Log:** keep (the calendar and rows already speak the family colours).
+5. **Rank / Mastery, Logger, Settings:** protect.
+- One story: Train — what kind of workout is this; Today — what am I doing today; Program — where am I in my training journey; Progress — how am I improving; Log — what have I done; Exercise Detail — how is this lift moving.

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.72",
+  "version": "10.73",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner visual review (10.72): on Today, the workout, its kind and muscles read at a glance; This Week shows each day's kind under its state; the Foundation's split and weeks read as structure.",
+  "nextAction": "Owner visual review (10.73): on Training → Program, the program's weeks, phases and sessions done read at a glance, with this week and the next workout under it.",
   "blocker": null,
-  "updatedAt": "2026-10-13T01:26:39Z"
+  "updatedAt": "2026-10-13T09:39:16Z"
 }
