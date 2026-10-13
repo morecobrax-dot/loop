@@ -10445,6 +10445,92 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
 .pj-next:focus-visible, .pj-resume:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
 .pj-resume{ display: block; width: 100%; min-height: 44px; margin-top: 12px; font: inherit; font-weight: 600; color: var(--accent); background: var(--surface-2); border: 1px solid var(--border-quiet); border-radius: var(--radius-lg); }
 /* ==== D150 PROGRAM JOURNEY END ==== */
+/* ==== D151 EXERCISE DETAIL BEGIN ==== */
+/* D151 — EXERCISE DETAIL: the movement, then one card for the answer. The drawing is the existing one, held larger beside
+   the name (still the How To control). The card names the state in Worth Knowing's words and colours; LAST is filled
+   (what was lifted), NEXT is outlined and dashed (what LOOP suggests trying) — a target is never drawn as a result. Where
+   last session sat in the range is a still track with its words beneath. The workouts behind the answer are ruled cells,
+   oldest to latest, each with D137's verdict against the one before in words and a small mark; only a stall or a decline
+   is drawn as a trace, Worth Knowing's. The long-term chart folds to one line. Colour is never the only signal; nothing
+   moves. */
+#exDetailOverlay .exd-hero-top{ align-items: center; }
+#exDetailOverlay .exd-art .ex-thumb{ width: 84px; height: 84px; padding: 3px; border-radius: 20px;
+  background: radial-gradient(90% 80% at 50% 40%, rgba(76,194,255,0.08), transparent 72%), var(--surface-1); }
+#exDetailOverlay .exd-hero-id h2{ font-size: 25px; }
+#exDetailOverlay .exd-facts{ margin-top: 14px; }
+.exd-next .exd-head{ align-items: center; }
+.exd-tag{
+  flex-shrink: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: var(--eyebrow-track); text-transform: uppercase;
+  line-height: 1; padding: 5px 8px; border-radius: 6px; color: var(--text-dim); background: var(--surface-3); white-space: nowrap;
+}
+.exd-tag-up{ color: var(--c-progress); background: var(--c-progress-soft); }
+.exd-tag-build{ color: var(--c-action); background: var(--accent-soft); }
+.exd-tag-down{ color: var(--c-warning); background: var(--c-warning-soft); }
+#exDetailOverlay .exd-ln{ grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr); gap: 4px; align-items: stretch; }
+#exDetailOverlay .exd-ln-col{ padding: 11px 12px 12px; border-radius: 14px; gap: 3px; }
+#exDetailOverlay .exd-ln-k{ white-space: normal; overflow: visible; line-height: 1.3; }
+#exDetailOverlay .exd-ln-done{ background: rgba(148,170,205,0.07); border: 1.5px solid transparent; }
+#exDetailOverlay .exd-ln-plan{ background: transparent; border: 1.5px dashed rgba(148,170,205,0.34); }
+#exDetailOverlay .exd-ln-v{ font-size: 30px; }
+#exDetailOverlay .exd-ln-done .exd-ln-v{ color: var(--text-dim); }
+.exd-ln-x{ font-size: var(--fs-micro); line-height: 1.35; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+#exDetailOverlay .exd-delta{ margin-top: 6px; }
+.exd-pips{ display: flex; gap: 4px; margin-top: 5px; }
+.exd-pips i{ width: 14px; height: 5px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--text-faint); }
+.exd-pips i.on{ background: var(--text-dim); box-shadow: none; }
+.exd-rng{ margin: 14px 2px 0; padding: 20px 7px 0; }
+.exd-rng-track{ position: relative; display: block; height: 6px; border-radius: 3px; background: var(--surface-inset); }
+.exd-rng-band{ position: absolute; top: 0; bottom: 0; border-radius: 3px; background: rgba(148,170,205,0.26); }
+.exd-rng-tick{ position: absolute; top: 11px; transform: translateX(-50%); font-size: var(--fs-micro); line-height: 1; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.exd-rng-dot{ font-style: normal; position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--text); box-shadow: 0 0 0 3px var(--surface-1); }
+.exd-rng-dot b{ position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 12px; font-weight: 700; line-height: 1; color: var(--text); font-variant-numeric: tabular-nums; }
+.exd-rng-under .exd-rng-dot{ background: var(--c-warning); }
+.exd-rng-cap{ display: block; margin-top: 24px; font-size: var(--fs-meta); line-height: 1.35; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.exd-ev-head{ margin: 18px 0 12px; padding-top: 16px; border-top: 1px solid var(--hairline); }
+.exd-ev{ list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 6px; }
+.exd-ev-c{ display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 2px 0 2px 9px; border-left: 1px solid var(--hairline-strong); }
+.exd-ev-c:first-child{ padding-left: 0; border-left: 0; }
+.exd-ev-d{ font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); white-space: nowrap; }
+.exd-ev-v{ font-family: var(--font-display); font-size: 19px; font-weight: 600; line-height: 1.15; letter-spacing: -0.01em; color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.exd-ev-last .exd-ev-v{ color: var(--text); }
+.exd-ev-v small{ font-family: var(--font-ui); font-size: 11px; font-weight: 600; letter-spacing: 0; color: var(--text-faint); }
+.exd-ev-r{ font-size: var(--fs-meta); line-height: 1.3; color: var(--text-dim); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.exd-ev-b{ display: block; margin-top: 2px; font-size: var(--fs-micro); color: var(--text-faint); }
+.exd-ev-s{ display: flex; align-items: center; gap: 4px; min-height: 16px; margin-top: 3px; font-size: var(--fs-micro); font-weight: 700; line-height: 1.2; color: var(--text-faint); }
+.exd-ev-s-up{ color: var(--c-progress); }
+.exd-ev-s-down{ color: var(--c-warning); }
+.exd-ev-s-up::before, .exd-ev-s-down::before{ content: ''; flex-shrink: 0; width: 7px; height: 6px; background: currentColor; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.exd-ev-s-down::before{ clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.exd-ev-cap{ margin: 10px 0 0; font-size: var(--fs-support); line-height: 1.45; color: var(--text-dim); }
+.exd-ev-stalled .exd-ev-c, .exd-ev-declining .exd-ev-c{ align-items: center; text-align: center; padding-left: 0; border-left: 0; }
+.exd-ev-stalled .exd-ev-s, .exd-ev-declining .exd-ev-s{ justify-content: center; }
+.exd-trace-wrap{ position: relative; margin: 2px 0 8px; }
+.exd-trace{ display: block; width: 100%; overflow: visible; }
+.exd-t-ref{ stroke: var(--hairline-strong); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.exd-t-seg{ stroke: var(--text-faint); stroke-width: 2; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.exd-trace-down .exd-t-fall{ stroke: var(--c-warning); }
+.exd-trace-dots{ position: absolute; inset: 0; pointer-events: none; }
+.exd-t-n{ position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--text-dim); }
+.exd-t-first{ background: var(--surface-sheet); box-shadow: inset 0 0 0 1.6px var(--text-dim); }
+.exd-trace-down .exd-t-n:last-child{ background: var(--c-warning); }
+.exd-trend-row{ display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 48px; margin: 0; padding: 12px 14px;
+  background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); box-shadow: var(--elev-1);
+  color: var(--text); font: inherit; font-size: var(--fs-body); text-align: left; cursor: pointer; font-variant-numeric: tabular-nums; -webkit-tap-highlight-color: transparent; }
+.exd-trend-row:active{ background: var(--surface-2); }
+.exd-trend-row:focus-visible{ outline: 2px solid var(--c-action); outline-offset: 2px; }
+.exd-trend-sum{ min-width: 0; }
+.exd-trend-go{ display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; font-size: var(--fs-meta); color: var(--text-faint); white-space: nowrap; }
+.exd-trend-tog{ min-height: 44px; }
+@media (max-width: 359px){
+  #exDetailOverlay .exd-art .ex-thumb{ width: 72px; height: 72px; border-radius: 18px; }
+  #exDetailOverlay .exd-hero-top{ gap: 12px; }
+  #exDetailOverlay .exd-hero-id h2{ font-size: 22px; }
+  #exDetailOverlay .exd-ln-col{ padding: 10px 9px 11px; }
+  #exDetailOverlay .exd-ln-v{ font-size: 27px; }
+  .exd-ev-v{ font-size: 17px; }
+  .exd-ev-c{ padding-left: 7px; }
+}
+/* ==== D151 EXERCISE DETAIL END ==== */
 </style>
 </head>
 <body>
@@ -10656,8 +10742,8 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
           <div class="exd-facts" id="exDetailFacts"></div>
         </div>
         <section class="exd-zone exd-next" id="exDetailNext" aria-labelledby="exdNextH"></section>
-        <section class="exd-zone" id="exDetailChart" aria-labelledby="exdTrendH"></section>
         <section class="exd-zone" id="exDetailStats" aria-labelledby="exdRecH"></section>
+        <section class="exd-zone" id="exDetailChart" aria-labelledby="exdTrendH"></section>
         <section class="exd-zone" id="exDetailHistory" aria-labelledby="exdHistH"></section>
       </div>
     </div>
@@ -20602,6 +20688,25 @@ const LOOP_UPDATES = [
       'This week’s training days sit under your program, each day’s status first and its kind beneath',
       'Your next program workout is one tap away, in its kind’s colours',
       'A paused program shows where it was paused, and one that hasn’t started yet shows when it starts'
+    ],
+    bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v10-74',
+    version: 'LOOP 10.74',
+    title: 'See Your Strength Take Shape',
+    date: '2026-10-13',
+    swVersion: 'loop-v251',
+    summary: 'Exercise Detail now brings the movement and your performance together, making your last session and next progression easier to understand.',
+    newFeatures: [],
+    improvements: [
+      'Each exercise’s drawing sits larger beside its name, and still opens How To',
+      'Your last session and what LOOP suggests next sit side by side, the suggestion drawn as a target rather than a result',
+      'Your last four workouts of a lift sit together, each compared with the one before',
+      'A stalled lift and a declining lift now look different, and each lift’s state is named beside what to do next',
+      'Your long-term strength estimate is one line, with its chart a tap away',
+      'LOOP’s suggestions themselves haven’t changed, only how they’re shown'
     ],
     bugFixes: [],
     changes: []
@@ -39323,6 +39428,9 @@ let exDetailAs = null;
 let exDetailShown = 0;
 let exDetailAllBests = false;
 let exDetailModel = null;
+/* D151 — the long-term chart is on demand: every open starts with it folded, so the page leads with the evidence D49
+   actually read. Ephemeral, never stored. */
+let exDetailTrendShown = false;
 
 function switchProgTab(t){
   progTab = t;
@@ -43735,8 +43843,17 @@ function masteryAfterRender(){
    asked of the engine that already owns it; nothing here scores, recommends, ranks or stores. */
 const EXERCISE_DETAIL = { recent: 5, step: 20, bests: 3 };
 /* D49's own tags in words. 'increase' is named as Progress → Strength names that list. */
-const EXERCISE_REC_STATE = { increase: 'Ready to progress', build: 'Building', reduce: 'Reduce',
-  plateau: 'Hold', hold: 'Hold', decline: 'Hold', insufficient: 'Hold', regain: 'Regain' };
+/* D151 — named as Worth Knowing names the same states (Ready, Reduce, Stalled, Declining), and one word per state: a
+   plateau is Stalled or Declining by D137's own trend (D49's `trend`), and Hold no longer stands in for an incomplete
+   session or a dip. Words and tones only — the tag is always D49's (or D119's), never decided here. */
+const EXERCISE_REC_STATE = { increase: 'Ready', build: 'Building', reduce: 'Reduce', stalled: 'Stalled', declining: 'Declining',
+  hold: 'Hold', decline: 'Fewer reps', insufficient: 'Incomplete', regain: 'Regain' };
+const EXERCISE_REC_TONE = { increase: 'up', build: 'build', reduce: 'down', stalled: 'down', declining: 'down', decline: 'down' };
+function exerciseDetailStateOf(rec){
+  if(!rec) return null;
+  const key = rec.tag === 'plateau' ? (rec.trend === 'declining' ? 'declining' : 'stalled') : rec.tag;
+  return EXERCISE_REC_STATE[key] ? { key, word: EXERCISE_REC_STATE[key], tone: EXERCISE_REC_TONE[key] || 'hold' } : null;
+}
 
 function openExDetail(name, opts){
   exDetailName = name;
@@ -43744,6 +43861,7 @@ function openExDetail(name, opts){
   exDetailAs = opts && typeof opts.as === 'string' && opts.as.trim() && opts.as !== String(name) ? opts.as : null;
   exDetailShown = EXERCISE_DETAIL.recent;
   exDetailAllBests = false;
+  exDetailTrendShown = false;
   renderExDetail();
   const ov = document.getElementById('exDetailOverlay');
   ov.classList.add('open');
@@ -43830,8 +43948,35 @@ function deriveExerciseDetail(name){
   let mastery = null;
   try{ mastery = getExerciseMasteryByName(raw); }catch(e){ mastery = null; }
 
-  return { name: raw, key, sessions, sessionCount: sessions.length, lastDate: sessions.length ? sessions[0].date : null,
-    prMode, isBW, muscles, equipment, best, rec, recReps, last, points, trend, repPoints, bests, mastery };
+  /* D151 — the evidence behind the answer, read as the engine that gave it reads it: a loaded lift's last four ordinary
+     workouts by D137 (exerciseEvidenceOf, from the sessions above), Worth Knowing's own row when D49 calls the lift
+     stalled or declining (worthKnowingLiftItem itself, so the trace there and here are one drawing of one window), and a
+     bodyweight lift's last sessions by D119's own reader. Nothing here judges. */
+  const lastDate = sessions.length ? sessions[0].date : null;
+  let evidence = { win: [], steps: [] }, wk = null, bwWin = [];
+  if(rec && rec.mode === 'bodyweight'){
+    try{ bwWin = (bodyweightSessionHistory(raw, 4) || []).slice().reverse(); }catch(e){ bwWin = []; }
+  } else if(rec && key){
+    evidence = exerciseEvidenceOf(sessions, key);
+    if(rec.tag === 'plateau'){ try{ wk = worthKnowingLiftItem(raw, lastDate); }catch(e){ wk = null; } }
+  }
+
+  return { name: raw, key, sessions, sessionCount: sessions.length, lastDate,
+    prMode, isBW, muscles, equipment, best, rec, recReps, last, points, trend, repPoints, bests, mastery,
+    state: exerciseDetailStateOf(rec), evidence, wk, bwWin };
+}
+
+/* D151 — detectPlateau's own window, read from the sessions Exercise Detail already holds (no second scan of the log):
+   the lift's last four ordinary workouts (a programmed deload is set aside, D123), oldest first, each as D137's evidence
+   and each compared with the one before by D137's own comparison. The newest is the session D49 judged. */
+function exerciseEvidenceOf(sessions, key){
+  const win = [];
+  for(let i = 0; i < sessions.length && win.length < 4; i++){
+    if(isDeloadWorkout(sessions[i].entry)) continue;
+    const e = workoutProgressionEvidence(sessions[i].entry, key);
+    if(e) win.unshift(e);
+  }
+  return { win, steps: win.map((e, i) => i ? compareProgressionEvidence(e, win[i - 1]) : null) };
 }
 
 function exdDate(dateStr){
@@ -43854,35 +43999,129 @@ function exDetailMetaHtml(d){
 function exDetailFactsHtml(d){
   /* A skipped row is in a workout but holds no set, so "no sets", not "never logged". */
   if(!d.sessionCount) return '<span class="exd-fact">No sets logged yet</span>';
-  const state = d.rec ? EXERCISE_REC_STATE[d.rec.tag] : null;
+  /* D151 — the state is named where the answer is (Next session), not here. */
   return '<span class="exd-fact"><b>' + d.sessionCount + '</b> session' + (d.sessionCount === 1 ? '' : 's') + '</span>'
-    + '<span class="exd-fact">Last trained <b>' + escapeHtml(exdDate(d.lastDate)) + '</b></span>'
-    + (state ? '<span class="exd-state exd-state-' + d.rec.tag + '">' + escapeHtml(state) + '</span>' : '');
+    + '<span class="exd-fact">Last trained <b>' + escapeHtml(exdDate(d.lastDate)) + '</b></span>';
+}
+
+/* D151 — one D137 verdict in words: what decided it, against the workout before. */
+const EXD_STEP = {
+  HEAVIER_LOAD: ['Heavier', 'a heavier top set'], LIGHTER_LOAD: ['Lighter', 'a lighter top set'],
+  MORE_TOP_REPS: [null, 'more reps at the same load'], WORSE_TOP_REPS: [null, 'fewer reps at the same load'],
+  BETTER_MATCHED_RIR: [null, 'the same top set with more in reserve'], WORSE_MATCHED_RIR: [null, 'the same top set with less in reserve'],
+  BETTER_BACKOFF: ['Back-offs', 'the same top set and stronger back-off sets'], WORSE_BACKOFF: ['Back-offs', 'the same top set and weaker back-off sets'],
+  EQUIVALENT: ['Same', 'the same as the workout before'], INCOMPARABLE: ['Different sets', 'different sets, so not compared']
+};
+function exdStepWord(v, b, a){
+  if(!v || !EXD_STEP[v.reason]) return null;
+  const reps = n => exdNum(n) + (n === 1 ? ' rep' : ' reps');
+  const word = v.reason === 'MORE_TOP_REPS' ? '+' + reps(b.topReps - a.topReps) : v.reason === 'WORSE_TOP_REPS' ? '−' + reps(a.topReps - b.topReps)
+    : v.reason === 'BETTER_MATCHED_RIR' ? '+' + exdNum(b.topRir - a.topRir) + ' RIR' : v.reason === 'WORSE_MATCHED_RIR' ? '−' + exdNum(a.topRir - b.topRir) + ' RIR'
+    : EXD_STEP[v.reason][0];
+  return { cls: v.verdict === 'better' ? 'up' : v.verdict === 'worse' ? 'down' : 'same', word, said: EXD_STEP[v.reason][1] };
+}
+
+/* D151 — WHERE LAST SESSION SAT IN THE RANGE: D49's own test for adding, building, holding and reducing is the judged
+   session's top reps against the range, so that is what is drawn (and said, beneath it). Nothing projected. */
+function exDetailRangeHtml(d){
+  const r = parseRepRange(d.recReps);
+  const reps = d.last ? d.last.topReps : null;
+  if(!r || reps == null || !(r.max > r.min) || r.max - r.min > 12) return '';
+  const lo = r.min - 2, hi = r.max + 2;
+  const x = v => ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * 100).toFixed(1) + '%';
+  const where = reps > r.max ? 'above' : reps === r.max ? 'top' : reps < r.min ? 'under' : 'in';
+  const cap = repsWord(reps) + ' last time — ' + ({ above: 'above the', top: 'top of the', under: 'under the', in: 'inside the' })[where] + ' ' + r.min + '–' + r.max + ' range';
+  const tick = v => v === reps ? '' : '<span class="exd-rng-tick" style="left:' + x(v) + '">' + v + '</span>';
+  return '<div class="exd-rng exd-rng-' + where + '"><span class="exd-rng-track" aria-hidden="true">'
+    + '<span class="exd-rng-band" style="left:' + x(r.min) + ';right:calc(100% - ' + x(r.max) + ')"></span>'
+    + tick(r.min) + tick(r.max) + '<i class="exd-rng-dot" style="left:' + x(reps) + '"><b>' + exdNum(reps) + '</b></i></span>'
+    + '<span class="exd-rng-cap">' + escapeHtml(cap) + '</span></div>';
+}
+
+/* D151 — FOUR WORKOUTS, as Worth Knowing draws them (wkTraceSvg's levels, widened to the page): one node per workout at
+   the level D137's comparison puts it, the dashed line the first workout's mark. Drawn only for a stall or a decline. */
+function exerciseEvidenceTraceSvg(levels, falling){
+  const n = levels.length, W = 320, STEP = 14, TOP = 10;
+  const H = TOP - Math.min(0, ...levels) * STEP + 10;
+  const x = i => (i + 0.5) / n * W, y = v => TOP - v * STEP, f = v => v.toFixed(1);
+  let out = '<svg class="exd-trace' + (falling ? ' exd-trace-down' : '') + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" style="height:' + H + 'px" aria-hidden="true" focusable="false">'
+    + '<line class="exd-t-ref" x1="' + f(x(0)) + '" x2="' + f(x(n - 1)) + '" y1="' + y(0) + '" y2="' + y(0) + '"/>';
+  levels.forEach((v, i) => { if(i) out += '<line class="exd-t-seg' + (levels[i] < levels[i - 1] ? ' exd-t-fall' : '') + '" x1="' + f(x(i - 1)) + '" y1="' + f(y(levels[i - 1])) + '" x2="' + f(x(i)) + '" y2="' + f(y(v)) + '"/>'; });
+  return out + '</svg><span class="exd-trace-dots" aria-hidden="true">'
+    + levels.map((v, i) => '<i class="exd-t-n' + (i ? '' : ' exd-t-first') + '" style="left:' + ((i + 0.5) / n * 100).toFixed(2) + '%;top:' + y(v) + 'px" data-level="' + v + '"></i>').join('') + '</span>';
+}
+
+/* D151 — THE WORKOUTS BEHIND THE ANSWER. A loaded lift: its last four ordinary workouts by D137, oldest first, each top
+   set as it was lifted, each marked by D137's verdict against the one before (the reserve shown only where the reserve
+   decided, the back-off sets only where they decided). A stall or a decline adds Worth Knowing's four-workout trace,
+   drawn only when its window is these four. A bodyweight lift: D119's sessions, most reps in a set. Under two workouts
+   there is nothing to compare, and nothing is drawn. */
+function exDetailEvidenceHtml(d){
+  const bw = d.rec && d.rec.mode === 'bodyweight';
+  const n = bw ? d.bwWin.length : d.evidence.win.length;
+  if(n < 2) return '';
+  const head = '<div class="exd-head exd-ev-head"><h3 class="exd-k" id="exdEvH">Last ' + n + ' workouts</h3><span class="exd-head-n">oldest → latest</span></div>';
+  const cell = (cls, date, v, unit, r, mark) => '<li class="exd-ev-c' + cls + '"><span class="exd-ev-d">' + escapeHtml(exdDate(date)) + '</span>'
+    + '<span class="exd-ev-v">' + v + '<small> ' + unit + '</small></span>' + (r ? '<span class="exd-ev-r">' + r + '</span>' : '') + mark + '</li>';
+  const markOf = st => st ? '<span class="exd-ev-s exd-ev-s-' + st.cls + '">' + escapeHtml(st.word) + '</span>' : '<span class="exd-ev-s"></span>';
+  if(bw){
+    const w = d.bwWin;
+    const steps = w.map((s, i) => { if(!i) return null; const k = s.topReps - w[i - 1].topReps;
+      return { cls: k > 0 ? 'up' : k < 0 ? 'down' : 'same', word: k > 0 ? '+' + repsWord(k) : k < 0 ? '−' + repsWord(-k) : 'Same' }; });
+    const said = 'Last ' + n + ' workouts, oldest first, most reps in a set: ' + w.map(s => exdDate(s.date) + ', ' + repsWord(s.topReps)).join('; ') + '.';
+    return head + '<div class="exd-ev-wrap" role="group" aria-label="' + escapeAttr(said) + '"><ol class="exd-ev" aria-hidden="true">'
+      + w.map((s, i) => cell(i === n - 1 ? ' exd-ev-last' : '', s.date, exdNum(s.topReps), s.topReps === 1 ? 'rep' : 'reps', '', markOf(steps[i]))).join('') + '</ol></div>';
+  }
+  const win = d.evidence.win, steps = d.evidence.steps;
+  const wk = d.wk && (d.wk.state === 'stalled' || d.wk.state === 'declining') && d.wk.evidence.window.length === n
+    && d.wk.evidence.window.every((o, i) => o.date === win[i].date && o.topLoad === win[i].topLoad && o.topReps === win[i].topReps && o.topRir === win[i].topRir) ? d.wk : null;
+  const stalled = wk && wk.state === 'stalled';
+  const rir = new Set(), backoff = new Set();
+  steps.forEach((v, i) => { if(!v) return; if(/MATCHED_RIR/.test(v.reason)){ rir.add(i); rir.add(i - 1); } if(/BACKOFF/.test(v.reason)){ backoff.add(i); backoff.add(i - 1); } });
+  const rest = o => Object.keys(o.rest).sort((a, b) => b - a).map(k => exdNum(+k) + ' × ' + o.rest[k].map(s => exdNum(s.r)).join(', ')).join(' · ');
+  const cells = win.map((o, i) => {
+    let st = stalled ? null : exdStepWord(steps[i], o, win[i - 1]);
+    if(stalled) st = !i ? { cls: 'ref', word: 'To beat' } : compareProgressionEvidence(o, win[0]).verdict === 'worse' ? { cls: 'down', word: 'Below' } : { cls: 'same', word: 'Matched' };
+    const r = '× ' + exdNum(o.topReps) + (rir.has(i) && o.topRir !== null ? ' @' + exdNum(o.topRir) + ' RIR' : '')
+      + (backoff.has(i) && Object.keys(o.rest).length ? '<span class="exd-ev-b">' + escapeHtml(rest(o)) + '</span>' : '');
+    return cell(i === n - 1 ? ' exd-ev-last' : '', o.date, exdNum(o.topLoad), 'lb', r, markOf(st));
+  }).join('');
+  const cap = !wk ? '' : stalled ? 'None of the last ' + n + ' beat the first.' : 'Each of the last two fell short of the one before, at ' + wkLb(win[n - 1].topLoad) + '.';
+  const said = 'Last ' + n + ' workouts, oldest first: ' + win.map((o, i) => exdDate(o.date) + ', ' + exdNum(o.topLoad) + ' pounds for ' + repsWord(o.topReps)
+    + (i && !stalled && steps[i] ? ', ' + exdStepWord(steps[i], o, win[i - 1]).said : '')).join('; ') + '.' + (cap ? ' ' + cap : '');
+  return head + '<div class="exd-ev-wrap' + (wk ? ' exd-ev-' + wk.state : '') + '" role="group" aria-label="' + escapeAttr(said) + '">'
+    + (wk ? '<div class="exd-trace-wrap">' + exerciseEvidenceTraceSvg(wk.evidence.levels, wk.state === 'declining') + '</div>' : '')
+    + '<ol class="exd-ev" aria-hidden="true">' + cells + '</ol></div>' + (cap ? '<p class="exd-ev-cap">' + escapeHtml(cap) + '</p>' : '');
 }
 
 /* NEXT SESSION — D49's current answer: the session it judged, the load it suggests, and its reason. */
+/* D151 — one card for the whole answer: the state in Worth Knowing's words; LAST, what was lifted (a filled tile), and
+   NEXT, what LOOP suggests trying (an outlined target, never drawn as a result); where last session sat in the range when
+   that is what D49 read; D49's reason; and the workouts behind it. Every number is still the engine's. */
 function exDetailNextHtml(d){
-  const head = '<div class="exd-head"><h3 class="exd-k" id="exdNextH">Next session</h3></div>';
+  const st = d.state;
+  const head = '<div class="exd-head"><h3 class="exd-k" id="exdNextH">Next session</h3>'
+    + (st && d.sessionCount ? '<span class="exd-tag exd-tag-' + st.tone + '">' + escapeHtml(st.word) + '</span>' : '') + '</div>';
   const lift = escapeHtml(d.name.trim() || 'this exercise');
   if(!d.sessionCount) return head + '<p class="exd-empty">Log ' + lift + ' once and LOOP will suggest what to lift next time.</p>';
   const rec = d.rec, last = d.last;
+  const tile = (cls, k, v, unit, r, extra) => '<div class="exd-ln-col ' + cls + '"><span class="exd-ln-k">' + k + '</span>'
+    + '<span class="exd-ln-v">' + v + '<small> ' + unit + '</small></span><span class="exd-ln-r">' + r + '</span>' + (extra || '') + '</div>';
   if(rec && rec.mode === 'bodyweight'){
     if(rec.reps == null) return head + '<p class="exd-empty">' + escapeHtml(rec.why) + '</p>';
-    const bwCol = (k, reps, cls, extra) => '<div class="exd-ln-col' + (cls ? ' ' + cls : '') + '">'
-      + '<span class="exd-ln-k">' + k + '</span>'
-      + '<span class="exd-ln-v">' + reps + '<small> ' + (reps === 1 ? 'rep' : 'reps') + '</small></span>' + (extra || '') + '</div>';
     const more = rec.delta > 0 ? '+' + repsWord(rec.delta) : 'Match';
     /* Heard as one sentence; the columns are its picture, so they are not read twice. */
     const said = 'Last session, ' + exdDate(rec.lastDate) + ', ' + repsWord(rec.lastReps) + '. Next target, ' + repsWord(rec.reps) + '. '
       + (rec.delta > 0 ? 'Aim to add ' + repsWord(rec.delta) + '.' : 'Aim to match it.');
     return head
       + '<div class="exd-ln" aria-hidden="true">'
-      + bwCol('Last · ' + escapeHtml(exdDate(rec.lastDate)), rec.lastReps, '')
+      + tile('exd-ln-done', 'Last · ' + escapeHtml(exdDate(rec.lastDate)), rec.lastReps, rec.lastReps === 1 ? 'rep' : 'reps', 'Bodyweight')
       + '<span class="exd-ln-arrow">' + chevronRightSvg() + '</span>'
-      + bwCol('Next', rec.reps, 'exd-ln-to', '<span class="exd-delta exd-delta-' + (rec.delta > 0 ? 'up' : 'same') + '">' + more + '</span>')
+      + tile('exd-ln-to exd-ln-plan', 'Next target', rec.reps, rec.reps === 1 ? 'rep' : 'reps', 'Bodyweight', '<span class="exd-delta exd-delta-' + (rec.delta > 0 ? 'up' : 'same') + '">' + more + '</span>')
       + '</div>'
       + '<p class="sr-only">' + escapeHtml(said) + '</p>'
-      + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>';
+      + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>'
+      + exDetailEvidenceHtml(d);
   }
   if(!rec || rec.weight == null || !last){
     return head + '<p class="exd-empty">' + (d.isBW
@@ -43892,17 +44131,25 @@ function exDetailNextHtml(d){
   const change = rec.weight - last.weight;
   const delta = change > 0 ? '+' + exdNum(change) + ' lb' : change < 0 ? '−' + exdNum(-change) + ' lb' : 'Same load';
   const dir = change > 0 ? 'up' : change < 0 ? 'down' : 'same';
-  const col = (k, w, reps, cls, extra) => '<div class="exd-ln-col' + (cls ? ' ' + cls : '') + '">'
-    + '<span class="exd-ln-k">' + k + '</span>'
-    + '<span class="exd-ln-v">' + exdNum(w) + '<small> lb</small></span>'
-    + '<span class="exd-ln-r">× ' + escapeHtml(reps) + ' reps</span>' + (extra || '') + '</div>';
+  /* what D49 read of the judged session: its sets against the prescription, and its reserve — unknown when none was logged, never 0 */
+  const sets = last.prescribedSets ? last.workingSets + ' of ' + last.prescribedSets + ' sets' : last.workingSets + ' set' + (last.workingSets === 1 ? '' : 's');
+  const rir = last.avgRir == null ? 'RIR not logged' : '~' + Math.round(last.avgRir) + '\u00a0RIR';
+  const pips = rec.tag === 'insufficient' && last.prescribedSets
+    ? '<span class="exd-pips">' + Array.from({ length: Math.min(8, last.prescribedSets) }, (_, i) => '<i' + (i < last.workingSets ? ' class="on"' : '') + '></i>').join('') + '</span>' : '';
+  const said = 'Last session, ' + exdDate(last.date) + ', ' + exdNum(last.weight) + ' pounds for ' + repsWord(last.topReps) + ', ' + sets + ', '
+    + (last.avgRir == null ? 'reps in reserve not logged' : 'about ' + Math.round(last.avgRir) + ' in reserve') + '. Next target, '
+    + exdNum(rec.weight) + ' pounds for ' + exdRange(d.recReps) + ' reps, ' + (change > 0 ? exdNum(change) + ' pounds more' : change < 0 ? exdNum(-change) + ' pounds less' : 'the same load') + '.';
   return head
-    + '<div class="exd-ln">'
-    + col('Last · ' + escapeHtml(exdDate(last.date)), last.weight, String(last.topReps), '')
-    + '<span class="exd-ln-arrow" aria-hidden="true">' + chevronRightSvg() + '</span>'
-    + col('Next', rec.weight, exdRange(d.recReps), 'exd-ln-to', '<span class="exd-delta exd-delta-' + dir + '">' + delta + '</span>')
+    + '<div class="exd-ln" aria-hidden="true">'
+    + tile('exd-ln-done', 'Last · ' + escapeHtml(exdDate(last.date)), exdNum(last.weight), 'lb', '× ' + escapeHtml(String(last.topReps)) + ' reps',
+      '<span class="exd-ln-x">' + escapeHtml(sets + ' · ' + rir) + '</span>' + pips)
+    + '<span class="exd-ln-arrow">' + chevronRightSvg() + '</span>'
+    + tile('exd-ln-to exd-ln-plan', 'Next target', exdNum(rec.weight), 'lb', '× ' + escapeHtml(exdRange(d.recReps)) + ' reps', '<span class="exd-delta exd-delta-' + dir + '">' + delta + '</span>')
     + '</div>'
-    + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>';
+    + '<p class="sr-only">' + escapeHtml(said) + '</p>'
+    + (/^(increase|build|hold|reduce)$/.test(rec.tag) ? exDetailRangeHtml(d) : '')
+    + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>'
+    + exDetailEvidenceHtml(d);
 }
 
 /* The one chart: actual observations only, on a date scale, no smoothing and no
@@ -43939,8 +44186,19 @@ function exerciseTrendSvg(points, label){
 
 /* PERFORMANCE TREND — Strength's own figure for this lift (D98), drawn from the same points. */
 function exDetailTrendHtml(d){
-  const head = '<div class="exd-head"><h3 class="exd-k" id="exdTrendH">Strength trend</h3></div>';
+  /* D151 — Strength's long-run estimate, named for what it is and folded: it is a different comparison from the one D49
+     decides by, so it is one line until asked for, and drawn exactly as before when it is. */
+  const drawn = !!(d.trend || (d.repPoints && d.repPoints.length >= 2));
+  const head = '<div class="exd-head"><h3 class="exd-k" id="exdTrendH">Long-term strength</h3>'
+    + (drawn && exDetailTrendShown ? '<button type="button" class="exd-link exd-trend-tog" aria-expanded="true" onclick="exDetailToggleTrend()">Hide chart</button>' : '') + '</div>';
   const lift = d.name.trim();
+  if(drawn && !exDetailTrendShown){
+    const pct = d.trend ? Math.round(d.trend.pct) : 0;
+    const sum = d.trend ? (d.trend.pct >= 0 ? '+' : pct < 0 ? '−' : '') + Math.abs(pct) + '% estimated 1RM · ' + d.points.length + ' workouts since ' + exdDate(d.points[0].date)
+      : 'Most reps in a set · ' + d.repPoints.length + ' workouts since ' + exdDate(d.repPoints[0].date);
+    return head + '<button type="button" class="exd-trend-row" aria-expanded="false" onclick="exDetailToggleTrend()">'
+      + '<span class="exd-trend-sum">' + escapeHtml(sum) + '</span><span class="exd-trend-go">Show chart ' + chevronRightSvg() + '</span></button>';
+  }
   const end = (k, p, unit) => '<span class="exd-end"><i>' + escapeHtml(k) + ' · ' + escapeHtml(formatDateShort(p.date)) + '</i>'
     + '<b>' + p.value + '<small> ' + (unit === 'reps' && p.value === 1 ? 'rep' : unit) + '</small></b></span>';
   if(d.trend){
@@ -43972,6 +44230,16 @@ function exDetailTrendHtml(d){
   return head + '<p class="exd-empty">' + (d.sessionCount
     ? 'More history needed. A trend appears once two workouts have ' + (d.isBW ? 'reps' : 'a weight and reps') + ' logged for ' + escapeHtml(lift) + ' (so far: ' + have + ').'
     : 'Your trend for ' + escapeHtml(lift || 'this exercise') + ' starts with your second workout.') + '</p>';
+}
+
+/* D151 — the long-term chart, opened and folded in place; the control keeps the focus. */
+function exDetailToggleTrend(){
+  if(!exDetailModel) return;
+  exDetailTrendShown = !exDetailTrendShown;
+  const host = document.getElementById('exDetailChart');
+  host.innerHTML = exDetailTrendHtml(exDetailModel);
+  const b = host.querySelector('button');
+  if(b && b.focus) b.focus({ preventScroll: true });
 }
 
 /* RECORDS + MASTERY — D96A's best ever, D82's personal bests, D86's mastery. */
@@ -44071,6 +44339,7 @@ function renderExDetail(){
   const next = document.getElementById('exDetailNext');
   next.innerHTML = exDetailNextHtml(d);
   next.classList.toggle('exd-next-quiet', !d.rec || (d.rec.mode === 'bodyweight' ? d.rec.reps == null : (d.rec.weight == null || !d.last)));
+  next.setAttribute('data-state', d.state && d.sessionCount ? d.state.key : 'none');
   document.getElementById('exDetailChart').innerHTML = exDetailTrendHtml(d);
   document.getElementById('exDetailStats').innerHTML = exDetailRecordsHtml(d);
   document.getElementById('exDetailHistory').innerHTML = exDetailHistoryHtml(d);

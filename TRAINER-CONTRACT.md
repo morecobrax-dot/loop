@@ -20445,3 +20445,48 @@ state (E73), a replaced program's days (E75), E66's revision precedence and E72'
 4. **Log:** keep (the calendar and rows already speak the family colours).
 5. **Rank / Mastery, Logger, Settings:** protect.
 - One story: Train — what kind of workout is this; Today — what am I doing today; Program — where am I in my training journey; Progress — how am I improving; Log — what have I done; Exercise Detail — how is this lift moving.
+
+## §197 — EXERCISE DETAIL: THE MOVEMENT, THE ANSWER, AND THE EVIDENCE BEHIND IT (D151 · LOOP 10.74 · loop-v251)
+
+**The problem.** Exercise Detail held the right numbers in the wrong order, and one picture that told a different story from the engine.
+- The state was a badge in the hero, and four different D49 answers (a stall, a decline, a hold, an incomplete session) all read "Hold".
+- LAST and NEXT were drawn alike, so a suggested load could read as a result.
+- The workouts D49 and D137 actually compared were nowhere on the page. Worth Knowing drew them; the page it opens did not.
+- The page's one chart was the estimated 1RM, first workout to latest, drawn open under the answer. It is a different comparison from the one D49 decides by: a lift READY for more weight sat over a 1RM line that dipped where the load went up (135 × 12 → 140 × 9), labelled "Holding".
+
+**The principle (§194–§196).** Show first, explain second, details on demand. Every number is the engine's own and stays as text; a colour, a mark or a line never carries something the words do not.
+
+**The page, top to bottom.**
+- **The movement:** the existing drawing (`exerciseThumbHtml`, the one sprite every surface uses), held at 84px (72px under 360px) beside the name, still the How To control. A lift with no drawing shows none — never another movement's (E52).
+- **One card for the answer:**
+  - the state, in Worth Knowing's words and colours where it is the same state — Ready, Reduce, Stalled, Declining — and one word per D49 tag elsewhere (Building, Hold, Incomplete, Fewer reps; D119's Regain). A plateau is Stalled or Declining by D49's own `trend`. Words only; the tag is always D49's (or D119's).
+  - LAST, a filled tile: the session D49 judged (`exerciseSessionHistory(name, 1)[0]`), its date, top load and reps, its sets against the prescription and its average reserve — "RIR not logged" when none was, never 0.
+  - NEXT, an outlined, dashed tile labelled "Next target": D49's load (or D119's reps) over the lift's range (`repRangeForExercise`), and the change as a word and a sign. A target is never drawn as a result: no fill, no record mark.
+  - where last session sat in the range, when that is what D49 read (increase, build, hold, reduce): a still track with the range as a band and the session's top reps as a dot, and the words beneath ("12 reps last time — top of the 8–12 range"). An incomplete session shows its sets as marks instead (one of three filled).
+  - D49's reason, unchanged.
+  - **the workouts behind it**, in the same card: a loaded lift's last four ordinary workouts as D137 reads them (`exerciseEvidenceOf`: detectPlateau's own window, deloads set aside, read from the sessions the page already holds), oldest to latest, each top set as lifted, each marked by D137's verdict against the one before in words (Heavier, +2 reps, +1 RIR, Back-offs, Same, Different sets) and a small up or down mark. The reserve is shown only where the reserve decided; the back-off sets only where they decided. A bodyweight lift: D119's sessions, most reps in a set. Fewer than two workouts: nothing.
+  - **a stall or a decline** adds Worth Knowing's four-workout trace (`worthKnowingLiftItem`'s own levels, drawn wider), only when its window is the same four: Stalled is level on the first workout's dashed line ("None of the last 4 beat the first."); Declining falls, in the warning colour ("Each of the last two fell short of the one before, at 205 lb."). Nothing else is ever drawn as a line.
+- **Records & mastery:** unchanged, now before the long-term figure.
+- **Long-term strength:** Strength's estimated 1RM, folded to one line ("+4% estimated 1RM · 4 workouts since Sep 22 · Show chart"); the chart, exactly as before, a tap away. Every open starts folded.
+- **Recent workouts:** unchanged.
+
+**The visualization contract.** For each state: the claim, the canonical evidence, the encoding, what stays text, and what would mislead.
+- READY / BUILD / HOLD / REDUCE — claim: D49's answer from the judged session's top reps against the range (and its reserve and completeness); evidence: `exerciseSessionHistory`, `parseRepRange`; encoding: the range track; text: the caption and D49's reason; misleading: a projected rep count, a 1RM.
+- INCOMPLETE — claim: the prescription was not performed; evidence: working sets against `rx.sets`; encoding: set marks; misleading: a range or a trend.
+- STALLED / DECLINING — claim: D137's plateau over the last four ordinary workouts; evidence: `plateauWindowOf` / `plateauStepsOf` through `worthKnowingLiftItem`; encoding: Worth Knowing's trace; misleading: a load line (the load did not move), a trace drawn without D49's verdict.
+- Any comparison of two workouts — claim: D137's verdict; evidence: `compareProgressionEvidence`; encoding: a word and a mark per step, never a line; misleading: a reps-only or 1RM line when the load changed (100 × 12 → 110 × 9 → 120 × 7 reads "Heavier", "Heavier").
+- Missing reserve is unknown, never 0 or failure. Back-offs that decided are shown, so a top-set-only picture never contradicts the verdict.
+
+**Worth Knowing and Exercise Detail tell one story.** A READY or REDUCE row opens a card with the same LAST, NEXT and change; a STALLED or DECLINING row opens the same four workouts at the same levels. Exercise Detail calls `worthKnowingLiftItem` itself for a plateau, so the two cannot drift.
+
+**Found, not fixed:** E76 — an assisted lift's counterweight is read as load (§95 held it), so D49 suggests more assistance as progress. Exercise Detail draws D49's answer as every other surface does.
+
+**Density.** Measured at 390×844 in headless Edge on a lift ready for more weight (four workouts): LAST and NEXT start where they did (255 → 259 px from the top of the sheet) and the drawing grows from 64 to 84 px. The card — state, LAST → NEXT, the range, the reason and the four workouts — ends at 662 px, where 10.73's answer ended at 426 px and was followed by a 309 px estimated-1RM chart, so Records & mastery now begins 73 px higher (761 → 688). The top card is 55% taller because it now carries the evidence the chart's place held. The page grows 1,425 → 1,464 px (+2.7%); across the fixtures from −0.8% (an incomplete session) to +13.5% (a single session, which now shows its range).
+
+**Not changed:** D49, D47, D50B, D85, D119, D125, D126/D137, D141, records, Mastery, identity, the history list, the markup's zones (Records & mastery now before Long-term strength), Train, Today, the Program, E64's low dock, storage. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow.
+
+**App-wide visual roadmap (design, not built in D151).**
+1. **Progress:** keep the evidence charts; Ready to progress and All exercises could carry the same state words and the target-not-result tile.
+2. **Log:** keep; a workout's lifts could open Exercise Detail directly.
+3. **Program Detail and the Program Builder:** D150's held follow-ups.
+- One story: Train — what kind of workout is this; Today — what am I doing today; Program — where am I in my training journey; Exercise Detail — what this lift is, how it is moving and what to do next; Progress — how am I improving; Log — what have I done.

@@ -2639,6 +2639,24 @@ for the switch, so it cannot tell the days the old program still owned from the 
 **Why it was not fixed in D147.** Closing it needs the date the athlete chose another program, which LOOP does not store.
 D147 adds nothing to storage and does not guess that date.
 
+## E76 — An assisted lift's counterweight is read as load, so needing more help reads as getting stronger · P3 · PROVEN · OPEN
+
+Found by D151 while checking Exercise Detail's bodyweight states, and left as 10.73 has it. §95 (D64) held it when the
+movement library was built; it had never been recorded as a finding.
+
+**What happens.** Assisted Pull-Up (and Assisted Dip) is logged with the machine's counterweight in the weight field, and
+LOOP reads that number as load: D91 calls the lift loaded, D49 progresses it, and records and the estimated 1RM rank it.
+On an assisted machine more weight is more help, so every one of those readers points the wrong way.
+
+**Measured.** Assisted Pull-Up, 60 lb of assistance, 3 × 8 then 3 × 10 at ~2 RIR against the plan's 6–10: D49 answers
+increase, "65 lb × 6–10" — five more pounds of help. Worth Knowing shows it as READY "+5 lb next session", and Exercise
+Detail (10.73 and 10.74 alike) shows LAST 60 → NEXT 65, "+5 lb". §95 recorded the other half: going from 80 to 40 of
+assistance gave no records, a falling trend and "stalled".
+
+**Why it was not fixed in D151.** Reading a counterweight as negative load is progression and identity policy (D49, D91,
+the record walks), and D151 is presentation only. Exercise Detail draws D49's answer exactly as Worth Knowing and the
+workout do, so the three never disagree while the policy stands.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

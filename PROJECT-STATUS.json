@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.73",
+  "version": "10.74",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner visual review (10.73): on Training → Program, the program's weeks, phases and sessions done read at a glance, with this week and the next workout under it.",
+  "nextAction": "Owner visual review (10.74): open any lift — its drawing, LAST beside the NEXT target, its state, and the workouts behind it read at a glance.",
   "blocker": null,
-  "updatedAt": "2026-10-13T09:39:16Z"
+  "updatedAt": "2026-10-13T14:38:52Z"
 }
