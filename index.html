@@ -10327,6 +10327,51 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
 .tl-kind[data-fam]::before{ content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--fam); vertical-align: 1px; }
 @media (prefers-reduced-motion: reduce){ .tq-build, .tq-btn{ transition: none; } .tq-build:active, .tq-btn:active{ transform: none; } }
 /* ==== D148 TRAIN IDENTITY END ==== */
+/* ==== D149 TODAY AT A GLANCE BEGIN ==== */
+/* =========================================================
+   TODAY SHOWS THE TRAINING DAY (Phase D149) — the last layer of the sheet, as one block.
+   D148's family identity ([data-fam] → --fam / --fam-rgb, LOOP's own category tones) carried onto Today:
+   · the hero: the kind's band and its mark drawn large and faint (as on Train), then the workout itself, what it
+     trains and its size — the kind is still the heading, the action still the one filled button;
+   · This Week: a small bar in the kind's colour under each training day's word. The day's state (the tick, the slash,
+     the ring, the dash and their colours) comes first and is never replaced; a missed day's bar is dimmed, a rest day
+     has none;
+   · the Training Foundation: the split as its kinds, and the program's weeks as a strip;
+   · Objectives: a count of a few as that many segments; a kind's objective in its colour.
+   State outranks family everywhere: a completed hero's cap is the progress colour, whatever the kind. Nothing here
+   animates, fetches or takes a tap.
+   ========================================================= */
+/* the hero */
+.tw[data-fam]{ background: linear-gradient(180deg, rgba(var(--fam-rgb), 0.17) 0, rgba(var(--fam-rgb), 0.05) 96px, rgba(var(--fam-rgb), 0) 150px), var(--grad-hero); }
+.tw-done-hero[data-fam]{ background: linear-gradient(180deg, rgba(var(--fam-rgb), 0.09) 0, rgba(var(--fam-rgb), 0) 120px), var(--grad-hero); }
+.tw.tw-done-hero::before{ background: var(--c-progress); }
+.tw > .tw-art{ position: absolute; z-index: 0; right: 8px; top: 10px; width: 64px; height: 64px; opacity: 0.2; pointer-events: none; transform: rotate(-8deg); }
+.tw > .tw-art .wi{ width: 100%; height: 100%; color: var(--fam); }
+.tw > .tw-art .wi svg{ stroke-width: 1.3; }
+.tw-name{ font-family: var(--font-display); font-size: 18px; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; color: var(--text); margin-top: 6px; overflow-wrap: anywhere; }
+.tw-muscles{ font-size: 13px; line-height: 1.4; color: var(--text-dim); margin-top: 2px; }
+.tw-muscles .tl-muscles-2{ color: var(--text-faint); }
+.tw-name ~ .tw-meta{ margin-top: 3px; font-size: 12px; color: var(--text-faint); }
+/* a rest day's next session carries its kind's dot */
+.tw-next[data-fam] .tw-next-v::before{ content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: var(--fam); vertical-align: 1px; }
+/* This Week: the kind's bar under the day's word; the state above it decides what the day says */
+.wk2 .wk-day[data-fam] .wk-dc::after{ content: ''; display: block; width: 14px; height: 3px; margin: 4px auto 0; border-radius: 2px; background: var(--fam); }
+.wk2 .wk2-missed[data-fam] .wk-dc::after{ opacity: 0.4; }
+/* the Training Foundation: its kinds, and its weeks */
+.fd-split{ display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.fd-chip{ display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 7px; border-radius: 999px; background: rgba(var(--fam-rgb), 0.13); font-size: 12px; line-height: 1.4; color: var(--text); }
+.fd-chip::before{ content: ''; flex: 0 0 auto; width: 7px; height: 7px; border-radius: 50%; background: var(--fam); }
+.fd-weeks{ display: flex; gap: 3px; margin-top: 10px; }
+.fd-wk{ flex: 1 1 0; height: 4px; border-radius: 2px; background: var(--surface-3); }
+.fd-wk.is-past{ background: rgba(143,124,247,0.42); }
+.fd-wk.is-now{ background: var(--c-program); }
+/* Objectives: a count of a few as that many segments; a kind's objective in its colour */
+.obj-bar.obj-seg{ height: 6px; background: var(--surface-3);
+  -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 calc(100% / var(--obj-n) - 3px), transparent calc(100% / var(--obj-n) - 3px) calc(100% / var(--obj-n)));
+  mask-image: repeating-linear-gradient(90deg, #000 0 calc(100% / var(--obj-n) - 3px), transparent calc(100% / var(--obj-n) - 3px) calc(100% / var(--obj-n))); }
+.obj-row[data-fam]:not(.obj-row-done) .obj-bar > span{ background: var(--fam); }
+.obj-row[data-fam] .obj-t::before{ content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--fam); vertical-align: 1px; }
+/* ==== D149 TODAY AT A GLANCE END ==== */
 </style>
 </head>
 <body>
@@ -20449,6 +20494,25 @@ const LOOP_UPDATES = [
       'Your saved workouts show their kind with a coloured dot'
     ],
     bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v10-72',
+    version: 'LOOP 10.72',
+    title: 'Your Training Day, At a Glance',
+    date: '2026-10-12',
+    swVersion: 'loop-v249',
+    summary: 'Today now makes your workout, your week’s training rhythm and your program easier to recognise at a glance.',
+    newFeatures: [],
+    improvements: [
+      'Today’s workout card shows the workout’s own name and the muscles it trains, in its kind’s colours',
+      'This Week marks each training day with its kind’s colour, beneath the day’s status',
+      'The Training Foundation shows your program’s split as its kinds and its weeks as a strip',
+      'Weekly objectives with a few sessions to log show each one as a segment'
+    ],
+    bugFixes: [
+      'A completed workout’s card now shows the completion colour along its top edge'
+    ],
     changes: []
   }
 ];
@@ -32441,7 +32505,7 @@ function renderTodayWorkout(){
   if(doneToday){
     const wid = workoutIdentity(doneToday, doneToday.category);
     el.innerHTML = `
-      <div class="tw tw-${doneToday.category || cat} tw-done-hero tw-wi wi-c-${wid.colorId}">
+      <div class="tw tw-${doneToday.category || cat} tw-done-hero tw-wi wi-c-${wid.colorId}" data-fam="${trainFamilyOf(doneToday.category || cat)}">
         <div class="tw-label">Workout complete</div>
         <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${escapeHtml(doneToday.title || CAT_LABEL[doneToday.category] || 'Workout')}</span></div>
         <div class="tw-meta">Completed today · ${doneToday.exercises.length} exercise${doneToday.exercises.length===1?'':'s'} · ${sessionVolume(doneToday).toLocaleString()} lb</div>
@@ -32493,7 +32557,7 @@ function renderTodayWorkout(){
         if(dur) bits.push(`~${dur} min`);
       }
       nextPreview = `
-        <div class="tw-next">
+        <div class="tw-next" data-fam="${trainFamilyOf(nextCat)}">
           <span class="tw-next-k">Next</span>
           <span class="tw-next-v">${DAY_LABEL_FULL[nextDay]} · ${escapeHtml(tpl ? tpl.name : CAT_LABEL[nextCat])}</span>
           ${bits.length ? `<span class="tw-next-s">${bits.join(' · ')}</span>` : ''}
@@ -32547,11 +32611,17 @@ function renderTodayWorkout(){
     : `<button class="tw-cta tw-cta-ghost" onclick="goToTrainCategory('${cat}')">Add a ${CAT_LABEL[cat]} workout</button>`;
 
   const wid = workoutIdentity(first, cat);
+  /* D149 — show the day before telling it: the kind's family (D148's identity, [data-fam]) on the card and its mark
+     drawn large and faint, then the workout itself, what it trains (Train's own reader), and its size. */
+  const muscles = shown ? trainMusclesHtml(shown) : '';
   el.innerHTML = `
-    <div class="tw tw-${cat} tw-wi wi-c-${wid.colorId}">
+    <div class="tw tw-${cat} tw-wi wi-c-${wid.colorId}" data-fam="${trainFamilyOf(cat)}">
+      <span class="tw-art" aria-hidden="true">${workoutIconHtml({ iconId: workoutCategoryIcon(cat) }, 'lg')}</span>
       <div class="tw-label">Today's Workout</div>
       <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${CAT_LABEL[cat]}</span></div>
-      <div class="tw-meta">${first ? escapeHtml(first.name) + ' · ' + meta : meta}</div>
+      ${first ? `<div class="tw-name">${escapeHtml(first.name)}</div>` : ''}
+      ${muscles ? `<div class="tw-muscles">${muscles}</div>` : ''}
+      <div class="tw-meta">${meta}</div>
       ${timeModeNoteHtml(first)}
       ${cta}
       ${first ? `<div class="tw-actions">
@@ -33459,7 +33529,7 @@ function renderWeekCard(){
 
   /* 2 — the seven days. Today is the letter's mark; selection is the cell's. Neither borrows the other's. */
   const cells = m.days.map(d => `
-    <button type="button" class="wk-day wk-${d.state} wk2-${d.status}${d.isToday ? ' wk2-today' : ''}${d.isSelected ? ' wk-selected' : ''}"
+    <button type="button" class="wk-day wk-${d.state} wk2-${d.status}${d.isToday ? ' wk2-today' : ''}${d.isSelected ? ' wk-selected' : ''}"${d.category === 'rest' ? '' : ' data-fam="' + trainFamilyOf(d.category) + '"'}
             data-key="${d.key}" aria-pressed="${d.isSelected ? 'true' : 'false'}"${d.isToday ? ' aria-current="date"' : ''}
             aria-label="${escapeAttr(thisWeekDayName(d))}">
       <span class="wk-dl">${d.letter}</span>
@@ -38592,11 +38662,12 @@ function objectiveRowHtml(inst){
   const done = !!inst.completedAt;
   const just = done && objectivesJustCompleted.indexOf(inst.id) !== -1;
   const bar = (!done && p.target > 1)
-    ? '<span class="obj-bar" aria-hidden="true"><span style="width:' + Math.round(p.ratio * 100) + '%"></span></span>'
+    /* D149 — a count of a few is drawn as that many segments: the target and the count the line beside it states */
+    ? '<span class="obj-bar' + (p.target <= 10 ? ' obj-seg' : '') + '" aria-hidden="true" style="--obj-n:' + p.target + '"><span style="width:' + Math.round(p.ratio * 100) + '%"></span></span>'
     : '';
   const line = done ? 'Complete' : escapeHtml(p.detail || '');
   return '' +
-    '<div class="obj-row' + (done ? ' obj-row-done' : '') + (just ? ' obj-row-new' : '') + '">' +
+    '<div class="obj-row' + (done ? ' obj-row-done' : '') + (just ? ' obj-row-new' : '') + '"' + (inst.objectiveType === 'week_category' && inst.target ? ' data-fam="' + trainFamilyOf(inst.target.category) + '"' : '') + '>' +
       '<span class="obj-mark" aria-hidden="true">' + (done ? checkIconSvg(13) : ringIconSvg(13)) + '</span>' +
       '<span class="obj-body">' +
         '<span class="obj-t">' + escapeHtml(inst.title) + '</span>' +
@@ -53619,6 +53690,24 @@ function foundationSplit(labels){
   return labels.filter(l => l && !seen[l] && (seen[l] = true));
 }
 
+/* D149 — the split as its kinds: [label, category] pairs read in the same pass as the labels, so a chip carries the
+   kind's family (D148) without a second reader. Kept in order, one per label, as foundationSplit keeps the words. */
+function foundationSplitCats(pairs){
+  const seen = {};
+  return pairs.filter(p => p[0] && !seen[p[0]] && (seen[p[0]] = true));
+}
+function foundationChipsHtml(f){
+  const cats = (f && f.splitCats) || [];
+  return cats.length ? '<span class="fd-split">' + cats.map(p => '<span class="fd-chip" data-fam="' + trainFamilyOf(p[1]) + '">' + escapeHtml(p[0]) + '</span>').join('') + '</span>' : '';
+}
+/* D149 — the program's weeks as a strip: the ones elapsed, the one it is in, the ones ahead. Drawn only from the week
+   and the total the card already states, and only when there are few enough to read as weeks. */
+function foundationWeeksHtml(f){
+  if(!f || !f.week || !f.totalWeeks || f.totalWeeks > 24) return '';
+  let h = '';
+  for(let i = 1; i <= f.totalWeeks; i++) h += '<span class="fd-wk' + (i < f.week ? ' is-past' : i === f.week ? ' is-now' : '') + '"></span>';
+  return '<span class="fd-weeks" aria-hidden="true">' + h + '</span>';
+}
 function deriveTrainingFoundation(todayStr){
   const today = todayStr || localDateStr();
   let p = null, saved = 0;
@@ -53633,6 +53722,7 @@ function deriveTrainingFoundation(todayStr){
     try{ progress = getProgramProgress(p, today); }catch(e){ progress = null; }
     return { kind: 'program', program: p, name: p.name, goal, days,
       split: foundationSplit(days.map(k => CAT_LABEL[sched[k].category] || programShortName(sched[k].name))),
+      splitCats: foundationSplitCats(days.map(k => [CAT_LABEL[sched[k].category] || programShortName(sched[k].name), sched[k].category])),
       /* a program that has not begun has no week to be in yet */
       week: progress && !(p.startDate > today) ? progress.week : null, totalWeeks: progress ? progress.totalWeeks : p.durationWeeks,
       block: deriveBlockState(p, today), saved };
@@ -53641,7 +53731,7 @@ function deriveTrainingFoundation(todayStr){
   const days = schedule ? DAY_ORDER.filter(d => schedule[d] && schedule[d] !== 'rest') : [];
   if(plan && days.length){
     return { kind: 'plan', planName: plan.name, days,
-      split: foundationSplit(days.map(d => CAT_LABEL[schedule[d]] || '')), saved };
+      split: foundationSplit(days.map(d => CAT_LABEL[schedule[d]] || '')), splitCats: foundationSplitCats(days.map(d => [CAT_LABEL[schedule[d]] || '', schedule[d]])), saved };
   }
   return { kind: 'none', saved };
 }
@@ -53716,7 +53806,7 @@ function trainingFoundationHtml(f){
     return `<section class="fd fd-plan" aria-label="Training foundation">
         <div class="fd-body">${top()}
           <span class="fd-name">Based on ${escapeHtml(f.planName)}</span>
-          <span class="fd-shape">${f.days.length} day${f.days.length === 1 ? '' : 's'} a week${f.split.length ? ' · ' + escapeHtml(f.split.join(', ')) : ''}</span>
+          <span class="fd-shape">${f.days.length} day${f.days.length === 1 ? '' : 's'} a week</span>${foundationChipsHtml(f)}
         </div>
         <div class="fd-entry">${programContextHtml()}</div>
       </section>`;
@@ -53732,7 +53822,8 @@ function trainingFoundationHtml(f){
       <button type="button" class="fd-main" onclick="openFoundation()" aria-label="${escapeAttr(spoken)}">
         ${top(count)}
         <span class="fd-name">${escapeHtml(f.name)}</span>
-        <span class="fd-shape">${escapeHtml(shape)}</span>
+        <span class="fd-shape">${escapeHtml([f.goal, f.days.length + ' day' + (f.days.length === 1 ? '' : 's') + ' a week'].filter(Boolean).join(' · '))}</span>
+        ${foundationChipsHtml(f)}${foundationWeeksHtml(f)}
         <span class="fd-phase-row">${foundationPhaseLineHtml(st)}<span class="fd-go" aria-hidden="true">${chevronRightSvg()}</span></span>
       </button>
       ${foundationFootHtml(st)}

@@ -20363,3 +20363,43 @@ state (E73), a replaced program's days (E75), E66's revision precedence and E72'
 6. **Rank / Mastery:** keep the earned assets; no new decoration.
 7. **Workout logger:** speed first; no decoration.
 8. **Settings:** stays quiet.
+
+## §195 — TODAY SHOWS THE TRAINING DAY; ONE VISUAL LANGUAGE ACROSS THE APP (D149 · LOOP 10.72 · loop-v249)
+
+**The problem.** Today told the athlete what the day was rather than showing it.
+- The hero's heading was the kind ("Push"); the workout's own name sat inside a faint fact line beside its size, and nothing said what it trains.
+- This Week's seven days carried state marks only; the week's rhythm of kinds was a column of small capitals.
+- The Training Foundation's structure was one sentence: goal · days · "Push, Pull, Legs, Full Body".
+- A weekly objective of "2 of 3 logged" was a thin bar with no count in it.
+
+**The principle (§194, carried over).** Show first, explain second, details on demand. Every number and every name stays as text; a colour or a mark never carries information the text does not.
+
+**One identity map.** Today uses D148's family map unchanged: `[data-fam]` → `--fam` / `--fam-rgb`, `trainFamilyOf(cat)`, a kind LOOP does not know is `other` (neutral slate). There is no second palette; a new surface reaches for `data-fam`, never a new colour.
+
+**Where identity appears on Today.**
+- **The hero (a training day):** the kind's band at the top of the card (≤ 17% at its strongest edge) and the kind's mark drawn large and faint (20%, `aria-hidden`, no taps). Then, in order: the kind (the heading, with its D81 icon), the workout's own name, what it trains (Train's own reader, `trainMusclesHtml`), and its size (exercises · minutes · last done). One filled action: Start Workout.
+- **The hero (completed):** a softer band of the kind; the cap along the top edge is the progress colour, whatever the kind. "Workout complete" and Workout summary are unchanged.
+- **The hero (rest):** calm, no band. Its Next carries the next kind's dot. After a program's end (D147) there is no Next and no dot.
+- **The hero (in progress):** unchanged — Resume is the action.
+- **This Week:** a 14×3px bar in the kind's colour under each training day's word. The state above it (tick, slash, ring, dash and their colours) decides what the day says; a missed day's bar is dimmed; a rest day has none. The tap, the selection, the hold-to-move and its Undo are D146's.
+- **The Training Foundation:** the split as its kinds — one tinted chip per kind, in the program's order and words, from `deriveTrainingFoundation`'s own `[label, category]` pairs — and a program's weeks as a strip (elapsed, now, ahead) drawn only from the week and the total the card already states, only when there are 24 weeks or fewer. The shape line keeps the goal and the days; the card's spoken name is 10.71's, split included. No phase is drawn that the block does not hold.
+- **Objectives:** a count of ten or fewer is drawn as that many segments, filled exactly as far as the "k of n logged" line beside it; a larger count keeps one bar. A kind's objective (`week_category`) carries its kind's dot and fill until it is complete; a completed objective draws no bar.
+
+**Where it must not appear (§194, carried over).** On a Start, on the Today tag, on any state mark (completed, missed, in progress, paused), as a whole card's background, or on anything that is not a kind.
+
+**State vs family.** State always outranks family and always has a non-colour cue (a word, a tick, a slash, a ring). The completed hero's cap is the one place D149 overrules a family colour with a state colour.
+
+**Density.** Measured at 390×844 on a Push day: the hero grows from 260px to 284px (+9.2%, inside the 10% budget) because the workout's name now has its own line; This Week, Objectives and the Foundation keep their heights within a few pixels (the chips and strip replace the split sentence).
+
+**Motion.** None added. Nothing animates, loops, listens to scroll or is fetched.
+
+**Not changed:** every reader (the day's session, `deriveThisWeek`, `weekOverview`, `deriveTrainingFoundation`'s lifecycle, `objectiveProgress`, Worth Knowing, recovery, readiness), D143–D147's writers and end state, D148's Train, E64's low dock, storage. DATA_KEYS 16, schema 1, trainer 0.1.1-shadow.
+
+**App-wide roadmap (design, not built in D149).**
+1. **Program:** the split as the same family chips; the weeks as the same strip, coloured by the block's stored phase only; the next session with its kind's mark; the half-width stat box made whole.
+2. **Exercise Detail:** the lift's own art at the top beside its performance; empty states as one line.
+3. **Log:** keep (the calendar and recent rows already speak the family colours); align its row marks with Train's family block.
+4. **Progress:** keep the evidence charts; give Weekly Review's line of counts a visual form.
+5. **Rank / Mastery:** keep the earned assets; no new decoration.
+6. **Workout logger:** speed first; no decoration.
+7. **Settings:** stays quiet.

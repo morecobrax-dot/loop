@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.71",
+  "version": "10.72",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner visual review (10.71): on Train, each kind of workout reads at a glance, today's session stands out, the filter swipes, and Start and Details open the right workout.",
+  "nextAction": "Owner visual review (10.72): on Today, the workout, its kind and muscles read at a glance; This Week shows each day's kind under its state; the Foundation's split and weeks read as structure.",
   "blocker": null,
-  "updatedAt": "2026-10-12T16:12:18Z"
+  "updatedAt": "2026-10-13T01:26:39Z"
 }
