@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.74",
+  "version": "10.75",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner visual review (10.74): open any lift — its drawing, LAST beside the NEXT target, its state, and the workouts behind it read at a glance.",
+  "nextAction": "Owner review (10.75): an Assisted Pull-Up shows Assistance tracked, never +5 lb; ordinary lifts are unchanged. Records, XP and volume still count assistance (E76 open).",
   "blocker": null,
-  "updatedAt": "2026-10-13T14:38:52Z"
+  "updatedAt": "2026-10-14T15:23:24Z"
 }

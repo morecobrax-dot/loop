@@ -10531,6 +10531,13 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
   .exd-ev-c{ padding-left: 7px; }
 }
 /* ==== D151 EXERCISE DETAIL END ==== */
+/* ==== D152 ASSISTED LIFTS BEGIN ==== */
+/* D152 (E76) — an assisted lift's last workout on Exercise Detail: its sets as logged, in the filled tile LAST uses, and no
+   target tile beside it. Nothing moves. */
+#exDetailOverlay .exd-asst{ display: flex; flex-direction: column; gap: 4px; padding: 11px 12px 12px; border-radius: 14px; background: rgba(148,170,205,0.07); min-width: 0; }
+.exd-asst-sets{ font-family: var(--font-display); font-size: 22px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.exd-asst-sets i{ font-style: normal; color: var(--text-faint); }
+/* ==== D152 ASSISTED LIFTS END ==== */
 </style>
 </head>
 <body>
@@ -20710,6 +20717,23 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-75',
+    version: 'LOOP 10.75',
+    title: 'Clearer Assisted Exercise Tracking',
+    date: '2026-10-14',
+    swVersion: 'loop-v252',
+    summary: 'LOOP no longer reads the assistance on an assisted lift as weight lifted when it suggests what to do next.',
+    newFeatures: [],
+    improvements: [
+      'Exercise Detail shows an assisted lift’s last sets as you logged them, with no suggested target'
+    ],
+    bugFixes: [
+      'More assistance on an assisted pull-up is no longer suggested as progress, and the workout coach no longer changes your assistance between sets',
+      'Assisted lifts are no longer flagged as stalled or declining, or given a strength trend, from their assistance numbers'
+    ],
+    changes: []
   }
 ];
 
@@ -26248,8 +26272,50 @@ function applyPhaseProgressionPolicy(rec, exerciseName, templateReps){
   };
 }
 
+/* =========================================================
+   WHAT A LOGGED NUMBER MEANS  (Phase D152 - D88 finding E76)
+   ---------------------------------------------------------
+   Every progression reader below takes a bigger number to be more resistance: the next load is up when the work was
+   easy, a heavier top set beats a lighter one, the estimated 1RM rises with the load. On an assisted lift the number is
+   the help the athlete is given. On LOOP's own Assisted Pull-Up (the kneeling counterweight machine its drawing shows)
+   more counterweight is MORE help, so "+5 lb, ready for more" was advice to make the lift easier, and taking help away
+   read as getting weaker.
+
+   Which lifts. LOOP's registry deliberately keeps assisted lifts as their own unmapped identities (§95), so the drawing
+   is the one identity that names the machine itself: a name that reaches LOOP's assisted pull-up drawing is a
+   counterweight lift (confirmed). Any other name that says it is assisted (Assisted Dip, Band-Assisted Pull-Up, a
+   spelling the drawing table does not know) is assisted help of a kind LOOP cannot confirm. A name that says neither is
+   ordinary ("Unassisted" and "Non-Assisted" say they are not), and every reader answers it exactly as before. Read
+   from the name alone, so it costs a word test, and only an assisted name ever reaches the drawing table.
+
+   What it changes. Nothing is converted, inverted or rewritten: no number is turned into an "effective load", no
+   bodyweight is subtracted, history stays as logged. An assisted lift simply gets no answer that needs the number to
+   be resistance — no next load, no plateau, no estimated strength, no mid-workout change — until LOOP has a validated
+   assisted-lift rule. Records, XP, Mastery and volume still read the number as load (E76, held). */
+const LOAD_MEANING_BY_DRAWING = { assisted_pullup: 'counterweight' };
+function exerciseLoadMeaning(name){
+  const raw = String(name == null ? '' : name);
+  if(!/\bassisted\b/i.test(raw) || /\bnon[-\s]?assisted\b/i.test(raw)) return null;
+  let key = null;
+  try{ key = exerciseVisualKey(raw.trim()); }catch(e){ key = null; }
+  return (key && LOAD_MEANING_BY_DRAWING[key]) || 'assistance';
+}
+/* The answer every progression question gets for an assisted lift: what was done is recorded, and nothing is suggested.
+   Shaped as an answer every reader already handles — a tag no list shows, no load, no headline — so no reader needs to
+   know about assistance to stay truthful. */
+function assistedProgressionAnswer(name){
+  const meaning = exerciseLoadMeaning(name);
+  if(!meaning) return null;
+  return { tag: 'unsupported', reason: 'assistance', meaning, mode: 'assistance', weight: null, reps: null, headline: null,
+    why: meaning === 'counterweight' ? 'Your assistance and reps are recorded. LOOP doesn’t suggest assistance changes yet.'
+      : 'Your sets are recorded. LOOP doesn’t suggest changes for assisted lifts yet.' };
+}
+
 /* What every screen asks. The engine's answer, then the phase policy. */
+/* D152 (E76) — an assisted lift gets the assisted answer instead: D49 is never asked to read help as load. */
 function progressionFor(exerciseName, templateReps, templateRecommended){
+  const assisted = assistedProgressionAnswer(exerciseName);
+  if(assisted) return assisted;
   return applyPhaseProgressionPolicy(
     buildProgressionRecommendation(exerciseName, templateReps, templateRecommended),
     exerciseName, templateReps);
@@ -26514,7 +26580,8 @@ function bodyweightProgressionFor(exerciseName){
 /* THE ONE QUESTION. A supported pure bodyweight lift gets D119's rep answer;
    every other lift gets D49's own answer object, untouched. */
 function progressionRecommendationFor(exerciseName, templateReps, templateRecommended){
-  return bodyweightProgressionFor(exerciseName) || progressionFor(exerciseName, templateReps, templateRecommended);
+  /* D152 (E76) — an assisted lift is asked neither D119 nor D49: its reps were done with help the log may not carry. */
+  return assistedProgressionAnswer(exerciseName) || bodyweightProgressionFor(exerciseName) || progressionFor(exerciseName, templateReps, templateRecommended);
 }
 
 /* =========================================================
@@ -26597,6 +26664,14 @@ function deriveNextSetCoach(input){
      is nothing about what this set should be. */
   if(!rx || !range){
     out.reason = 'No target set for this exercise, so nothing to coach against.';
+    return out;
+  }
+
+  /* D152 (E76) — an assisted lift's number is help, not load: the coach states today's reps and never moves the
+     assistance, up or down, and writes nothing into the sets to come (no load). */
+  if(exerciseLoadMeaning(name)){
+    out.action = 'prescribed';
+    out.reason = `Today’s target is ${range.min}–${range.max} reps${targetRir != null ? ` at about ${fmtRir(targetRir)} in reserve` : ''}. The assistance is yours to set — LOOP doesn’t change it.`;
     return out;
   }
 
@@ -26999,6 +27074,8 @@ function exerciseTrendFor(name){
   return computeExerciseTrends().find(t => loggedExerciseKey(t.name) === key) || null;
 }
 function compute1RMTrend(exerciseName){
+  /* D152 (E76) — an assisted lift's number is help: no strength can be estimated from it. */
+  if(exerciseLoadMeaning(exerciseName)) return [];
   const key = exerciseName.trim().toLowerCase();
   const points = [];
   sortedLog().slice().reverse().forEach(l => {
@@ -27085,6 +27162,8 @@ function compareProgressionEvidence(b, a){
 
 /* Plateau detection: weight hasn't increased across last 4 logged sessions */
 function detectPlateau(exerciseName){
+  /* D152 (E76) — a heavier assisted set is an easier one: no plateau or decline is judged from help. */
+  if(exerciseLoadMeaning(exerciseName)) return null;
   const key = exerciseName.trim().toLowerCase();
   const occurrences = [];
   sortedLog().slice().reverse().forEach(l => {
@@ -43847,11 +43926,13 @@ const EXERCISE_DETAIL = { recent: 5, step: 20, bests: 3 };
    plateau is Stalled or Declining by D137's own trend (D49's `trend`), and Hold no longer stands in for an incomplete
    session or a dip. Words and tones only — the tag is always D49's (or D119's), never decided here. */
 const EXERCISE_REC_STATE = { increase: 'Ready', build: 'Building', reduce: 'Reduce', stalled: 'Stalled', declining: 'Declining',
-  hold: 'Hold', decline: 'Fewer reps', insufficient: 'Incomplete', regain: 'Regain' };
+  hold: 'Hold', decline: 'Fewer reps', insufficient: 'Incomplete', regain: 'Regain', assisted: 'Assistance tracked', tracked: 'Tracked' };
 const EXERCISE_REC_TONE = { increase: 'up', build: 'build', reduce: 'down', stalled: 'down', declining: 'down', decline: 'down' };
 function exerciseDetailStateOf(rec){
   if(!rec) return null;
-  const key = rec.tag === 'plateau' ? (rec.trend === 'declining' ? 'declining' : 'stalled') : rec.tag;
+  /* D152 (E76) — an assisted lift is named as tracked, never as a coaching state (a hold would be advice LOOP cannot give). */
+  const key = rec.tag === 'plateau' ? (rec.trend === 'declining' ? 'declining' : 'stalled')
+    : rec.reason === 'assistance' ? (rec.meaning === 'counterweight' ? 'assisted' : 'tracked') : rec.tag;
   return EXERCISE_REC_STATE[key] ? { key, word: EXERCISE_REC_STATE[key], tone: EXERCISE_REC_TONE[key] || 'hold' } : null;
 }
 
@@ -43953,17 +44034,19 @@ function deriveExerciseDetail(name){
      stalled or declining (worthKnowingLiftItem itself, so the trace there and here are one drawing of one window), and a
      bodyweight lift's last sessions by D119's own reader. Nothing here judges. */
   const lastDate = sessions.length ? sessions[0].date : null;
+  /* D152 (E76) — an assisted lift's workouts are not compared by D137, which reads a heavier set as a stronger one. */
+  const assisted = exerciseLoadMeaning(raw);
   let evidence = { win: [], steps: [] }, wk = null, bwWin = [];
   if(rec && rec.mode === 'bodyweight'){
     try{ bwWin = (bodyweightSessionHistory(raw, 4) || []).slice().reverse(); }catch(e){ bwWin = []; }
-  } else if(rec && key){
+  } else if(rec && key && !assisted){
     evidence = exerciseEvidenceOf(sessions, key);
     if(rec.tag === 'plateau'){ try{ wk = worthKnowingLiftItem(raw, lastDate); }catch(e){ wk = null; } }
   }
 
   return { name: raw, key, sessions, sessionCount: sessions.length, lastDate,
     prMode, isBW, muscles, equipment, best, rec, recReps, last, points, trend, repPoints, bests, mastery,
-    state: exerciseDetailStateOf(rec), evidence, wk, bwWin };
+    state: exerciseDetailStateOf(rec), evidence, wk, bwWin, assisted };
 }
 
 /* D151 — detectPlateau's own window, read from the sessions Exercise Detail already holds (no second scan of the log):
@@ -44094,6 +44177,25 @@ function exDetailEvidenceHtml(d){
     + '<ol class="exd-ev" aria-hidden="true">' + cells + '</ol></div>' + (cap ? '<p class="exd-ev-cap">' + escapeHtml(cap) + '</p>' : '');
 }
 
+/* D152 (E76) — AN ASSISTED LIFT: what was done, exactly as logged, and no target. Its number is help, so LOOP neither
+   suggests a change nor singles out a "top" set (the most help is the easiest set): the last workout's sets, in order. */
+function exDetailAssistedHtml(d, lift){
+  const cw = d.assisted === 'counterweight';
+  if(!d.sessionCount) return '<p class="exd-empty">Log ' + lift + ' and its ' + (cw ? 'assistance' : 'sets') + ' and reps will be kept here.</p>';
+  const perf = s => (s.sets || []).filter(st => isPerformanceSet(st) && performedReps(st && st.reps) !== null);
+  const s = d.sessions.find(x => perf(x).length) || null;
+  const why = '<p class="exd-why">' + escapeHtml(d.rec && d.rec.why ? d.rec.why : '') + '</p>';
+  if(!s) return why;
+  const load = st => { const w = performedLoad(st.weight); return w === null ? (String(st.weight || '').trim().toUpperCase() === 'BW' ? 'BW' : '—') : exdNum(w); };
+  const sets = perf(s);
+  const said = 'Last session, ' + exdDate(s.date) + ': ' + sets.map(st => load(st) === 'BW' || load(st) === '—' ? repsWord(performedReps(st.reps))
+    : load(st) + ' pounds' + (cw ? ' of assistance' : '') + ' for ' + repsWord(performedReps(st.reps))).join(', ') + '.';
+  return '<div class="exd-asst" aria-hidden="true"><span class="exd-ln-k">Last · ' + escapeHtml(exdDate(s.date)) + '</span>'
+    + '<span class="exd-asst-sets">' + sets.map(st => escapeHtml(load(st)) + ' × ' + exdNum(performedReps(st.reps))).join('<i> · </i>') + '</span>'
+    + '<span class="exd-ln-x">' + (cw ? 'lb of assistance × reps' : 'lb × reps, as logged') + '</span></div>'
+    + '<p class="sr-only">' + escapeHtml(said) + '</p>' + why;
+}
+
 /* NEXT SESSION — D49's current answer: the session it judged, the load it suggests, and its reason. */
 /* D151 — one card for the whole answer: the state in Worth Knowing's words; LAST, what was lifted (a filled tile), and
    NEXT, what LOOP suggests trying (an outlined target, never drawn as a result); where last session sat in the range when
@@ -44103,6 +44205,7 @@ function exDetailNextHtml(d){
   const head = '<div class="exd-head"><h3 class="exd-k" id="exdNextH">Next session</h3>'
     + (st && d.sessionCount ? '<span class="exd-tag exd-tag-' + st.tone + '">' + escapeHtml(st.word) + '</span>' : '') + '</div>';
   const lift = escapeHtml(d.name.trim() || 'this exercise');
+  if(d.assisted) return head + exDetailAssistedHtml(d, lift);
   if(!d.sessionCount) return head + '<p class="exd-empty">Log ' + lift + ' once and LOOP will suggest what to lift next time.</p>';
   const rec = d.rec, last = d.last;
   const tile = (cls, k, v, unit, r, extra) => '<div class="exd-ln-col ' + cls + '"><span class="exd-ln-k">' + k + '</span>'
@@ -44192,6 +44295,10 @@ function exDetailTrendHtml(d){
   const head = '<div class="exd-head"><h3 class="exd-k" id="exdTrendH">Long-term strength</h3>'
     + (drawn && exDetailTrendShown ? '<button type="button" class="exd-link exd-trend-tog" aria-expanded="true" onclick="exDetailToggleTrend()">Hide chart</button>' : '') + '</div>';
   const lift = d.name.trim();
+  /* D152 (E76) — no strength is estimated from help, or from a number LOOP can't tell is help or load. */
+  if(d.assisted) return head + '<p class="exd-empty">' + (d.assisted === 'counterweight'
+    ? 'Assisted lifts aren’t given a strength estimate: the number logged is help, not load.'
+    : 'Assisted lifts aren’t given a strength estimate: LOOP can’t tell whether the number logged is help or load.') + '</p>';
   if(drawn && !exDetailTrendShown){
     const pct = d.trend ? Math.round(d.trend.pct) : 0;
     const sum = d.trend ? (d.trend.pct >= 0 ? '+' : pct < 0 ? '−' : '') + Math.abs(pct) + '% estimated 1RM · ' + d.points.length + ' workouts since ' + exdDate(d.points[0].date)

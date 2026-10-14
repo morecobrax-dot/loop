@@ -2639,7 +2639,7 @@ for the switch, so it cannot tell the days the old program still owned from the 
 **Why it was not fixed in D147.** Closing it needs the date the athlete chose another program, which LOOP does not store.
 D147 adds nothing to storage and does not guess that date.
 
-## E76 — An assisted lift's counterweight is read as load, so needing more help reads as getting stronger · P3 · PROVEN · OPEN
+## E76 — An assisted lift's counterweight is read as load, so needing more help reads as getting stronger · P3 · PROVEN · **OPEN — RECOMMENDATIONS GUARDED (D152, LOOP 10.75); RECORDS, XP AND VOLUME STILL READ ASSISTANCE AS LOAD**
 
 Found by D151 while checking Exercise Detail's bodyweight states, and left as 10.73 has it. §95 (D64) held it when the
 movement library was built; it had never been recorded as a finding.
@@ -2656,6 +2656,40 @@ assistance gave no records, a falling trend and "stalled".
 **Why it was not fixed in D151.** Reading a counterweight as negative load is progression and identity policy (D49, D91,
 the record walks), and D151 is presentation only. Exercise Detail draws D49's answer exactly as Worth Knowing and the
 workout do, so the three never disagree while the policy stands.
+
+**D152 (LOOP 10.75) — the recommendations are guarded; assisted progression is not solved.** The rule is §198 and the
+proof is Contract 276.
+- **Which lifts.** `exerciseLoadMeaning` reads the name in constant time.
+  - **counterweight:** a name reaching LOOP's assisted pull-up drawing, the kneeling counterweight machine. LOOP's own
+    Assisted Pull-Up is its only confirmed one.
+  - **assistance (unconfirmed):** any other assisted name. Assisted Dip is not an exercise LOOP has, so its help is not
+    claimed to be a counterweight.
+  - **ordinary:** everything else, Weighted Pull-Up, Pull-Up and Dip included.
+- **What is guarded.** `progressionFor` and `progressionRecommendationFor` answer an assisted lift "recorded, nothing
+  suggested": tag `unsupported`, no load. Every start path, Worth Knowing, Progress, Weekly Review, Objectives, the
+  summary and Build for me read those two entries.
+  - D50B never moves the assistance.
+  - `compute1RMTrend` and `detectPlateau` judge nothing from it.
+  - Exercise Detail shows "Assistance tracked" over the sets as logged, with no target.
+  - Measured on 10.74's readers, pinned and replayed:
+    - the E76 case: 80 lb at the top of the range went "Ready, 85 lb";
+    - a grinder on 60 lb went "Reduce, 55 lb";
+    - 70 → 80 → 90 lb of help drew a rising strength line and "Heavier";
+    - an easy set made the coach write 85 into the sets to come.
+  - On 10.75 none of those happen. Every ordinary, weighted and bodyweight lift in the same histories gets exactly
+    10.74's answer.
+- **What is held (why this stays OPEN).** Records, PR XP, Rank, Mastery's PR points and volume still read the assistance
+  number as load. All of these count more help as more weight:
+  - Exercise Detail's "Best ever 90 lb × 8" and its workouts' PR marks;
+  - the Log calendar's record dots;
+  - Progress's Personal Best Timeline;
+  - the Volume tab and the coach's volume trend.
+  The hidden shadow trainer's capability does the same.
+  Changing them is record-and-XP policy (D91/D96/D120/D121): what an assisted record is, and what happens to XP and
+  records already earned (history is never rewritten). D152 does not take that decision.
+- **To close.** Two things, each approved by the owner and proven by independent evidence:
+  - an assisted progression rule: reps at a held assistance, then less help when the reps allow, in the machine's steps;
+  - an assisted record and XP policy.
 
 ## Not findings — checked and clean
 

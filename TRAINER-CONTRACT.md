@@ -20490,3 +20490,44 @@ state (E73), a replaced program's days (E75), E66's revision precedence and E72'
 2. **Log:** keep; a workout's lifts could open Exercise Detail directly.
 3. **Program Detail and the Program Builder:** D150's held follow-ups.
 - One story: Train — what kind of workout is this; Today — what am I doing today; Program — where am I in my training journey; Exercise Detail — what this lift is, how it is moving and what to do next; Progress — how am I improving; Log — what have I done.
+
+## §198 — AN ASSISTED LIFT'S NUMBER IS HELP, NOT LOAD (D152 · LOOP 10.75 · loop-v252)
+
+**The problem (E76).** On LOOP's Assisted Pull-Up the number in the weight field is the machine's counterweight, and more of it is more help. Every progression reader took a bigger number to be more resistance:
+- D49 answered "ready for a small increase", +5 lb: five more pounds of help, called progress.
+- D47 answered a grinding athlete "drop to 55 lb": less help, a harder lift, for someone already failing reps.
+- D137 marked a workout with more help "Heavier", and the estimated 1RM climbed with the help.
+Worth Knowing, Progress's lists, the summary's next time, Objectives, Build for me, D125's plan and the live coach (D50B) all read those answers.
+
+**What a logged number means (`exerciseLoadMeaning`).** Read from the name alone: a word test, and only an assisted name reaches the drawing table. No history, no store, constant time.
+- **counterweight:** a name that reaches LOOP's assisted pull-up drawing (`exerciseVisualKey` → `assisted_pullup`, the kneeling counterweight machine). It is LOOP's only assisted exercise, and the registry keeps it unmapped by design (§95). One drawing-keyed entry (`LOAD_MEANING_BY_DRAWING`), not a new identity table.
+- **assistance:** any other name that says assisted, such as Assisted Dip, Band-Assisted Pull-Up, Machine Assisted Pull-Up or a spelling the drawing table does not know. This is help of a kind LOOP cannot confirm, and its number is shown "as logged".
+- **nothing:** every other name, including Unassisted and Non-Assisted ones. Weighted Pull-Up stays external load (D49), and Pull-Up and Dip stay bodyweight (D119).
+
+**The rule.** LOOP suggests nothing it cannot read the right way round.
+- **The canonical answer.** The canonical entries, `progressionFor` and `progressionRecommendationFor`, answer an assisted lift before D119 and D49 are asked.
+  - Its shape is tag `unsupported`, reason `assistance`, no load, no reps, no headline, and a reason in plain words: "Your assistance and reps are recorded. LOOP doesn't suggest assistance changes yet."
+  - Every reader already handles that shape. Lists that show tags show none, and every load is null.
+  - So no start path writes a number: program, saved workout, Build for me, a saved built workout or freeform.
+- **The live coach.** D50B states today's reps ("The assistance is yours to set — LOOP doesn't change it.") and never moves the assistance, up or down, mid-workout.
+- **No judgement from help.** `compute1RMTrend` and `detectPlateau` judge nothing from help: no estimated strength, no plateau, no decline, and no stalled flag on the Train card.
+- **Exercise Detail.** The state is "Assistance tracked", or "Tracked" when unconfirmed. Under it are the last workout's sets exactly as logged ("80 × 10 · 80 × 10 · 80 × 9", lb of assistance × reps), with one spoken sentence for them. There is no target tile, no comparison, no verdict and no strength estimate.
+- **Not HOLD.** A hold is advice. The neutral state says only what is known.
+
+**Unchanged.** These all work as before:
+- logging;
+- the athlete's control of the load field (typed, stepped, carried to the sets to come);
+- set completion, resume and save;
+- history and backups.
+
+Nothing is converted, inverted, subtracted from bodyweight or migrated. Ordinary, weighted and bodyweight lifts get exactly 10.74's answers: Contract 276 replays 10.74's readers, pinned from 2a0fc6f, beside the release.
+
+**Held (E76 stays OPEN).** These still read the assistance number as load:
+- records: Exercise Detail's "Best ever 90 lb × 8" and its PR marks, the Log calendar's record dots, and the Personal Best Timeline;
+- PR XP and Rank;
+- Mastery's PR points;
+- volume (the Volume tab and the coach's volume trend).
+
+Session Score's load check compares a lift's load with the load LOOP prescribed. An assisted lift is no longer prescribed one, so new workouts give that check nothing to compare. Workouts saved under 10.74 keep their scores.
+
+Changing that is a record-and-XP decision: what an assisted record is, and what happens to XP already earned. D152 does not take it. A validated assisted progression rule is future work and needs the owner's approval first. Such a rule would raise reps at a held assistance, then take help away when the reps allow, in the machine's own steps.
