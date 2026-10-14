@@ -20531,3 +20531,41 @@ Nothing is converted, inverted, subtracted from bodyweight or migrated. Ordinary
 Session Score's load check compares a lift's load with the load LOOP prescribed. An assisted lift is no longer prescribed one, so new workouts give that check nothing to compare. Workouts saved under 10.74 keep their scores.
 
 Changing that is a record-and-XP decision: what an assisted record is, and what happens to XP already earned. D152 does not take it. A validated assisted progression rule is future work and needs the owner's approval first. Such a rule would raise reps at a held assistance, then take help away when the reps allow, in the machine's own steps.
+
+## §199 — THE STRENGTH CHART OPEN, TODAY'S FAMILY STRIPE, EXERCISE MASTERY WITHOUT METAL (D153 · LOOP 10.76 · loop-v253)
+
+**Why.** The owner's review of 10.74 and 10.75 asked for three things:
+- the long-term strength chart and its drawing-in, which D151 had folded behind "Show chart" below Records, back in view;
+- Today's workout card in the colour language of Train's family blocks;
+- Exercise Mastery without the gold, silver and bronze pedestals.
+
+D153 is a presentation release. No engine, number, rule or stored value changes.
+
+**The long-term chart is Strength's figure, drawn open.**
+- **What it shows.** Exercise Detail draws `computeExerciseTrends`' estimate (D98) directly under Next session, exactly as 10.73 drew it: the same line, percentage, direction words and First and Latest ends, with the line drawing itself in (`exdDraw` / `exdFade`).
+- **What it is called.** It keeps the name D151 gave it ("Long-term strength", "Estimated 1RM, first workout to latest").
+- **What it is not.** It is never D49's proof. A heavier load for fewer reps can dip the estimate while D49 counts it as progress, and neither is wrong. The answer is Next session's, and the workouts it read sit in their own card under the chart.
+- **No fold.** There is no Show or Hide. The chart's markup is remembered as drawn (`exDetailChartHtml`) and rewritten only when it changes, so the entrance plays when the page opens and never again on a redraw that changes nothing. Every open draws it afresh. Reduce Motion stills the entrance and leaves the final chart.
+- **Assisted lifts.** They keep D152's note and get no estimate (E76).
+- **Sparse history.** One workout keeps the existing words ("More history needed …"), with no line and no +0%.
+
+**Today's stripe is D148's family.**
+- **The stripe.** The hero's 2px top cap is gone. Its own `::before` runs down the left edge instead: 3px, the width of D148's family stripe, inside the hairline, following the corners.
+- **Its colour.** It is drawn from the same `data-fam` → `--fam` mapping as Train's family blocks, and the hero's tint comes from that edge.
+- **State outranks family.** A completed hero's stripe is the progress colour. An in-progress hero's is the action colour, the colour of its own "Workout in progress". A rest day, an ended program and no workout have none.
+- **The rest is unchanged.** The hero's markup, actions and height are 10.75's. Other-day cards keep the colour their cap had, now on the edge.
+
+**Exercise Mastery's leaders carry no metal.**
+- **The leaders.** The same three leaders (`getMasteryProgress().podium`), in the same order, are drawn as a podium (2nd, 1st, 3rd) without the pedestal or gold, silver and bronze.
+- **How 1st stands out.** By its place, a larger drawing and a quiet violet frame.
+- **What each card holds.** Its rank, its exercise and drawing (the tier badge when it has none), its level, one bar at its real progress, its sessions, and the tap it had (`openMasteryExercise`).
+- **The list.** All exercises keeps every exercise in the ranking's order, the top three included, each row numbered by its place and drawn.
+- **Muscle Mastery.** Its shared podium is untouched.
+
+**Held.** Contract 277 holds the release to what LOOP 10.75 itself drew and computed (D153_PROBE run on 0a392f9 and pinned):
+- the answer card and its evidence;
+- the opened chart, records and history for 32 athletes;
+- the Mastery leaders, list, taps and Muscle Mastery for eight;
+- Today's hero markup for ten days.
+
+Nothing is stored. DATA_KEYS (16) and the schema (1) are unchanged.

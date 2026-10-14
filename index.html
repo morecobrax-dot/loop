@@ -10538,6 +10538,92 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
 .exd-asst-sets{ font-family: var(--font-display); font-size: 22px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 .exd-asst-sets i{ font-style: normal; color: var(--text-faint); }
 /* ==== D152 ASSISTED LIFTS END ==== */
+/* ==== D153 VISUAL REFINEMENT BEGIN ==== */
+/* =========================================================
+   STRENGTH CHART · TODAY'S STRIPE · EXERCISE MASTERY (Phase D153) — the last layer of the sheet, as one block.
+   · Exercise Detail: the long-term chart open under the answer (10.73's drawing and its entrance, exdDraw / exdFade,
+     which Reduce Motion already stills), and the workouts behind the answer in their own, quieter card beneath it.
+   · Today: the kind's colour as a stripe down the hero's left edge, as D148's family block draws it (3px, inside the
+     hairline, following the corners); the 2px top cap is gone, and the kind's light comes from that edge. State
+     outranks family: a completed hero's stripe is the progress colour, an in-progress one the action colour, and a rest
+     day has none.
+   · Exercise Mastery: the leaders without a pedestal or gold / silver / bronze, 1st set apart by composition; the rows
+     numbered and drawn. Muscle Mastery's podium and rows are not touched (its classes are not used here).
+   Nothing here fetches, polls or takes a tap of its own.
+   ========================================================= */
+/* Today */
+.tw::before{ left: 0; right: auto; top: 0; bottom: 0; width: 3px; height: auto; border-radius: 0; opacity: 1; }
+.tw[data-fam]::before{ background: var(--fam); }
+.tw.tw-done-hero::before{ background: var(--c-progress); }
+.tw.tw-active::before{ background: var(--accent); }
+.tw.tw-rest::before{ content: none; }
+.tw[data-fam]{ background: linear-gradient(100deg, rgba(var(--fam-rgb), 0.15) 0%, rgba(var(--fam-rgb), 0.05) 45%, rgba(var(--fam-rgb), 0) 80%), var(--grad-hero); }
+.tw-done-hero[data-fam]{ background: linear-gradient(100deg, rgba(var(--fam-rgb), 0.08) 0%, rgba(var(--fam-rgb), 0) 60%), var(--grad-hero); }
+/* Exercise Detail: the workouts behind the answer, their own card under the chart */
+#exDetailOverlay .exd-ev-zone{ margin-top: 22px; padding: 16px 18px 14px; border: 1px solid var(--hairline); border-radius: 20px; background: var(--surface-1); box-shadow: var(--elev-1); }
+#exDetailOverlay .exd-ev-zone .exd-ev-head{ margin: 0 0 12px; padding-top: 0; border-top: 0; }
+#exDetailOverlay .exd-ev-zone + .exd-zone{ border-top: 0; padding-top: 0; }
+/* Exercise Mastery: the leaders — 2nd, 1st, 3rd; level tops; no pedestal, no metal */
+.mxb{ list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; align-items: end; }
+.mxb-n2{ grid-template-columns: repeat(2, minmax(0, 150px)); justify-content: center; }
+.mxb-n1{ grid-template-columns: minmax(0, 170px); justify-content: center; }
+.mxb-item{ display: flex; min-width: 0; }
+.mxb-n3 .mxb-p1{ order: 2; } .mxb-n3 .mxb-p2{ order: 1; } .mxb-n3 .mxb-p3{ order: 3; }
+.mst-panel.is-anim .mxb-item{ --d: calc(var(--i, 0) * 70ms); }
+.mxb-card{ appearance: none; -webkit-appearance: none; display: flex; flex-direction: column; align-items: center; gap: 7px; width: 100%; min-width: 0; min-height: 44px;
+  margin: 0; padding: 12px 8px 13px; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--radius-lg);
+  box-shadow: inset 0 1px 0 var(--edge-hi); color: inherit; font: inherit; text-align: center; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.mxb-card:active{ background: var(--surface-3); }
+.mxb-card:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.mxb-p1 .mxb-card{ padding-top: 16px; padding-bottom: 16px; border-color: rgba(167,139,250,0.32);
+  background: linear-gradient(180deg, rgba(167,139,250,0.10) 0%, rgba(167,139,250,0) 60%), var(--surface-2); }
+.mxb-rank{ padding: 2px 8px; border-radius: 999px; background: var(--surface-3); font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-dim); }
+.mxb-p1 .mxb-rank{ color: #C4B5FD; background: rgba(167,139,250,0.14); }
+.mxb-art{ display: flex; }
+.mxb-art .mpod-art{ width: clamp(56px, 17vw, 68px); height: clamp(56px, 17vw, 68px); border-radius: 13px; background: var(--surface); }
+.mxb-p1 .mxb-art .mpod-art{ width: clamp(64px, 20vw, 80px); height: clamp(64px, 20vw, 80px); border-radius: 15px; }
+.mxb-art-none{ display: flex; align-items: center; justify-content: center; }
+.mxb-art-none .mbadge{ width: 62%; } .mxb-art-none .msheen{ display: none; }
+.mxb-name{ display: flex; align-items: center; justify-content: center; min-height: 3.6em; max-width: 100%; font-family: var(--font-display);
+  font-size: 13px; font-weight: 700; line-height: 1.2; color: var(--text); overflow-wrap: break-word; text-wrap: balance; }
+.mxb-p1 .mxb-name{ font-size: 13.5px; }
+@media (min-width: 380px){ .mxb-name{ font-size: 14px; } .mxb-p1 .mxb-name{ font-size: 15px; } }
+.mxb-lvl{ display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; line-height: 1.2; color: var(--tier); white-space: nowrap; }
+.mxb-lvl .mbadge{ width: 16px; } .mxb-lvl .msheen{ display: none; }
+.mxb .mcb{ height: 4px; border-radius: 2px; background: var(--surface-3); }
+.mxb .mcb-fill{ border-radius: 2px; }
+.mxb-meta{ display: flex; flex-direction: column; font-size: 11.5px; line-height: 1.35; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+@media (min-width: 560px){ .mxb-name{ min-height: 2.4em; } }
+.mxb-n1 .mxb-name{ min-height: 0; }
+@media (max-width: 359px){ .mxb{ gap: 6px; } .mxb-card{ padding-left: 5px; padding-right: 5px; } .mxb-name{ font-size: 12px; } .mxb-p1 .mxb-name{ font-size: 12.5px; } }
+/* Exercise Mastery: All exercises — place · drawing · name, facts and one bar · level */
+#mstPanel-exercise .mastery-row.mxr{ display: grid; grid-template-columns: 18px 40px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; width: 100%;
+  min-height: 60px; margin: 0; padding: 10px 0; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--hairline); border-radius: 0;
+  color: inherit; font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+#mstPanel-exercise .mastery-row.mxr:active{ background: var(--surface-2); }
+#mstPanel-exercise .mastery-row.mxr:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.mxr-n{ font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--text-faint); text-align: right; font-variant-numeric: tabular-nums; }
+.mxr-pic{ display: flex; }
+.mxr .mxr-art{ width: 40px; height: 40px; border-radius: 10px; background: var(--surface); }
+.mxr-art-none{ display: flex; align-items: center; justify-content: center; }
+.mxr-art-none .mbadge{ width: 26px; } .mxr-art-none .msheen{ display: none; }
+.mxr-body{ display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mxr-name{ font-size: 14.5px; font-weight: 600; line-height: 1.25; color: var(--text); overflow-wrap: break-word; }
+.mxr-meta{ font-size: 12px; line-height: 1.3; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.mxr-meta span{ white-space: nowrap; }
+.mxr .mxr-bar{ display: block; height: 4px; margin-top: 1px; border-radius: 2px; background: var(--surface-3); }
+.mxr .mxr-bar span{ border-radius: 2px; }
+.mxr-lvl{ font-size: 12px; font-weight: 700; color: var(--tier, var(--text-dim)); white-space: nowrap; }
+/* a narrow phone: the level rides above the name, so a long name keeps the row's width */
+@media (max-width: 359px){
+  #mstPanel-exercise .mastery-row.mxr{ grid-template-columns: 14px 36px minmax(0, 1fr); column-gap: 10px; row-gap: 2px; }
+  .mxr-n, .mxr-pic{ grid-row: 1 / 3; }
+  .mxr .mxr-art{ width: 36px; height: 36px; }
+  .mxr-lvl{ grid-column: 3; grid-row: 1; font-size: 11px; }
+  .mxr-body{ grid-column: 3; grid-row: 2; }
+}
+/* ==== D153 VISUAL REFINEMENT END ==== */
 </style>
 </head>
 <body>
@@ -10749,8 +10835,9 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
           <div class="exd-facts" id="exDetailFacts"></div>
         </div>
         <section class="exd-zone exd-next" id="exDetailNext" aria-labelledby="exdNextH"></section>
-        <section class="exd-zone" id="exDetailStats" aria-labelledby="exdRecH"></section>
         <section class="exd-zone" id="exDetailChart" aria-labelledby="exdTrendH"></section>
+        <section class="exd-zone exd-ev-zone" id="exDetailEvidence" aria-labelledby="exdEvH" hidden></section>
+        <section class="exd-zone" id="exDetailStats" aria-labelledby="exdRecH"></section>
         <section class="exd-zone" id="exDetailHistory" aria-labelledby="exdHistH"></section>
       </div>
     </div>
@@ -20733,6 +20820,22 @@ const LOOP_UPDATES = [
       'More assistance on an assisted pull-up is no longer suggested as progress, and the workout coach no longer changes your assistance between sets',
       'Assisted lifts are no longer flagged as stalled or declining, or given a strength trend, from their assistance numbers'
     ],
+    changes: []
+  },
+  {
+    id: 'v10-76',
+    version: 'LOOP 10.76',
+    title: 'Strength & Mastery, Refined',
+    date: '2026-10-14',
+    swVersion: 'loop-v253',
+    summary: 'The long-term strength chart is back in view, Today’s workout card wears its workout’s colour, and Exercise Mastery has a cleaner look.',
+    newFeatures: [],
+    improvements: [
+      'Exercise Detail shows the long-term strength chart right under what to do next, drawn in as the page opens, with no extra tap',
+      'Today’s workout card carries its workout’s colour down its left edge, the way Train shows each kind of workout',
+      'Exercise Mastery’s top three sit on clean cards without the podium bars, and every exercise in the list shows its place and its drawing'
+    ],
+    bugFixes: [],
     changes: []
   }
 ];
@@ -39507,9 +39610,10 @@ let exDetailAs = null;
 let exDetailShown = 0;
 let exDetailAllBests = false;
 let exDetailModel = null;
-/* D151 — the long-term chart is on demand: every open starts with it folded, so the page leads with the evidence D49
-   actually read. Ephemeral, never stored. */
-let exDetailTrendShown = false;
+/* D153 — the long-term chart is drawn open, directly under the answer. This is its markup as last drawn: the chart zone
+   is rewritten only when that changes, so a redraw that changes nothing (renderAll after a save) never restarts its
+   entrance, and every open clears it, so the line draws itself in each time the page opens. Ephemeral, never stored. */
+let exDetailChartHtml = null;
 
 function switchProgTab(t){
   progTab = t;
@@ -43649,7 +43753,9 @@ function masteryListHtml(items, rowHtml, limit, emptyText){
   </div>`;
 }
 function exerciseMasteryListHtml(limit){
-  return masteryListHtml(getTopExerciseMastery().filter(m => m.hasHistory), masteryRowHtml, limit, 'Exercise mastery builds as you train.');
+  /* D153 — every exercise, in the ranking's own order, each row numbered by its place in it (the leaders above are 1–3) */
+  const items = getTopExerciseMastery().filter(m => m.hasHistory);
+  return masteryListHtml(items, m => exerciseMasteryRowHtml(m, items.indexOf(m) + 1), limit, 'Exercise mastery builds as you train.');
 }
 /* D94B — every muscle with history, in the ranking muscle mastery already has.
    This replaces the D86 sheet: the same list, now where the exercise list is. */
@@ -43758,7 +43864,50 @@ function masteryLeadersHtml(mode, items){
   const cards = items.map((m, i) => M.card(m, i + 1)).join('');
   return `<div class="mpod mpod-n${items.length}" role="list" data-mode="${mode}" aria-label="${M.label}">${cards}</div>`;
 }
-function masteryPodiumHtml(podium){ return masteryLeadersHtml('exercise', podium); }
+/* D153 — EXERCISE MASTERY, REFINED. The same three leaders (getMasteryProgress().podium), in the same order, drawn as a
+   podium (2nd, 1st, 3rd) without its pedestal or its gold, silver and bronze: 1st stands out by its place, its larger
+   drawing and a quiet violet frame. Each card keeps the exercise's own drawing (masteryExerciseArtHtml; a lift with none
+   shows its tier badge, as before), its rank, level, progress and sessions in words, one bar, and its tap
+   (openMasteryExercise). A list item holds one button, so the list is a list and the tap is a button. Muscle Mastery
+   keeps the shared podium (masteryLeadersHtml) exactly as it was. */
+function exerciseMasteryLeaderHtml(m, place){
+  const t = masteryTier(m.level);
+  const sess = m.sessions + ' session' + (m.sessions === 1 ? '' : 's');
+  const next = m.isMax ? 'Max level' : m.percent + '% to Level ' + (m.level + 1);
+  const nextShort = m.isMax ? 'Max level' : m.percent + '% to L' + (m.level + 1);
+  const art = masteryExerciseArtHtml(m) || '<span class="mpod-art mxb-art-none">' + masteryBadgeHtml(m.level, 56) + '</span>';
+  const spoken = MASTERY_PLACE_WORD[place] + ' — ' + m.displayName + ', Level ' + m.level + ' ' + t.name + ', ' + sess + ', ' + next + '.';
+  return '<li class="mxb-item mxb-p' + place + ' mst-rise" style="--i:' + place + '" data-tier="' + t.level + '">'
+    + '<button type="button" class="mxb-card" onclick="openMasteryExercise(\'' + onclickArg(m.exerciseId) + '\')" aria-label="' + escapeAttr(spoken) + '">'
+    + '<span class="mxb-rank" aria-hidden="true">' + MASTERY_PLACE_WORD[place] + '</span>'
+    + '<span class="mxb-art" aria-hidden="true">' + art + '</span>'
+    + '<span class="mxb-name" aria-hidden="true">' + escapeHtml(m.displayName) + '</span>'
+    + '<span class="mxb-lvl" aria-hidden="true">' + masteryBadgeHtml(m.level, 16) + 'Level ' + m.level + '</span>'
+    + '<span class="mcb" aria-hidden="true"><span class="mcb-fill" style="width:' + (m.isMax ? 100 : m.percent) + '%"></span></span>'
+    + '<span class="mxb-meta" aria-hidden="true"><span>' + escapeHtml(nextShort) + '</span><span>' + escapeHtml(sess) + '</span></span>'
+    + '</button></li>';
+}
+function exerciseMasteryLeadersHtml(podium){
+  return '<ol class="mxb mxb-n' + podium.length + '" data-mode="exercise" aria-label="' + MASTERY_LEADER_MODES.exercise.label + '">'
+    + podium.map((m, i) => exerciseMasteryLeaderHtml(m, i + 1)).join('') + '</ol>';
+}
+/* D153 — an All exercises row: its place in the ranking, the exercise's own drawing, its name, one line of facts and one
+   bar, and its level in words. The same data and the same tap as before; .mastery-row keeps "View all" counting it. */
+function exerciseMasteryRowHtml(m, rank){
+  const t = masteryTier(m.level);
+  const sess = m.sessions + ' session' + (m.sessions === 1 ? '' : 's');
+  const next = m.isMax ? 'max level' : m.percent + '% to Level ' + (m.level + 1);
+  const art = exerciseThumbHtml(m.displayName, { static: true, cls: 'mxr-art' }) || '<span class="mxr-art mxr-art-none">' + masteryBadgeHtml(m.level, 26) + '</span>';
+  const spoken = rank + '. ' + m.displayName + ', Level ' + m.level + ', ' + sess + ', ' + next + '.';
+  return '<button type="button" class="mastery-row mastery-row-tap mxr" data-tier="' + t.level + '" onclick="openMasteryExercise(\'' + onclickArg(m.exerciseId) + '\')" aria-label="' + escapeAttr(spoken) + '">'
+    + '<span class="mxr-n" aria-hidden="true">' + rank + '</span><span class="mxr-pic" aria-hidden="true">' + art + '</span>'
+    + '<span class="mxr-body" aria-hidden="true"><span class="mxr-name">' + escapeHtml(m.displayName) + '</span>'
+    + '<span class="mxr-meta"><span>' + escapeHtml(sess) + '</span> · <span>' + escapeHtml(next) + '</span></span>'
+    + '<span class="mastery-bar mxr-bar' + (m.level <= 1 ? ' mlb1' : '') + '"><span style="width:' + (m.isMax ? 100 : m.percent) + '%"></span></span></span>'
+    + '<span class="mxr-lvl" aria-hidden="true">Level ' + m.level + '</span></button>';
+}
+/* D153 — Exercise Mastery draws its own leaders (exerciseMasteryLeadersHtml); with none, the shared empty state. */
+function masteryPodiumHtml(podium){ return podium.length ? exerciseMasteryLeadersHtml(podium) : masteryLeadersHtml('exercise', podium); }
 function masteryMusclePodiumHtml(list){ return masteryLeadersHtml('muscle', list); }
 
 /* ---------- THE VIEW: one control, one card, two states of it ----------
@@ -43942,7 +44091,7 @@ function openExDetail(name, opts){
   exDetailAs = opts && typeof opts.as === 'string' && opts.as.trim() && opts.as !== String(name) ? opts.as : null;
   exDetailShown = EXERCISE_DETAIL.recent;
   exDetailAllBests = false;
-  exDetailTrendShown = false;
+  exDetailChartHtml = null;
   renderExDetail();
   const ov = document.getElementById('exDetailOverlay');
   ov.classList.add('open');
@@ -44139,6 +44288,12 @@ function exerciseEvidenceTraceSvg(levels, falling){
    decided, the back-off sets only where they decided). A stall or a decline adds Worth Knowing's four-workout trace,
    drawn only when its window is these four. A bodyweight lift: D119's sessions, most reps in a set. Under two workouts
    there is nothing to compare, and nothing is drawn. */
+/* D153 — the workouts are drawn in their own card under the long-term chart, for exactly the answers D151's card drew
+   them beneath: a bodyweight target, or a load with the session it judged. */
+function exDetailEvidenceShown(d){
+  if(!d || d.assisted || !d.sessionCount || !d.rec) return false;
+  return d.rec.mode === 'bodyweight' ? d.rec.reps != null : (d.rec.weight != null && !!d.last);
+}
 function exDetailEvidenceHtml(d){
   const bw = d.rec && d.rec.mode === 'bodyweight';
   const n = bw ? d.bwWin.length : d.evidence.win.length;
@@ -44223,8 +44378,7 @@ function exDetailNextHtml(d){
       + tile('exd-ln-to exd-ln-plan', 'Next target', rec.reps, rec.reps === 1 ? 'rep' : 'reps', 'Bodyweight', '<span class="exd-delta exd-delta-' + (rec.delta > 0 ? 'up' : 'same') + '">' + more + '</span>')
       + '</div>'
       + '<p class="sr-only">' + escapeHtml(said) + '</p>'
-      + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>'
-      + exDetailEvidenceHtml(d);
+      + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>';
   }
   if(!rec || rec.weight == null || !last){
     return head + '<p class="exd-empty">' + (d.isBW
@@ -44251,8 +44405,7 @@ function exDetailNextHtml(d){
     + '</div>'
     + '<p class="sr-only">' + escapeHtml(said) + '</p>'
     + (/^(increase|build|hold|reduce)$/.test(rec.tag) ? exDetailRangeHtml(d) : '')
-    + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>'
-    + exDetailEvidenceHtml(d);
+    + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>';
 }
 
 /* The one chart: actual observations only, on a date scale, no smoothing and no
@@ -44289,23 +44442,16 @@ function exerciseTrendSvg(points, label){
 
 /* PERFORMANCE TREND — Strength's own figure for this lift (D98), drawn from the same points. */
 function exDetailTrendHtml(d){
-  /* D151 — Strength's long-run estimate, named for what it is and folded: it is a different comparison from the one D49
-     decides by, so it is one line until asked for, and drawn exactly as before when it is. */
-  const drawn = !!(d.trend || (d.repPoints && d.repPoints.length >= 2));
-  const head = '<div class="exd-head"><h3 class="exd-k" id="exdTrendH">Long-term strength</h3>'
-    + (drawn && exDetailTrendShown ? '<button type="button" class="exd-link exd-trend-tog" aria-expanded="true" onclick="exDetailToggleTrend()">Hide chart</button>' : '') + '</div>';
+  /* D153 — Strength's long-run estimate, drawn open again as 10.73 drew it (the line draws itself in: exdDraw), now
+     directly under the answer. It is Strength's own figure (computeExerciseTrends, D98) over every workout, not the
+     evidence D49 decides by: the two can disagree without either being wrong (a heavier load for fewer reps dips the
+     estimate while D49 counts it as progress), so it is named for what it is. */
+  const head = '<div class="exd-head"><h3 class="exd-k" id="exdTrendH">Long-term strength</h3></div>';
   const lift = d.name.trim();
   /* D152 (E76) — no strength is estimated from help, or from a number LOOP can't tell is help or load. */
   if(d.assisted) return head + '<p class="exd-empty">' + (d.assisted === 'counterweight'
     ? 'Assisted lifts aren’t given a strength estimate: the number logged is help, not load.'
     : 'Assisted lifts aren’t given a strength estimate: LOOP can’t tell whether the number logged is help or load.') + '</p>';
-  if(drawn && !exDetailTrendShown){
-    const pct = d.trend ? Math.round(d.trend.pct) : 0;
-    const sum = d.trend ? (d.trend.pct >= 0 ? '+' : pct < 0 ? '−' : '') + Math.abs(pct) + '% estimated 1RM · ' + d.points.length + ' workouts since ' + exdDate(d.points[0].date)
-      : 'Most reps in a set · ' + d.repPoints.length + ' workouts since ' + exdDate(d.repPoints[0].date);
-    return head + '<button type="button" class="exd-trend-row" aria-expanded="false" onclick="exDetailToggleTrend()">'
-      + '<span class="exd-trend-sum">' + escapeHtml(sum) + '</span><span class="exd-trend-go">Show chart ' + chevronRightSvg() + '</span></button>';
-  }
   const end = (k, p, unit) => '<span class="exd-end"><i>' + escapeHtml(k) + ' · ' + escapeHtml(formatDateShort(p.date)) + '</i>'
     + '<b>' + p.value + '<small> ' + (unit === 'reps' && p.value === 1 ? 'rep' : unit) + '</small></b></span>';
   if(d.trend){
@@ -44337,16 +44483,6 @@ function exDetailTrendHtml(d){
   return head + '<p class="exd-empty">' + (d.sessionCount
     ? 'More history needed. A trend appears once two workouts have ' + (d.isBW ? 'reps' : 'a weight and reps') + ' logged for ' + escapeHtml(lift) + ' (so far: ' + have + ').'
     : 'Your trend for ' + escapeHtml(lift || 'this exercise') + ' starts with your second workout.') + '</p>';
-}
-
-/* D151 — the long-term chart, opened and folded in place; the control keeps the focus. */
-function exDetailToggleTrend(){
-  if(!exDetailModel) return;
-  exDetailTrendShown = !exDetailTrendShown;
-  const host = document.getElementById('exDetailChart');
-  host.innerHTML = exDetailTrendHtml(exDetailModel);
-  const b = host.querySelector('button');
-  if(b && b.focus) b.focus({ preventScroll: true });
 }
 
 /* RECORDS + MASTERY — D96A's best ever, D82's personal bests, D86's mastery. */
@@ -44447,7 +44583,13 @@ function renderExDetail(){
   next.innerHTML = exDetailNextHtml(d);
   next.classList.toggle('exd-next-quiet', !d.rec || (d.rec.mode === 'bodyweight' ? d.rec.reps == null : (d.rec.weight == null || !d.last)));
   next.setAttribute('data-state', d.state && d.sessionCount ? d.state.key : 'none');
-  document.getElementById('exDetailChart').innerHTML = exDetailTrendHtml(d);
+  /* D153 — the long-term chart, rewritten only when its markup changed (exDetailChartHtml), so its entrance plays when the
+     page opens and not again on a redraw that changes nothing; then the workouts behind the answer, in their own card
+     beneath it, exactly the ones D151's card drew (exDetailNextHtml no longer appends them). */
+  const chart = exDetailTrendHtml(d);
+  if(chart !== exDetailChartHtml){ document.getElementById('exDetailChart').innerHTML = chart; exDetailChartHtml = chart; }
+  const ev = document.getElementById('exDetailEvidence');
+  if(ev){ const evHtml = exDetailEvidenceShown(d) ? exDetailEvidenceHtml(d) : ''; ev.innerHTML = evHtml; ev.hidden = !evHtml; }
   document.getElementById('exDetailStats').innerHTML = exDetailRecordsHtml(d);
   document.getElementById('exDetailHistory').innerHTML = exDetailHistoryHtml(d);
 }
