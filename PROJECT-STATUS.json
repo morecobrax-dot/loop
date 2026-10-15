@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.76",
+  "version": "10.77",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner visual review (10.76): Exercise Detail's open strength chart, Today's family stripe and Exercise Mastery's new top three. Then choose what comes next.",
+  "nextAction": "Owner visual review (10.77): Progress Overview's training rhythm and achievements, and Strength's exercise lines. Then choose what comes next.",
   "blocker": null,
-  "updatedAt": "2026-10-14T19:54:57Z"
+  "updatedAt": "2026-10-15T04:04:44Z"
 }

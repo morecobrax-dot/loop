@@ -20569,3 +20569,48 @@ D153 is a presentation release. No engine, number, rule or stored value changes.
 - Today's hero markup for ten days.
 
 Nothing is stored. DATA_KEYS (16) and the schema (1) are unchanged.
+
+## §200 — PROGRESS SHOWS WHAT TRAINING PRODUCED, FROM THE READERS THAT OWN IT (D154 · LOOP 10.77 · loop-v254)
+
+**Why.** Progress held the right facts, but presented them as six equally loud cards. Training volume was missing from
+the Overview altogether. Records were one tab away. "This week by muscle" was drawn there a third time (Today and Volume
+already show it). The owner asked for training progress that is visible, meaningful and cohesive, from the systems LOOP
+already has.
+
+**The Overview answers "what has my training produced?" in order.**
+1. Strength: the existing hero (D39 / D98), the lifts that moved, each with its own line.
+2. Training rhythm: each week's sessions over that week's volume.
+3. Weekly Review and the program.
+4. Achievements: the newest earned records and Exercise Mastery's leader.
+5. Rank.
+
+**Training rhythm is two readers on one week axis, never a score.**
+- Sessions are `computeConsistencyData`'s workouts.
+- An open ring is a planned session not trained: target − fulfilled, the figure "% of planned" is made of. A rest day is
+  never a ring, and neither is a day still ahead.
+- Volume is `computeWeeklyVolume`'s, known only for the weeks LOOP has tracked (progressCoverage). An earlier week is
+  hatched as unknown, not drawn as zero.
+- With no weighted set in the window (bodyweight work only), there is no volume to draw. There are no bars, no Volume
+  key and no "0 lb". The stat says "log weighted sets to see it", Volume's own rule (renderProgVolume's hasAny) and
+  its own words. Found on review sheet 5 before release.
+- The week under way is outlined and named "so far" until its seventh day. It is never shown or compared as a whole
+  week.
+- Its two numbers are its two ways in: the sessions open the calendar, and the last full week's volume opens Volume.
+
+**Achievements are earned facts.**
+- Records shown are only those that beat an earlier best. A lift's first session (logged against 0, "First" in
+  Exercise Detail) is not put forward as an achievement.
+- One row per lift, its newest record: an older record of the same lift is already beaten (E13's identity).
+- A lift whose number is assistance is left out (D152; E76 stays open).
+- Each record opens its lift's Exercise Detail. The Mastery leader opens Mastery. The podium is not drawn twice.
+- The Mastery leader is Mastery's own answer, unchanged (D153), so it can be an assisted lift. Mastery still counts an
+  assisted lift's rising help among its records (E76, held).
+
+**Strength.**
+- All exercises rows draw each lift's own `compute1RMTrend` line, the points its percentage comes from.
+- Training load compares completed weeks only (E77 closed). The weekly volume chart marks the week under way "so far".
+
+**Held.**
+- Every engine, and every zone D154 does not redraw, is 10.75–10.76's to the byte: Weekly Review, Mastery, Exercise
+  Detail's chart, Today, Train, Program and Worth Knowing. Contract 278 runs D154_PROBE on 10.76 (c3a8ef4) and pins it.
+- Nothing is stored. DATA_KEYS (16) and the schema (1) are unchanged.

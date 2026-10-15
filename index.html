@@ -10624,6 +10624,65 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
   .mxr-body{ grid-column: 3; grid-row: 2; }
 }
 /* ==== D153 VISUAL REFINEMENT END ==== */
+/* ==== D154 PROGRESS VISIBLE BEGIN ==== */
+/* =========================================================
+   PROGRESS, MADE VISIBLE (Phase D154) — the last layer of the sheet, as one block.
+   · Overview: the training rhythm (each week's sessions over its volume, the week under way outlined) and the
+     achievements card, on the Overview's own card surface. Dots and bars are LOOP's accent; a ring is a planned session
+     not trained; an unknown week is hatched, never a zero bar.
+   · Strength: each All exercises row carries its lift's own line, in the hero's spark colours.
+   Nothing here animates, fetches or takes a tap of its own; the two numbers and each row are the buttons.
+   ========================================================= */
+.prh, .pac{ display: block; margin-top: 12px; padding: 15px 16px 14px; background: var(--surface); border: 1px solid var(--border-quiet);
+  border-radius: var(--radius-lg); box-shadow: inset 0 1px 0 var(--edge-hi), var(--shadow-ambient); color: var(--text); }
+.prh-top{ display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 28px; }
+.prh-t{ margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: var(--fs-card-title); color: var(--text); }
+.prh-span{ font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.prh-chart{ display: flex; align-items: flex-end; gap: 4px; margin-top: 14px; }
+.prh-col{ flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.prh-dots{ display: flex; flex-direction: column-reverse; align-items: center; justify-content: flex-start; gap: 3px; min-height: 44px; }
+.prh-dot{ display: block; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.prh-dot.prh-ring{ background: transparent; box-shadow: inset 0 0 0 1.5px var(--text-faint); }
+.prh-more{ font-size: 11px; font-weight: 700; line-height: 1; color: var(--accent); }
+.prh-bar{ position: relative; display: block; width: 100%; max-width: 22px; height: 44px; border-radius: 4px; background: var(--surface-3); overflow: hidden; }
+.prh-bar i{ position: absolute; left: 0; right: 0; bottom: 0; display: block; border-radius: 4px; background: var(--accent-2); }
+.prh-bar.prh-unk{ background: repeating-linear-gradient(135deg, transparent 0 3px, var(--surface-3) 3px 4px); }
+.prh-now .prh-bar i{ background: var(--accent); }
+.prh-part .prh-bar i{ background: transparent; box-shadow: inset 0 0 0 1.5px var(--accent); }
+.prh-axis{ display: flex; justify-content: space-between; gap: 8px; margin-top: 7px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-faint); }
+.prh-key{ display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px; font-size: 11.5px; color: var(--text-dim); }
+.prh-key span{ display: inline-flex; align-items: center; gap: 6px; }
+.prh-key .prh-dot{ display: inline-block; }
+.prh-sw{ display: inline-block; width: 8px; height: 10px; border-radius: 2px; background: var(--accent-2); }
+.prh-stats{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; padding-top: 4px; border-top: 1px solid var(--hairline); }
+.prh-stat{ appearance: none; -webkit-appearance: none; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; min-height: 44px;
+  margin: 0; padding: 8px 0 2px; background: none; border: 0; border-radius: 8px; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.prh-stat:active{ background: var(--surface-2); }
+.prh-stat-v{ display: inline-flex; align-items: center; gap: 4px; color: var(--accent); }
+.prh-stat-v svg{ width: 14px; height: 14px; }
+.prh-stat b{ font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; line-height: 1.15; color: var(--text); font-variant-numeric: tabular-nums; }
+.prh-stat b small{ font-size: 12px; font-weight: 600; color: var(--text-faint); }
+.prh-stat i{ font-style: normal; font-size: 12px; line-height: 1.35; color: var(--text-faint); }
+.prh-link{ appearance: none; -webkit-appearance: none; display: inline-flex; align-items: center; gap: 4px; min-height: 44px; margin: 0 -10px 0 0; padding: 0 10px;
+  background: none; border: 0; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--accent); cursor: pointer; }
+.prh-link svg{ width: 14px; height: 14px; }
+.pac .prh-top{ margin-bottom: 4px; }
+.pac-row{ appearance: none; -webkit-appearance: none; display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; align-items: center; gap: 10px; width: 100%;
+  min-height: 52px; margin: 0; padding: 8px 0; background: none; border: 0; border-top: 1px solid var(--hairline); color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.pac-row:first-of-type{ border-top: 0; }
+.pac-row:active{ background: var(--surface-2); }
+.pac-row:focus-visible, .prh-link:focus-visible, .prh-stat:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.pac-mark{ display: flex; justify-content: center; color: var(--c-progress, var(--success)); }
+.pac-mark .mbadge{ width: 22px; } .pac-mark .msheen{ display: none; }
+.pac-body{ display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pac-n{ font-size: 14.5px; font-weight: 600; color: var(--text); overflow-wrap: break-word; }
+.pac-v{ font-size: 12.5px; color: var(--text-dim); }
+.pac-d{ font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-faint); white-space: nowrap; }
+/* Strength → All exercises: the lift's own line beside its percentage */
+.rank-row .rank-spark{ flex: 0 0 56px; width: 56px; margin-left: auto; margin-right: 12px; }
+.rank-row .rank-spark svg{ width: 56px; height: 22px; }
+.rank-row .rank-spark.po-flat{ color: var(--text-faint); }
+/* ==== D154 PROGRESS VISIBLE END ==== */
 </style>
 </head>
 <body>
@@ -20837,6 +20896,26 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-77',
+    version: 'LOOP 10.77',
+    title: 'Your Progress, Made Clearer',
+    date: '2026-10-15',
+    swVersion: 'loop-v254',
+    summary: 'Progress now makes it easier to see your strength, training consistency and workload over time.',
+    newFeatures: [],
+    improvements: [
+      'Progress shows your training rhythm: each week’s sessions above its training volume, with the week still under way marked “so far”',
+      'Your newest records and your Exercise Mastery leader sit together under Achievements, each one tap from its detail',
+      'Strength’s exercise list draws each lift’s own trend line beside its percentage'
+    ],
+    bugFixes: [
+      'Training load on Strength no longer compares the week still under way as a whole week, and the weekly volume chart marks that week “so far”'
+    ],
+    changes: [
+      'The “This week” muscle summary now lives on Today and Volume, rather than appearing a third time on Progress'
+    ]
   }
 ];
 
@@ -39385,6 +39464,7 @@ function volumeBarSvg(buckets, opts){
   const o = opts || {};
   const w=320, h=(buckets.length <= 4 ? 104 : 140), padBottom=26, padTop=16, padLeft=6, padRight=6;
   const max = Math.max(1, ...buckets.map(b => b.volume));
+  const todayKey = localDateStr();
   const slot = (w - padLeft - padRight) / buckets.length;
   const barW = Math.max(6, Math.min(34, slot - 8));
 
@@ -39421,7 +39501,12 @@ function volumeBarSvg(buckets, opts){
     const barH = max > 0 ? (b.volume/max) * (h-padTop-padBottom) : 0;
     const y = h - padBottom - barH;
     const isNow = o.selectKey ? (b.start === o.selectKey) : (i === buckets.length - 1);
-    bars += `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(1,barH)}" rx="3" fill="${isNow ? 'url(#vbarg)' : 'var(--accent)'}" opacity="${b.volume>0 ? (isNow ? 1 : 0.55) : 0.15}"/>`;
+    /* D154 — the week still under way is real volume but not a whole week (D25): drawn as an outline and named "so far"
+       under the axis, it is never read beside a finished week as a drop. */
+    const soFar = !!(b.start && b.end && b.start <= todayKey && todayKey < b.end);
+    bars += soFar
+      ? `<rect x="${(x + 0.75).toFixed(2)}" y="${(y + 0.75).toFixed(2)}" width="${Math.max(1, barW - 1.5).toFixed(2)}" height="${Math.max(1, barH - 1.5).toFixed(2)}" rx="3" fill="var(--accent)" fill-opacity="0.12" stroke="var(--accent)" stroke-width="1.5"/>`
+      : `<rect x="${x}" y="${y}" width="${barW}" height="${Math.max(1,barH)}" rx="3" fill="${isNow ? 'url(#vbarg)' : 'var(--accent)'}" opacity="${b.volume>0 ? (isNow ? 1 : 0.55) : 0.15}"/>`;
     /* The selected week is named under the axis as well as lit, so the chart
        says which week it is showing without the breakdown below being read. */
     if(isNow && o.selectKey) bars += `<rect x="${(x + barW/2 - 7).toFixed(1)}" y="${h - padBottom + 3}" width="14" height="2" rx="1" fill="var(--accent)"/>`;
@@ -39432,7 +39517,7 @@ function volumeBarSvg(buckets, opts){
       const isFirst = i === 0, isLast = i === buckets.length - 1;
       const anchor = isFirst ? 'start' : isLast ? 'end' : 'middle';
       const lx = isFirst ? padLeft : isLast ? (w - padRight) : (x + barW/2);
-      bars += `<text x="${lx}" y="${h-6}" font-size="11" fill="var(--text-faint)" text-anchor="${anchor}" font-family="JetBrains Mono, monospace">${b.label}</text>`;
+      bars += `<text x="${lx}" y="${h-6}" font-size="11" fill="${soFar ? 'var(--accent)' : 'var(--text-faint)'}" text-anchor="${anchor}" font-family="JetBrains Mono, monospace">${soFar ? 'so far' : b.label}</text>`;
     }
   });
   /* The tap zones are drawn last so nothing paints over them, and they are the
@@ -41924,6 +42009,141 @@ function progWeekMuscleHtml(){
     </button>`;
 }
 
+/* =========================================================
+   PROGRESS, MADE VISIBLE  (Phase D154)
+   ---------------------------------------------------------
+   The Overview answers "what has my training produced?" in four places, each drawn from the reader that owns it and
+   each one tap from the surface that explains it:
+     strength     progHeroHtml (D39 / D98, unchanged): the lifts that moved, each with its own line
+     rhythm       progRhythmHtml: the sessions of each week (computeConsistencyData) over that week's volume
+                  (computeWeeklyVolume), on one week axis — what attendance and workload looked like, side by side, never
+                  combined into a score
+     review       weeklyReviewEntryHtml (D115, unchanged) and the program (unchanged)
+     achievements progAchievementsHtml: the newest records that beat an earlier best, and Exercise Mastery's leader
+   Nothing here is stored, and nothing is computed from history that its reader does not already compute.
+   ========================================================= */
+/* The training rhythm of the consistency window (computeConsistencyData's twelve Monday weeks) beside the weekly volume
+   of the same weeks (computeWeeklyVolume). Volume is known only for the weeks LOOP has tracked (progressCoverage — the
+   rule knownWeeklyBuckets applies): an earlier week has no volume, not zero. A week's open rings are its planned
+   sessions not yet trained (target − fulfilled, the figure "% of planned" is made of), so a rest day is never a ring and
+   neither is a day still ahead. The current week is partial until its seventh day (the Volume tab's own day count) and
+   is never shown as a whole week. */
+function progRhythmModel(){
+  const cons = computeConsistencyData();
+  const n = cons.weeks.length;
+  const vol = computeWeeklyVolume(n);
+  const cov = progressCoverage();
+  const knownVol = Math.min(n, Math.max(1, cov.weeksTracked));
+  const today = localDateStr();
+  const weeks = cons.weeks.map((w, i) => {
+    const start = localDateStr(w.start), b = vol[i] || null;
+    const current = i === n - 1;
+    const daysIn = current ? Math.min(7, daysBetweenDates(start, today) + 1) : 7;
+    const volKnown = !!b && b.start === start && i >= n - knownVol && !!cov.firstDate;
+    return { start, label: b ? b.label : '', workouts: w.workouts, unmet: w.target ? Math.max(0, w.target - (w.fulfilled || 0)) : 0, target: w.target, fulfilled: w.fulfilled,
+      known: w.known || (volKnown && b.volume > 0), volume: volKnown ? b.volume : null, current, daysIn, partial: current && daysIn < 7 };
+  });
+  /* the window starts at the first week either reader knows; weeks before it are not drawn at all */
+  let first = weeks.findIndex(w => w.known || w.volume !== null);
+  if(first === -1) first = n - 1;
+  const shown = weeks.slice(first);
+  const done = shown.filter(w => !w.partial);
+  const lastFull = done.length ? done[done.length - 1] : null;
+  return { weeks: shown, totalWorkouts: cons.totalWorkouts, consistency: cov.weeksTracked >= 4 ? cons.overallConsistency : null,
+    lastFull, current: shown[shown.length - 1], peak: Math.max(1, ...shown.map(w => w.volume || 0)),
+    /* Volume's own rule (renderProgVolume's hasAny): with no weighted set in the window there is no volume to draw */
+    weighted: shown.some(w => w.volume > 0) };
+}
+/* Records worth showing first: the newest EARNED ones (computeAllPREvents, newest first) — a best that beat an earlier
+   one, never a lift's first session (the engine logs that against 0; Exercise Detail calls it "First") — leaving out a
+   lift whose number is assistance (D152, E76 open: its records still read help as load, so they are not put forward) —
+   one per lift, its newest (the lift's older record is already beaten; E13's identity, name.trim().toLowerCase()). */
+function progRecentRecords(k){
+  let events = [];
+  try{ events = computeAllPREvents(); }catch(e){ events = []; }
+  const out = [], seen = new Set();
+  for(const ev of events){
+    if(out.length >= k) break;
+    if(!ev.headline || !(ev.headline.prev > 0)) continue;
+    if(exerciseLoadMeaning(ev.exerciseName)) continue;
+    const id = String(ev.exerciseName || '').trim().toLowerCase();
+    if(seen.has(id)) continue;
+    const f = formatPREventHeadline(ev);
+    if(f){ seen.add(id); out.push({ ev, f }); }
+  }
+  return { rows: out, any: events.length > 0 };
+}
+function progFmtVol(v){ return Math.round(v).toLocaleString('en-US'); }
+/* The rhythm, drawn: a column per week, its sessions as dots (its unmet planned sessions as rings) over its volume as a
+   bar; the week under way outlined, named "so far". One picture with one spoken summary; its two numbers are the two
+   ways in — the sessions to the calendar, the volume to Volume. Bodyweight work alone has no volume in pounds: then
+   no bar and no "0 lb", but what the Volume tab itself says — log weighted sets to see it. */
+function progRhythmHtml(){
+  const m = progRhythmModel();
+  if(!m.weeks.length || !m.totalWorkouts) return '';
+  const wv = m.weighted;
+  const DOTS = 5;
+  const cols = m.weeks.map(w => {
+    const filled = Math.min(w.workouts, DOTS), rings = Math.min(w.unmet, DOTS - filled);
+    const more = w.workouts > DOTS ? '<b class="prh-more">' + w.workouts + '</b>' : '';
+    const dots = '<span class="prh-dot"></span>'.repeat(filled) + '<span class="prh-dot prh-ring"></span>'.repeat(rings);
+    const h = w.volume === null ? 0 : Math.round((w.volume / m.peak) * 100);
+    const bar = !wv ? '' : w.volume === null ? '<span class="prh-bar prh-unk"></span>'
+      : '<span class="prh-bar"><i style="height:' + (w.volume > 0 ? Math.max(4, h) : 0) + '%"></i></span>';
+    return '<span class="prh-col' + (w.current ? ' prh-now' : '') + (w.partial ? ' prh-part' : '') + '"><span class="prh-dots">' + more + dots + '</span>' + bar + '</span>';
+  }).join('');
+  const lf = m.lastFull, cur = m.current;
+  const spoken = 'Last ' + m.weeks.length + ' week' + (m.weeks.length === 1 ? '' : 's') + ': ' + m.totalWorkouts + ' session' + (m.totalWorkouts === 1 ? '' : 's')
+    + (m.consistency !== null ? ', ' + m.consistency + ' percent of planned sessions trained' : '')
+    + (!wv ? '. No weighted sets yet, so no volume' : lf && lf.volume !== null ? '. Volume in the week of ' + lf.label + ': ' + progFmtVol(lf.volume) + ' pounds' : '')
+    + (cur && cur.partial ? '. This week so far, day ' + cur.daysIn + ' of 7: ' + cur.workouts + ' session' + (cur.workouts === 1 ? '' : 's')
+      + (wv && cur.volume !== null ? ', ' + progFmtVol(cur.volume) + ' pounds' : '') : '') + '.';
+  return '<section class="prh" aria-labelledby="prhH">'
+    + '<div class="prh-top"><h3 class="prh-t" id="prhH">Training rhythm</h3><span class="prh-span">' + (m.weeks.length === 1 ? 'This week' : 'Last ' + m.weeks.length + ' weeks') + '</span></div>'
+    + '<div class="prh-chart" role="img" aria-label="' + escapeAttr(spoken) + '">' + cols + '</div>'
+    + '<div class="prh-axis" aria-hidden="true">' + (m.weeks.length > 1 ? '<span>' + escapeHtml(m.weeks[0].label) + '</span>' : '<span></span>') + '<span>' + (cur.partial ? 'This week, so far' : 'This week') + '</span></div>'
+    + '<div class="prh-key" aria-hidden="true"><span><i class="prh-dot"></i>Session</span>' + (m.weeks.some(w => w.unmet) ? '<span><i class="prh-dot prh-ring"></i>Planned, not trained</span>' : '') + (wv ? '<span><i class="prh-sw"></i>Volume</span>' : '') + '</div>'
+    + '<div class="prh-stats">'
+      + '<button type="button" class="prh-stat" onclick="switchTab(\'history\')" aria-label="' + escapeAttr(m.totalWorkouts + ' session' + (m.totalWorkouts === 1 ? '' : 's') + (m.consistency !== null ? ', ' + m.consistency + ' percent of planned' : '') + '. Open the calendar.') + '">'
+        + '<span class="prh-stat-v" aria-hidden="true"><b>' + m.totalWorkouts + '</b>' + chevronRightSvg() + '</span><i aria-hidden="true">session' + (m.totalWorkouts === 1 ? '' : 's') + (m.consistency !== null ? ' · ' + m.consistency + '% of planned' : '') + '</i></button>'
+      + '<button type="button" class="prh-stat" onclick="switchProgTab(\'volume\')" aria-label="' + escapeAttr(!wv ? 'Volume: no weighted sets yet. Open Volume.' : lf && lf.volume !== null ? 'Volume ' + progFmtVol(lf.volume) + ' pounds in the week of ' + lf.label + '. Open Volume.' : 'Volume. Open Volume.') + '">'
+        + '<span class="prh-stat-v" aria-hidden="true"><b>' + (wv && lf && lf.volume !== null ? progFmtVol(lf.volume) + '<small> lb</small>' : 'Volume') + '</b>' + chevronRightSvg() + '</span><i aria-hidden="true">' + (!wv ? 'log weighted sets to see it' : lf && lf.volume !== null ? 'volume, week of ' + escapeHtml(lf.label) : 'no full week yet') + '</i></button>'
+    + '</div>'
+    + '</section>';
+}
+/* Achievements: the newest earned records (each opening its lift's Exercise Detail) and Exercise Mastery's leader (to
+   Mastery). The podium itself lives on Mastery and is not drawn twice. */
+function progAchievementsHtml(){
+  const rec = progRecentRecords(2);
+  let lead = null;
+  try{ const mp = getMasteryProgress(); lead = mp.podium && mp.podium[0] || null; }catch(e){ lead = null; }
+  if(!rec.rows.length && !lead) return '';
+  const rows = rec.rows.map(({ ev, f }) => '<button type="button" class="pac-row" onclick="openExDetail(\'' + onclickArg(ev.exerciseName) + '\')" aria-label="'
+      + escapeAttr(ev.exerciseName + ': ' + f.label + ', ' + f.current + ', ' + exdDate(ev.date) + '. Open the exercise.') + '">'
+    + '<span class="pac-mark" aria-hidden="true">' + trophyIconSvg() + '</span>'
+    + '<span class="pac-body" aria-hidden="true"><span class="pac-n">' + escapeHtml(ev.exerciseName) + '</span><span class="pac-v">' + escapeHtml(f.current) + ' · ' + escapeHtml(f.label) + '</span></span>'
+    + '<span class="pac-d" aria-hidden="true">' + escapeHtml(exdDate(ev.date)) + '</span></button>').join('');
+  const mas = lead ? '<button type="button" class="pac-row pac-mas" onclick="switchProgTab(\'muscles\')" aria-label="' + escapeAttr('Exercise mastery: ' + lead.displayName + ' leads at Level ' + lead.level + '. Open Mastery.') + '">'
+    + '<span class="pac-mark" aria-hidden="true">' + masteryBadgeHtml(lead.level, 22) + '</span>'
+    + '<span class="pac-body" aria-hidden="true"><span class="pac-n">' + escapeHtml(lead.displayName) + '</span><span class="pac-v">Exercise Mastery leader · Level ' + lead.level + '</span></span>'
+    + '<span class="po-go" aria-hidden="true">' + chevronRightSvg() + '</span></button>' : '';
+  return '<section class="pac" aria-labelledby="pacH"><div class="prh-top"><h3 class="prh-t" id="pacH">Achievements</h3>'
+    + (rec.any ? '<button type="button" class="prh-link" onclick="progOpenRecords()">All records ' + chevronRightSvg() + '</button>' : '') + '</div>'
+    + rows + mas + '</section>';
+}
+/* "All records" from the Overview: Strength, with its records directory open (openAllRecords toggles; this only opens). */
+function progOpenRecords(){
+  switchProgTab('strength');
+  const el = document.getElementById('progAllRecords');
+  if(el && !el.classList.contains('open')) openAllRecords();
+}
+/* D154 — an All exercises row draws its lift's own line: the same compute1RMTrend points its percentage comes from
+   (computeExerciseTrends reads exactly these), coloured by the same direction. */
+function progTrendSparkHtml(t){
+  const cls = t.dir === 'up' ? 'po-improving' : t.dir === 'down' ? 'po-declining' : 'po-flat';
+  return '<span class="po-spark rank-spark ' + cls + '" aria-hidden="true">' + overviewSparkSvg(compute1RMTrend(t.name)) + '</span>';
+}
+
 function renderProgDashboard(){
   const host = document.getElementById('progPerf');
   if(!host) return;
@@ -41948,12 +42168,14 @@ function renderProgDashboard(){
   /* Derived once, top to bottom, in the order the questions get asked.
      Every block is a summary of a surface that explains it, and every block
      is one tap from that surface. */
+  /* D154 — strength first, then the rhythm of the training and its workload, the review and the program, then what
+     it has earned. The week-by-muscle summary is Today's and Volume's; it is not drawn a third time here. */
   host.innerHTML = `
     ${progHeroHtml()}
+    ${progRhythmHtml()}
     ${weeklyReviewEntryHtml()}
     ${progProgramCardHtml()}
-    ${progWeekMuscleHtml()}
-    ${progConsistencyCardHtml()}
+    ${progAchievementsHtml()}
     ${progLevelHtml()}`;
   /* D115 — an open review is redrawn with the screen beneath it, so a workout
      opened from it, then edited or deleted, is never shown as it was. */
@@ -41978,7 +42200,10 @@ function knownWeeklyBuckets(weeksBack){
 function progStrengthCardHtml(){
   const { buckets, clamped, known } = knownWeeklyBuckets(progRange);
   const hasAny = buckets.some(b => b.volume > 0);
-  const withVol = buckets.filter(b => b.volume > 0);
+  /* D154 (E77) — the week still under way is not a whole week (D25): compared in, it read every unfinished week as a
+     drop. Only completed weeks are compared. */
+  const todayKey = localDateStr();
+  const withVol = buckets.filter(b => b.volume > 0 && !(b.start <= todayKey && todayKey < b.end));
   let delta = null;
   if(withVol.length >= 4){
     const half = Math.floor(withVol.length / 2);
@@ -41998,7 +42223,7 @@ function progStrengthCardHtml(){
       ${hasAny ? `
         ${delta !== null ? `<div class="pd-delta pd-${delta > 2 ? 'up' : delta < -2 ? 'down' : 'flat'}">
           ${trendIconSvg(delta > 2 ? 'up' : delta < -2 ? 'down' : 'flat', 15)}
-          <span>${delta > 0 ? '+' : ''}${delta}% vs the first half of this window</span></div>` : ''}
+          <span>${delta > 0 ? '+' : ''}${delta}% vs the first half of these completed weeks</span></div>` : ''}
         ${volumeBarSvg(buckets)}
         ${clamped ? `<div class="pd-chart-cov">Showing all ${known} week${known===1?'':'s'} LOOP has tracked</div>` : ''}`
       : `<div class="pd-note">Log weighted sets and your weekly volume appears here.</div>`}
@@ -42349,6 +42574,7 @@ function renderProgStrength(){
     ${trends.length ? `<div class="rank-list">${trends.map(t => `
       <div class="rank-row" onclick="openExDetail('${onclickArg(t.name)}')">
         <div class="rank-name">${escapeHtml(t.name)}<span class="rank-sub">${t.sessions} sessions</span></div>
+        ${progTrendSparkHtml(t)}
         <div class="rank-val trend-${t.dir}">${trendIconSvg(trendDirOf(t.dir))} ${t.pct>=0?'+':''}${Math.round(t.pct)}%</div>
       </div>`).join('')}</div>`
     : `<div class="mini-empty">Log an exercise at least twice and its progression will appear here.</div>`}`;

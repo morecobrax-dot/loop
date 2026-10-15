@@ -2691,6 +2691,24 @@ proof is Contract 276.
   - an assisted progression rule: reps at a held assistance, then less help when the reps allow, in the machine's steps;
   - an assisted record and XP policy.
 
+## E77 — Training load compared the week still under way as a whole week, so every unfinished week read as a drop · P3 · PROVEN · **CLOSED in D154 (LOOP 10.77)**
+
+Found by D154's audit of Progress → Strength, on 10.76.
+
+**What happened.** Strength's Training load card prints "±N% vs the first half of this window". It averaged the later
+half of the window's weeks against the earlier half, and the later half included the current week while it was still
+under way. D25's own rule — partial is not complete — was already kept by Volume's "This week so far" comparison, but not
+by this card.
+
+**Measured.** Ten weeks of identical training (27,412 lb a week), opened on a Thursday with the current week four days in
+(13,895 lb so far): 10.76 printed "−10% vs the first half of this window". Every completed week was the same, so the
+whole fall was the unfinished week. The weekly volume chart beside it drew that week as a finished, shorter bar.
+
+**D154 (LOOP 10.77).** The comparison reads completed weeks only, and says so ("vs the first half of these completed
+weeks"). The weekly volume chart draws the week under way as an outline, named "so far" under the axis. The volume
+engine (computeWeeklyVolume) is untouched. Once the week's seventh day arrives it counts as a whole week, as Volume's
+comparison already counts it. Contract 278 replays 10.76's card (−10%) beside the release (0%).
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.
