@@ -10683,6 +10683,119 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
 .rank-row .rank-spark svg{ width: 56px; height: 22px; }
 .rank-row .rank-spark.po-flat{ color: var(--text-faint); }
 /* ==== D154 PROGRESS VISIBLE END ==== */
+/* ==== D155 FRIENDS BEGIN ==== */
+/* =========================================================
+   FRIENDS 2.0 (Phase D155) — the last layer of the sheet, as one block.
+   · Today: "Friends this week" on Today's own card surface, after the training it never outranks.
+   · One leaderboard row for Today and Friends: a plain place number (never a medal), the athlete's own LOOP rank
+     emblem, name, level and rank, the week's XP and workouts. Your own row carries the accent, once.
+   · The athlete profile: rank emblem and name (no photographs, ever), three summary cards, personal records with
+     LOOP's own exercise drawings, and most-trained muscle groups with LOOP's own muscle map.
+   · The one sharing switch.
+   Nothing here animates; every row and button is at least 44 px.
+   ========================================================= */
+/* the card itself is LOOP's own (.pd-card: the D132 surface, the D28 depth) — only its spacing is set here */
+.tf{ display: block; margin-top: 12px; padding: 15px 16px 12px; color: var(--text); }
+.tf-top{ display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+.tf-head{ display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.tf-t{ margin: 0; font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: var(--fs-card-title); color: var(--text); }
+.tf-s{ font-size: var(--fs-meta); color: var(--text-faint); }
+.tf-open{ appearance: none; -webkit-appearance: none; flex: 0 0 auto; display: inline-flex; align-items: center; gap: 4px; min-height: 44px;
+  margin: -10px -10px 0 0; padding: 0 10px; background: none; border: 0; border-radius: 10px; color: var(--accent);
+  font: inherit; font-size: var(--fs-support); font-weight: 600; cursor: pointer; }
+.tf-open svg{ width: 14px; height: 14px; }
+.tf-open:active{ background: var(--surface-2); }
+.tf-open:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.tf-sum{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 10px 0 6px; padding: 8px 0; border: 1px solid var(--border-quiet);
+  border-radius: 12px; background: var(--surface-2); }
+.tf-sum-c{ display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 0; padding: 0 6px; }
+.tf-sum-c + .tf-sum-c{ border-left: 1px solid var(--border-quiet); }
+.tf-sum-c i{ font-style: normal; font-size: var(--fs-micro); color: var(--text-faint); white-space: nowrap; }
+.tf-sum-c b{ font-family: 'Space Grotesk', sans-serif; font-size: 18px; font-weight: 700; line-height: 1.2; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tf-sum-c b small{ font-size: 12px; font-weight: 600; color: var(--text-faint); }
+.tf-pin{ margin-top: 4px; padding-top: 4px; border-top: 1px dashed var(--border-quiet); }
+.tf-upd{ margin: 6px 0 0; font-size: var(--fs-micro); color: var(--text-faint); }
+
+.fb-list{ list-style: none; margin: 0; padding: 0; }
+.fb-li + .fb-li{ border-top: 1px solid var(--border-quiet); }
+.fb-r{ appearance: none; -webkit-appearance: none; display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; margin: 0;
+  padding: 6px 6px 6px 4px; background: none; border: 0; border-radius: 12px; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+div.fb-r{ cursor: default; }
+.fb-r:active{ background: var(--surface-2); }
+.fb-r:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+.fb-me{ background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--accent); }
+.fb-p{ flex: 0 0 26px; height: 26px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%;
+  background: var(--surface-3); font-family: 'Space Grotesk', sans-serif; font-size: 13px; font-weight: 700; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.fb-me .fb-p{ background: var(--accent); color: var(--bg); }
+.fb-medal{ flex: 0 0 28px; display: flex; align-items: center; }
+.fb-medal img{ display: block; }
+.fb-who{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.fb-n{ font-size: var(--fs-body); font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-m{ font-size: var(--fs-meta); color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-x{ flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.fb-x b{ font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-body); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fb-x span{ font-size: var(--fs-micro); color: var(--text-faint); white-space: nowrap; }
+.fb-quiet .fb-x b{ font-family: 'Inter', sans-serif; font-weight: 500; font-size: var(--fs-meta); color: var(--text-faint); }
+.fb-chev{ flex: 0 0 14px; display: flex; color: var(--text-faint); }
+.fb-chev svg{ width: 14px; height: 14px; }
+.soc-board .fb-list{ margin: 0; padding: 4px 8px; background: var(--surface); border: 1px solid var(--border-quiet); border-radius: var(--radius-lg); }
+
+.fp-head{ display: flex; align-items: center; gap: 14px; margin: 6px 0 14px; }
+.fp-medal{ flex: 0 0 56px; display: flex; align-items: center; justify-content: center; width: 64px; height: 64px; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--border-quiet); }
+.fp-medal img{ display: block; }
+.fp-who{ min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.fp-n{ margin: 0; font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-title); font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+.fp-s{ font-size: var(--fs-meta); color: var(--text-dim); }
+.fp-cards{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 6px; }
+.fp-card{ display: flex; flex-direction: column; gap: 3px; min-width: 0; padding: 12px 10px; background: var(--surface); border: 1px solid var(--border-quiet);
+  border-radius: var(--radius-lg); }
+.fp-card-k{ font-size: var(--fs-micro); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); }
+.fp-card-v{ font-family: 'Space Grotesk', sans-serif; font-size: 20px; font-weight: 700; line-height: 1.15; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.fp-card-v small{ font-size: 12px; font-weight: 600; color: var(--text-faint); }
+.fp-card-s{ font-size: var(--fs-meta); color: var(--text-dim); }
+.fp-note{ margin: 4px 0 8px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border-quiet); border-radius: var(--radius-lg);
+  font-size: var(--fs-support); color: var(--text-dim); }
+.fp-wait{ display: flex; flex-direction: column; gap: 8px; margin: 4px 0 8px; }
+.fp-wait i{ display: block; height: 52px; border-radius: 12px; background: var(--surface-2); }
+.fp-recs, .fp-mus{ list-style: none; margin: 0 0 6px; padding: 4px 10px; background: var(--surface); border: 1px solid var(--border-quiet); border-radius: var(--radius-lg); }
+.fp-rec, .fp-m{ display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 8px 0; }
+.fp-rec + .fp-rec, .fp-m + .fp-m{ border-top: 1px solid var(--border-quiet); }
+.fp-art{ flex: 0 0 48px; display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 12px; background: var(--surface-2); overflow: hidden; }
+.fp-art .ex-thumb{ width: 48px; height: 48px; }
+.fp-noart{ display: flex; color: var(--text-faint); }
+.fp-noart svg{ width: 20px; height: 20px; }
+.fp-rec-who{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.fp-rec-n{ font-size: var(--fs-body); font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.fp-rec-m{ font-size: var(--fs-meta); color: var(--text-faint); }
+.fp-rec-v{ flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; text-align: right; }
+.fp-rec-v b{ font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-body); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fp-rec-v span{ font-size: var(--fs-meta); color: var(--text-faint); white-space: nowrap; }
+.fp-fig{ flex: 0 0 48px; display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 12px; background: var(--surface-2); overflow: hidden; }
+.fp-fig .muscle-fig{ display: block; width: 44px; }
+.fp-fig .muscle-svg{ display: block; width: 44px; height: auto; }
+.fp-fig .muscle-fig-labels{ display: none; }
+.fp-m-body{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.fp-m-top{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.fp-m-n{ font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.fp-m-v{ font-size: var(--fs-meta); color: var(--text-faint); white-space: nowrap; }
+.fp-m-v b{ font-family: 'Space Grotesk', sans-serif; font-size: var(--fs-body); font-weight: 700; color: var(--text); }
+.fp-m-bar{ display: block; height: 6px; border-radius: 3px; background: var(--surface-3); overflow: hidden; }
+.fp-m-bar i{ display: block; height: 100%; border-radius: 3px; background: var(--accent); }
+
+.fh-set{ margin-bottom: 8px; padding: 4px 14px 12px; background: var(--surface); border: 1px solid var(--border-quiet); border-radius: var(--radius-lg); }
+.fh-sw{ appearance: none; -webkit-appearance: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 52px;
+  margin: 0; padding: 4px 0; background: none; border: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.fh-sw:disabled{ cursor: default; opacity: 0.6; }
+.fh-sw:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.fh-sw-t{ font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.fh-sw-k{ flex: 0 0 46px; position: relative; display: block; width: 46px; height: 28px; border-radius: 14px; background: var(--surface-3); box-shadow: inset 0 0 0 1px var(--border-quiet); }
+.fh-sw-k i{ position: absolute; top: 3px; left: 3px; display: block; width: 22px; height: 22px; border-radius: 50%; background: var(--text-dim); }
+.fh-sw[aria-checked="true"] .fh-sw-k{ background: var(--accent); box-shadow: none; }
+.fh-sw[aria-checked="true"] .fh-sw-k i{ left: 21px; background: var(--bg); }
+.fh-set-d{ margin: 2px 0 0; font-size: var(--fs-meta); line-height: 1.45; color: var(--text-dim); }
+.fh-set-s{ margin: 6px 0 0; font-size: var(--fs-meta); color: var(--text-faint); }
+/* ==== D155 FRIENDS END ==== */
 </style>
 </head>
 <body>
@@ -10774,6 +10887,8 @@ html:has(#logOverlay.open) body.scroll-locked{ height: 100%; min-height: 0; padd
 
     <!-- 5 — what have I actually trained this week -->
     <div id="todayMuscles"></div>
+    <!-- D155 — friends this week: only once there is a confirmed friend, after the training it never outranks -->
+    <div id="todayFriends"></div>
 
   </div>
 
@@ -20916,6 +21031,24 @@ const LOOP_UPDATES = [
     changes: [
       'The “This week” muscle summary now lives on Today and Volume, rather than appearing a third time on Progress'
     ]
+  },
+  {
+    id: 'v10-78',
+    version: 'LOOP 10.78',
+    title: 'Train Together',
+    date: '2026-10-15',
+    swVersion: 'loop-v255',
+    summary: 'Friends are now easier to follow from Today, with weekly rankings and athlete profiles.',
+    newFeatures: [
+      'Today shows a Friends leaderboard for the week once you connect with your first friend, with your own place always in view',
+      'Tap a friend to open their athlete profile: their rank emblem, level, and this week’s XP and workouts'
+    ],
+    improvements: [
+      'You can choose to share training highlights with friends — up to three of your newest personal records and your most-trained muscle groups from the last 30 days. It stays off until you turn it on',
+      'Friends has a clearer weekly leaderboard, with each friend’s rank emblem and your own place highlighted'
+    ],
+    bugFixes: [],
+    changes: []
   }
 ];
 
@@ -21024,7 +21157,9 @@ let socialState = {
   /* D80B — shared workouts */
   shares: null,       // summaries of workouts friends shared with this athlete, from the last hub load
   sharesSupported: null, // null unknown | true (migration 0003) | false — remembered, so Share never shows before it works
-  sharedOpen: null    // { id, status, from, created_at, payload } — the one share being previewed
+  sharedOpen: null,   // { id, status, from, created_at, payload } — the one share being previewed
+  /* D155 — the last leaderboard this account loaded, so Today can say what it showed and when */
+  hubCache: null      // { userId, week, at, people }
 };
 
 async function socialReadRecord(){
@@ -21046,6 +21181,8 @@ async function socialLoad(){
       socialState.published = v.published || null;
       socialState.invite = v.invite || null;
       socialState.sharesSupported = typeof v.sharesSupported === 'boolean' ? v.sharesSupported : null;
+      /* D155 — only ever this account's own last list */
+      socialState.hubCache = v.hubCache && v.session && v.hubCache.userId === v.session.user_id ? v.hubCache : null;
       if(socialState.profile && socialState.profile.username) socialState.profileState = 'found';
     }
     try{
@@ -21063,7 +21200,7 @@ async function socialPersist(){
       session: socialState.session, binding: socialState.binding,
       profile: socialState.profile, lastPublished: socialState.lastPublished,
       published: socialState.published, invite: socialState.invite,
-      sharesSupported: socialState.sharesSupported
+      sharesSupported: socialState.sharesSupported, hubCache: socialState.hubCache
     }));
   }catch(e){}
 }
@@ -21455,7 +21592,10 @@ async function socialClearSession(){
   socialState.backend = null;
   socialState.status = 'idle';
   socialState.error = null;
+  socialState.hubCache = null;
+  socialResetD155();
   await socialPersist();
+  try{ renderTodayFriends(); }catch(e){}
 }
 async function socialSignOut(){
   if(socialSignedIn()){
@@ -21664,7 +21804,8 @@ async function socialPublishWeeks(){
 async function socialPublishAll(){
   const stats = await socialPublishStats();
   const weeks = await socialPublishWeeks();
-  return { stats, weeks };
+  const highlights = await socialPublishHighlights();
+  return { stats, weeks, highlights };
 }
 
 /* Called where a workout finishes. Deliberately not awaited: if this throws,
@@ -21767,6 +21908,9 @@ function socialApplyHub(d, week){
     if(findImportedShare(s.id)){ Promise.resolve(socialRemoveShared(s.id)).catch(() => {}); return false; }
     return true;
   });
+  /* D155 — when this list was loaded, for whom, and the list itself: Today's last good answer */
+  socialD155.hubAt = Date.now(); socialD155.hubUser = socialSelfId();
+  socialState.hubCache = { userId: socialSelfId(), week: week, at: socialD155.hubAt, people: socialState.friends.slice(0, 200) };
   socialPersist();
 }
 
@@ -21792,8 +21936,8 @@ function socialNameOrder(a, b){
   const x = String(a.username).toLowerCase(), y = String(b.username).toLowerCase();
   return x < y ? -1 : x > y ? 1 : 0;
 }
-function socialWeeklyBoard(){
-  const people = (socialState.friends || []).map(socialSelfCurrent);
+function socialWeeklyBoard(list){
+  const people = (list || socialState.friends || []).map(socialSelfCurrent);
   const ranked = people.filter(p => p.week_xp !== null)
     .sort((a, b) => (b.week_xp - a.week_xp) || socialNameOrder(a, b));
   const quiet = people.filter(p => p.week_xp === null).sort(socialNameOrder);
@@ -21849,6 +21993,8 @@ async function socialDeclineRequest(id){
 async function socialRemoveFriend(userId){
   const r = await socialRpc('loop_remove_friend', { other: userId });
   await socialLoadFriends();
+  delete socialD155.profiles[userId];   /* D155 — nothing of a removed friend is kept */
+  try{ renderTodayFriends(); }catch(e){}
   return { ok: r.ok && String(r.data) === 'removed' };
 }
 async function socialRotateCode(){
@@ -22059,10 +22205,12 @@ function openSocial(){
 }
 /* The one Back button walks back through Friends before it leaves it. */
 function closeSocial(){
+  if(socialView.pane === 'profile'){ socialCloseProfile(); return; }
   if(socialView.pane === 'compare'){ socialCloseCompare(); return; }
   if(socialView.pane === 'shared'){ socialCloseShared(); return; }
   document.getElementById('socialOverlay').classList.remove('open');
   renderSettingsSocialRow();
+  try{ renderTodayFriends(); }catch(e){}
 }
 
 /* Everything opening Friends does, once at a time. The athlete's own week is
@@ -22076,6 +22224,12 @@ function socialRefreshHub(){
       try{ await socialPublishAll(); }catch(e){}
       await socialLoadFriends();
       renderSocial();
+      try{ renderTodayFriends(); }catch(e){}
+      /* D155 — whether this athlete shares highlights is the server's answer, read once */
+      if(socialSignedIn() && socialState.status === 'ready' && socialState.backend !== 'codes' && socialD155.profileSupported !== false && !socialD155.sharing){
+        await socialFetchProfile(socialSelfId(), true);
+        renderSocial();
+      }
       if(socialSignedIn() && socialState.profile && socialState.pendingInvite){
         await socialPreviewPendingInvite();
         renderSocial();
@@ -22101,6 +22255,7 @@ function renderSocial(){
       : state === 'signed_out' ? socialSignedOutHtml()
       : socialState.profileState === 'none' ? socialUsernameHtml()
       : !(socialState.profile && socialState.profile.username) ? socialPendingProfileHtml(state)
+      : socialView.pane === 'profile' ? socialProfileHtml()
       : socialView.pane === 'compare' ? socialCompareHtml()
       : socialView.pane === 'shared' ? socialSharedPreviewHtml()
       : socialFriendsHtml();
@@ -22335,8 +22490,11 @@ function socialFriendsHtml(){
      load failed — never both, which would say "unavailable" and "loading" at once. */
   const body = !loaded
     ? (socialAuthState() === 'error' ? '' : socialSkeletonHtml())
-    : socialMyFriendsHtml(friends) + socialInviteSectionHtml(reqs) +
-      socialBoardHtml() + socialProgressHtml(self, snap, unclaimed);
+    /* D155 — with friends, the week's leaderboard is the reason to come back: it leads; inviting stays, calmer */
+    : friends.length && socialState.backend !== 'codes'
+      ? socialBoardHtml() + socialMyFriendsHtml(friends) + socialInviteSectionHtml(reqs) + socialHighlightsSettingHtml()
+      : socialMyFriendsHtml(friends) + socialInviteSectionHtml(reqs) +
+        socialBoardHtml() + socialProgressHtml(self, snap, unclaimed) + socialHighlightsSettingHtml();
 
   return '<div class="soc-hub">' + socialInviteCardHtml() + socialNoticeHtml() + claim + identity +
     socialSyncHtml(!loaded) + (loaded ? socialSharedWithYouHtml() : '') + body + socialAccountHtml() + '</div>';
@@ -22359,11 +22517,11 @@ function socialMyFriendsHtml(friends){
       : f.week_workouts === null
       ? '<span class="soc-fr-wk soc-quiet">No update<span>this week</span></span>'
       : '<span class="soc-fr-wk">' + socialWorkoutsWord(f.week_workouts) + '<span>this week</span></span>';
-    return '<li><button type="button" class="soc-fr" onclick="socialOpenCompare(\'' + escapeAttr(f.user_id) + '\')"' +
+    return '<li><button type="button" class="soc-fr" onclick="socialOpenProfile(\'' + onclickArg(f.user_id) + '\', \'hub\')"' +
       ' aria-label="' + escapeAttr('@' + f.username + ', level ' + f.level + ', ' + socialTitleCase(f.rank) +
         (socialState.backend === 'codes' ? ', ' + socialNum(f.lifetime_xp) + ' XP total'
           : f.week_workouts === null ? ', no update this week' : ', ' + socialWorkoutsWord(f.week_workouts) + ' this week') +
-        '. Compare progress') + '">' +
+        '. Open profile') + '">' +
       '<span class="soc-fr-medal" aria-hidden="true">' + rankMedalSvg(f.rank, 28) + '</span>' +
       '<span class="soc-fr-who"><span class="soc-fr-n">@' + escapeHtml(f.username) + '</span>' +
         '<span class="soc-fr-m">Level ' + f.level + ' · ' + escapeHtml(socialTitleCase(f.rank)) + '</span></span>' +
@@ -22454,28 +22612,15 @@ function socialBoardHtml(){
   let shown = socialView.allBoard ? board : board.slice(0, LIMIT);
   if(!socialView.allBoard && selfIndex >= LIMIT) shown = shown.concat([board[selfIndex]]);
   const week = socialState.week || socialCurrentWeek();
-  const rows = shown.map(r => {
-    const who = r.is_self ? 'You' : '@' + escapeHtml(r.username);
-    const label = r.position === null
-      ? (r.is_self ? 'You' : '@' + r.username) + ', no update this week'
-      : 'Place ' + r.position + ', ' + (r.is_self ? 'you' : '@' + r.username) + ', ' + socialNum(r.week_xp) + ' XP' +
-        (r.week_workouts !== null ? ', ' + socialWorkoutsWord(r.week_workouts) : '');
-    return '<li class="soc-lb-r' + (r.is_self ? ' soc-lb-me' : '') + (r.position === null ? ' soc-lb-quiet' : '') + '"' +
-      ' aria-label="' + escapeAttr(label) + '">' +
-      '<span class="soc-lb-p" aria-hidden="true">' + (r.position === null ? '–' : r.position) + '</span>' +
-      '<span class="soc-lb-who" aria-hidden="true"><span class="soc-lb-n">' + who + '</span>' +
-        (r.position !== null && r.week_workouts !== null ? '<span class="soc-lb-w">' + socialWorkoutsWord(r.week_workouts) + '</span>' : '') +
-      '</span>' +
-      '<span class="soc-lb-x" aria-hidden="true">' + (r.position === null ? 'No update' : socialNum(r.week_xp) + ' XP') + '</span>' +
-    '</li>';
-  }).join('');
+  /* D155 — the one row Today draws too: place, rank emblem, name, level and rank, XP and workouts */
+  const rows = shown.map(r => socialBoardRowHtml(r, 'hub')).join('');
   const more = board.length > LIMIT
     ? '<button type="button" class="soc-more-btn" onclick="socialToggleAll(\'allBoard\')">' +
         (socialView.allBoard ? 'Show fewer' : 'Show all ' + board.length) + '</button>'
     : '';
   return '<div class="sec-head">Weekly leaderboard<span class="sec-hint">' + escapeHtml(socialWeekLabel(week)) + '</span></div>' +
-    '<ol class="soc-lb" aria-label="' + escapeAttr('Weekly leaderboard, ' + socialWeekLabel(week) + ', by XP earned this week') + '">' +
-      rows + '</ol>' + more +
+    '<div class="soc-board"><ol class="fb-list" aria-label="' + escapeAttr('Weekly leaderboard, ' + socialWeekLabel(week) + ', by XP earned this week') + '">' +
+      rows + '</ol></div>' + more +
     '<p class="soc-fine">XP earned Monday to Sunday. Everyone’s own phone counts their week.</p>';
 }
 
@@ -22509,11 +22654,582 @@ function socialAccountHtml(){
       '<div class="soc-acct-r"><span>Email</span><b>' +
         escapeHtml(String((socialState.session && socialState.session.email) || '—')) + '</b></div>' +
     '</div>' +
-    '<p class="soc-fine">Only you can see your email. Friends see your username, level, rank and' +
-      ' weekly XP and workout count — never your workouts, weights or notes. Signing out does not' +
-      ' touch anything on this phone.</p>' +
+    '<p class="soc-fine">Only you can see your email. Friends see your username, level, rank,' +
+      ' weekly XP and workout count — and, only if you turn on training highlights, up to three personal' +
+      ' records and your most-trained muscle groups. Never your workout history or notes. Signing out' +
+      ' does not touch anything on this phone.</p>' +
     '<button type="button" class="soc-alt" onclick="socialDoRename()">Change username</button>' +
     '<button type="button" class="soc-alt" onclick="socialDoSignOut()">Sign out</button>';
+}
+
+/* =========================================================
+   FRIENDS 2.0  (Phase D155)
+   ---------------------------------------------------------
+   Friends on Today, a leaderboard that reads like LOOP, and an athlete profile
+   for every confirmed friend. Nothing here is a second social system: the
+   week, the ranking and the people are D80A's (loop_friends_hub and
+   socialWeeklyBoard, unchanged in what they decide); the profile is one
+   authorised read (loop_friend_profile, migration 0006) that the SERVER gates
+   on a confirmed friendship decided at the moment of the read.
+
+   WHAT A FRIEND MAY SEE OF YOU, beyond the level, rank and weekly numbers the
+   friendship already shares: nothing, until you turn on "Share training
+   highlights with friends". Then this phone publishes two small summaries it
+   derives from LOOP's own readers — up to three of your newest personal
+   records (one per lift; never an estimate, never an assisted lift's
+   counterweight, never a lift's first session) and your three most-trained
+   muscle groups by working sets over the last 30 days. Never a workout, a
+   set, a note, a weight beyond those records, or your history. Turning it off
+   erases them from the server in the same request.
+
+   Nothing about a friend's profile is stored on this phone: it is read when
+   opened and kept in memory only for this session, cleared on sign-out.
+   The leaderboard's last good answer is kept (outside DATA_KEYS, beside the
+   session it belongs to) so Today can say what it showed and WHEN — never as
+   this week's numbers once the week has turned.
+   ========================================================= */
+const SOCIAL_D155 = {
+  todayMax: 5,                // ranked rows Today draws; your own row is pinned beneath them when it ranks lower
+  freshMs: 5 * 60 * 1000,     // a leaderboard older than this is refreshed when Today is drawn or LOOP comes back
+  retryMs: 11 * 1000,         // the server takes one publication every 10 s; a refused one is tried once more after it
+  windowDays: 30,             // Most trained: the 30 civil days ending today
+  recordsMax: 3,
+  musclesMax: 3
+};
+const SOCIAL_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const SOCIAL_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const SOCIAL_MUSCLE_IDS = ['chest', 'shoulders', 'back', 'biceps', 'triceps', 'abs', 'quads', 'hamstrings', 'glutes', 'calves'];
+const SOCIAL_RECORD_KINDS = { weight: 'Weight PR', reps_at_weight: 'Rep PR', reps: 'Rep PR' };
+
+/* Session-scoped and in memory: what this phone knows about Friends 2.0 for the
+   athlete signed in now. socialResetD155() empties it on sign-out or expiry. */
+function socialD155Fresh(){
+  return { hubAt: 0, hubUser: null, profileSupported: null, sharing: null, sharingBusy: false,
+    profiles: {}, seq: {}, todayFlight: null, retryTimer: null, hubScroll: 0, publishSeq: 0 };
+}
+let socialD155 = socialD155Fresh();
+function socialResetD155(){
+  try{ if(socialD155.retryTimer) clearTimeout(socialD155.retryTimer); }catch(e){}
+  socialD155 = socialD155Fresh();
+}
+function socialSelfId(){ return socialSignedIn() ? String(socialState.session.user_id || '') : ''; }
+
+/* ---------- WHAT THIS PHONE PUBLISHES (only when sharing is on) ---------- */
+
+/* Up to three of the athlete's newest personal records, one per lift — the
+   records LOOP itself earned them (computeAllPREvents, newest first): a best
+   that beat an earlier best (headline.prev > 0: a lift's first session is
+   "First", not a record), of a kind LOOP measured rather than estimated
+   (heaviest load, most reps at a load, most bodyweight reps), never a lift
+   whose number is assistance (D152; E76 is open), and never a name the server
+   would refuse (it is shown to someone else). */
+function deriveSharedRecordHighlights(){
+  let events = [];
+  try{ events = computeAllPREvents(); }catch(e){ events = []; }
+  const out = [], seen = new Set();
+  for(const ev of events){
+    if(out.length >= SOCIAL_D155.recordsMax) break;
+    const h = ev && ev.headline;
+    if(!h || !(h.prev > 0) || !SOCIAL_RECORD_KINDS[h.type]) continue;
+    const name = String(ev.exerciseName || '').trim();
+    if(!name || name.length > 60 || /[<>]/.test(name) || [...name].some(c => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127)) continue;
+    if(exerciseLoadMeaning(name)) continue;
+    const id = name.toLowerCase();
+    if(seen.has(id)) continue;
+    if(!SOCIAL_DATE_RE.test(String(ev.date || ''))) continue;
+    const load = v => { const n = Math.round(Number(v) * 100) / 100; return isFinite(n) && n > 0 && n <= 2000 ? n : null; };
+    const reps = v => { const n = Number(v); return Number.isInteger(n) && n >= 1 && n <= 1000 ? n : null; };
+    let rec = null;
+    if(h.type === 'weight'){ const l = load(h.next); if(l !== null) rec = { exercise: name, kind: 'weight', load: l, date: ev.date }; }
+    else if(h.type === 'reps_at_weight'){ const l = load(h.weight), r = reps(h.next); if(l !== null && r !== null) rec = { exercise: name, kind: 'reps_at_weight', load: l, reps: r, date: ev.date }; }
+    else if(h.type === 'reps'){ const r = reps(h.next); if(r !== null) rec = { exercise: name, kind: 'reps', reps: r, date: ev.date }; }
+    if(!rec) continue;
+    seen.add(id);
+    out.push(rec);
+  }
+  return out;
+}
+
+/* The three most-trained muscle groups over the last 30 civil days, by
+   WORKING SETS: D46B's arithmetic (deriveMuscleSetsBetween — the reader Today
+   and Volume use), so a warm-up, an unperformed set and a skipped exercise
+   never count, and a set counts toward each muscle it primarily trains. The
+   window ends today on this athlete's own calendar; `sets` is the real number
+   of working sets performed in it, the denominator the bars are read against. */
+function deriveSharedMuscleHighlights(){
+  const through = localDateStr();
+  const from = addDaysISO(through, -(SOCIAL_D155.windowDays - 1));
+  const mv = deriveMuscleSetsBetween(from, through);
+  const muscles = (mv.muscles || []).filter(m => SOCIAL_MUSCLE_IDS.indexOf(m.id) !== -1 && m.sets > 0)
+    .slice(0, SOCIAL_D155.musclesMax).map(m => ({ id: m.id, sets: m.sets }));
+  return { window_days: SOCIAL_D155.windowDays, through, sets: mv.setsLogged || 0, muscles: (mv.setsLogged || 0) > 0 ? muscles : [] };
+}
+
+/* Publish this athlete's highlights — only while the SERVER says sharing is on
+   (never an optimistic local flag), only when they changed or have not been
+   sent for a while, never blocking anything. A refusal for publishing too often
+   is retried once, after the server's window. A refusal as older than what is
+   stored (another of this athlete's devices keeps a clock that runs ahead) is
+   retried once, just above the server's sequence — and only by the newest
+   attempt this phone made, so an older attempt never overwrites newer summaries. */
+async function socialPublishHighlights(force, floor){
+  if(!socialSignedIn() || !socialState.profile) return { ok:false, error:'not_ready' };
+  if(!socialState.binding || socialState.binding.publishAllowed === false) return { ok:false, error:'unclaimed' };
+  if(socialState.backend === 'codes' || socialD155.profileSupported === false) return { ok:false, error:'unsupported' };
+  if(!socialD155.sharing) await socialFetchProfile(socialSelfId(), true);
+  if(!socialD155.sharing || !socialD155.sharing.on) return { ok:false, error:'not_shared' };
+  let records, activity;
+  try{ records = deriveSharedRecordHighlights(); activity = deriveSharedMuscleHighlights(); }catch(e){ return { ok:false, error:'no_snapshot' }; }
+  const sig = JSON.stringify([records, activity]);
+  const prev = socialState.published || {};
+  if(!force && prev.highlights === sig && Date.now() - (Number(prev.highlightsAt) || 0) < SOCIAL_TIMING.republishMs)
+    return { ok:true, unchanged:true };
+  const uid = socialSelfId();
+  const seq = Math.max(Date.now(), Number(floor) || 0, socialD155.publishSeq + 1);
+  socialD155.publishSeq = seq;
+  const r = await socialRpc('loop_publish_profile_highlights', { p_seq: seq, p_records: records, p_activity: activity });
+  if(socialSelfId() !== uid) return { ok:false, error:'signed_out' };
+  const st = r.ok && r.data ? r.data.status : null;
+  if(st === 'published'){
+    socialState.published = Object.assign({}, socialState.published, { highlights: sig, highlightsAt: Date.now() });
+    delete socialD155.profiles[uid];
+    await socialPersist();
+    return { ok:true };
+  }
+  if(st === 'too_frequent' && !socialD155.retryTimer){
+    socialD155.retryTimer = setTimeout(() => { socialD155.retryTimer = null; Promise.resolve(socialPublishHighlights(true)).catch(() => {}); }, SOCIAL_D155.retryMs);
+  }
+  const ahead = st === 'stale' && r.data ? Number(r.data.seq) : NaN;
+  if(ahead >= seq && ahead < Number.MAX_SAFE_INTEGER && floor === undefined && socialD155.publishSeq === seq)
+    return socialPublishHighlights(true, ahead + 1);
+  if(st === 'not_shared') socialD155.sharing = { on: false, records: false, activity: false };
+  if(socialIsMissing(r)) socialD155.profileSupported = false;
+  return { ok:false, error: st || r.error || 'request_failed' };
+}
+
+/* ---------- READING ONE PROFILE (mine, or a confirmed friend's) ---------- */
+
+/* Only what the screen may show, checked field by field: a server answer is
+   data, never markup, and one athlete's answer is never filed under another's id. */
+function socialRecordFrom(x){
+  if(!x || typeof x !== 'object' || !SOCIAL_RECORD_KINDS[x.kind]) return null;
+  const name = typeof x.exercise === 'string' ? x.exercise.trim() : '';
+  if(!name || name.length > 60) return null;
+  if(!SOCIAL_DATE_RE.test(String(x.date || ''))) return null;
+  const load = Number(x.load), reps = Number(x.reps);
+  const okLoad = isFinite(load) && load > 0 && load <= 2000, okReps = Number.isInteger(reps) && reps >= 1 && reps <= 1000;
+  if(x.kind === 'weight' && !okLoad) return null;
+  if(x.kind === 'reps_at_weight' && !(okLoad && okReps)) return null;
+  if(x.kind === 'reps' && !okReps) return null;
+  return { exercise: name, kind: x.kind, load: x.kind === 'reps' ? null : load, reps: x.kind === 'weight' ? null : reps, date: String(x.date) };
+}
+function socialActivityFrom(a){
+  if(!a || typeof a !== 'object' || Number(a.window_days) !== SOCIAL_D155.windowDays || !SOCIAL_DATE_RE.test(String(a.through || ''))) return null;
+  const sets = Number(a.sets);
+  if(!Number.isInteger(sets) || sets < 0) return null;
+  const muscles = (Array.isArray(a.muscles) ? a.muscles : [])
+    .filter(m => m && SOCIAL_MUSCLE_IDS.indexOf(m.id) !== -1 && Number.isInteger(Number(m.sets)) && Number(m.sets) >= 1 && Number(m.sets) <= sets)
+    .slice(0, SOCIAL_D155.musclesMax).map(m => ({ id: m.id, sets: Number(m.sets) }));
+  return { through: String(a.through), sets, muscles };
+}
+function socialProfileFrom(d, id){
+  const pr = d && d.person;
+  if(!pr || String(pr.user_id) !== id) return null;
+  const rec = d.records || {}, act = d.activity || {};
+  const recShared = rec.shared === true, actShared = act.shared === true;
+  return {
+    person: socialPersonFrom(pr), is_self: pr.is_self === true,
+    friends_since: pr.friends_since || null,
+    records: { shared: recShared, published: recShared && Array.isArray(rec.items),
+      items: recShared && Array.isArray(rec.items) ? rec.items.map(socialRecordFrom).filter(Boolean).slice(0, SOCIAL_D155.recordsMax) : [],
+      updated_at: recShared ? (rec.updated_at || null) : null },
+    activity: { shared: actShared, data: actShared ? socialActivityFrom(act.data) : null,
+      updated_at: actShared ? (act.updated_at || null) : null }
+  };
+}
+
+/* One request per open; an answer that arrives after a newer request for the
+   same athlete, after sign-out, or for a different signed-in athlete is
+   dropped rather than drawn. */
+async function socialFetchProfile(id, quiet){
+  if(!socialSignedIn() || !SOCIAL_UUID_RE.test(String(id || ''))) return;
+  const uid = socialSelfId();
+  const seq = (socialD155.seq[id] || 0) + 1;
+  socialD155.seq[id] = seq;
+  const before = socialD155.profiles[id] || null;
+  if(socialD155.profileSupported === false){ socialD155.profiles[id] = { status: 'unsupported' }; if(!quiet) socialRenderProfileIfOpen(id); return; }
+  socialD155.profiles[id] = Object.assign({}, before || {}, { status: 'loading' });
+  if(!quiet) socialRenderProfileIfOpen(id);
+  const r = await socialRpc('loop_friend_profile', { p_athlete: id, p_week: socialCurrentWeek() });
+  if(socialSelfId() !== uid || socialD155.seq[id] !== seq) return;
+  const st = r.ok && r.data ? r.data.status : null;
+  if(st === 'ok'){
+    const p = socialProfileFrom(r.data, id);
+    if(p){
+      socialD155.profileSupported = true;
+      socialD155.profiles[id] = { status: 'ok', at: Date.now(), data: p };
+      if(p.is_self) socialD155.sharing = { on: p.records.shared && p.activity.shared, records: p.records.shared, activity: p.activity.shared };
+    } else socialD155.profiles[id] = { status: 'error' };
+  } else if(st === 'not_found'){
+    /* Not a friend any more (removed on either phone) — or never was. Nothing of
+       theirs is kept, and the list is refreshed so they leave it everywhere. */
+    socialD155.profiles[id] = { status: 'gone' };
+    Promise.resolve(socialLoadFriends()).then(() => { renderSocial(); renderTodayFriends(); }).catch(() => {});
+  } else if(socialIsMissing(r)){
+    socialD155.profileSupported = false;
+    socialD155.profiles[id] = { status: 'unsupported' };
+  } else {
+    socialD155.profiles[id] = { status: 'error', problem: socialNetProblem(r) || 'Could not load this profile just now.' };
+  }
+  if(!quiet) socialRenderProfileIfOpen(id);
+}
+function socialRenderProfileIfOpen(id){
+  if(socialView.pane === 'profile' && socialView.profileId === id) renderSocial();
+}
+
+/* ---------- THE RANKING, FOR TODAY ---------- */
+
+/* The board Today may show: the signed-in athlete's own circle, for THIS week
+   only — live when Friends loaded for this account this week, otherwise the
+   last list this account loaded this week, marked with when. Never another
+   account's, never last week's, and nothing at all without a confirmed friend. */
+function socialTodayBoard(){
+  if(!socialConfigured() || !socialSignedIn() || socialState.backend === 'codes') return null;
+  if(socialState.binding && socialState.binding.publishAllowed === false) return null;
+  const uid = socialSelfId(), week = socialCurrentWeek();
+  let people = null, at = 0, cached = false;
+  if(socialState.friends && socialD155.hubUser === uid && socialState.week === week){
+    people = socialState.friends; at = socialD155.hubAt;
+  } else {
+    const c = socialState.hubCache;
+    if(c && c.userId === uid && c.week === week && Array.isArray(c.people)){ people = c.people.map(socialPersonFrom); at = Number(c.at) || 0; cached = true; }
+  }
+  if(!people) return null;
+  if(!people.some(p => !p.is_self && SOCIAL_UUID_RE.test(p.user_id))) return null;
+  return { week, at, cached, board: socialWeeklyBoard(people) };
+}
+/* The top `max` of the WHOLE ranking, and your own row pinned beneath them when
+   it ranks lower — never dropped, never drawn twice. Places are the board's own
+   (equal XP shares a place), so a row says what the full ranking says. */
+function deriveTodayFriendsPreview(board, max){
+  const n = max || SOCIAL_D155.todayMax;
+  const selfIdx = board.findIndex(r => r.is_self);
+  return { rows: board.slice(0, n), pinned: selfIdx >= n ? board[selfIdx] : null,
+    self: selfIdx >= 0 ? board[selfIdx] : null, total: board.length };
+}
+function socialPlaceWords(n){
+  const W = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth', 'Ninth', 'Tenth'];
+  if(n >= 1 && n <= 10) return W[n - 1];
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+function socialClockLabel(ms){
+  try{
+    const d = new Date(ms);
+    if(isNaN(d.getTime())) return '';
+    return d.toDateString() === new Date().toDateString()
+      ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+      : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  }catch(e){ return ''; }
+}
+
+/* One leaderboard row, the same on Today and in Friends: the place (a number,
+   never a medal), the athlete's own rank emblem, name, level and rank, the
+   week's XP and workouts — and in words for a screen reader, place first. */
+function socialBoardRowHtml(r, from, tag){
+  const ranked = r.position !== null && r.position !== undefined;
+  const name = r.is_self ? 'You' : '@' + r.username;
+  const spoken = (ranked ? socialPlaceWords(r.position) + ' place, ' : 'Not ranked yet, ') +
+    (r.is_self ? 'you' : '@' + r.username) + ', level ' + r.level + ' ' + socialTitleCase(r.rank) + ', ' +
+    (ranked ? socialNum(r.week_xp) + ' XP' + (r.week_workouts !== null ? ', ' + socialWorkoutsWord(r.week_workouts) : '') + ' this week'
+            : 'no update this week') + '. Open profile.';
+  const open = SOCIAL_UUID_RE.test(String(r.user_id || ''));
+  const El = tag || 'li';
+  return '<' + El + ' class="fb-li">' +
+    (open ? '<button type="button" class="fb-r' : '<div class="fb-r') + (r.is_self ? ' fb-me' : '') + (ranked ? '' : ' fb-quiet') + '"' +
+      (open ? ' onclick="socialOpenProfile(\'' + onclickArg(r.user_id) + '\', \'' + (from === 'today' ? 'today' : 'hub') + '\')"' : '') +
+      ' aria-label="' + escapeAttr(spoken) + '">' +
+      '<span class="fb-p" aria-hidden="true">' + (ranked ? r.position : '–') + '</span>' +
+      '<span class="fb-medal" aria-hidden="true">' + rankMedalSvg(r.rank, 28) + '</span>' +
+      '<span class="fb-who" aria-hidden="true"><span class="fb-n">' + escapeHtml(name) + '</span>' +
+        '<span class="fb-m">Level ' + r.level + ' · ' + escapeHtml(socialTitleCase(r.rank)) + '</span></span>' +
+      '<span class="fb-x" aria-hidden="true"><b>' + (ranked ? socialNum(r.week_xp) + ' XP' : 'No update') + '</b>' +
+        (ranked && r.week_workouts !== null ? '<span>' + socialWorkoutsWord(r.week_workouts) + '</span>' : '') + '</span>' +
+      (open ? '<span class="fb-chev" aria-hidden="true">' + chevronRightSvg() + '</span></button>' : '</div>') +
+  '</' + El + '>';
+}
+
+/* ---------- TODAY ---------- */
+function todayFriendsHtml(){
+  const d = socialTodayBoard();
+  if(!d) return '';
+  const p = deriveTodayFriendsPreview(d.board);
+  const me = p.self;
+  const placed = me && me.position !== null;
+  const stale = d.cached || (d.at && Date.now() - d.at > SOCIAL_D155.freshMs);
+  const friendsN = d.board.length - 1;
+  const sumSpoken = (placed ? 'Your place: ' + me.position + ' of ' + d.board.length : 'You are not ranked yet this week') +
+    '. ' + friendsN + ' friend' + (friendsN === 1 ? '' : 's') + '. ' +
+    (me && me.week_xp !== null ? socialNum(me.week_xp) + ' XP this week.' : 'No XP update from you this week.');
+  return '<section class="tf pd-card" aria-labelledby="tfH">' +
+    '<div class="tf-top">' +
+      '<div class="tf-head"><h3 class="tf-t" id="tfH">Friends this week</h3>' +
+        '<span class="tf-s">' + escapeHtml(socialWeekLabel(d.week)) + '</span></div>' +
+      '<button type="button" class="tf-open" onclick="openSocial()">Open Friends' + chevronRightSvg() + '</button>' +
+    '</div>' +
+    '<div class="tf-sum" role="group" aria-label="' + escapeAttr(sumSpoken) + '">' +
+      '<span class="tf-sum-c" aria-hidden="true"><i>Your place</i><b>' + (placed ? me.position + '<small> / ' + d.board.length + '</small>' : '—') + '</b></span>' +
+      '<span class="tf-sum-c" aria-hidden="true"><i>Friends</i><b>' + friendsN + '</b></span>' +
+      '<span class="tf-sum-c" aria-hidden="true"><i>Your XP</i><b>' + (me && me.week_xp !== null ? socialNum(me.week_xp) : '—') + '</b></span>' +
+    '</div>' +
+    '<ol class="fb-list" aria-label="' + escapeAttr('Friends this week, top ' + p.rows.length + ' of ' + d.board.length) + '">' +
+      p.rows.map(r => socialBoardRowHtml(r, 'today')).join('') + '</ol>' +
+    (p.pinned ? '<div class="tf-pin" role="group" aria-label="Your place">' + socialBoardRowHtml(p.pinned, 'today', 'div') + '</div>' : '') +
+    (stale && d.at ? '<p class="tf-upd">Updated ' + escapeHtml(socialClockLabel(d.at)) + (d.cached ? ' · not refreshed since' : '') + '</p>' : '') +
+  '</section>';
+}
+function renderTodayFriends(){
+  const el = document.getElementById('todayFriends');
+  if(!el) return;
+  let html = '';
+  try{ html = todayFriendsHtml(); }catch(e){ html = ''; }
+  el.innerHTML = html;
+}
+/* Today draws its block just after its own drawing, never inside it: your own row
+   is the phone's own week (socialSelfCurrent), which reads the whole history, so
+   it costs Today's drawing nothing — and however often Today redraws in a row,
+   the block is drawn once. Then the leaderboard is refreshed in the background. */
+let socialTodayDrawTimer = null;
+function socialTodayFriendsSoon(){
+  if(socialTodayDrawTimer) return;
+  socialTodayDrawTimer = setTimeout(() => {
+    socialTodayDrawTimer = null;
+    try{ renderTodayFriends(); }catch(e){}
+    Promise.resolve(socialTodayRefresh()).catch(() => {});
+  }, 0);
+}
+/* Today asks for the leaderboard in the background — never before the first
+   paint is drawn, never while it is fresh, once at a time — and redraws only
+   its own block when the answer arrives. A workout never waits for it. */
+function socialTodayRefresh(force){
+  try{
+    if(!socialConfigured() || !socialSignedIn() || socialState.backend === 'codes') return Promise.resolve();
+    const uid = socialSelfId();
+    const fresh = socialD155.hubUser === uid && socialState.week === socialCurrentWeek() && Date.now() - socialD155.hubAt < SOCIAL_D155.freshMs;
+    if(fresh && !force) return Promise.resolve();
+    if(socialHubFlight) return socialHubFlight.then(() => renderTodayFriends(), () => renderTodayFriends());
+    if(socialD155.todayFlight) return socialD155.todayFlight;
+    const f = (async () => {
+      try{ try{ await socialPublishAll(); }catch(e){} await socialLoadFriends(); }catch(e){}
+      try{ renderTodayFriends(); }catch(e){}
+    })();
+    socialD155.todayFlight = f;
+    f.then(() => { if(socialD155.todayFlight === f) socialD155.todayFlight = null; });
+    return f;
+  }catch(e){ return Promise.resolve(); }
+}
+if(typeof document !== 'undefined' && document.addEventListener){
+  document.addEventListener('visibilitychange', () => {
+    if(document.visibilityState === 'visible') setTimeout(() => { Promise.resolve(socialTodayRefresh()).catch(() => {}); }, 0);
+  });
+}
+
+/* ---------- THE ATHLETE PROFILE ---------- */
+function socialOpenProfile(userId, from){
+  const id = String(userId || '');
+  if(!SOCIAL_UUID_RE.test(id) || !socialSignedIn()) return;
+  const overlay = document.getElementById('socialOverlay');
+  const wasOpen = !!(overlay && overlay.classList.contains('open'));
+  if(wasOpen && socialView.pane === 'hub'){ try{ socialD155.hubScroll = document.querySelector('#socialOverlay .sheet-scroll').scrollTop; }catch(e){} }
+  socialView.pane = 'profile'; socialView.profileId = id;
+  socialView.profileFrom = (from === 'today' && !wasOpen) ? 'today' : 'hub';
+  socialView.menuOpen = false; socialView.confirmRemove = false; socialView.notice = null; socialView.tone = null;
+  renderSocial();
+  if(!wasOpen && overlay) overlay.classList.add('open');
+  try{ document.querySelector('#socialOverlay .sheet-scroll').scrollTop = 0; }catch(e){}
+  socialFetchProfile(id);
+}
+function socialCloseProfile(){
+  const from = socialView.profileFrom;
+  socialView.pane = 'hub'; socialView.profileId = null; socialView.profileFrom = null;
+  socialView.menuOpen = false; socialView.confirmRemove = false;
+  if(from === 'today'){
+    const o = document.getElementById('socialOverlay');
+    if(o) o.classList.remove('open');
+    renderSocial(); renderTodayFriends();
+    return;
+  }
+  renderSocial();
+  try{ document.querySelector('#socialOverlay .sheet-scroll').scrollTop = socialD155.hubScroll || 0; }catch(e){}
+}
+function socialSinceLabel(iso){
+  try{
+    const d = new Date(iso);
+    if(isNaN(d.getTime())) return '';
+    return d.toLocaleDateString(undefined, { month: 'short', year: 'numeric' });
+  }catch(e){ return ''; }
+}
+function socialRecordValue(x){
+  if(x.kind === 'weight') return { text: socialNum(x.load) + ' lb', spoken: socialNum(x.load) + ' pounds' };
+  if(x.kind === 'reps_at_weight') return { text: socialNum(x.load) + ' lb × ' + x.reps, spoken: x.reps + ' reps at ' + socialNum(x.load) + ' pounds' };
+  return { text: x.reps + ' reps', spoken: x.reps + ' reps' };
+}
+function socialProfileRecordsHtml(e, isSelf){
+  const data = e.data;
+  const upd = data && data.records.shared && data.records.updated_at ? '<span class="sec-hint">Updated ' + escapeHtml(socialShortDate(data.records.updated_at)) + '</span>' : '';
+  const head = '<div class="sec-head">Personal records' + upd + '</div>';
+  if(!data){
+    return head + (e.status === 'error'
+      ? '<p class="fp-note" role="status">' + escapeHtml(e.problem || 'Could not load this profile just now.') + '</p>'
+      : '<div class="fp-wait" aria-hidden="true"><i></i><i></i><i></i></div>');
+  }
+  const r = data.records;
+  if(!r.shared) return head + '<p class="fp-note">' + (isSelf ? 'You are not sharing your personal records.' : 'Personal records not shared.') + '</p>';
+  if(!r.published) return head + '<p class="fp-note">' + (isSelf ? 'Shared — your records appear here once they are published.' : 'Nothing shared yet.') + '</p>';
+  if(!r.items.length) return head + '<p class="fp-note">No personal records yet.</p>';
+  return head + '<ul class="fp-recs" aria-label="Personal records">' + r.items.map(x => {
+    const art = exerciseThumbHtml(x.exercise, { static: true });
+    let mus = [];
+    try{ mus = ((musclesForExercise(x.exercise) || {}).primary || []).slice(0, 2).map(k => MUSCLE_LABELS[k] || k); }catch(err){ mus = []; }
+    const v = socialRecordValue(x);
+    const label = SOCIAL_RECORD_KINDS[x.kind];
+    return '<li class="fp-rec" aria-label="' + escapeAttr(x.exercise + ', ' + label + ', ' + v.spoken + ', ' + exdDate(x.date)) + '">' +
+      '<span class="fp-art" aria-hidden="true">' + (art || '<span class="fp-noart">' + trophyIconSvg() + '</span>') + '</span>' +
+      '<span class="fp-rec-who" aria-hidden="true"><span class="fp-rec-n">' + escapeHtml(x.exercise) + '</span>' +
+        '<span class="fp-rec-m">' + escapeHtml(label + (mus.length ? ' · ' + mus.join(' · ') : '')) + '</span></span>' +
+      '<span class="fp-rec-v" aria-hidden="true"><b>' + escapeHtml(v.text) + '</b><span>' + escapeHtml(exdDate(x.date)) + '</span></span>' +
+    '</li>';
+  }).join('') + '</ul>';
+}
+function socialProfileActivityHtml(e, isSelf){
+  const data = e.data;
+  const head = '<div class="sec-head">Most trained muscles<span class="sec-hint">Last 30 days</span></div>';
+  if(!data) return e.status === 'error' ? '' : head + '<div class="fp-wait" aria-hidden="true"><i></i><i></i><i></i></div>';
+  const a = data.activity;
+  if(!a.shared) return head + '<p class="fp-note">' + (isSelf ? 'You are not sharing training highlights.' : 'Training highlights not shared.') + '</p>';
+  if(!a.data) return head + '<p class="fp-note">' + (isSelf ? 'Shared — your training appears here once it is published.' : 'Nothing shared yet.') + '</p>';
+  if(!a.data.sets || !a.data.muscles.length) return head + '<p class="fp-note">No working sets in the 30 days to ' + escapeHtml(exdDate(a.data.through)) + '.</p>';
+  const top = a.data.muscles[0].sets;
+  return head + '<ul class="fp-mus" aria-label="' + escapeAttr('Most trained muscle groups, working sets in the 30 days to ' + exdDate(a.data.through)) + '">' +
+    a.data.muscles.map(m => {
+      const one = {}; one[m.id] = m.sets;
+      const lab = MUSCLE_LABELS[m.id] || m.id;
+      return '<li class="fp-m" aria-label="' + escapeAttr(lab + ', ' + m.sets + ' working set' + (m.sets === 1 ? '' : 's')) + '">' +
+        '<span class="fp-fig" aria-hidden="true">' + bodyDiagramSvg(null, one) + '</span>' +
+        '<span class="fp-m-body" aria-hidden="true"><span class="fp-m-top"><span class="fp-m-n">' + escapeHtml(lab) + '</span>' +
+          '<span class="fp-m-v"><b>' + m.sets + '</b> working set' + (m.sets === 1 ? '' : 's') + '</span></span>' +
+          '<span class="fp-m-bar"><i style="width:' + Math.max(4, Math.round(m.sets / top * 100)) + '%"></i></span></span>' +
+      '</li>';
+    }).join('') + '</ul>' +
+    '<p class="soc-fine">Working sets in the 30 days to ' + escapeHtml(exdDate(a.data.through)) + ' — ' + a.data.sets + ' in all. A set counts toward each muscle it mainly trains.</p>';
+}
+function socialProfileHtml(){
+  const id = socialView.profileId;
+  const backLabel = socialView.profileFrom === 'today' ? 'Today' : 'Friends';
+  /* only your own profile needs your own row (it reads the whole history); a friend's never computes it */
+  const people = socialState.friends || [];
+  const hubRow = people.find(p => p.user_id === id) || null;
+  const e = socialD155.profiles[id] || { status: 'loading' };
+  const data = e.data || null;
+  const isSelf = id === socialSelfId();
+  const back = '<button type="button" class="soc-back" onclick="socialCloseProfile()">‹ ' + backLabel + '</button>';
+  if(e.status === 'gone' || (!isSelf && !hubRow && !data && socialState.friends)){
+    return '<div class="soc-cmp-top">' + back + '</div>' +
+      '<p class="soc-notice" role="status">This athlete is no longer on your friends list, so their profile is closed.</p>';
+  }
+  /* Your own row is this phone's numbers, exactly as the leaderboard shows it; a friend's are what the server returned. */
+  const person = isSelf ? (socialSelfCurrent(people.find(p => p.is_self)) || (data && data.person)) : ((data && data.person) || hubRow);
+  if(!person){
+    return '<div class="soc-cmp-top">' + back + '</div>' + (e.status === 'error'
+      ? '<p class="soc-notice" role="status">' + escapeHtml(e.problem || 'Could not load this profile just now.') + '</p><button type="button" class="soc-retry" onclick="socialFetchProfile(socialView.profileId)">Try again</button>'
+      : socialSkeletonHtml());
+  }
+  const name = isSelf ? 'You' : '@' + person.username;
+  const since = !isSelf && data && data.friends_since ? 'Friends since ' + socialSinceLabel(data.friends_since) : (isSelf ? 'Your profile — what your friends see' : 'Friend');
+  const menu = !isSelf && socialView.menuOpen && !socialView.confirmRemove
+    ? '<div class="soc-menu" role="menu"><button type="button" role="menuitem" class="soc-menu-i soc-danger" onclick="socialAskRemove()">Remove friend</button></div>' : '';
+  const confirmBox = !isSelf && socialView.confirmRemove
+    ? '<div class="soc-confirm" role="alertdialog" aria-labelledby="socRmT">' +
+        '<div class="soc-confirm-t" id="socRmT">Remove @' + escapeHtml(person.username) + '?</div>' +
+        '<p class="soc-confirm-s">You will stop seeing each other’s week and training highlights. You can reconnect with a new invite.</p>' +
+        '<div class="soc-confirm-a">' +
+          '<button type="button" class="soc-link-btn soc-danger-btn" onclick="socialDoRemove(this)"' + (socialView.busy ? ' disabled' : '') + '>Remove</button>' +
+          '<button type="button" class="soc-link-btn" onclick="socialCancelRemove()">Cancel</button>' +
+        '</div></div>' : '';
+  const more = isSelf ? '' :
+    '<button type="button" class="soc-more" aria-label="' + escapeAttr('More options for @' + person.username) + '" aria-haspopup="menu" aria-expanded="' +
+      (socialView.menuOpen ? 'true' : 'false') + '" onclick="socialToggleMenu()"><span aria-hidden="true">•••</span></button>';
+  const card = (k, v, s, spoken) => '<div class="fp-card" role="group" aria-label="' + escapeAttr(spoken) + '">' +
+    '<span class="fp-card-k" aria-hidden="true">' + k + '</span><b class="fp-card-v" aria-hidden="true">' + v + '</b>' +
+    '<span class="fp-card-s" aria-hidden="true">' + s + '</span></div>';
+  const xp = person.week_xp, wk = person.week_workouts;
+  const cards = '<div class="fp-cards">' +
+    card('This week', xp === null || xp === undefined ? 'No update' : socialNum(xp) + '<small> XP</small>', 'XP earned',
+      xp === null || xp === undefined ? 'No XP update this week' : socialNum(xp) + ' XP this week') +
+    card('Workouts', wk === null || wk === undefined ? '—' : socialNum(wk), 'this week',
+      wk === null || wk === undefined ? 'No workout update this week' : socialWorkoutsWord(wk) + ' this week') +
+    card('Level', String(person.level), escapeHtml(socialTitleCase(person.rank)), 'Level ' + person.level + ', ' + socialTitleCase(person.rank)) +
+  '</div>';
+  const highlights = socialD155.profileSupported === false || e.status === 'unsupported' ? ''
+    : socialProfileRecordsHtml(e, isSelf) + socialProfileActivityHtml(e, isSelf);
+  return '<div class="fp">' +
+    '<div class="soc-cmp-top">' + back + more + '</div>' + menu + confirmBox + socialNoticeHtml() +
+    '<div class="fp-head">' +
+      '<span class="fp-medal" aria-hidden="true">' + rankMedalSvg(person.rank, 56) + '</span>' +
+      '<span class="fp-who"><h2 class="fp-n">' + escapeHtml(name) + '</h2>' +
+        '<span class="fp-s">' + escapeHtml(since) + '</span></span>' +
+    '</div>' + cards + highlights +
+    (isSelf ? socialHighlightsSettingHtml() : '<p class="soc-fine">Friends share level, rank and weekly numbers.' +
+      (highlights ? ' Personal records and training highlights appear only when @' + escapeHtml(person.username) + ' chooses to share them.' : '') + '</p>') +
+  '</div>';
+}
+
+/* ---------- SHARE TRAINING HIGHLIGHTS (one setting, both summaries) ---------- */
+function socialHighlightsSettingHtml(){
+  if(socialD155.profileSupported === false || socialState.backend === 'codes') return '';
+  const s = socialD155.sharing;
+  const on = !!(s && s.on);
+  const busy = socialD155.sharingBusy;
+  return '<div class="sec-head">Training highlights</div>' +
+    '<div class="fh-set">' +
+      '<button type="button" class="fh-sw" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-describedby="fhSetD"' +
+        (s === null || busy ? ' disabled' : '') + ' onclick="socialDoToggleHighlights(this)">' +
+        '<span class="fh-sw-t">Share training highlights with friends</span><span class="fh-sw-k" aria-hidden="true"><i></i></span></button>' +
+      '<p class="fh-set-d" id="fhSetD">Friends can see up to three of your newest personal records and your most-trained muscle groups from the last 30 days. ' +
+        'Your workout history and private notes stay on your device. Turning this off removes them from Friends straight away.</p>' +
+      (s === null ? '<p class="fh-set-s" role="status">Checking…</p>' : busy ? '<p class="fh-set-s" role="status">Saving…</p>' : '') +
+    '</div>';
+}
+/* The switch moves only when the server says it moved. Offline, failed or
+   refused, it stays where it was and says so. */
+async function socialDoToggleHighlights(){
+  if(socialD155.sharingBusy || !socialD155.sharing) return;
+  const want = !socialD155.sharing.on;
+  const uid = socialSelfId();
+  socialD155.sharingBusy = true; socialView.notice = null; renderSocial();
+  const r = await socialRpc('loop_set_profile_sharing', { p_records: want, p_activity: want });
+  if(socialSelfId() !== uid) return;
+  socialD155.sharingBusy = false;
+  const ok = r.ok && r.data && r.data.status === 'ok' && r.data.share_records === want && r.data.share_activity === want;
+  if(ok){
+    socialD155.sharing = { on: want, records: want, activity: want };
+    delete socialD155.profiles[uid];
+    if(want){
+      const p = await socialPublishHighlights(true);
+      socialSay(p.ok ? 'Your training highlights are shared with your friends.'
+        : p.error === 'too_frequent' ? 'Sharing is on. Your highlights reach your friends in a few seconds.'
+        : 'Sharing is on. Your highlights appear once LOOP can reach Friends.', 'ok');
+    } else {
+      socialState.published = Object.assign({}, socialState.published, { highlights: null, highlightsAt: 0 });
+      await socialPersist();
+      socialSay('Your training highlights are no longer shared.', 'ok');
+    }
+  } else {
+    if(socialIsMissing(r)) socialD155.profileSupported = false;
+    socialSay((socialNetProblem(r) || 'That did not save.') + ' Your sharing is unchanged.');
+  }
+  renderSocial();
+  if(socialView.pane === 'profile' && socialView.profileId === uid) socialFetchProfile(uid);
 }
 
 /* ---------- COMPARE ----------
@@ -23493,19 +24209,25 @@ async function socialDoDecline(id){
   renderSocial();
 }
 async function socialDoRemove(btn){
-  const f = (socialState.friends || []).find(p => p.user_id === socialView.compareId && !p.is_self);
-  if(!f){ socialCloseCompare(); return; }
+  /* D155 — from the athlete profile (or, from an older screen, the compare pane) */
+  const fromProfile = socialView.pane === 'profile';
+  const id = fromProfile ? socialView.profileId : socialView.compareId;
+  const f = (socialState.friends || []).find(p => p.user_id === id && !p.is_self);
+  if(!f){ if(fromProfile) socialCloseProfile(); else socialCloseCompare(); return; }
   socialBusy(btn, true);
   const r = await socialRemoveFriend(f.user_id);
   socialBusy(btn, false);
   if(r.ok){
-    socialView.pane = 'hub'; socialView.compareId = null;
+    const backToToday = fromProfile && socialView.profileFrom === 'today';
+    socialView.pane = 'hub'; socialView.compareId = null; socialView.profileId = null; socialView.profileFrom = null;
     socialView.confirmRemove = false; socialView.menuOpen = false;
     socialSay('Removed @' + f.username + '.', 'ok');
+    if(backToToday){ const o = document.getElementById('socialOverlay'); if(o) o.classList.remove('open'); }
   } else {
     socialSay(socialNetProblem(r) || 'Could not remove that just now.');
   }
   renderSocial();
+  try{ renderTodayFriends(); }catch(e){}
 }
 async function socialDoSignOut(){
   if(!confirm('Sign out? Your workouts, programs and records stay on this phone.')) return;
@@ -34139,6 +34861,8 @@ function renderToday(){
   try{ renderTrainingFoundation(); }catch(e){}
   renderTodayInsights();
   try{ renderTodayMuscles(); }catch(e){}
+  /* D155 — friends, once there is a confirmed one: drawn just after Today from what is known, refreshed in the background, never waited on */
+  try{ socialTodayFriendsSoon(); }catch(e){}
 
 }
 

@@ -10,11 +10,12 @@
 --                (one per lift, newest first; never an estimate, never an
 --                assisted lift's counterweight)
 --     activity   the three muscle groups with the most working sets over the
---                last four weeks, the working-set total they come from, and the
---                current week streak (consecutive weeks with a workout)
+--                last 30 days (the athlete's own civil days), and the
+--                working-set total they come from
 --
--- Each has its own switch, and both start OFF. A friendship alone shares
--- neither. Turning a switch off erases what was published under it, at once:
+-- Each has its own switch, and both start OFF (the app turns both on or off
+-- together, as one "Share training highlights" setting). A friendship alone
+-- shares neither. Turning a switch off erases what was published under it, at once:
 -- the next read by anyone gets nothing, whatever they saw before.
 --
 -- WHAT NEWLY CROSSES THE NETWORK, all of it listed in SOCIAL-SETUP.md: the two
@@ -161,13 +162,13 @@ begin
 end;
 $$;
 
--- {window_weeks: 4, through, sets, muscles: [{id, sets}], streak_weeks}
+-- {window_days: 30, through, sets, muscles: [{id, sets}]}
+--   window_days    always 30: the 30 civil days ending on `through`
 --   through        the publishing athlete's own civil date the window ends on
 --   sets           working sets performed in the window (the denominator)
 --   muscles        up to three, most sets first, LOOP's ten muscle ids; a set
 --                  counts toward each muscle it primarily trains, so each is at
 --                  most `sets` and they need not sum to it
---   streak_weeks   consecutive weeks with a workout (LOOP's week streak)
 create or replace function public.loop_profile_activity_valid(p jsonb)
 returns boolean
 language plpgsql
@@ -185,9 +186,9 @@ declare
 begin
   if p is null or jsonb_typeof(p) is distinct from 'object' or octet_length(p::text) > 1024 then return false; end if;
   select coalesce(array_agg(k order by k), '{}') into keys from jsonb_object_keys(p) k;
-  if keys is distinct from array['muscles','sets','streak_weeks','through','window_weeks'] then return false; end if;
+  if keys is distinct from array['muscles','sets','through','window_days'] then return false; end if;
 
-  if jsonb_typeof(p -> 'window_weeks') is distinct from 'number' or (p ->> 'window_weeks')::numeric <> 4 then return false; end if;
+  if jsonb_typeof(p -> 'window_days') is distinct from 'number' or (p ->> 'window_days')::numeric <> 30 then return false; end if;
 
   if jsonb_typeof(p -> 'through') is distinct from 'string' then return false; end if;
   if (p ->> 'through') !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' then return false; end if;
@@ -203,10 +204,6 @@ begin
   if jsonb_typeof(p -> 'sets') is distinct from 'number' then return false; end if;
   total := (p ->> 'sets')::numeric;
   if total < 0 or total > 20000 or total <> trunc(total) then return false; end if;
-
-  if jsonb_typeof(p -> 'streak_weeks') is distinct from 'number' then return false; end if;
-  num := (p ->> 'streak_weeks')::numeric;
-  if num < 0 or num > 104 or num <> trunc(num) then return false; end if;
 
   if jsonb_typeof(p -> 'muscles') is distinct from 'array' or jsonb_array_length(p -> 'muscles') > 3 then return false; end if;
   if total = 0 and jsonb_array_length(p -> 'muscles') > 0 then return false; end if;

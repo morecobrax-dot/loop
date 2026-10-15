@@ -57,7 +57,7 @@ const MUTANTS = [
   ['D13', '0006', '#13 a records payload may carry unknown keys (a "notes" or any history rides along)',
     [R("    if keys is distinct from want then return false; end if;\n", '')]],
   ['D13b', '0006', '#13 an activity payload may carry unknown keys',
-    [R("  if keys is distinct from array['muscles','sets','streak_weeks','through','window_weeks'] then return false; end if;\n", '')]],
+    [R("  if keys is distinct from array['muscles','sets','through','window_days'] then return false; end if;\n", '')]],
   ['D14', '0006', '#14 a deleted account leaves its summaries behind (no cascade from profiles)',
     [R('  user_id         uuid primary key references public.profiles(user_id) on delete cascade,', '  user_id         uuid primary key,')]],
   ['D15', '0006', '#15 an unbounded records list is accepted (the three-record bound is removed)',

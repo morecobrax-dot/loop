@@ -33,7 +33,7 @@ Since D155, **only if you switch it on** (both switches start off), one or two
 small summaries your phone computes for your friends' view of your profile: up to
 **three personal records** (exercise, kind of record, load and/or reps, date),
 and your **training activity** (the three muscle groups with the most working
-sets in the last four weeks, that working-set total, and your week streak).
+sets in the last 30 days, and that working-set total).
 Switching one off erases it from the server at once.
 
 Never crosses it: your workout history, loads, performed reps, RIR, bodyweight,
@@ -279,7 +279,10 @@ What it adds:
     record, the load in lb and/or the reps, and its date. Never an estimate,
     never an assisted lift's counterweight.
   - **activity** — the three muscle groups with the most working sets in the
-    last four weeks, the working-set total, and the week streak.
+    last 30 days, and the working-set total.
+
+  LOOP shows the two as one setting, **Share training highlights with friends**,
+  and turns both switches on or off together.
 - `loop_set_profile_sharing(records, activity)` — an athlete's own switches.
   Switching one **off erases** what was published under it, in the same
   statement.

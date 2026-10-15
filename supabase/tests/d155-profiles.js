@@ -94,7 +94,7 @@ const mondayOf = d => { const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTC
     { exercise: 'Lat Pulldown', kind: 'reps_at_weight', load: 160, reps: 10, date: TODAY },
     { exercise: 'Pull-Up', kind: 'reps', reps: 12, date: TODAY }
   ];
-  const ACT = { window_weeks: 4, through: TODAY, sets: 40, muscles: [{ id: 'chest', sets: 12 }, { id: 'back', sets: 10 }, { id: 'quads', sets: 8 }], streak_weeks: 6 };
+  const ACT = { window_days: 30, through: TODAY, sets: 40, muscles: [{ id: 'chest', sets: 12 }, { id: 'back', sets: 10 }, { id: 'quads', sets: 8 }] };
   const NOT_FOUND = sj({ status: 'not_found' });
   let seq = 1000;
 
@@ -298,7 +298,9 @@ const mondayOf = d => { const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTC
     const Ab = o => Object.assign({}, ACT, o);
     const BAD_ACT = {
       'an unknown key (notes)': Ab({ notes: 'x' }),
-      'a window that is not 4 weeks': Ab({ window_weeks: 5 }),
+      'a window that is not 30 days': Ab({ window_days: 28 }),
+      'the retired four-week shape (window_weeks)': (() => { const o = Ab({ window_weeks: 4 }); delete o.window_days; return o; })(),
+      'a streak (no longer part of the summary)': Ab({ streak_weeks: 6 }),
       'a window ending long ago': Ab({ through: '2020-01-06' }),
       'an unknown muscle': Ab({ muscles: [{ id: 'forearms', sets: 3 }] }),
       'a muscle with more sets than were performed': Ab({ muscles: [{ id: 'chest', sets: 41 }] }),
@@ -306,7 +308,6 @@ const mondayOf = d => { const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTC
       'the same muscle twice': Ab({ muscles: [{ id: 'chest', sets: 9 }, { id: 'chest', sets: 9 }] }),
       'four muscles': Ab({ muscles: [{ id: 'chest', sets: 9 }, { id: 'back', sets: 8 }, { id: 'quads', sets: 7 }, { id: 'abs', sets: 6 }] }),
       'muscles with zero sets in total': Ab({ sets: 0, muscles: [{ id: 'chest', sets: 1 }] }),
-      'a streak over two years': Ab({ streak_weeks: 105 }),
       'a muscle row with an extra key': Ab({ muscles: [{ id: 'chest', sets: 9, bodyweight: 180 }] }),
       'a list instead of an object': [ACT]
     };
@@ -315,7 +316,7 @@ const mondayOf = d => { const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTC
       T('21/23 activity refused — ' + why, r.status === 'invalid_payload', sj(r));
     }
     T('15 and after all of that, what A had published is exactly what is stored', sj(await row(A)) === stored);
-    const zero = await publish('A', ++seq, null, Ab({ sets: 0, muscles: [], streak_weeks: 0 }));
+    const zero = await publish('A', ++seq, null, Ab({ sets: 0, muscles: [] }));
     T('a quiet month is a real answer: 0 sets and no muscles is accepted (it is not the same as not shared)', zero.status === 'published', sj(zero));
     const big = await publish('A', ++seq, null, null);
     T('a call that publishes nothing is refused', big.status === 'invalid_payload', sj(big));
@@ -365,7 +366,7 @@ const mondayOf = d => { const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTC
   await guard("the existing system is untouched — the hub, shared workouts, deletion", async () => {
     const hub = await rpc('B', 'select public.loop_friends_hub($1::date) r', [THIS_WEEK]);
     const KEYS = ['friends_since', 'is_self', 'level', 'lifetime_xp', 'prev_workouts', 'prev_xp', 'rank', 'stats_updated_at', 'user_id', 'username', 'week_updated_at', 'week_workouts', 'week_xp'];
-    T('17 loop_friends_hub returns exactly its old person fields, and none of the new summaries', hub.status === 'ok' && (hub.people || []).every(p => sj(Object.keys(p).sort()) === sj(KEYS)) && !/Deadlift|Bench Press|streak_weeks|muscles/.test(sj(hub)), sj(Object.keys((hub.people || [])[0] || {})));
+    T('17 loop_friends_hub returns exactly its old person fields, and none of the new summaries', hub.status === 'ok' && (hub.people || []).every(p => sj(Object.keys(p).sort()) === sj(KEYS)) && !/Deadlift|Bench Press|window_days|muscles/.test(sj(hub)), sj(Object.keys((hub.people || [])[0] || {})));
     if(files.some(f => f.startsWith('0003'))){
       const snap = { v: 1, title: 'Push Day', category: 'push', exercises: [{ name: 'Bench Press', sets: 3, reps: '8' }] };
       const s1 = await rpc('A', 'select public.loop_share_workout($1::uuid, $2::jsonb) r', [B, sj(snap)]);

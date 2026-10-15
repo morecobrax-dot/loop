@@ -20614,3 +20614,62 @@ already has.
 - Every engine, and every zone D154 does not redraw, is 10.75–10.76's to the byte: Weekly Review, Mastery, Exercise
   Detail's chart, Today, Train, Program and Worth Knowing. Contract 278 runs D154_PROBE on 10.76 (c3a8ef4) and pins it.
 - Nothing is stored. DATA_KEYS (16) and the schema (1) are unchanged.
+
+## §201 — FRIENDS 2.0: TODAY'S LEADERBOARD, ATHLETE PROFILES, TRAINING HIGHLIGHTS BY CONSENT (D155 · LOOP 10.78 · loop-v255 · migration 0006)
+
+**Why.** Friends worked but sat out of sight in Settings, and a friend was a row with two numbers. The owner approved two
+designs: a weekly leaderboard on Today, and a Friends screen whose friends open real athlete profiles — personal records
+and most-trained muscles included — with no profile photographs and nothing invented.
+
+**One social system, extended — never a second one.** The week, the people and the ranking are D80A's:
+`loop_friends_hub` (unchanged), `socialWeeklyBoard` (it now takes a list; its decisions are unchanged: weekly XP,
+equal XP SHARES a place, no row for the week is unranked "No update", never 0). Rank (the earned LOOP tier) and place
+(the week's position) are different words on every row.
+
+**Today.** "Friends this week" appears only when the signed-in account has at least one CONFIRMED friend — never for an
+invite, a pending request, another account's saved list, or last week's. It sits at the END of Today: measured at 390,
+after This Week it would push Objectives, Foundation and Worth Knowing down 476 px; at the end, every training section
+keeps its place and the workout keeps the first screen. Rows are the whole ranking's top five; your own row is pinned
+beneath them when you rank lower — never dropped, never drawn twice. The block is drawn just after Today's own drawing, never
+inside it, and once however often Today redraws in a row: your own row is the phone's own week (`socialSelfCurrent`),
+which reads the whole history — 45 ms at 1,000 workouts in the harness — so Today's drawing pays nothing for it. The
+leaderboard is fetched in the background (never awaited), refreshed when stale (5 min) or when LOOP comes back to the
+foreground; the last good
+list for this account and week is kept beside the session (outside DATA_KEYS) and, when shown, says when it was updated.
+
+**The athlete profile.** Every friend row (Today, Friends) opens it; Back returns where it came from, at the same scroll.
+Identity is the LOOP rank emblem and the username — no photographs, uploads or avatars. Three cards: this week's XP, this
+week's workouts, level and rank. Then, only when that athlete shares them, Personal records and Most trained (last 30
+days). A friend's profile is read once per open, kept in memory for the session only, and dropped on sign-out, account
+change, removal or a newer read.
+
+**Training highlights — off until the athlete turns them on.** One setting, "Share training highlights with friends"
+(the server keeps the records and activity switches separately; LOOP moves them together). The phone publishes two
+summaries derived from LOOP's own readers, never history:
+- Personal records: up to three newest earned records, one per lift — headline.prev > 0 (a first session is "First",
+  not a record), kinds weight / reps_at_weight / reps only (never an estimated 1RM or a session volume), never an
+  assisted lift (D152; E76 open), loads in lb as LOOP measures them.
+- Most trained: `deriveMuscleSetsBetween` over the 30 civil days ending today — working sets only (warm-ups,
+  unperformed sets and skipped exercises never count), primary muscles, a set counting toward each muscle it mainly
+  trains; the top three and the real working-set total.
+The switch moves only when the server confirms. Turning it off erases both summaries on the server in the same request.
+
+**Who may read — the database decides (migration 0006).** `loop_friend_profile` answers for the caller or a CONFIRMED
+friend, decided at the moment of the read; a pending request, an invite link, a friend of a friend, a removed friend, a
+stranger with a user id and an anonymous caller all get the same `not_found` as nobody. The table has row level
+security, no policy and no grant; payloads have exact key sets and bounds; publications are monotonic and throttled.
+Proven on a real PostgreSQL by `supabase/tests/d155-profiles.js` and `d155-mutations.js`. A database without 0006 still
+gets profiles with the friendship's own numbers, and no highlights or switch.
+
+**Found by running two real apps against a real database (0001–0006 on PostgreSQL, each athlete on its own origin).**
+- A publication is stamped with the publishing device's clock (`p_seq`) so a replayed older one can never overwrite a
+  newer one. An athlete with a second device whose clock runs ahead would have had every publication from this phone
+  refused as `stale` until the clock caught up. Now the newest attempt this phone made retries once, just above the
+  server's sequence; an attempt a newer one superseded never retries (Contract 279 D6). 0006 is unchanged.
+- Switching sharing on moments after LOOP published said "appear once LOOP can reach Friends"; the server had only
+  asked it to wait its 10 seconds, and LOOP retries after 11. It now says so.
+- A friend's profile computed your own week from your whole history (44 ms at 1,000 workouts) to draw someone else's
+  page. Only your own profile computes it now (0.5 ms).
+
+**Held.** Every training engine, XP, rank, PRs, Mastery, recovery, programs, the invite and share flows, E9 (0005), the
+tab bar (Today, Train, Progress, Log — Friends stays in Settings), DATA_KEYS (16) and the schema (1).
