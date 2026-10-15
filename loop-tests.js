@@ -38820,15 +38820,17 @@ async function testSocialSecurityClosure(){
   const EXPECT_TABLES = {   // what authenticated may hold; anon and PUBLIC hold nothing, ever
     profiles: ['SELECT'], social_stats: ['INSERT', 'SELECT', 'UPDATE'], social_weekly: ['INSERT', 'SELECT', 'UPDATE'],
     friend_requests: ['DELETE', 'SELECT'], friendships: ['DELETE', 'SELECT'],
-    friend_invites: [], invite_code_misses: [], shared_workouts: [], shared_workout_sends: []
+    friend_invites: [], invite_code_misses: [], shared_workouts: [], shared_workout_sends: [],
+    social_profile_share: []   /* D155 restated: 0006's table, reached only through its three functions */
   };
-  const NO_ONE = ['loop_request_between', 'loop_touch_updated_at', 'loop_profiles_guard', 'loop_social_weekly_guard', 'loop_shared_workouts_guard'];
+  const NO_ONE = ['loop_request_between', 'loop_touch_updated_at', 'loop_profiles_guard', 'loop_social_weekly_guard', 'loop_shared_workouts_guard',
+    'loop_profile_records_valid', 'loop_profile_activity_valid'];   /* D155 restated: 0006's validators run only inside its definer functions */
 
   /* ------------------------------------------------------------------ */
   sub('the migration chain, and the suite that runs it on a real database');
   await guard('chain', () => {
     T('the migrations are numbered without a gap, 0001 upward', files.every((f, i) => f.startsWith(String(i + 1).padStart(4, '0') + '_')), files.join());
-    T('0005 is the security closure, and the newest', /^0005_e9_security_closure\.sql$/.test(files[files.length - 1] || ''), files[files.length - 1]);
+    T('0005 is the security closure, and the newest', /^0005_e9_security_closure\.sql$/.test(files[files.length - 1] || '') || (/^0006_friend_profiles\.sql$/.test(files[files.length - 1] || '') && files.indexOf('0005_e9_security_closure.sql') === files.length - 2) /* D155 restated: 0006 (friend profiles — additive, requires 0005) follows it */, files[files.length - 1]);
     const pkg = JSON.parse(fs.readFileSync(root + 'package.json', 'utf8'));
     T('the real-Postgres suite and its mutation sweep are checked in, and `npm run test:sql` runs the suite',
       fs.existsSync(root + 'supabase/tests/e9-security.js') && fs.existsSync(root + 'supabase/tests/e9-mutations.js') && fs.existsSync(root + 'supabase/tests/shim.js') &&

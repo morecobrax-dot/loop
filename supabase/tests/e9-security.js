@@ -45,7 +45,8 @@ const SNAP = (extra) => Object.assign({ v: 1, title: 'Push Day', category: 'push
 const TABLE_GRANTS = {   // authenticated, table-level; anon and PUBLIC hold none of any
   profiles: ['SELECT'], social_stats: ['INSERT', 'SELECT', 'UPDATE'], social_weekly: ['INSERT', 'SELECT', 'UPDATE'],
   friend_requests: ['DELETE', 'SELECT'], friendships: ['DELETE', 'SELECT'],
-  friend_invites: [], invite_code_misses: [], shared_workouts: [], shared_workout_sends: []
+  friend_invites: [], invite_code_misses: [], shared_workouts: [], shared_workout_sends: [],
+  social_profile_share: []   /* D155 (0006): only its three functions reach it */
 };
 const PROFILE_INSERT_COLS = ['user_id', 'username', 'username_key'];
 const PROFILE_UPDATE_COLS = ['username', 'username_key'];
@@ -53,8 +54,10 @@ const AUTH_FUNCTIONS = [   // what an authenticated session may execute
   'loop_accept_friend_request', 'loop_accept_invite_link', 'loop_are_friends', 'loop_create_invite_link', 'loop_delete_account',
   'loop_friends_hub', 'loop_friends_leaderboard', 'loop_my_requests', 'loop_new_invite_code', 'loop_open_shared_workout',
   'loop_preview_invite', 'loop_preview_invite_link', 'loop_remove_friend', 'loop_remove_shared_workout', 'loop_revoke_invite_links',
-  'loop_rotate_invite_code', 'loop_send_friend_request', 'loop_share_workout'];
-const NO_ONE_FUNCTIONS = ['loop_request_between', 'loop_touch_updated_at', 'loop_profiles_guard', 'loop_social_weekly_guard', 'loop_shared_workouts_guard'];
+  'loop_rotate_invite_code', 'loop_send_friend_request', 'loop_share_workout',
+  'loop_set_profile_sharing', 'loop_publish_profile_highlights', 'loop_friend_profile'];   /* D155 (0006) */
+const NO_ONE_FUNCTIONS = ['loop_request_between', 'loop_touch_updated_at', 'loop_profiles_guard', 'loop_social_weekly_guard', 'loop_shared_workouts_guard',
+  'loop_profile_records_valid', 'loop_profile_activity_valid'];   /* D155 (0006): validators, run only inside the definer functions */
 const HUB_PERSON_KEYS = ['friends_since', 'is_self', 'level', 'lifetime_xp', 'prev_workouts', 'prev_xp', 'rank', 'stats_updated_at',
   'user_id', 'username', 'week_updated_at', 'week_workouts', 'week_xp'];
 
@@ -150,7 +153,7 @@ const HUB_PERSON_KEYS = ['friends_since', 'is_self', 'level', 'lifetime_xp', 'pr
     T('anon can execute no function, and neither can PUBLIC', fns.every(f => !f.anon && !f.pub), fns.filter(f => f.anon || f.pub).map(f => f.n));
     const authSet = fns.filter(f => f.auth).map(f => f.n).sort();
     T('authenticated can execute exactly the ' + AUTH_FUNCTIONS.length + ' functions the app and its policies need', sj(authSet) === sj(AUTH_FUNCTIONS.filter(n => fns.some(f => f.n === n)).sort()), authSet);
-    T('the trigger functions and the retired loop_request_between are executable by no client role', NO_ONE_FUNCTIONS.every(n => fns.filter(f => f.n === n).every(f => !f.auth && !f.anon && !f.pub)));
+    T('the trigger functions, the retired loop_request_between and the D155 validators are executable by no client role', NO_ONE_FUNCTIONS.every(n => fns.filter(f => f.n === n).every(f => !f.auth && !f.anon && !f.pub)));
   }
 
   /* ====================================================================== */
@@ -255,7 +258,7 @@ const HUB_PERSON_KEYS = ['friends_since', 'is_self', 'level', 'lifetime_xp', 'pr
 
     /* the codes issued before this migration came from the old generator, and are re-issued once */
     if(files.some(f => f.startsWith('0005'))){
-      const pre = files.filter(f => !f.startsWith('0005'));
+      const pre = files.filter(f => f.slice(0, 4) < '0005');   /* a project before 0005 had nothing after it either (D155: 0006 requires 0005) */
       const db3 = await makeDb({ migrations: pre });
       const P1 = await addUser(db3, 'p1@example.com', 'pat'), P2 = await addUser(db3, 'p2@example.com', 'pam');
       const old = (await db3.query('select invite_code from public.profiles order by username')).rows.map(r => r.invite_code);

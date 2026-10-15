@@ -1,4 +1,4 @@
-# LOOP — social setup (D52 / D52B / D80A / D80B / D81)
+# LOOP — social setup (D52 / D52B / D80A / D80B / D81 / D95 / D155)
 
 Friends and the private leaderboard need a backend. The code is shipped and
 tested; the project is not created, because credentials cannot be invented.
@@ -29,9 +29,17 @@ starting-weight hints, not anything you lifted. Since D81, if you gave that
 workout its own icon or colour, those two choices go with it as registry names
 (`chest`, `rose`) — never a picture, never anything about your training.
 
+Since D155, **only if you switch it on** (both switches start off), one or two
+small summaries your phone computes for your friends' view of your profile: up to
+**three personal records** (exercise, kind of record, load and/or reps, date),
+and your **training activity** (the three muscle groups with the most working
+sets in the last four weeks, that working-set total, and your week streak).
+Switching one off erases it from the server at once.
+
 Never crosses it: your workout history, loads, performed reps, RIR, bodyweight,
-readiness, programs, private notes, PRs, Session Score, settings — and your
-**email**, which belongs to authentication and is never visible to a friend.
+readiness, programs, private notes, Session Score, settings, any PR beyond the
+three you choose to share — and your **email**, which belongs to authentication
+and is never visible to a friend.
 
 Signing in adds identity. It does not move your training anywhere.
 
@@ -47,7 +55,7 @@ Signing in adds identity. It does not move your training anywhere.
 
 ## 2. Apply the schema
 
-The whole backend is five checked-in files, applied in order:
+The whole backend is six checked-in files, applied in order:
 
 1. `supabase/migrations/0001_social_foundation.sql` — profiles, stats,
    requests, friendships (D52)
@@ -60,6 +68,9 @@ The whole backend is five checked-in files, applied in order:
 5. `supabase/migrations/0005_e9_security_closure.sql` — the security closure
    (D95): who can read a profile, what each role may hold, how invite codes are
    made and guessed, and what a function will say about strangers
+6. `supabase/migrations/0006_friend_profiles.sql` — friend profiles (D155):
+   records and training activity a friend may see, only when the athlete
+   switches sharing on
 
 Either:
 
@@ -246,6 +257,125 @@ athlete who would make it — by `npm install --no-save @electric-sql/pglite` an
 `npm run test:sql`; `node supabase/tests/e9-mutations.js` breaks the migrations
 on purpose and requires that suite to notice.
 
+### Applying 0006 to a project that runs 0005 (friend profiles, D155)
+
+Open **SQL Editor → New query**, paste `0006_friend_profiles.sql`, run it. It
+needs 0005 and **refuses to run without it** (it stops with "0006 needs 0005").
+It is safe to run twice. If 0001 is ever run again, run 0005 and then 0006 again
+after it.
+
+**It is purely additive, and the LOOP already on athletes' phones keeps working
+unchanged.** It creates one table and five functions and changes nothing that
+exists: every older function, policy, grant and constraint is byte-identical
+afterwards (proven on a real PostgreSQL, below). `loop_friends_hub` is untouched.
+
+What it adds:
+
+- `social_profile_share`: one row per athlete who touches a sharing switch.
+  Row level security on, **no policy and no grant** — like `friend_invites`,
+  only its functions reach it. It holds two switches (both **off** by default)
+  and, only while each is on, a small summary the athlete's own phone computed:
+  - **records** — at most three personal records: exercise name, the kind of
+    record, the load in lb and/or the reps, and its date. Never an estimate,
+    never an assisted lift's counterweight.
+  - **activity** — the three muscle groups with the most working sets in the
+    last four weeks, the working-set total, and the week streak.
+- `loop_set_profile_sharing(records, activity)` — an athlete's own switches.
+  Switching one **off erases** what was published under it, in the same
+  statement.
+- `loop_publish_profile_highlights(seq, records, activity)` — an athlete's own
+  summaries: only for a switch that is on, only the exact shapes LOOP publishes
+  (an unknown field rejects the whole payload), never an older publication over
+  a newer one, at most one every 10 seconds.
+- `loop_friend_profile(athlete, week)` — one profile: your own, or a
+  **confirmed** friend's, decided at the moment of the read. A pending request,
+  an invite link (opened or not), a friend of a friend, a removed friend, a
+  stranger with a user id and an anonymous caller all get `not_found` — the same
+  answer as for nobody.
+- Two validators that only those functions run. No athlete can call them.
+
+Deleting an account removes its row (the foreign key cascades from `profiles`).
+
+To check from outside, with nothing but the publishable key (no account):
+
+```bash
+curl -s -X POST "https://<ref>.supabase.co/rest/v1/rpc/loop_friend_profile" \
+  -H "apikey: <publishable key>" -H "Content-Type: application/json" \
+  -d '{"p_athlete":"00000000-0000-0000-0000-000000000000","p_week":"2026-10-12"}'
+```
+
+- `{"code":"PGRST202",...}` (404) — 0006 is **not** applied yet.
+- `{"code":"42501",...,"message":"permission denied for function loop_friend_profile"}`
+  (401) — 0006 **is** applied, and anonymous callers are refused. (If it still
+  says 404 a minute after applying, run `notify pgrst, 'reload schema';`.)
+
+And from inside, in the SQL editor:
+
+```sql
+-- 1. The table exists, row level security is on, and it has no policy:
+select c.relrowsecurity as rls,
+       (select count(*) from pg_policy p where p.polrelid = c.oid) as policies
+  from pg_class c where c.oid = 'public.social_profile_share'::regclass;
+-- 2. Which roles hold anything on it:
+select grantee, string_agg(privilege_type, ',' order by privilege_type) as holds
+  from information_schema.table_privileges
+ where table_schema = 'public' and table_name = 'social_profile_share'
+ group by grantee order by grantee;
+-- 3. The five new functions: how they run and who may call them:
+select p.proname, p.prosecdef as security_definer, p.proconfig,
+       has_function_privilege('anon', p.oid, 'EXECUTE') as anon,
+       has_function_privilege('authenticated', p.oid, 'EXECUTE') as authenticated
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+ where n.nspname = 'public'
+   and p.proname in ('loop_set_profile_sharing', 'loop_publish_profile_highlights',
+                     'loop_friend_profile', 'loop_profile_records_valid',
+                     'loop_profile_activity_valid')
+ order by 1;
+```
+
+- 1: `rls = true`, `policies = 0`.
+- 2: only `postgres` and `service_role` (the server's own roles). **Never `anon`
+  or `authenticated`.**
+- 3: `loop_friend_profile`, `loop_publish_profile_highlights` and
+  `loop_set_profile_sharing`: `security_definer = true`,
+  `{search_path=public}`, `anon = false`, `authenticated = true`. The two
+  `..._valid` functions: `security_definer = false`, `{search_path=pg_catalog}`,
+  `anon = false`, `authenticated = false`.
+- The four 0005 queries above still give exactly their 0005 answers
+  (`social_profile_share` does not appear in query 3's `authenticated` list).
+
+Then one check as yourself, signed in to LOOP on any device (it reads only your
+own row). From the browser console:
+
+```js
+const call = (fn, body) => fetch(LOOP_SOCIAL.url + '/rest/v1/rpc/' + fn, { method: 'POST',
+  headers: { apikey: LOOP_SOCIAL.anonKey, Authorization: 'Bearer ' + socialState.session.access_token,
+             'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => r.json());
+call('loop_friend_profile', { p_athlete: socialState.session.user_id, p_week: socialCurrentWeek() }).then(console.log);
+call('loop_friend_profile', { p_athlete: '00000000-0000-4000-8000-000000000000', p_week: socialCurrentWeek() }).then(console.log);
+```
+
+- The first: `status: "ok"`, your own username, `records.shared: false`,
+  `activity.shared: false` — nothing is shared until you switch it on.
+- The second: `{"status":"not_found"}`.
+
+To undo it entirely (nothing else depends on these objects):
+
+```sql
+drop function if exists public.loop_friend_profile(uuid, date);
+drop function if exists public.loop_publish_profile_highlights(bigint, jsonb, jsonb);
+drop function if exists public.loop_set_profile_sharing(boolean, boolean);
+drop function if exists public.loop_profile_records_valid(jsonb);
+drop function if exists public.loop_profile_activity_valid(jsonb);
+drop table if exists public.social_profile_share;
+```
+
+The same behaviour is proven on a real PostgreSQL: `node
+supabase/tests/d155-profiles.js` runs every case as the athlete who would try it
+(friend, friend of a friend, pending requester, link holder, removed friend,
+stranger, anonymous), and `node supabase/tests/d155-mutations.js` breaks 0006 on
+purpose and requires the suites to notice.
+
 ## 3. Turn on email and password
 
 **Authentication → Providers → Email**
@@ -415,8 +545,8 @@ app**, not from Safari. Check that:
 
 `select public.loop_delete_account();` while signed in as that user removes the
 profile, the stats, the requests and the friendships — and, through their
-foreign keys, the weekly rows, invite links and any shared workouts sent or
-waiting. It cannot touch anything on a phone: the training lives there, not
+foreign keys, the weekly rows, invite links, any shared workouts sent or
+waiting, and (since D155) any shared records and training activity. It cannot touch anything on a phone: the training lives there, not
 here, and a workout a friend already saved is theirs.
 
 ## Optional, later: a branded confirmation email
