@@ -837,11 +837,11 @@ const D155_RAW = [
   "/* ==== D154 PROGRESS VISIBLE END ==== */\n</style>"
  ],
  [
-  "      'The “This week” muscle summary now lives on Today and Volume, rather than appearing a third time on Progress'\n    ]\n  },\n  {\n    id: 'v10-78',\n    version: 'LOOP 10.78',\n    title: 'Train Together',\n    date: '2026-10-15',\n    swVersion: 'loop-v255',\n    summary: 'Friends are now easier to follow from Today, with weekly rankings and athlete profiles.',\n    newFeatures: [\n      'Today shows a Friends leaderboard for the week once you connect with your first friend, with your own place always in view',\n      'Tap a friend to open their athlete profile: their rank emblem, level, and this week’s XP and workouts'\n    ],\n    improvements: [\n      'You can choose to share training highlights with friends — up to three of your newest personal records and your most-trained muscle groups from the last 30 days. It stays off until you turn it on',\n      'Friends has a clearer weekly leaderboard, with each friend’s rank emblem and your own place highlighted'\n    ],\n    bugFixes: [],\n    changes: []\n  }\n];\n",
+  "      'The “This week” muscle summary now lives on Today and Volume, rather than appearing a third time on Progress'\n    ]\n  },\n  {\n    id: 'v10-78',\n    version: 'LOOP 10.78',\n    title: 'Train Together',\n    date: '2026-11-18',\n    swVersion: 'loop-v255',\n    summary: 'Friends are now easier to follow from Today, with weekly rankings and athlete profiles.',\n    newFeatures: [\n      'Today shows a Friends leaderboard for the week once you connect with your first friend, with your own place always in view',\n      'Tap a friend to open their athlete profile: their rank emblem, level, and this week’s XP and workouts'\n    ],\n    improvements: [\n      'You can choose to share training highlights with friends — up to three of your newest personal records and your most-trained muscle groups from the last 30 days. It stays off until you turn it on',\n      'Friends has a clearer weekly leaderboard, with each friend’s rank emblem and your own place highlighted'\n    ],\n    bugFixes: [],\n    changes: []\n  }\n];\n",
   "      'The “This week” muscle summary now lives on Today and Volume, rather than appearing a third time on Progress'\n    ]\n  }\n];\n"
  ]
 ];
-const D155_WHATSNEW = "  },\n  {\n    id: 'v10-78',\n    version: 'LOOP 10.78',\n    title: 'Train Together',\n    date: '2026-10-15',\n    swVersion: 'loop-v255',\n    summary: 'Friends are now easier to follow from Today, with weekly rankings and athlete profiles.',\n    newFeatures: [\n      'Today shows a Friends leaderboard for the week once you connect with your first friend, with your own place always in view',\n      'Tap a friend to open their athlete profile: their rank emblem, level, and this week’s XP and workouts'\n    ],\n    improvements: [\n      'You can choose to share training highlights with friends — up to three of your newest personal records and your most-trained muscle groups from the last 30 days. It stays off until you turn it on',\n      'Friends has a clearer weekly leaderboard, with each friend’s rank emblem and your own place highlighted'\n    ],\n    bugFixes: [],\n    changes: []\n";
+const D155_WHATSNEW = "  },\n  {\n    id: 'v10-78',\n    version: 'LOOP 10.78',\n    title: 'Train Together',\n    date: '2026-11-18',\n    swVersion: 'loop-v255',\n    summary: 'Friends are now easier to follow from Today, with weekly rankings and athlete profiles.',\n    newFeatures: [\n      'Today shows a Friends leaderboard for the week once you connect with your first friend, with your own place always in view',\n      'Tap a friend to open their athlete profile: their rank emblem, level, and this week’s XP and workouts'\n    ],\n    improvements: [\n      'You can choose to share training highlights with friends — up to three of your newest personal records and your most-trained muscle groups from the last 30 days. It stays off until you turn it on',\n      'Friends has a clearer weekly leaderboard, with each friend’s rank emblem and your own place highlighted'\n    ],\n    bugFixes: [],\n    changes: []\n";
 const SHA_1077_HTML = '4731465923638e5d';   /* index.html of LOOP 10.77 (7135305), LF */
 /* 10.77's own text, pinned (D135): the functions D155 changed, comment-free as fnSrc gives them; the hashes of what
    Contract 279 holds unchanged — every function it names, the stylesheet, the markup, DATA_KEYS and the D148, D152,
@@ -43422,8 +43422,11 @@ async function testCanonicalSessionPRD96C2(){
      pretending the displayed order does not matter. */
   const marksSorted = () => ctx.workoutLog.map(l => l.id + ':' + ctx.getSessionPRs(l).map(lc).sort().join('+')).join(' ');
   const summariesSorted = () => ctx.workoutLog.map(l => l.id + ':' + (ctx.prEventsForEntry(l) || []).map(e => lc(e.exerciseName)).sort().join('+')).join(' ');
-  const prDays = () => { const c = ctx.computeConsistencyData(); let n = 0;
-    (c.weeks || []).forEach(w => (w.days || []).forEach(d => { if(d.state === 'pr') n++; })); return n; };
+  /* D44 counts its twelve weeks from today; the fixtures are August–September 2026, so it is read on 2026-10-15, the last
+     day this contract ran on the real clock with every fixture inside the window (the D99.1 rule: pin every read of a
+     date-relative answer). */
+  const prDays = () => withClockOn(ctx, '2026-10-15T09:00:00', () => { ctx.invalidateConsistencyCache(); const c = ctx.computeConsistencyData(); let n = 0;
+    (c.weeks || []).forEach(w => (w.days || []).forEach(d => { if(d.state === 'pr') n++; })); ctx.invalidateConsistencyCache(); return n; });
   const xpPRSet = () => { const out = [], EMD = ' ' + String.fromCharCode(0x2014) + ' ';
     const LAB = ['Weight PR', 'Rep PR', 'Est. 1RM PR', 'Volume PR'];
     ctx.computeXPTimeline().timeline.forEach(t => t.breakdown.forEach(b => {
@@ -50881,16 +50884,16 @@ async function testExerciseDetailD118(){
   await guard('mastery', async () => {
     const c = (await boot(BENCH)).ctx;
     const d = open(c, 'Bench Press');
-    const m = c.getExerciseMasteryByName('Bench Press');
+    const m = at(c, () => c.getExerciseMasteryByName('Bench Press'));   /* read on the same day Exercise Detail was opened (D99.1) */
     const t = c.masteryTier(m.level);
     const st = html(c, 'exDetailStats');
     T('8  the same mastery object the Mastery view reads', same(d.mastery, m));
     T('8  its badge, its level pill and its tier name', st.indexOf('src="mastery-badge-' + t.level + '.png"') !== -1 && st.indexOf('>Level ' + m.level + '<') !== -1 &&
       st.indexOf('mpill mpt' + t.level) !== -1 && st.indexOf('>' + t.name + '<') !== -1 && st.indexOf('data-tier="' + t.level + '"') !== -1);
-    const row = c.masteryRowHtml(m);
+    const row = at(c, () => c.masteryRowHtml(m));
     const meta = (row.match(/class="mastery-row-meta">([^<]*)</) || [])[1];
     T('8  its line says exactly what the Mastery view’s own row says', !!meta && st.indexOf('<div class="mastery-meta">' + meta + '</div>') !== -1, meta);
-    T('8  its bar is the Mastery view’s bar, at the same width', st.indexOf(c.masteryBarHtml(m)) !== -1);
+    T('8  its bar is the Mastery view’s bar, at the same width', st.indexOf(at(c, () => c.masteryBarHtml(m))) !== -1);
     T('8  and progress is said in words for a screen reader', new RegExp('aria-label="Mastery: Level ' + m.level + ', ' + t.name + '\\. ' + m.sessions + ' sessions, ').test(st));
     T('8  mastery is read, never scored here', !/masteryPointsFor\(|masteryStanding\(|buildMasteryIndex\(|MASTERY_CONFIG/.test(sheetSrc));
   });
@@ -53296,7 +53299,7 @@ async function testDeloadPlateauEvidenceD123(){
     let props = 0, broken = [], volumeMoved = 0, sens = 0, sensBroken = [], answers = new Set();
     for(let h = 0; h < 160; h++){
       const base = history();
-      seed(base); const ans = ask(); const vol = c.computeWeeklyVolume(8).map(x => x.volume).join(',');
+      seed(base); const ans = ask(); const vol = withClockOn(c, NOW, () => c.computeWeeklyVolume(8)).map(x => x.volume).join(',');   /* the eight weeks to NOW (D99.1) */
       const withDeloads = JSON.parse(JSON.stringify(base));
       for(let k = 1 + Math.floor(rnd() * 3); k > 0; k--){
         const back = 2 + Math.floor(rnd() * 3 * base.length);
@@ -53307,7 +53310,7 @@ async function testDeloadPlateauEvidenceD123(){
       seed(withDeloads); const after = ask();
       props++;
       if(!same(ans, after)) broken.push(h);
-      if(c.computeWeeklyVolume(8).map(x => x.volume).join(',') !== vol) volumeMoved++;
+      if(withClockOn(c, NOW, () => c.computeWeeklyVolume(8)).map(x => x.volume).join(',') !== vol) volumeMoved++;
       /* the opposite: the stall test over the ORDINARY workouts' working loads is what detectPlateau answers */
       LIFTS.forEach(nm => {
         /* D126 restated: the stall test is D126's — a workout beats the first by a heavier load, or the same load for more
@@ -58667,7 +58670,7 @@ async function testFriendsD155(){
     const before = s.calls.length;
     const p0 = await s.c.socialPublishHighlights();
     T('D1 sharing off (the server says so): nothing is published — one read of the switch, no publication', p0.error === 'not_shared' && s.calls.slice(before).every(x => !/publish_profile_highlights/.test(x.path)), s.calls.slice(before).map(x => x.path));
-    await s.c.socialDoToggleHighlights();
+    await at(s.c, () => s.c.socialDoToggleHighlights());   /* published on the fixtures' day, the day the comparison reads (D99.1) */
     const pub = s.calls.filter(x => /publish_profile_highlights/.test(x.path));
     const sw = s.calls.filter(x => /set_profile_sharing/.test(x.path));
     T('D2 switching on asks the server for BOTH summaries together, and only then publishes this phone’s derived records and muscles', sw.length === 1 && same(sw[0].body, { p_records: true, p_activity: true }) && pub.length === 1 &&
