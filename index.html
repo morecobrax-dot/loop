@@ -26380,7 +26380,7 @@ function openDataSettings(){
     <div class="stats-grid-2" style="margin-top:14px">
       <div class="stat"><div class="stat-num">${workoutLog.length}</div><div class="stat-label">Workouts</div></div>
       <div class="stat"><div class="stat-num">${totalSets.toLocaleString()}</div><div class="stat-label">Sets Logged</div></div>
-      <div class="stat"><div class="stat-num">${p.prCount}</div><div class="stat-label">Records</div></div>
+      <div class="stat"><div class="stat-num">${p.prCount}</div><div class="stat-label">Records &amp; baselines</div></div>
       <div class="stat"><div class="stat-num">${p.lifetimeXP.toLocaleString()}</div><div class="stat-label">Lifetime XP</div></div>
     </div>
   `;
@@ -34792,7 +34792,11 @@ function deriveThisWeek(){
     const tpl = dayTemplateFor(td.category, T);
     today = { status: 'planned', title: tpl ? tpl.name : CAT_LABEL[td.category], sub: 'Planned' };
   } else {
-    today = { status: td.status === 'paused' ? 'paused' : 'rest', title: 'Rest day', sub: 'Nothing scheduled' };
+    /* D157 — past a program's last day Today's card says "Nothing scheduled" (D156); the week says the same, not
+       "Rest day". An ordinary rest day, and a paused program, read as before. */
+    today = td.status !== 'paused' && programEndedOn(T)
+      ? { status: 'rest', title: 'Nothing scheduled', sub: 'Program ended' }
+      : { status: td.status === 'paused' ? 'paused' : 'rest', title: 'Rest day', sub: 'Nothing scheduled' };
   }
 
   /* Up next is the next training day AFTER today, so it never repeats today's workout, done or not. Inside this week it
@@ -36249,7 +36253,7 @@ function calendarDayState(dayEntries){
   return {
     category: cats.size === 1 ? dayEntries[0].category : null,
     count: dayEntries.length,
-    hasPR: (canonicalPRIndex().byDate[dateStr] || []).length > 0
+    hasPR: (canonicalPRIndex().byDate[dateStr] || []).some(ev => !prIsBaseline(ev))   // D157 — a first session is a baseline
   };
 }
 function workoutsOnDate(dateStr){
@@ -36379,7 +36383,7 @@ function recentWorkoutsHtml(limit){
     const exCount = (l.exercises || []).length;
     const setCount = (l.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
     let prs = 0;
-    try{ prs = getSessionPRs(l).length; }catch(e){}
+    try{ prs = sessionRecordCount(l); }catch(e){}   // D157 — records that beat an earlier best
     return `
       <button type="button" class="rw-row" onclick="openDayDetail('${onclickArg(l.id)}')">
         ${workoutIdentityHtml(l, l.category, 'sm')}
@@ -36951,7 +36955,11 @@ function saveWorkoutEdits(btn){
     if(rirValues.length){
       effort = String(rirToEffort(rirValues.reduce((a, b) => a + b, 0) / rirValues.length));
     }
-    exercises.push(withPlan({ name, effort, bodyweight, sets }));
+    /* D157 (E78) — the prescription the workout was logged against survives an edit. Dropping it took the workout's
+       Session Score away ("not logged against a prescribed plan", which was untrue) and Next Time's reading of it. */
+    const kept = { name, effort, bodyweight, sets };
+    if(ex.rx && typeof ex.rx === 'object') kept.rx = JSON.parse(JSON.stringify(ex.rx));
+    exercises.push(withPlan(kept));
   });
 
   if(!exercises.some(ex => ex.sets && ex.sets.length > 0)){
@@ -39056,11 +39064,13 @@ const MILESTONES = [
   { id:'m_workout_25',  category:'workouts', threshold:25,  name:'Quarter Century',      desc:'Complete 25 workouts.',         xp:150 },
   { id:'m_workout_50',  category:'workouts', threshold:50,  name:'Iron Regular',         desc:'Complete 50 workouts.',         xp:250 },
   { id:'m_workout_100', category:'workouts', threshold:100, name:'Century',              desc:'Complete 100 workouts.',        xp:500 },
-  { id:'m_pr_1',        category:'prs',      threshold:1,   name:'First Record',         desc:'Set your first personal record.', xp:25 },
-  { id:'m_pr_10',       category:'prs',      threshold:10,  name:'PR Hunter',            desc:'Set 10 personal records.',      xp:75 },
-  { id:'m_pr_25',       category:'prs',      threshold:25,  name:'Record Breaker',       desc:'Set 25 personal records.',      xp:125 },
-  { id:'m_pr_50',       category:'prs',      threshold:50,  name:'Relentless',           desc:'Set 50 personal records.',      xp:200 },
-  { id:'m_pr_100',      category:'prs',      threshold:100, name:'Legendary Numbers',    desc:'Set 100 personal records.',     xp:350 },
+  /* D157 (E81) — the record count behind these includes each lift's first session, which is a baseline: the first is
+     always one, and the rest say so. Ids, thresholds and XP are unchanged; only what is said. */
+  { id:'m_pr_1',        category:'prs',      threshold:1,   name:'First Baseline',       desc:'Log your first lift — the baseline every record is measured against.', xp:25 },
+  { id:'m_pr_10',       category:'prs',      threshold:10,  name:'PR Hunter',            desc:'Set 10 records — first-time baselines count.',      xp:75 },
+  { id:'m_pr_25',       category:'prs',      threshold:25,  name:'Record Breaker',       desc:'Set 25 records — first-time baselines count.',      xp:125 },
+  { id:'m_pr_50',       category:'prs',      threshold:50,  name:'Relentless',           desc:'Set 50 records — first-time baselines count.',      xp:200 },
+  { id:'m_pr_100',      category:'prs',      threshold:100, name:'Legendary Numbers',    desc:'Set 100 records — first-time baselines count.',     xp:350 },
   { id:'m_streak_3',    category:'streak',   threshold:3,   name:'Building Momentum',    desc:'Train 3 weeks in a row.',       xp:25 },
   { id:'m_streak_4',    category:'streak',   threshold:4,   name:'Consistent',           desc:'Train 4 weeks in a row.',       xp:35 },
   { id:'m_streak_8',    category:'streak',   threshold:8,   name:'Two Months Strong',    desc:'Train 8 weeks in a row.',       xp:75 },
@@ -40230,7 +40240,7 @@ function renderProfileXPHistory(){
       '<div class="xp-history-row xp-src-' + e.type + '">' +
         '<div class="xp-history-body">' +
           '<div class="xp-history-title">' + escapeHtml(e.title) + '</div>' +
-          '<div class="xp-history-detail">' + escapeHtml(e.detail || '') + '</div>' +
+          '<div class="xp-history-detail">' + escapeHtml(xpHistoryDetailText(e)) + '</div>' +
         '</div>' +
         '<div class="xp-history-xp">+' + e.xp + '</div>' +
       '</div>';
@@ -40255,7 +40265,7 @@ function renderProfile(){
   document.getElementById('profileStats').innerHTML = `
     <div class="stat"><div class="stat-num">${p.lifetimeXP.toLocaleString()}</div><div class="stat-label">Lifetime XP</div></div>
     <div class="stat"><div class="stat-num">${p.workoutCount}</div><div class="stat-label">Workouts</div></div>
-    <div class="stat"><div class="stat-num">${p.prCount}</div><div class="stat-label">Personal Records</div></div>
+    <div class="stat"><div class="stat-num">${p.prCount}</div><div class="stat-label">Records &amp; baselines</div></div>
     <div class="stat"><div class="stat-num">${p.currentStreakWeeks}</div><div class="stat-label">Week Streak</div></div>
   `;
 
@@ -43880,15 +43890,13 @@ function weeklyReviewGlance(weekKey){
   byDay.forEach(list => list.forEach(e => sessions.push(e)));
 
   const idx = canonicalPRIndex();
-  const records = [];
+  /* D157 — a lift's first session is a baseline (prIsBaseline), listed apart from the records that beat an earlier best */
+  const records = [], baselines = [];
   const seen = new Set();
-  sessions.forEach(e => prEventsForEntryOrdered(e).forEach(ev => {
-    if(!seen.has(ev)){ seen.add(ev); records.push({ ev, entryId: e.id }); }
-  }));
+  const put = (ev, entryId) => { if(seen.has(ev)) return; seen.add(ev); (prIsBaseline(ev) ? baselines : records).push({ ev, entryId }); };
+  sessions.forEach(e => prEventsForEntryOrdered(e).forEach(ev => put(ev, e.id)));
   /* A record whose workout carries no id still happened on its date. */
-  days.forEach(d => (idx.byDate[d] || []).forEach(ev => {
-    if(!seen.has(ev)){ seen.add(ev); records.push({ ev, entryId: null }); }
-  }));
+  days.forEach(d => (idx.byDate[d] || []).forEach(ev => put(ev, null)));
 
   const mv = deriveMuscleSetsBetween(start, end);
   const daysTrained = timeline.filter(d => d.count > 0).length;
@@ -43899,7 +43907,7 @@ function weeklyReviewGlance(weekKey){
     label: weeklyReviewRangeLabel(key), spoken: weeklyReviewRangeSpoken(key),
     trackingStart: cons.trackingStart,
     trackingBeganMidWeek: !!(cons.trackingStart && cons.trackingStart > start),
-    timeline, sessions, records,
+    timeline, sessions, records, baselines,
     workouts: sessions.length, daysTrained,
     workingSets: mv.setsLogged, muscles: mv,
     plan: cw ? { planned: cw.plannedKnown || 0, fulfilled: cw.fulfilled || 0 } : null,
@@ -43932,7 +43940,7 @@ function deriveWeeklyReview(weekKey){
     let score = null;
     try{ const s = sessionScore(e); if(s && s.available) score = { value: s.score, word: s.word }; }catch(x){}
     let prs = 0;
-    try{ prs = getSessionPRs(e).length; }catch(x){}
+    try{ prs = sessionRecordCount(e); }catch(x){}   // D157 — records that beat an earlier best
     /* D105.1 — the one reading of a workout's time; its measured kind is the only clock. */
     const time = workoutTimeOf(e);
     return { id: e.id, date: e.date, title: e.title || CAT_LABEL[e.category] || 'Workout', category: e.category,
@@ -44221,6 +44229,13 @@ function weeklyReviewBodyHtml(r){
       ? (firsts === 1 ? 'A lift\'s first logged best' : 'Each one a lift\'s first logged best')
       : firsts + ' of them a lift\'s first logged best') : '';
     wins.push(`<div class="wr-win"><span class="wr-win-t">${r.records.length} new record${r.records.length === 1 ? '' : 's'}</span>${firstNote ? `<span class="wr-win-s">${escapeHtml(firstNote)}</span>` : ''}<ul class="wr-list">${shown}${more}</ul></div>`);
+  }
+  /* D157 — first sessions: the numbers to beat, never counted as records */
+  if(r.baselines && r.baselines.length){
+    const shownB = r.baselines.slice(0, 3).map(x => { const f = formatPREventHeadline(x.ev);
+      return `<li><span class="wr-li-t">${escapeHtml(x.ev.exerciseName)}<span class="wr-li-s">First logged</span></span><span class="wr-li-v">${escapeHtml(f ? f.current : '')}</span></li>`; }).join('');
+    const moreB = r.baselines.length > 3 ? `<li class="wr-li-more">and ${r.baselines.length - 3} more</li>` : '';
+    wins.push(`<div class="wr-win"><span class="wr-win-t">${r.baselines.length} first-time baseline${r.baselines.length === 1 ? '' : 's'}</span><span class="wr-win-s">The numbers to beat next time</span><ul class="wr-list">${shownB}${moreB}</ul></div>`);
   }
   if(r.level){
     wins.push(`<div class="wr-win"><span class="wr-win-t">${r.level.from !== null ? 'Level ' + r.level.from + ' → ' + r.level.to : 'Reached Level ' + r.level.to}</span>${r.rank ? `<span class="wr-win-s">New rank: ${escapeHtml(r.rank.to)}</span>` : ''}</div>`);
@@ -46370,7 +46385,7 @@ function obRestPanelHtml(){
       <div class="rest-panel-controls" aria-hidden="true">
         <button type="button" class="rest-panel-btn" tabindex="-1">+15s</button>
         <button type="button" class="rest-panel-btn rest-pause-btn" tabindex="-1">${pauseIconSvg()}</button>
-        <button type="button" class="rest-panel-btn rest-skip-btn" tabindex="-1">Skip</button>
+        <button type="button" class="rest-panel-btn rest-skip-btn" tabindex="-1">Skip rest</button>
       </div>
     </div>`;
 }
@@ -60159,7 +60174,11 @@ async function resumeActiveWorkout(){
 }
 
 async function discardActiveWorkout(){
-  if(!confirm('Discard this in-progress workout? Everything you logged in it will be lost.')) return;
+  /* D157 — the question names an unfinished workout from another day as that, with its day; what follows is unchanged */
+  const staleInfo = activeDraftInfo && activeDraftInfo.stale ? activeDraftInfo : null;
+  if(!confirm(staleInfo
+    ? 'Discard this unfinished workout' + (staleInfo.started ? ' from ' + staleInfo.started : '') + '? Everything you logged in it will be lost.'
+    : 'Discard this in-progress workout? Everything you logged in it will be lost.')) return;
   draftRestoring = true;
   if(draftSaveTimer){ clearTimeout(draftSaveTimer); draftSaveTimer = null; }
   closeLogSheet();
@@ -60476,6 +60495,55 @@ if(typeof document !== 'undefined' && document.addEventListener){
     setTimeout(() => revealFocusedSetField(t), 320);
   });
   document.addEventListener('focusout', () => setTimeout(releaseKeyboardRoom, 150));
+}
+
+
+/* =========================================================
+   PRE-RELEASE INTEGRITY  (Phase D157)
+   ---------------------------------------------------------
+   · E78 — Session Score judges a workout against its own prescription and reads no other workout. The Summary's
+     "+N% volume vs your last push" did read another one: the most recent of the category, which for a workout logged
+     for a past day was a LATER one. It now reads the one BEFORE, in the log's own order. No score changes.
+   · E81 — XP and levels are kept exactly. What is said changes: a lift's first session is a baseline wherever LOOP
+     names records — the Log's badge, the Weekly Review, the calendar's dot, the XP history and the PR milestones.
+   ========================================================= */
+
+/* The one place a program's end is read for Today and This Week alike: the active program says this date is past it. */
+function programEndedOn(dateStr){
+  try{
+    if(!hasActiveProgram()) return false;
+    const pd = getProgramWorkoutForDate(dateStr || localDateStr());
+    return !!(pd && pd.ended);
+  }catch(e){ return false; }
+}
+/* The Summary's volume line: this workout against the workout of its category BEFORE it in the log's own order
+   (sortedLog: newest first, by date then id) — never itself, never a later one. null when there is none to compare. */
+function summaryVolumeChange(entry){
+  try{
+    const log = sortedLog();
+    const at = log.findIndex(l => l && l.id === entry.id);
+    const older = at === -1 ? log.filter(l => l && String(l.date) < String(entry.date)) : log.slice(at + 1);
+    const prior = older.find(l => l && l.category === entry.category);
+    if(!prior) return null;
+    const volPrev = sessionVolume(prior);
+    if(!(volPrev > 0)) return null;
+    return Math.round(((sessionVolume(entry) - volPrev) / volPrev) * 100);
+  }catch(e){ return null; }
+}
+/* How many of a workout's records beat an earlier best — the canonical events, without its first-session baselines. */
+function sessionRecordCount(entry){
+  try{ return prEventsForEntryOrdered(entry).filter(ev => !prIsBaseline(ev)).length; }catch(e){ return 0; }
+}
+/* The XP history's line for a workout: the engine's labels, with a first session's record XP named as a baseline. */
+function xpHistoryDetailText(e){
+  const d = String((e && e.detail) || '');
+  if(!e || e.type !== 'workout' || !d) return d;
+  try{
+    const entry = (workoutLog || []).find(w => w && w.id === e.id);
+    if(!entry) return d;
+    const evs = prEventsForEntry(entry);
+    return d.split(' · ').map(l => baselineXPLabel(l, evs)).join(' · ');
+  }catch(x){ return d; }
 }
 
 let workoutHistoryPushed = false;
@@ -63781,8 +63849,11 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
   } else if(quality){
     readLines.push('First time logging these movements — these sets are your baselines');
   }
-  if(quality && quality.progressPct !== null){
-    readLines.push((quality.progressPct >= 0 ? '+' : '') + quality.progressPct
+  /* D157 (E78) — against the workout of this category BEFORE this one in the log's own order: never itself, never a
+     later one. computeWorkoutQuality's own progress figure is unchanged and drawn nowhere. */
+  const volPct = quality ? summaryVolumeChange(entry) : null;
+  if(volPct !== null){
+    readLines.push((volPct >= 0 ? '+' : '') + volPct
       + '% volume vs your last ' + (CAT_LABEL[entry.category] || 'session').toLowerCase());
   }
   document.getElementById('summaryStats').innerHTML = `

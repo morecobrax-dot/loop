@@ -20747,3 +20747,41 @@ workout with itself; fixing it moves an engine, so it waits for the owner. E81's
 first session should earn record XP is the owner's call (the XP engine is unchanged).
 
 **Not done.** The tutorial's demo rest panel still says "Skip"; the discard question still says "in-progress workout".
+
+## §203 — PRE-RELEASE INTEGRITY GATE: NO SCORE COMPARES A WORKOUT WITH ITSELF; A FIRST SESSION NEVER CLAIMS A RECORD (D157 · on the 10.79 release candidate · not released)
+
+**Why.** The owner conditionally approved D156's direction and asked for the remaining correctness risks to be closed
+before release: E78 (a possible self-comparison in Session Score) and E81 (first-session XP and achievement wording,
+with every XP quantity, level and historical award kept), plus four small consistency fixes.
+
+**E78 — traced to its source.** Session Score (`sessionScore` / `deriveSessionExecution`, the "98") judges a workout
+against its own prescription and reads no other workout: every workout of a ten-week history scores the same alone, in
+its history, and beside a later and a same-day copy of itself (Contract 281 A). The self-comparison is in
+`computeWorkoutQuality`, the legacy quality score: its rep factor asks `getPreviousSets`, which for a saved workout
+returns that workout, and its progress factor takes the newest other workout of the category, earlier or later. That
+score is derived, never stored, and drawn on no screen (its weekly line `perfLineSvg` has no caller; `avgSessionScore`
+has no reader). Its only visible output was the Summary's "+N% volume vs your last push", which for a workout logged
+for a past day compared it with a LATER one (−45% instead of +10%). That line now reads the workout before it in the
+log's own order (`summaryVolumeChange`). The legacy formula is unchanged: fixing it would move 25 of 30 hidden historical
+values in the measured history, which the owner's rule sends to a decision, not a silent change.
+
+**Found while testing edited workouts: an edit dropped the prescription (E82).** `saveWorkoutEdits` rebuilt each
+exercise as name, effort, bodyweight and sets, so correcting any set erased the prescription the workout was logged
+against — its Session Score vanished and the Summary said it "was not logged against a prescribed plan". The edit now
+keeps it. Workouts already edited lost it; LOOP has no copy, so nothing is restored and nothing is invented.
+
+**E81 — what is said, never what is earned.** XP is exactly 10.78's (lifetime XP, level, the PR count, each workout's
+XP and every milestone, measured on three histories). A lift's first session is a baseline wherever records are named:
+the XP history ("First-time baseline — Bench Press"), the first PR milestone ("First Baseline"; id `m_pr_1` and its
+25 XP unchanged; the others say first-time baselines count), the two counts of the PR total ("Records & baselines"),
+the Log's badge, the calendar's record dot and the Weekly Review (records and "first-time baselines" kept apart). A
+session that beats an earlier best is still a "Weight PR" with its XP.
+
+**Consistency.** Past a program's end, This Week's Today says "Nothing scheduled · Program ended" with Today's card
+(`programEndedOn`, the hero's own condition); an ordinary rest day and a paused program read as before. The tutorial's
+rest panel says "Skip rest". Discard asks about "this unfinished workout from <day>" for another day's workout, and as
+before for one under way today; what follows is unchanged.
+
+**Held.** Every engine (Session Score, records, XP, Mastery, D44, programs), DATA_KEYS (16), the schema (1), Friends,
+the exercise art. Older checks D157 changed on purpose are restated beside their originals, each as the exact reversal
+of the change (records ∪ baselines where a surface used to count every event) or read with 10.78's renderers.

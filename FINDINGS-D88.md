@@ -2733,6 +2733,15 @@ workout. Contract 280 E5.
 for a saved workout. Fixing it moves Session Score, which is an engine and part of XP context, so it waits for the
 owner's decision.
 
+**D157 (on the 10.79 RC).** Traced to its source. Session Score — the number the Summary and the Weekly Review show —
+reads no other workout: every workout of a ten-week history scores the same alone, in its history and beside a later
+copy of itself (the Summary's 98 is 98 on 10.78, D156 and D157). The self-comparison is in computeWorkoutQuality, the
+legacy quality score, which no screen draws (perfLineSvg has no caller; avgSessionScore no reader). Its one visible
+output, the Summary's volume line, compared a workout logged for a past day with a LATER one (measured: −45% where the
+truth was +10%); it now reads the workout before it. The legacy formula is unchanged — fixing it would move 25 of 30
+hidden historical values in the measured history; that, or retiring the score, is the owner's decision. **CLOSED for
+every surface; the hidden legacy score is recorded, not changed.**
+
 ## E79 — A workout opened weeks ago read as "in progress" and took Today's hero · P2 · PROVEN · **CLOSED in D156**
 
 Found by D156's audit, on 10.78.
@@ -2775,6 +2784,26 @@ D155's highlights already excluded first sessions (headline.prev > 0).
 
 **Still the owner's.** Whether a baseline should earn record XP (+15 XP per lift in the measured first workout), and
 the "First Record" achievement (+25 XP) that the same first workout unlocks. The XP engine is unchanged.
+
+**D157 (on the 10.79 RC).** Owner decision: keep every XP quantity, level and historical award. Presentation only:
+"First-time baseline — <lift>" in the XP history as on the Summary; the first PR milestone is "First Baseline" (id m_pr_1,
+25 XP unchanged) and the others say first-time baselines count; the two counts of the PR total read "Records &
+baselines"; the Log's badge, the calendar's record dot and the Weekly Review count records only, the Weekly Review
+listing first-time baselines apart. Measured unchanged on three histories: lifetime XP (3,937 · 179 · 221), level, the
+PR count, each workout's XP and every milestone. **CLOSED.**
+
+## E82 — Editing a workout erased the prescription it was logged against · P2 · PROVEN · **CLOSED in D157 for every later edit; earlier edits cannot be restored**
+
+Found by D157's Session Score audit, on 10.78 (and D156).
+
+**What happened.** The workout editor's draft is a full copy of the workout, prescription included, but
+`saveWorkoutEdits` rebuilt each exercise as name, effort, bodyweight and sets. Correcting a single set removed every
+exercise's prescription (`rx`) from the stored workout: its Session Score disappeared, and the Summary said "No session
+score — this workout was not logged against a prescribed plan", which was untrue.
+
+**D157.** The edit keeps the prescription (a copy, never a shared object); the corrected sets are scored against it, the
+same alone as in the workout's history (Contract 281 A5). Workouts edited before D157 lost theirs; LOOP keeps no other
+copy, so nothing is restored and nothing is invented — they keep reading "No session score".
 
 ## Not findings — checked and clean
 
