@@ -2709,6 +2709,73 @@ weeks"). The weekly volume chart draws the week under way as an outline, named "
 engine (computeWeeklyVolume) is untouched. Once the week's seventh day arrives it counts as a whole week, as Volume's
 comparison already counts it. Contract 278 replays 10.76's card (−10%) beside the release (0%).
 
+## E78 — The Summary compared a saved workout with itself, so "matched or beat last time" was always true · P2 · PROVEN · **CLOSED for the Summary in D156; OPEN for Session Score**
+
+Found by D156's data-truth audit, on 10.78.
+
+**What happened.** The Summary's line "N of M sets matched or beat last time" asked `getPreviousSets(name)` for each
+exercise. `getPreviousSets` answers for the NEXT workout — the newest in the log with that lift — so for a workout just
+saved, it returned that very workout. Every set was compared with itself.
+
+**Measured (10.78, the harness).** A first workout of two lifts (Bench 135×8, 135×8; Overhead Press 85×10) — nothing
+logged before it — read "3 of 3 sets matched or beat last time". A second session (Bench 145×8, 145×7 after 135×8,
+135×8; Lateral Raise 15×15, new that day) read "2 of 3": the Lateral Raise set, which had no last time, matched itself.
+D156 reads "First time logging these movements — these sets are your baselines" and "1 of 2 sets matched or beat last
+time · 1 first-time set".
+
+**D156.** The Summary reads the newest EARLIER workout with the lift (`previousSetsBefore`, skipping the entry itself and
+anything dated after it) and counts only sets that had a last time (`summaryComparison`): the second session now reads
+"1 of 2 sets matched or beat last time · 1 first-time set"; a first workout reads "First time logging these movements —
+these sets are your baselines". `getPreviousSets` is unchanged — it is right for the logger, which asks it for the next
+workout. Contract 280 E5.
+
+**Still open.** `computeWorkoutQuality` (Session Score's "matched last time" factor) asks `getPreviousSets` the same way
+for a saved workout. Fixing it moves Session Score, which is an engine and part of XP context, so it waits for the
+owner's decision.
+
+## E79 — A workout opened weeks ago read as "in progress" and took Today's hero · P2 · PROVEN · **CLOSED in D156**
+
+Found by D156's audit, on 10.78.
+
+**What happened.** Every surface asked one thing — does a draft exist (`hasActiveDraftNow`). A workout opened on 6 Sep
+and never finished still held Today's hero on 18 Nov as "Workout in progress · Started Sep 6 · 0/16 sets", replaced
+today's plan, marked today "In progress" on This Week, silenced Train's next session and froze Change day for today.
+D134 had made its time honest ("Started Sep 6"); the claim that it was in progress was still there.
+
+**D156.** A draft started on an earlier civil day AND past the span any workout can take (`workoutSpanLimitSec`) is
+unfinished (`draftIsStale`); every surface asks `activeDraftIsCurrent()`. The draft is kept byte for byte and offered
+back on its own card above today's plan — when it began, what was done, Resume, Discard (which asks first). A workout
+under way today, including one opened at 01:00 or across midnight, is exactly what it was. Contract 280 A–D.
+
+## E80 — A program with nothing done read "Finished" · P3 · PROVEN · **CLOSED in D156**
+
+Found by D156's audit, on 10.78.
+
+**What happened.** When a program's scheduled weeks ran out, the Foundation read "· finished", the completion panel
+"Program finished" and its headline "8 weeks finished.", whatever was done — the owner's own program read "Finished"
+with 0 of 21 sessions — while its
+portfolio card still said CURRENT and Today said "Rest Day".
+
+**D156.** "finished" only when the planned sessions were done or the athlete marked it complete; otherwise "ended" (the
+same counts `deriveProgramCompletion` already returns). Today says "Nothing scheduled" with why and What's next; the
+current program's card says CURRENT and Ended. Program completion itself is unchanged: nothing is completed
+automatically. Contract 280 G.
+
+## E81 — A lift's first session was presented as a personal record · P3 · PROVEN · **presentation CLOSED in D156; the XP rule is the owner's**
+
+Found by D156's audit, on 10.78.
+
+**What happened.** The record engine logs a lift's first session against 0 (D96C-2), so a first workout of five lifts
+showed five "New Records", each "Previous 0 lb · +135 lb", Strength counted them as records, and the XP breakdown said
+"Weight PR — Bench Press".
+
+**D156.** Presentation only: "First-time baselines" apart from records, no "Previous 0", XP rows labelled "First-time
+baseline — <lift>" with the same amounts, Strength's card counting records only, a single milestone called "Baseline".
+D155's highlights already excluded first sessions (headline.prev > 0).
+
+**Still the owner's.** Whether a baseline should earn record XP (+15 XP per lift in the measured first workout), and
+the "First Record" achievement (+25 XP) that the same first workout unlocks. The XP engine is unchanged.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

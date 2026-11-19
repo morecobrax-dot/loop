@@ -10796,6 +10796,196 @@ div.fb-r{ cursor: default; }
 .fh-set-d{ margin: 2px 0 0; font-size: var(--fs-meta); line-height: 1.45; color: var(--text-dim); }
 .fh-set-s{ margin: 6px 0 0; font-size: var(--fs-meta); color: var(--text-faint); }
 /* ==== D155 FRIENDS END ==== */
+/* ==== D156 PREMIUM PASS BEGIN ==== */
+/* =========================================================
+   PREMIUM EXPERIENCE (Phase D156) — the last layer of the sheet, as one block.
+   Built on D132's system (its colour roles, surfaces and radii are kept: the provisional palette in the brief
+   measured within a few points of them). What this layer adds:
+   · One motion vocabulary (--dur-*): press 100, feedback 140, step 200, sheet 260, celebration 420 ms, one ease-out.
+     The global reduced-motion rule (top of the sheet) stills all of it.
+   · Metadata you can read: the faint text tone lifted to 5.6:1 on cards.
+   · Section titles in sentence case, the size of a title rather than a whisper.
+   · The active workout: the set you are on is the one set drawn large — two steppers that say "lb" and "reps" —
+     and every other set is one line: its number, its values with their units, its effort, its tick. A finished
+     set offers "Add RIR" where the eye already is. Skip is a quiet way out, not the dock's loudest button.
+   · Today: an unfinished workout from another day is its own small card beside today's plan; the secondary
+     modules take the room their content needs.
+   · Train: a way into programs. The preview: the anatomy and the list, without the tiny radar.
+   · The Summary: baselines are listed apart from records, without a trophy; a live summary arrives with a short
+     settle of its mark and its numbers.
+   Every touch target in the workout stays at least 44 px.
+   ========================================================= */
+:root{
+  --dur-press: 100ms; --dur-feedback: 140ms; --dur-step: 200ms; --dur-sheet: 260ms; --dur-celebrate: 420ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --text-faint: #8893A6;
+}
+
+/* ---------- 1 · SECTION TITLES: sentence case, a real title ---------- */
+.sec-head, .section-label{ text-transform: none; letter-spacing: -0.005em; font-family: var(--font-ui), 'Inter', sans-serif;
+  font-size: 15px; font-weight: 700; color: var(--text); }
+.sec-head .sec-hint{ text-transform: none; letter-spacing: 0; font-size: var(--fs-meta); font-weight: 500; color: var(--text-faint); }
+
+/* ---------- 2 · THE ACTIVE WORKOUT ---------- */
+/* Every set is one line: number · values · effort · tick. */
+.stepper-on .ws-current .set-row{
+  display: grid; grid-template-columns: 36px minmax(0, 1fr) auto 44px;
+  grid-template-areas: "idx ctl meta check" "more more more more";
+  align-items: center; column-gap: 10px; row-gap: 0; padding: 4px 0; min-height: 54px;
+}
+.stepper-on .ws-current .set-row-top{ display: contents; }
+.stepper-on .ws-current .set-row .set-idx{ grid-area: idx; justify-self: start; }
+.stepper-on .ws-current .set-row .set-meta-btn{ grid-area: meta; justify-self: end; min-height: 44px; }
+.stepper-on .ws-current .set-row .set-complete-btn{ grid-area: check; justify-self: end; }
+.stepper-on .ws-current .set-row .set-row-controls{ grid-area: ctl; display: flex; align-items: center; gap: 14px; min-width: 0; margin: 0; }
+.stepper-on .ws-current .set-row .set-row-more{ grid-area: more; }
+.stepper-on .ws-current .set-row .stepper{
+  display: inline-flex; align-items: baseline; gap: 4px; flex: 0 0 auto; width: auto; height: 44px;
+  background: transparent; border-color: transparent; border-radius: 10px;
+}
+.stepper-on .ws-current .set-row .stepper button{ display: none; }
+.stepper-on .ws-current .set-row .stepper input{
+  width: 3.9ch; height: 44px; padding: 0; margin: 0; border: 0; background: transparent; box-shadow: none;
+  text-align: right; font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text);
+}
+.stepper-on .ws-current .set-row .stepper:has(.set-reps-in) input{ width: 2.4ch; }
+.stepper-on .ws-current .set-row .stepper::after{ font-size: 12px; font-weight: 600; color: var(--text-faint); letter-spacing: 0.01em; }
+.stepper-on .ws-current .stepper:has(.set-weight-in)::after{ content: 'lb'; content: 'lb' / ''; }
+.stepper-on .ws-current .stepper:has(.set-reps-in)::after{ content: 'reps'; content: 'reps' / ''; }
+.stepper-on .ws-current .stepper:has(.set-weight-in:disabled)::after{ content: 'bodyweight'; content: 'bodyweight' / ''; }
+.stepper-on .ws-current .set-row .stepper:has(.set-weight-in:disabled) input{ width: 0; }
+/* Sets still to come read as the plan: quieter, and nothing to decide yet. */
+.stepper-on .ws-current .set-row:not(.completed) ~ .set-row:not(.completed) .stepper input{ color: var(--text-dim); font-weight: 600; }
+.stepper-on .ws-current .set-row:not(.completed) ~ .set-row:not(.completed) .set-meta-btn{ visibility: hidden; }
+/* A finished set: its effort is the one thing still worth adding. */
+.stepper-on .ws-current .set-row.completed .set-meta-type:not(.nondefault),
+.stepper-on .ws-current .set-row.completed .set-meta-caret{ display: none; }
+.stepper-on .ws-current .set-row.completed .set-meta-rir:not(.set){ font-size: 0; }
+.stepper-on .ws-current .set-row.completed .set-meta-rir:not(.set)::before{
+  content: 'Add RIR'; font-size: 12.5px; font-weight: 600; color: var(--accent);
+}
+.stepper-on .ws-current .set-row.completed .set-meta-btn{ padding: 0 8px; border-radius: var(--r-chip); background: transparent; border: 0; }
+
+/* The set you are on: drawn large, on its own lit panel, the only steppers on screen. */
+.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)){
+  grid-template-columns: 36px minmax(0, 1fr) 44px;
+  grid-template-areas: "idx meta check" "ctl ctl ctl" "more more more";
+  row-gap: 8px; margin: 6px -12px; padding: 10px 12px 12px; border-bottom-color: transparent;
+  background: linear-gradient(160deg, rgba(76,194,255,0.08), rgba(46,107,255,0.03)), var(--surface-1);
+  border-radius: var(--r-card); box-shadow: inset 0 0 0 1px rgba(76,194,255,0.22);
+}
+.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .set-meta-btn{ justify-self: start; }
+.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .set-row-controls{
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; animation: setOpen var(--dur-feedback) var(--ease-out) both;
+}
+.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .stepper{
+  position: relative; display: flex; align-items: center; height: 56px; gap: 0;
+  background: var(--surface-inset); border: 1px solid rgba(76,194,255,0.40); border-radius: var(--r-control);
+}
+.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .stepper button{
+  display: flex; align-items: center; justify-content: center; flex: 0 0 46px; height: 54px; width: 46px;
+}
+.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .stepper input{
+  flex: 1 1 auto; width: 100%; min-width: 0; height: 54px; padding: 0 0 13px; text-align: center; font-size: 20px; color: var(--text);
+}
+.stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .stepper::after{
+  position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); font-size: 11px; pointer-events: none;
+}
+@keyframes setOpen{ from{ opacity: 0; transform: translateY(-3px); } to{ opacity: 1; transform: none; } }
+/* Narrow phones: the line keeps its tick and number; the values take what is left. */
+@media (max-width: 359px){
+  .stepper-on .ws-current .set-row{ column-gap: 8px; }
+  .stepper-on .ws-current .set-row .set-row-controls{ gap: 8px; }
+  .stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)) .stepper button{ flex-basis: 44px; width: 44px; }
+}
+
+/* Short phones (667 and below): the exercise heading gives its height to the sets — the name smaller, the muscle chips
+   left to the preview, which already shows them. The exercise drawing keeps its approved size on every phone. */
+@media (max-height: 740px){
+  #logOverlay .ws-chips{ display: none; }
+  #logOverlay .ws-name{ font-size: 22px; }
+  #logOverlay .ws-head{ padding-bottom: 4px; }
+  .stepper-on .ws-current .set-row:nth-child(1 of .set-row:not(.completed)){ row-gap: 6px; padding-top: 6px; padding-bottom: 8px; }
+}
+/* The shortest phones (568): the row of exercise dots gives its height to the set you are on. Where you are is still
+   said above it ("Exercise 1 of 5"), and Previous / Next still move between exercises. */
+@media (max-height: 600px){
+  #logOverlay .ws-bar{ display: none; }
+}
+/* Swap and Edit: two quiet controls, not two slabs. */
+.stepper-on .ws-current .ex-actions .ex-act{ background: transparent; border-color: var(--hairline); color: var(--text-dim); }
+
+/* The dock: going back is quiet, skipping is a quiet way out, moving on is the one primary action. */
+#logOverlay .ws-nav{ justify-content: space-between; }
+#logOverlay .ws-nav-btn{ background: transparent; border-color: var(--hairline); color: var(--text-dim); }
+#logOverlay .ws-nav-fwd.is-skip{
+  flex: 1 1 auto; padding: 0 16px; background: transparent; border: 1px solid var(--hairline-strong);
+  color: var(--text); box-shadow: none; font-weight: 600;
+}
+#logOverlay .ws-nav-fwd.is-skip:active{ background: var(--surface-1); }
+/* While a set field has the keyboard, the sheet keeps room after its last set to scroll it above the keyboard
+   (revealFocusedSetField sets --kb-room; the room goes when focus leaves the set fields). Nothing at rest. */
+#logOverlay .sheet-scroll.kb-room::after{ content: ''; display: block; height: var(--kb-room, 0px); }
+/* A program whose weeks ended without its sessions done: a calendar in the neutral tone, never the success check. */
+.pc-mark.is-ended{ color: var(--text-dim); border-color: var(--hairline-strong); }
+/* A paused rest says so. */
+.rest-panel.paused .rest-ring-fill{ opacity: 0.45; }
+.rest-panel.paused .rest-dial-time{ color: var(--text-dim); }
+
+/* ---------- 3 · TODAY ---------- */
+/* An unfinished workout from another day: its own card, above today's plan, never in its place. */
+.dr-card{ margin-top: 12px; padding: 14px 16px; background: var(--surface-1); border: 1px solid rgba(240,168,69,0.38);
+  border-radius: var(--r-card); box-shadow: var(--elev-1); }
+.dr-k{ font-size: var(--eyebrow-size); font-weight: 700; letter-spacing: var(--eyebrow-track); text-transform: uppercase; color: var(--c-effort); }
+.dr-title{ display: flex; align-items: center; gap: 8px; margin-top: 6px; font-family: var(--font-display), sans-serif; font-size: 18px; font-weight: 700; color: var(--text); }
+.dr-meta{ margin: 4px 0 0; font-size: var(--fs-support); color: var(--text-dim); }
+.dr-note{ margin: 6px 0 0; font-size: var(--fs-meta); color: var(--text-faint); }
+.dr-actions{ display: flex; gap: 10px; margin-top: 12px; }
+.dr-go, .dr-x{ min-height: 44px; border-radius: var(--r-button); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+.dr-go{ flex: 1 1 auto; background: var(--surface-3); border: 1px solid var(--hairline-strong); color: var(--text); }
+.dr-x{ flex: 0 0 auto; padding: 0 18px; background: transparent; border: 1px solid var(--hairline); color: var(--c-danger); }
+.dr-go:active, .dr-x:active{ transform: var(--press); }
+.dr-go:focus-visible, .dr-x:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The secondary modules: the room their content needs. */
+/* Foundation on a weekly plan repeats This Week's days as chips; the plan, its rhythm and the way to a program stay. */
+#todayFoundation .fd-plan .fd-split{ display: none; }
+/* The week's muscles: the figure at the size of a glance. */
+#todayMuscles .tm-body{ width: 72px; }
+
+/* ---------- 4 · TRAIN ---------- */
+.tr-prog-row{
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; margin-top: 10px; padding: 10px 14px;
+  background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); box-shadow: var(--elev-1);
+  color: var(--text); font: inherit; text-align: left; cursor: pointer;
+}
+.tr-prog-row .tq-main{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.tr-prog-row .tq-sub{ order: -1; font-size: var(--fs-meta); color: var(--c-program); font-weight: 600; }
+.tr-prog-row .tq-title{ font-size: 15px; font-weight: 700; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tr-prog-row .tq-ic{ color: var(--c-program); }
+.tr-prog-row .tr-prog-go{ flex: 0 0 auto; font-size: var(--fs-support); font-weight: 600; color: var(--accent); }
+/* A current program whose weeks are over (the Program page): one quiet badge, ENDED; the card loses the live accent. */
+.tr-prog-ended{ border-color: var(--hairline-strong); }
+.tr-prog-badge.is-ended{ color: var(--text-dim); }
+.tr-prog-row:active{ transform: var(--press); }
+.tr-prog-row:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- 5 · WORKOUT PREVIEW: the anatomy and the list, without the tiny radar ---------- */
+#trainDetailBody .tpl-radar-col, #trainDetailBody .focus-block{ display: none; }
+
+/* ---------- 6 · THE SUMMARY ---------- */
+.sum-base{ margin-top: 8px; padding: 4px 14px; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); }
+.sum-base-row{ display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 40px; padding: 8px 0; }
+.sum-base-row + .sum-base-row{ border-top: 1px solid var(--hairline); }
+.sum-base-n{ font-size: var(--fs-body); font-weight: 600; color: var(--text); }
+.sum-base-v{ font-size: var(--fs-body); font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sum-base-foot{ margin: 6px 2px 0; font-size: var(--fs-meta); color: var(--text-faint); }
+#summaryOverlay.is-live .summary-mark{ animation: sumMarkIn var(--dur-celebrate) var(--ease-out) both; }
+#summaryOverlay.is-live .summary-stats .stat{ animation: sumStatIn var(--dur-sheet) var(--ease-out) both; }
+#summaryOverlay.is-live .summary-stats .stat:nth-child(2){ animation-delay: 60ms; }
+#summaryOverlay.is-live .summary-stats .stat:nth-child(3){ animation-delay: 120ms; }
+@keyframes sumMarkIn{ 0%{ opacity: 0; transform: scale(0.72); } 70%{ opacity: 1; transform: scale(1.04); } 100%{ transform: none; } }
+@keyframes sumStatIn{ from{ opacity: 0; transform: translateY(6px); } to{ opacity: 1; transform: none; } }
+/* ==== D156 PREMIUM PASS END ==== */
 </style>
 </head>
 <body>
@@ -10921,6 +11111,8 @@ div.fb-r{ cursor: default; }
           <span class="tq-main"><span class="tq-title">Build workout</span><span class="tq-sub">Save to reuse</span></span>
         </button>
       </div>
+      <!-- D156 — the fourth way to train: a program. Programs lived only behind the Plan chip and Settings. -->
+      <div id="trainProgram"></div>
     </section>
     <section class="tr-sec" aria-labelledby="trainMineLabel">
       <div class="tr-head">
@@ -22621,7 +22813,7 @@ function socialBoardHtml(){
   return '<div class="sec-head">Weekly leaderboard<span class="sec-hint">' + escapeHtml(socialWeekLabel(week)) + '</span></div>' +
     '<div class="soc-board"><ol class="fb-list" aria-label="' + escapeAttr('Weekly leaderboard, ' + socialWeekLabel(week) + ', by XP earned this week') + '">' +
       rows + '</ol></div>' + more +
-    '<p class="soc-fine">XP earned Monday to Sunday. Everyone’s own phone counts their week.</p>';
+    '<p class="soc-fine">XP comes from finished workouts, working sets, personal records and weekly streaks. XP earned Monday to Sunday. Everyone’s own phone counts their week.</p>';
 }
 
 function socialProgressHtml(self, snap, unclaimed){
@@ -33662,7 +33854,7 @@ function renderTodayWorkout(){
      including a rest day the athlete decided to train through. Nothing else
      renders: no time picker, no workout picker; changing plans is not the
      decision mid-session. One title, one Resume, one quiet Discard. */
-  if(hasActiveDraftNow){
+  if(activeDraftIsCurrent()){   // D156 — an unfinished workout from another day has its own card; today's plan is drawn
     const info = activeDraftInfo || { title: 'Workout', mins: null, summary: '' };
     /* D81 — the workout under way looks like the workout that was started. */
     const wid = info.identity || workoutIdentity(null, null);
@@ -33749,11 +33941,15 @@ function renderTodayWorkout(){
        D77A — the row moved out of this card into the Training Foundation,
        which Home draws on every day, rest or training, so it can no longer
        vanish with the day's type. This card is only the day. */
+    /* D156 — past a program's last day nothing is scheduled (D147), and the day is not a rest day the plan chose: the card
+       says what is true and offers the way on. Inside its last days, and with no program, it is the rest day it was. */
+    const ended = !!(programDone && programDay && programDay.ended);
     el.innerHTML = `
-      <div class="tw tw-rest">
+      <div class="tw tw-rest${ended ? ' tw-ended' : ''}">
         <div class="tw-label">Today</div>
-        <div class="tw-title">Rest Day</div>
-        ${nextPreview || `<div class="tw-meta">${programDone ? (programDay.ended ? 'Your program’s scheduled weeks are finished' : 'No sessions left in your program') : 'No training days set yet'}</div>`}
+        <div class="tw-title">${ended ? 'Nothing scheduled' : 'Rest Day'}</div>
+        ${nextPreview || `<div class="tw-meta">${programDone ? (programDay.ended ? 'Your program’s scheduled weeks have ended. Start what’s next, or train anyway.' : 'No sessions left in your program') : 'No training days set yet'}</div>`}${ended ? `
+        <button class="tw-cta tw-cta-ghost" onclick="openTraining('program')">What’s next</button>` : ''}
         <button class="tw-change tw-override" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
         ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(null)}</div>` : ''}
       </div>`;
@@ -33820,7 +34016,7 @@ function renderTodayWorkout(){
 function renderTodayActivity(){
   const host = document.getElementById('todayActivity');
   if(!host) return;
-  if(hasActiveDraftNow || !selectedDayIsToday()){ host.innerHTML = ''; return; }
+  if(activeDraftIsCurrent() || !selectedDayIsToday()){ host.innerHTML = ''; return; }
   const today = activitiesOn(localDateStr());
   const rows = today.map(a => {
     const meta = activityMetaText(a);
@@ -34558,7 +34754,7 @@ function deriveThisWeek(){
   const wk = weekOverview();
   const tKey = todayKey(), T = localDateStr();
   const todayIdx = DAY_ORDER.indexOf(tKey);
-  const active = !!hasActiveDraftNow;
+  const active = activeDraftIsCurrent();   // D156 — an unfinished workout from another day is not today's
   const selKey = (selectedDayKey && selectedDayKey !== tKey && DAY_ORDER.indexOf(selectedDayKey) !== -1) ? selectedDayKey : null;
 
   const days = wk.days.map((d, i) => {
@@ -34689,7 +34885,7 @@ function renderWeekCard(){
   if(_wkDrag) cancelWeekDrag({ immediate: true });
   const m = deriveThisWeek();
   const p = m.progress;
-  _wkDrewActive = !!hasActiveDraftNow;
+  _wkDrewActive = activeDraftIsCurrent();
 
   /* 1 — progress. The percentage leads, the count explains it, and one segment per planned workout draws it. */
   const head = p.planned
@@ -34813,10 +35009,12 @@ function renderToday(){
   /* D143 — an active program owns today, exactly as the card below reads it (renderTodayWorkout). The header used to
      read the plan layer alone, which a Change day updates at once, so it named one day's session over a card offering
      another until the program's change began. */
+  let programEnded = false;   // D156
   try{
     if(hasActiveProgram()){
       const pd = getProgramWorkoutForDate(localDateStr());
       if(pd) cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';
+      if(pd && pd.ended) programEnded = true;
     }
   }catch(e){}
   /* The level sits in the header, across from the greeting — the athlete's
@@ -34843,7 +35041,7 @@ function renderToday(){
   document.getElementById('todayDateLine').innerHTML = `
     <div class="today-hdr-left">
       <div class="today-greet">${getGreeting()}</div>
-      <div class="today-sub">${dateStr}<span class="today-focus">${cat === 'rest' ? 'Rest' : CAT_LABEL[cat]}</span></div>
+      <div class="today-sub">${dateStr}${programEnded ? '' : `<span class="today-focus">${cat === 'rest' ? 'Rest' : CAT_LABEL[cat]}</span>`}</div>
     </div>${levelChip}`;
 
   renderResumeBanner();     // also refreshes the CTA via hasActiveDraftNow
@@ -35029,7 +35227,7 @@ function changeDayMovesThisWeek(program, a, b){
   if(plan[a] && plan[a].type === 'workout') moves.push([dA, dB]);
   if(plan[b] && plan[b].type === 'workout') moves.push([dB, dA]);
   if(!moves.length || !moves.every(m => m[0] >= today && m[1] >= today)) return false;
-  if(hasActiveDraftNow && (dA === today || dB === today)) return false;
+  if(activeDraftIsCurrent() && (dA === today || dB === today)) return false;
   /* D144 — D43's answer through programWorkClaims, which the day sheet's category buttons ask too */
   const trial = moveProgramDaysFrom(JSON.parse(JSON.stringify(program)), a, b, 'today');
   return programWorkClaims(trial) === programWorkClaims(program);
@@ -35118,7 +35316,7 @@ function dayContentChangesThisWeek(program, key, entry){
   if(!program || !programHasBegun(program) || programTimelineEnded(program, today)) return false;
   const date = weekDateForDayKey(key, today);
   if(!date || date < today || dateIsSuspended(program, date, today)) return false;
-  if(hasActiveDraftNow && date === today) return false;
+  if(activeDraftIsCurrent() && date === today) return false;
   const f = deriveProgramPlanFulfillment(program, workoutLog || []);
   if(f.slots.some(s => s.date === date && s.workoutId)) return false;
   const trial = setProgramDayFrom(JSON.parse(JSON.stringify(program)), key, entry, 'today');
@@ -35300,7 +35498,7 @@ function trainSessionOn(date){
 /* Today's session while it is still to do; once today is trained or rested,
    the next day that has one. */
 function trainNextUp(){
-  if(hasActiveDraftNow) return null;
+  if(activeDraftIsCurrent()) return null;
   const todayStr = localDateStr();
   let done = false;
   try{ done = (workoutLog || []).some(l => l && l.date === todayStr); }catch(e){ done = false; }
@@ -35403,12 +35601,17 @@ function renderTrainResume(){
   if(!host) return;
   if(!hasActiveDraftNow){ host.innerHTML = ''; return; }
   const info = activeDraftInfo || { title: 'Workout', mins: null, summary: '' };
+  /* D156 — from another day it is an unfinished workout, dated, with what was done */
+  const c = info.counts || { done: 0, total: 0 };
+  const sub = info.stale
+    ? [info.time || '', c.total ? c.done + ' of ' + c.total + ' sets done' : ''].filter(Boolean).map(escapeHtml).join(' · ')
+    : (info.summary ? (info.time ? info.time + ' · ' : '') + info.summary : '');
   host.innerHTML = `
-    <div class="tr-resume">
+    <div class="tr-resume${info.stale ? ' tr-resume-stale' : ''}">
       <div class="tr-resume-main">
-        <span class="tr-resume-k">Workout in progress</span>
+        <span class="tr-resume-k">${info.stale ? 'Unfinished workout' : 'Workout in progress'}</span>
         <span class="tr-resume-title">${escapeHtml(info.title)}</span>
-        ${info.summary ? `<span class="tr-resume-sub">${info.time ? info.time + ' · ' : ''}${info.summary}</span>` : ''}
+        ${sub ? `<span class="tr-resume-sub">${sub}</span>` : ''}
       </div>
       <button type="button" class="tl-start is-next" onclick="resumeActiveWorkout()"
         aria-label="${escapeAttr('Resume ' + info.title)}">Resume</button>
@@ -35431,9 +35634,8 @@ function renderTrainMine(view){
   host.innerHTML = mine.length
     ? `<ul class="tl-list" role="list">${rows.map(x => trainRowHtml('saved', x.cat, x.t, view)).join('')}</ul>${toggle}`
     : `<div class="tl-empty tl-empty-mine">
-        <p class="tl-empty-text">Build a workout you can reuse anytime.</p>
-        <button type="button" class="tl-empty-cta tl-empty-cta-quiet" onclick="openAddTemplate()">Build workout</button>
-      </div>`;
+        <p class="tl-empty-text">Workouts you build and save appear here. Build workout, above, makes one you can reuse.</p>
+      </div>`;   /* D156 — the second Build button repeated Quick start's, a few pixels above it */
 }
 
 function toggleTrainMine(){
@@ -35643,6 +35845,7 @@ function renderTrainView(){
      week and the same program day. */
   const view = { next: trainNextUp(), week: trainWeekDays(), todayProgram: trainTodayProgram() };
   renderTrainResume();
+  renderTrainProgram();   // D156
   renderTrainMine(view);
   renderTrainPlan(view);
   if(trainDetailKey) renderTrainDetail();
@@ -42988,7 +43191,15 @@ function progConsistencyCardHtml(){
 
 /* ---- RECORDS: recent achievements, not a directory ---- */
 function progPRCardHtml(){
-  const events = computeAllPREvents();
+  /* D156 — a record beats an earlier best; a lift's first session (logged against 0) is a baseline. With only
+     baselines, the card says so instead of counting them as records. "All records" still lists every event. */
+  const all = computeAllPREvents();
+  const events = all.filter(ev => !prIsBaseline(ev));
+  if(!events.length && all.length){
+    const n = all.length;
+    return `<section class="pd-card"><h3 class="pd-card-title">Records</h3>
+      <div class="pd-note">No records yet. Your first sessions set ${n} baseline${n === 1 ? '' : 's'} — beat one and it becomes a record.</div></section>`;
+  }
   if(!events.length){
     return `<section class="pd-card"><h3 class="pd-card-title">Records</h3>
       <div class="pd-note">Your records appear here once you beat a previous session.</div></section>`;
@@ -43109,7 +43320,7 @@ function pbtPageHtml(p, index){
         <div class="pbt-hero-num">${current.value}<span>${escapeHtml(' ' + unitWord)}</span></div>
       </div>
       <div class="pbt-single">
-        <span class="pbt-single-label">First PR</span>
+        <span class="pbt-single-label">Baseline</span>
         <div class="pbt-single-row">
           <span class="pbt-single-val">${current.value}<span>${escapeHtml(' ' + unitWord)}</span></span>
           <span class="pbt-single-date">${escapeHtml(formatDateShort(first.date))}</span>
@@ -54507,7 +54718,10 @@ function programCompletionHeadline(sum){
   if(!sum) return '';
   if(sum.tone === 'none') return 'Your program period has ended. No workouts were logged.';
   const n = sum.completedSessions;
-  const wk = sum.weeks + ' week' + (sum.weeks === 1 ? '' : 's') + ' finished. ';
+  /* D156 — "finished" when the planned sessions were done; otherwise the weeks are simply over */
+  const wk = programCompletionWord(sum) === 'finished'
+    ? sum.weeks + ' week' + (sum.weeks === 1 ? '' : 's') + ' finished. '
+    : 'The ' + sum.weeks + ' scheduled week' + (sum.weeks === 1 ? ' is' : 's are') + ' over. ';
   /* D43 — planned completion is reported against planned sessions, and the
      raw workout count is reported as itself. Mixing them produced the
      impossible "48 workouts of 32 planned". Where the plan is unknowable,
@@ -54547,8 +54761,10 @@ function programCompletionHtml(sum, opts){
     ? formatDateShort(sum.startDate) + ' \u2013 ' + formatDateShort(sum.endDate) : '';
   return `
     <div class="pc">
-      <div class="pc-mark">${checkIconSvg(16)}</div>
-      <div class="pc-kicker">Program finished</div>
+      ${(w => `<div class="pc-mark${w === 'ended' ? ' is-ended' : ''}">${w === 'ended'
+        ? '<svg width="16" height="16" viewBox="0 0 16 16" focusable="false" aria-hidden="true"><rect x="2.4" y="3.4" width="11.2" height="10.2" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.4 6.6h11.2M5.4 2v2.6M10.6 2v2.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>'
+        : checkIconSvg(16)}</div>
+      <div class="pc-kicker">Program ${w}</div>`)(programCompletionWord(sum, (() => { try{ return (o.programId && getProgram(o.programId) || {}).status; }catch(e){ return null; } })()))}
       <div class="pc-name">${escapeHtml(sum.name || 'Your program')}</div>
       <div class="pc-meta">${sum.weeks} week${sum.weeks === 1 ? '' : 's'}${
         sum.perWeek ? ' \u00b7 ' + sum.perWeek + ' day' + (sum.perWeek === 1 ? '' : 's') + ' a week' : ''}${
@@ -55178,7 +55394,7 @@ function programContextHtml(){
     const sum = deriveProgramCompletion(p, localDateStr());
     return `<button type="button" class="tw-program tw-program-done"
         onclick="openMyTraining()">
-        <span class="tw-program-name">${escapeHtml(p.name)} \u00b7 finished</span>
+        <span class="tw-program-name">${escapeHtml(p.name)} \u00b7 ${programCompletionWord(sum)}</span>
         <span class="tw-program-meta">${escapeHtml(programCompletionHeadline(sum))} \u203a</span>
       </button>`;
   }
@@ -56253,7 +56469,11 @@ function programPortfolioCard(p, activeId){
   if(weeks) bits.push(weeks + ' week' + (weeks === 1 ? '' : 's'));
   /* Said in words whatever else is true of the card: a current program that is
      paused is still paused. Completed programs are never current. */
-  const status = p.status === 'paused' ? 'Paused' : (p.status === 'completed' ? 'Completed' : '');
+  /* D156 — the current program whose weeks have run out says so, as a paused one does: CURRENT and Ended, never a bare
+     CURRENT beside its own "Program ended" panel. Other programs are drawn as before. */
+  let ended = false;
+  try{ ended = activeId === p.id && p.status === 'active' && programTimelineEnded(p, localDateStr()); }catch(e){ ended = false; }
+  const status = p.status === 'paused' ? 'Paused' : (p.status === 'completed' ? 'Completed' : (ended ? 'Ended' : ''));
   return { id: p.id, name: p.name || 'Program', days, weeks, meta: bits.join(' \u00b7 '),
     status, current: activeId === p.id && p.status !== 'completed' };
 }
@@ -56285,13 +56505,16 @@ function renderTrainingProgramTab(){
   const rows = list.map(p => {
     const c = programPortfolioCard(p, activeId);
     if(!c) return '';
+    /* D156 — still the program Today follows (it is current), and its weeks are over: one badge says so. Not CURRENT, which
+       reads as running, and not the accent of a live program. */
+    const ended = c.current && c.status === 'Ended';
     return `
-      <button type="button" class="tr-prog${c.current ? ' tr-prog-on' : ''}" onclick="openProgramDetail('${onclickArg(c.id)}')">
+      <button type="button" class="tr-prog${c.current ? (ended ? ' tr-prog-ended' : ' tr-prog-on') : ''}" onclick="openProgramDetail('${onclickArg(c.id)}')">
         <span class="tr-prog-main">
           <span class="tr-prog-top">
             <span class="tr-prog-n">${escapeHtml(c.name)}</span>
-            ${c.current ? '<span class="tr-prog-badge">CURRENT</span>' : ''}
-            ${c.status ? `<span class="tr-prog-st">${escapeHtml(c.status)}</span>` : ''}
+            ${c.current ? (ended ? '<span class="tr-prog-badge is-ended">ENDED</span>' : '<span class="tr-prog-badge">CURRENT</span>') : ''}
+            ${c.status && !ended ? `<span class="tr-prog-st">${escapeHtml(c.status)}</span>` : ''}
           </span>
           ${c.meta ? `<span class="tr-prog-m">${escapeHtml(c.meta)}</span>` : ''}
         </span>
@@ -59951,7 +60174,9 @@ function draftSummaryLine(draft){
      the hero: the athlete's half-finished session lost its Resume button
      entirely and read as lost, while still sitting on disk. */
   const exes = (draft.exercises || []).map(ex => ({ name: ex && ex.name, sets: (ex && Array.isArray(ex.sets)) ? ex.sets : [] }));
-  const exWithWork = exes.filter(ex => ex.name && ex.sets.some(s => s.completed || (s.reps||'').trim()));
+  /* D156 — the exercise named is the last one with a set DONE. Reps a template prefilled are a plan, not work: a workout
+     opened and left read "Hanging Leg Raise · 0/22 sets completed", naming an exercise nobody had touched. */
+  const exWithWork = exes.filter(ex => ex.name && ex.sets.some(s => s.completed));
   const last = exWithWork[exWithWork.length - 1];
   const totalDone = exes.reduce((n,ex) => n + ex.sets.filter(s => s.completed).length, 0);
   const totalSets = exes.reduce((n,ex) => n + ex.sets.length, 0);
@@ -60013,7 +60238,11 @@ async function renderResumeBanner(){
         /* D134 (E63) — what Today and Train show for it: the minutes, or when it was started */
         time: activeWorkoutTimeText(draft),
         summary: draftSummaryLine(draft),
-        identity: workoutIdentity(draft, draft.category)
+        identity: workoutIdentity(draft, draft.category),
+        /* D156 — left open on an earlier day, past any workout's span: unfinished, not in progress */
+        stale: draftIsStale(draft),
+        started: draftStartedDayText(draft),
+        counts: draftDoneCounts(draft)
       };
     } else {
       activeDraftInfo = null;
@@ -60029,11 +60258,224 @@ async function renderResumeBanner(){
     console.error('LOOP render error in renderResumeBanner:', e);
     activeDraftInfo = null;
   }
+  /* D156 — an unfinished workout from another day is its own card above today's plan, which the hero draws as usual.
+     Decided from the draft this call read, card or nothing, so a call that started before a discard cannot leave the card
+     behind after the one that followed it. */
+  if(el){ try{ el.innerHTML = activeDraftInfo && activeDraftInfo.stale ? draftRecoveryHtml(activeDraftInfo) : ''; }catch(e){ el.innerHTML = ''; } }
   renderTodayWorkout();
   try{ renderTrainView(); }catch(e){}
   /* D146 — This Week marks today's workout in progress from this same draft: when the draft has started or ended since
      the week was drawn, it is redrawn with the hero. Only then — a redraw replaces the week's Undo (D66). */
-  if(_wkDrewActive !== !!hasActiveDraftNow){ try{ renderWeekCard(); }catch(e){} }
+  if(_wkDrewActive !== activeDraftIsCurrent()){ try{ renderWeekCard(); }catch(e){} }
+}
+
+/* =========================================================
+   PREMIUM EXPERIENCE  (Phase D156)
+   ---------------------------------------------------------
+   Four answers the screens gave that the data did not support, each given its
+   true one here, and nothing else moved:
+
+   · A WORKOUT LEFT OPEN LONG AGO IS NOT "IN PROGRESS". A draft started on an
+     earlier day of the phone's calendar, past the span any workout can take
+     (D134's workoutSpanLimitSec), is unfinished: kept exactly as it was, never
+     deleted and never overwritten, and offered back beside today's plan rather
+     than in place of it. Today's plan, This Week and Train read today again.
+   · A LIFT'S FIRST SESSION IS A BASELINE, NOT A RECORD. LOOP's record engine
+     logs a first session against 0 (D96C-2) and the XP engine rewards it; both
+     are untouched. What changes is the claim: the Summary and Strength no
+     longer present "Previous 0 lb · +135 lb" as an improvement.
+   · A SET WITH NOTHING BEFORE IT DID NOT "MATCH LAST TIME". The Summary's line
+     counts only sets that had a last time to match.
+   · A PROGRAM WHOSE WEEKS RAN OUT ENDED; IT FINISHED ONLY WHEN ITS PLANNED
+     SESSIONS WERE DONE OR THE ATHLETE MARKED IT COMPLETE.
+
+   And one aid: a weight or reps field focused while the phone's keyboard is up
+   is scrolled into the space the keyboard leaves, above the dock.
+   ========================================================= */
+
+/* Started on an earlier civil day and past the longest a workout can take. A draft without a start time is never stale:
+   LOOP cannot say when it began, so it keeps calling it what it always did. */
+function draftIsStale(draft, nowMs){
+  const start = Date.parse((draft && draft.startedAt) || '');
+  if(!isFinite(start)) return false;
+  const now = nowMs == null ? Date.now() : nowMs;
+  if(Math.round((now - start) / 1000) <= workoutSpanLimitSec(draft)) return false;
+  return localDateStr(new Date(start)) < localDateStr(new Date(now));
+}
+/* The one question every surface asks: is a workout under way today? */
+function activeDraftIsCurrent(){
+  return !!hasActiveDraftNow && !(activeDraftInfo && activeDraftInfo.stale);
+}
+function draftStartedDayText(draft){
+  const start = Date.parse((draft && draft.startedAt) || '');
+  if(!isFinite(start)) return '';
+  return new Date(start).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+function draftDoneCounts(draft){
+  const exes = Array.isArray(draft && draft.exercises) ? draft.exercises : [];
+  let done = 0, total = 0;
+  exes.forEach(ex => (ex && Array.isArray(ex.sets) ? ex.sets : []).forEach(s => { total++; if(s && s.completed) done++; }));
+  return { done, total };
+}
+/* Today's recovery card for an unfinished workout: what it is, when it began, what was done, and the two honest ways
+   on. Resuming finishes it on the day it was started; discarding asks first (discardActiveWorkout). */
+function draftRecoveryHtml(info){
+  if(!info) return '';
+  const wid = info.identity || workoutIdentity(null, null);
+  const c = info.counts || { done: 0, total: 0 };
+  /* when it was started in D134's words (activeWorkoutTimeText, the one formatter Today and Train share) */
+  const meta = [info.time || '', c.total ? c.done + ' of ' + c.total + ' sets done' : ''].filter(Boolean).join(' · ');
+  return `<section class="dr-card" aria-labelledby="drTitle">
+      <div class="dr-k">Unfinished workout</div>
+      <div class="dr-title has-wi" id="drTitle">${workoutIconHtml(wid, 'sm')}<span>${escapeHtml(info.title || 'Workout')}</span></div>
+      ${meta ? `<p class="dr-meta">${escapeHtml(meta)}</p>` : ''}
+      <p class="dr-note">Kept until you finish or discard it. Finishing saves it${info.started ? ' on ' + escapeHtml(info.started) : ''}.</p>
+      <div class="dr-actions">
+        <button type="button" class="dr-go" onclick="resumeActiveWorkout()">Resume</button>
+        <button type="button" class="dr-x" onclick="discardActiveWorkout()">Discard</button>
+      </div>
+    </section>`;
+}
+
+/* "finished" when the planned sessions were done, or the athlete marked the program complete; otherwise its weeks
+   simply "ended". Read from deriveProgramCompletion's own counts, never a new count. */
+function programCompletionWord(sum, status){
+  if(status === 'completed') return 'finished';
+  if(sum && sum.planningKnown && sum.plannedSessions > 0 && sum.fulfilledSessions !== null && sum.fulfilledSessions >= sum.plannedSessions) return 'finished';
+  return 'ended';
+}
+/* The XP engine rewards a lift's first session as a record (unchanged); the Summary names that row for what it was. */
+function baselineXPLabel(label, events){
+  try{
+    const isBase = (events || []).some(ev => prIsBaseline(ev) && ev.headline && PR_TYPE_LABEL[ev.headline.type]
+      && label === PR_TYPE_LABEL[ev.headline.type] + ' — ' + ev.exerciseName);
+    if(isBase) return 'First-time baseline — ' + label.slice(label.indexOf(' — ') + 3);
+  }catch(e){}
+  return label;
+}
+
+/* A record beats an earlier best. headline.prev is that best; a first session's is 0. */
+function prIsBaseline(ev){
+  const h = ev && ev.headline;
+  return !h || !(Number(h.prev) > 0);
+}
+/* "Last time" for a workout already in the log: the newest earlier workout with the lift, read as getPreviousSets reads
+   one (D96C-3's whole performance). getPreviousSets itself answers for the NEXT workout, so for one just saved it
+   returned that very workout — the Summary was comparing a session with itself. */
+function previousSetsBefore(entry, exerciseName){
+  const key = String(exerciseName || '').trim().toLowerCase();
+  /* "Before" is the log's own order (sortedLog: newest first, by date and then id), so of two workouts on one day the
+     second compares with the first and the first with neither. A workout not in the log reads strictly earlier days. */
+  const log = sortedLog();
+  const at = log.findIndex(l => l && l.id === entry.id);
+  const older = at === -1 ? log.filter(l => l && String(l.date) < String(entry.date)) : log.slice(at + 1);
+  /* the last time it was DONE: a workout that only held the lift (every set a warm-up, or left unticked) is passed over */
+  for(const l of older){
+    const lift = l && workoutExercisePerformance(l, key);
+    if(lift){ const s = exerciseHistorySession(lift); if((s.sets || []).some(summaryWorkSet)) return { sets: s.sets, bodyweight: s.bodyweight }; }
+  }
+  return null;
+}
+/* A set that was performed as work: a working set (isPerformanceSet — never a warm-up, never one left unticked) with real
+   reps (performedReps). The records engine's own rule; the Summary's comparison counts nothing else, on either side. */
+function summaryWorkSet(s){
+  return isPerformanceSet(s) && performedReps(s.reps) !== null;
+}
+/* The Summary's "matched or beat last time", counted only over sets that had a last time — computeWorkoutQuality's
+   comparison (most reps last time, per exercise) against the workout BEFORE this one, without calling a set with
+   nothing before it a hit. */
+function summaryComparison(entry){
+  let filled = 0, compared = 0, hit = 0;
+  ((entry && entry.exercises) || []).forEach(ex => {
+    const prev = previousSetsBefore(entry, ex.name);
+    const done = prev && prev.sets ? prev.sets.filter(summaryWorkSet) : [];
+    const best = done.length ? Math.max(...done.map(p => performedReps(p.reps))) : null;
+    (ex.sets || []).forEach(s => {
+      if(!summaryWorkSet(s)) return;
+      const r = performedReps(s.reps);
+      filled++;
+      if(best === null) return;
+      compared++;
+      if(r >= best) hit++;
+    });
+  });
+  return { filled, compared, hit, firsts: filled - compared };
+}
+
+/* Train's way into programs, which lived only behind the header's Plan chip and Settings: the program you run, the one
+   whose weeks are over, or the invitation to follow one. */
+function trainProgramRowHtml(){
+  let p = null, running = null;
+  try{ p = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ p = null; }
+  try{ running = getRunningProgram(); }catch(e){ running = null; }
+  let k = 'Programs', title = 'Follow a program', go = 'Explore';
+  if(running){
+    let wk = 0;
+    try{ wk = getCurrentProgramWeek(running); }catch(e){ wk = 0; }
+    const weeks = parseInt(running.durationWeeks, 10) || 0;
+    k = 'Your program';
+    title = escapeHtml(running.name || 'Program') + (wk && weeks ? ' · Week ' + wk + ' of ' + weeks : '');
+    go = 'Open';
+  } else if(p){
+    const paused = p.status === 'paused';
+    k = paused ? 'Program paused' : 'Program ended';
+    title = escapeHtml(p.name || 'Program');
+    go = paused ? 'Open' : 'What’s next';
+  }
+  return `<button type="button" class="tr-prog-row" onclick="openTraining('program')" aria-label="${escapeAttr(k + ': ' + title.replace(/<[^>]*>/g, '') + '. ' + go)}">
+      <span class="tq-ic" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 16 16" focusable="false"><rect x="2.4" y="3.4" width="11.2" height="10.2" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M2.4 6.6h11.2M5.4 2v2.6M10.6 2v2.6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span>
+      <span class="tq-main"><span class="tq-sub">${escapeHtml(k)}</span><span class="tq-title">${title}</span></span>
+      <span class="tr-prog-go" aria-hidden="true">${escapeHtml(go)} ›</span>
+    </button>`;
+}
+function renderTrainProgram(){
+  const host = document.getElementById('trainProgram');
+  if(!host) return;
+  try{ host.innerHTML = trainProgramRowHtml(); }catch(e){ host.innerHTML = ''; }
+}
+
+/* The keyboard leaves less of the screen than the page thinks: a field focused below what is still visible (above the
+   dock) is scrolled up into it, once the keyboard has opened. */
+function revealFocusedSetField(input){
+  try{
+    if(!input || !input.isConnected || document.activeElement !== input) return;
+    const scroller = input.closest('.sheet-scroll');
+    const vv = window.visualViewport;
+    if(!scroller || !vv) return;
+    const nav = document.getElementById('wsNav');
+    const navTop = nav && nav.offsetParent !== null ? nav.getBoundingClientRect().top : Infinity;
+    const bottom = Math.min(vv.offsetTop + vv.height, navTop) - 12;
+    const r = (input.closest('.set-row') || input).getBoundingClientRect();
+    const top = scroller.getBoundingClientRect().top + 8;
+    let dy = 0;
+    if(r.bottom > bottom) dy = r.bottom - bottom;
+    else if(r.top < top) dy = r.top - top;
+    if(!dy) return;
+    /* The last sets of a workout have nothing below them to scroll into: the sheet is given that room (a spacer after its
+       content), only while a set field has focus. */
+    if(dy > 0){
+      const room = scroller.scrollHeight - scroller.clientHeight - scroller.scrollTop;
+      if(dy > room){ scroller.style.setProperty('--kb-room', Math.ceil(dy - room) + 'px'); scroller.classList.add('kb-room'); }
+    }
+    const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    scroller.scrollBy({ top: dy, behavior: reduce ? 'auto' : 'smooth' });
+  }catch(e){}
+}
+/* Focus has left the set fields (the keyboard is going): the room goes too. */
+function releaseKeyboardRoom(){
+  try{
+    const a = document.activeElement;
+    if(a && a.matches && a.matches('#logOverlay .set-weight-in, #logOverlay .set-reps-in')) return;
+    document.querySelectorAll('#logOverlay .sheet-scroll.kb-room').forEach(s => { s.classList.remove('kb-room'); s.style.removeProperty('--kb-room'); });
+  }catch(e){}
+}
+if(typeof document !== 'undefined' && document.addEventListener){
+  document.addEventListener('focusin', e => {
+    const t = e.target;
+    if(!t || !t.matches || !t.matches('#logOverlay .set-weight-in, #logOverlay .set-reps-in')) return;
+    setTimeout(() => revealFocusedSetField(t), 320);
+  });
+  document.addEventListener('focusout', () => setTimeout(releaseKeyboardRoom, 150));
 }
 
 let workoutHistoryPushed = false;
@@ -60380,7 +60822,7 @@ function renderWorkoutStep(opts){
        last exercise finished says Finish Workout. */
     const complete = exerciseRowComplete(row);
     const fwd = !complete
-      ? { cls:'is-skip',   label:'Skip',           aria:'Skip exercise',  fn:'skipWorkoutStep()' }
+      ? { cls:'is-skip',   label:'Skip exercise',  aria:'Skip exercise',  fn:'skipWorkoutStep()' }
       : isLast
       ? { cls:'is-finish', label:'Finish Workout', aria:'Finish workout', fn:'nextWorkoutStep()' }
       : { cls:'is-next',   label:'Next',           aria:'Next exercise',  fn:'nextWorkoutStep()' };
@@ -61031,7 +61473,7 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
       <div class="rest-panel-controls">
         <button type="button" class="rest-panel-btn" onclick="addRestTime(this,15)" aria-label="Add 15 seconds">+15s</button>
         <button type="button" class="rest-panel-btn rest-pause-btn" onclick="pauseResumeRest(this)" aria-label="Pause rest">${pauseIconSvg()}</button>
-        <button type="button" class="rest-panel-btn rest-skip-btn" onclick="skipRest(this)">Skip</button>
+        <button type="button" class="rest-panel-btn rest-skip-btn" onclick="skipRest(this)">Skip rest</button>
       </div>
     </div>
   `;
@@ -63253,6 +63695,7 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
   const streak = live ? computeWeekStreak() : 0;
   const heading = document.getElementById('summaryHeading');
   if(heading) heading.textContent = live ? 'Workout Complete' : 'Workout Summary';
+  try{ document.getElementById('summaryOverlay').classList.toggle('is-live', !!live); }catch(e){}   // D156
   const deleteBtn = document.getElementById('summaryDeleteBtn');
   if(deleteBtn) deleteBtn.hidden = !live;
   const liveActions = document.getElementById('summaryActionsLive');
@@ -63329,11 +63772,14 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
      was always the trustworthy part: each line below is a fact the athlete
      can verify against their own sets. */
   const readLines = [];
-  if(quality && quality.targetsTotal){
-    readLines.push(quality.targetsHit + ' of ' + quality.targetsTotal
-      + ' sets matched or beat last time');
+  /* D156 — a set with no last time did not match it: the line counts only sets that had one, and says how many were
+     firsts. computeWorkoutQuality is unchanged (another surface reads it). */
+  const cmp = quality ? summaryComparison(entry) : null;
+  if(cmp && cmp.compared){
+    readLines.push(cmp.hit + ' of ' + cmp.compared + ' set' + (cmp.compared === 1 ? '' : 's') + ' matched or beat last time'
+      + (cmp.firsts ? ' · ' + cmp.firsts + ' first-time set' + (cmp.firsts === 1 ? '' : 's') : ''));
   } else if(quality){
-    readLines.push('First time logging these movements');
+    readLines.push('First time logging these movements — these sets are your baselines');
   }
   if(quality && quality.progressPct !== null){
     readLines.push((quality.progressPct >= 0 ? '+' : '') + quality.progressPct
@@ -63349,8 +63795,16 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
     <div class="stat"><div class="stat-num">${time.num}</div><div class="stat-label">${time.label}</div></div>
   ` + plannedVsActualHtml(entry);
   const prsEl = document.getElementById('summaryPRs');
-  if(newPREvents.length){
-    prsEl.innerHTML = `<div class="section-label" style="margin-top:18px">New Records</div>` + newPREvents.map(ev => {
+  /* D156 — a lift's first session is logged against 0 (the record engine, unchanged): it is a baseline, listed apart,
+     without a trophy and without "Previous 0 lb". Records are the ones that beat an earlier best. */
+  const recordEvents = newPREvents.filter(ev => !prIsBaseline(ev));
+  const baselineEvents = newPREvents.filter(prIsBaseline);
+  const baselineHtml = baselineEvents.length ? `<div class="section-label" style="margin-top:18px">First-time baselines</div>
+    <div class="sum-base">${baselineEvents.map(ev => { const f = formatPREventHeadline(ev);
+      return `<div class="sum-base-row"><span class="sum-base-n">${escapeHtml(ev.exerciseName)}</span><span class="sum-base-v">${escapeHtml(f ? f.current : '')}</span></div>`; }).join('')}</div>
+    <p class="sum-base-foot">First time logged — the number to beat next time.</p>` : '';
+  if(recordEvents.length){
+    prsEl.innerHTML = `<div class="section-label" style="margin-top:18px">New Records</div>` + recordEvents.map(ev => {
       const f = formatPREventHeadline(ev);
       if(!f) return '';
       return `
@@ -63362,9 +63816,9 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
           </div>
         </div>
       `;
-    }).join('');
+    }).join('') + baselineHtml;
   } else {
-    prsEl.innerHTML = '';
+    prsEl.innerHTML = baselineHtml;
   }
 
   const xpEl = document.getElementById('summaryXP');
@@ -63404,7 +63858,7 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
     xpEl.innerHTML = `
       <div class="section-label" style="margin-top:18px">XP Earned</div>
       <div class="xp-breakdown-card">
-        ${xpEntry.breakdown.map(b => `<div class="xp-breakdown-row"><span>${escapeHtml(b.label)}</span><span>+${b.xp} XP</span></div>`).join('')}
+        ${xpEntry.breakdown.map(b => `<div class="xp-breakdown-row"><span>${escapeHtml(baselineXPLabel(b.label, newPREvents))}</span><span>+${b.xp} XP</span></div>`).join('')}
         <div class="xp-breakdown-total"><span>Total</span><span>+${xpEntry.xpTotal} XP</span></div>
       </div>
       ${identity}

@@ -20673,3 +20673,77 @@ gets profiles with the friendship's own numbers, and no highlights or switch.
 
 **Held.** Every training engine, XP, rank, PRs, Mastery, recovery, programs, the invite and share flows, E9 (0005), the
 tab bar (Today, Train, Progress, Log — Friends stays in Settings), DATA_KEYS (16) and the schema (1).
+
+## §202 — PREMIUM EXPERIENCE, FIRST PASS: THE SCREENS SAY WHAT THE DATA SAYS, AND THE WORKOUT IS EASIER TO RUN (D156 · release candidate for LOOP 10.79 · not released)
+
+**Why.** The owner asked for a product-wide pass on polish, speed, clarity and accessibility, with the exercise
+illustrations kept exactly as approved. An audit of every main screen at 375, 390 and 430 px found four places where a
+screen said something the data did not support, and a workout screen that showed two sets at a time.
+
+**Four truths, each fixed where it is drawn. No engine, rule or stored value changed.**
+- **An unfinished workout is not "in progress".** A draft started on an earlier civil day AND past D134's span
+  (`workoutSpanLimitSec`, max(4 h, 3 × plan)) is unfinished (`draftIsStale`). Both conditions are needed: a workout
+  opened at 01:00 and read at 09:00 is still today's ("Started 8h ago"), and one opened at 23:30 and read at 00:30 is
+  in progress. A draft with no start time is never called unfinished. The draft is kept byte for byte — never deleted,
+  never overwritten. Today draws it on its own card above today's plan (when it began, in D134's words; how many sets
+  were done; "Finishing saves it on <its day>"; Resume; Discard, which asks first). The card is decided from the draft each read finds — card or nothing — so a read
+  that began before a discard cannot leave the card behind (found in the browser: closing the sheet and clearing the draft
+  each redraw it). Today's hero, This Week, Train's next
+  session, Change day and the day sheet all ask one question, `activeDraftIsCurrent()`, instead of "a draft exists".
+  The summary line names an exercise only when a set in it was done; prefilled reps are a plan.
+- **A first session is a baseline, not a record.** The record engine still logs a lift's first session against 0
+  (D96C-2) and the XP engine still rewards it; both are untouched. What changed is the claim: the Summary lists
+  "First-time baselines" apart from "New Records", nothing reads "Previous 0 lb", the XP rows say "First-time baseline —
+  <lift>" (amounts and total unchanged), Strength's Records card counts records only ("No records yet. Your first
+  sessions set N baselines…"), and a lift's single milestone is its "Baseline". `prIsBaseline(ev)` = headline.prev ≤ 0.
+- **"Matched or beat last time" needs a last time.** The Summary compared a just-saved workout with itself:
+  `getPreviousSets` answers for the NEXT workout, so for one already in the log it returned that workout. The Summary now
+  reads the newest EARLIER workout with the lift (`previousSetsBefore`, in the log's own order, so of two workouts on one
+  day the second compares with the first and the first with nothing), counts only work that was done on either side
+  (`summaryWorkSet`: `isPerformanceSet` + `performedReps` — never a warm-up, never an unticked set, and a workout that only
+  held the lift is passed over), and counts only sets that had a last time (`summaryComparison`); a first workout says "First time logging these movements — these sets are your baselines".
+  `getPreviousSets` itself is unchanged (it is right for the logger). `computeWorkoutQuality` still asks it — E78.
+- **A program whose weeks ran out ended; it finished only when its planned sessions were done or it was marked
+  complete** (`programCompletionWord`, from `deriveProgramCompletion`'s own counts). After the end, Today says "Nothing
+  scheduled — Your program's scheduled weeks have ended. Start what's next, or train anyway." with What's next and Train
+  anyway; the header names no session; the Foundation reads "· ended"; the completion panel "Program ended" under a calendar mark (the green success check only for a program that
+  finished); the current
+  program's card wears one badge, ENDED, without the live accent — never CURRENT beside "Ended" (the card's data says
+  both: it is the program Today follows, and its weeks are over). Other cards are drawn as before.
+
+**The workout.** The set you are on is the one set drawn large: a lit panel, two 56 px steppers labelled lb and reps,
+44 px buttons at every width. Every other set is one line — number, values with units, effort, tick — and sets still to
+come read quieter. A finished set offers "Add RIR" as quiet accent text where the eye already is. The dock's way past unfinished work
+says "Skip exercise" — an outlined button like Previous, never the filled primary that Next and Finish are; the rest panel's button says "Skip rest". Sets fully visible above the dock on the first view: 390 × 844 three (10.78: two), 375 × 667 two (one),
+320 × 568 the whole current set (none) — on the shortest phones the row of exercise dots gives way; "Exercise 1 of 5"
+and Previous / Next remain. The exercise drawings keep their approved size on every phone. A weight or reps field focused while the keyboard is up is scrolled into the space it leaves, above the dock
+(`revealFocusedSetField`; instant under Reduce Motion). The last sets of a workout have nothing below them to scroll into,
+so while a set field has focus the sheet is given exactly the room the lift needs, and loses it when focus leaves the set
+fields (two focus listeners, both reading only the weight and reps fields).
+
+**Elsewhere.** Section titles in sentence case at title size; faint text lifted to #8893A6 (5.6:1 on cards); one motion
+vocabulary (press 100 · feedback 140 · step 200 · sheet 260 · celebration 420 ms, one ease-out), stilled by the global
+reduced-motion rule. Train gains a program row in Quick start (Programs · Follow a program / Your program · Week N of M /
+Program ended · What's next); My workouts, empty, no longer repeats Build workout. The preview drops the tiny radar. A
+live Summary's mark and numbers settle in once; one opened from history does not. Friends' fine print says what earns XP.
+
+**How it is built.** One CSS block, last in the sheet (`D156 PREMIUM PASS`); one functions block; 32 statement-level edits
+in 24 functions; one empty container in Train's markup. `asOf1078Html` puts the 34 hunks back and reads LOOP 10.78
+(c8c042f) to the byte. The exercise art region and the movement renderer are pinned byte-identical (Contract 280 J3).
+
+**Held.** XP, records, PR modes, Mastery, recovery, D49 and every coach, programs and their completion counts, the
+draft's shape, saving, sets, rest, the dock's machinery, DATA_KEYS (16), the schema (1), Friends and 0006. Older
+contracts that pinned a function D156 changed read it at 10.78 (`at1078`, `sameAsOf1078`, `render1078`); every copy
+change is restated beside its check (the audit of all 79 is in the D156 report; nine changes made inside the changed
+functions but outside D156's hunks are still caught by the older contracts).
+
+**The suite no longer depends on contract order.** Seven contracts restored the time zone with `delete process.env.TZ`,
+which does not give Node its zone back: after Contract 269 the process stayed in Tokyo, and three later checks failed
+whenever it ran before them (on 10.78 too). They now restore the zone read once when the suite loads (`SUITE_TZ`).
+
+**Findings.** E79 (the unfinished workout) and E80 (finished vs ended) are closed. E78 is closed for the Summary and
+OPEN for Session Score: `computeWorkoutQuality` still asks `getPreviousSets` for a saved workout, so it compares that
+workout with itself; fixing it moves an engine, so it waits for the owner. E81's presentation is closed; whether a
+first session should earn record XP is the owner's call (the XP engine is unchanged).
+
+**Not done.** The tutorial's demo rest panel still says "Skip"; the discard question still says "in-progress workout".
