@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.78",
+  "version": "10.79",
   "phase": null,
   "status": "stable",
   "needsQa": true,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner review (10.78) on two phones: Today’s Friends leaderboard, a friend’s profile, and Share training highlights. Then choose what comes next.",
+  "nextAction": "Owner iPhone QA (10.79) of the release candidate rc/loop-10.79: workout logging, an unfinished workout, an edit, baselines and a program’s end. Not released.",
   "blocker": null,
-  "updatedAt": "2026-11-18T19:46:39Z"
+  "updatedAt": "2026-11-19T21:58:22Z"
 }

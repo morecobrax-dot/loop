@@ -21241,6 +21241,30 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [],
     changes: []
+  },
+  {
+    id: 'v10-79',
+    version: 'LOOP 10.79',
+    title: 'Clearer Workouts & Records',
+    date: '2026-11-19',
+    swVersion: 'loop-v256',
+    summary: 'Logging a set is easier to read, unfinished workouts wait on their own card, and a first session is shown as a baseline, not a record.',
+    newFeatures: [
+      'Train has a direct way into programs: follow one, open yours, or see what’s next when its weeks are over'
+    ],
+    improvements: [
+      'The set you are on is drawn large with lb and reps labels, and every other set is one compact line, so more of the exercise fits on screen',
+      'A workout left unfinished on an earlier day now waits on its own card above today’s plan, with Resume and Discard, instead of taking over Today',
+      'A lift’s first session is shown as a first-time baseline rather than a personal record: on the Summary, Strength, Log, the Weekly Review, the calendar and your XP history. Your XP and level are unchanged',
+      'A program whose scheduled weeks are over without every session done now reads as ended rather than finished, and Today and This Week say the same',
+      'The workout’s Skip now says Skip exercise, and the rest timer’s says Skip rest'
+    ],
+    bugFixes: [
+      'The Summary compared a just-finished workout with itself when counting the sets that matched last time',
+      'A workout logged for an earlier day compared its volume with a later workout',
+      'Editing a past workout no longer removes its Session Score'
+    ],
+    changes: []
   }
 ];
 
