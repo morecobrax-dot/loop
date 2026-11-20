@@ -1138,6 +1138,21 @@ function build(){
     end:  S({ trunk:176, nua:18, nfa:150, fua:14, ffa:146 }),
     gear:[['cable', { from:[92, 98], to:'nW', grip:'rope' }]], track:'nW' },
 
+  /* D159 — the reverse curl: the barbell curl's arc with the hands over a light EZ bar; a pronated grip tops out a
+     little lower. */
+  curl_reverse_ez: { view:'side', arch:'arc', crop:'upper', ghost:'arms',
+    start:S({ nua:6, nfa:14, fua:2, ffa:10 }),
+    end:  S({ nua:16, nfa:138, fua:12, ffa:134 }),
+    gear:[['plate', { at:'nW', r:6.2 }]], track:'nW' },
+
+  /* D159 — the Bayesian curl: facing away from a low pulley, the working arm trails behind the body so the curl
+     starts from a stretch; the cable runs back to the column behind. The free arm hangs. */
+  curl_bayesian: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
+    scene:[['column', { x:8, top:44 }]],
+    start:S({ trunk:178, nua:-26, nfa:-22, fua:4, ffa:6 }),
+    end:  S({ trunk:178, nua:-18, nfa:116, fua:4, ffa:6 }),
+    gear:[['cable', { from:[12, 92], to:'nW' }]], track:'nW' },
+
   concentration_curl: { view:'side', arch:'arc', crop:'upper', ghost:'arms',
     scene:[['bench', { x1:20, x2:58, y:92 }]],
     start:{ pin:['hip', [44, 86]], trunk:132, neck:142, nua:8, nfa:4, fua:44, ffa:34, nth:90, nsh:-8, fth:90, fsh:-12 },
@@ -1706,6 +1721,13 @@ function build(){
     start:{ pin:['hip', [44, 90]], trunk:164, neck:170, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:84, nfa:84, fua:80, ffa:80 },
     end:  { pin:['hip', [44, 90]], trunk:178, neck:180, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:-58, nfa:86, fua:-62, ffa:82 },
     gear:[['cable', { from:[98, 78], to:'nW', grip:'bar' }]], track:'nW' },
+
+  /* D159 — the single-arm cable row: the seated row with one handle; the free hand rests on the thigh. */
+  row_cable_single: { view:'side', arch:'cable', path:'line', arrow:{ side:-1, trim:[0.1, 0.9] }, ghost:'arms',
+    scene:[['pad', { a:[26, 96], b:[52, 96], w:5 }], ['post', { a:[39, 99], b:[39, G] }], ['post', { a:[92, 88], b:[92, G] }], ['column', { x:102, top:60 }]],
+    start:{ pin:['hip', [44, 90]], trunk:164, neck:170, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:84, nfa:84, fua:34, ffa:78 },
+    end:  { pin:['hip', [44, 90]], trunk:178, neck:180, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:-58, nfa:86, fua:34, ffa:78 },
+    gear:[['cable', { from:[98, 78], to:'nW' }]], track:'nW' },
 
   row_machine: { view:'side', arch:'machine', path:'pivot', pivot:ROW_PIVOT, ghost:'arms',
     scene:[['pad', { a:[36, 92], b:[58, 92], w:5 }], ['post', { a:[47, 95], b:[47, G] }], ['post', { a:[74, 78], b:[74, G] }],
@@ -2594,6 +2616,8 @@ var EXERCISE_HOW_TO = {
   curl_preacher:['Upper arms flat on the pad', 'Curl up, stop short of resting', 'Lower slowly to almost straight'],
   curl_cable:['Stand tall facing the low pulley', 'Elbows fixed at your sides', 'Squeeze at the top, lower slowly'],
   cable_hammer_curl:['Rope held with thumbs up', 'Elbows fixed at your sides', 'Lower slowly under tension'],
+  curl_reverse_ez:['Hands over the bar, thumbs on top', 'Elbows pinned, curl without swinging', 'Lower slowly to straight arms'],
+  curl_bayesian:['Face away from a low pulley', 'Let the arm trail behind the body', 'Curl forward; the elbow stays back'],
   concentration_curl:['Elbow braced against the inner thigh', 'Curl toward the shoulder', 'Lower to full extension'],
   curl_machine:['Arms flat on the pad, elbows on the pivot', 'Curl through the full range', 'Control the return'],
   band_curl:['Stand on the band, elbows at your sides', 'Curl against the stretch', 'Lower slowly'],
@@ -2667,6 +2691,7 @@ var EXERCISE_HOW_TO = {
   kb_row:['Hand and knee on the bench', 'Row the bell to the hip', 'Lower slowly'],
   renegade_row:['Plank on the dumbbells, feet wide', 'Row one side without twisting', 'Place it down, switch sides'],
   row_cable_seated:['Sit tall, knees soft', 'Pull the handle to the stomach', 'Let the arms extend fully'],
+  row_cable_single:['One handle; free hand on the thigh', 'Pull the elbow back past the ribs', 'Reach forward to a full stretch'],
   row_machine:['Chest on the pad', 'Pull the handles back', 'Squeeze the shoulder blades'],
   tbar_row:['Hinge over the bar, back flat', 'Pull the handle to the chest', 'Lower under control'],
   trx_row:['Lean back with a straight body', 'Pull the chest to the handles', 'Lower slowly'],

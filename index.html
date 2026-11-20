@@ -11096,6 +11096,182 @@ button.cal-cell:focus-visible{ outline: 2px solid var(--accent); outline-offset:
 @keyframes d158Rise{ from{ opacity: 0; transform: translateY(6px); } to{ opacity: 1; transform: none; } }
 @keyframes d158Bar{ from{ transform: scaleY(0.15); } to{ transform: none; } }
 /* ==== D158 EVERYDAY END ==== */
+/* ==== D159 WEEKS BEGIN ==== */
+/* =========================================================
+   WEEKS THE ATHLETE SHAPES (Phase D159) — This Week's scoped drag and its confirmation, the week sheet, the
+   one-session editor and the program map's way into a week. D132's surfaces and D156's motion vocabulary
+   (--dur-press 100, --dur-feedback 140, --dur-step 200, --dur-sheet 260 ms, --ease-out); the global reduced-motion
+   rule stills every transition and animation here. States keep D158's shapes: a filled mark done, a ring planned,
+   a struck ring missed, a dash rest.
+   ========================================================= */
+
+/* ---------- This Week ---------- */
+.wk2-links{ display: inline-flex; align-items: center; gap: 2px; }
+.wk2 .wk-day.wk-drop-no{ opacity: 0.38; }
+.wk2 .wk-day.wk-drop-no.wk-drop-over{ outline: 1.5px dashed var(--text-faint); outline-offset: -2px; }
+.wk2 .wk2-unknown .wk-mark{ width: 10px; height: 2px; margin: 5px 0; border: 0; border-radius: 1px; background: rgba(115,126,146,0.35); }
+.wk2 .wk2-unknown .wk-dc{ color: var(--text-faint); }
+.wk-toast{ align-items: center; animation: d159In var(--dur-feedback) var(--ease-out) both; }
+.wk-toast-body{ display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.wk-toast .wk-undo-text{ font-size: 13.5px; font-weight: 700; color: var(--text); }
+.wk-toast-sub{ display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--text-dim); }
+.wk-toast-warn{ color: var(--c-warning); }
+.wk-undo-alt{ color: var(--text-dim); }
+
+/* ---------- the week sheet ---------- */
+.wsv-sheet .sheet-scroll{ padding-bottom: 8px; }
+.wsv{ display: flex; flex-direction: column; }
+.wsv.wsv-step-in{ animation: d159In var(--dur-step) var(--ease-out) both; }
+.wsv-head{ display: flex; flex-direction: column; gap: 10px; }
+.wsv-nav{ display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 6px; }
+.wsv-step{ width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--hairline); background: var(--surface-1);
+  color: var(--text); font: inherit; font-size: 22px; line-height: 1; cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out), opacity var(--dur-feedback) var(--ease-out); }
+.wsv-step:active{ transform: var(--press); }
+.wsv-step:disabled{ opacity: 0.3; cursor: default; }
+.wsv-when{ display: flex; flex-direction: column; align-items: center; gap: 1px; text-align: center; min-width: 0; }
+.wsv-k{ font-size: var(--fs-meta); font-weight: 700; letter-spacing: var(--eyebrow-track); text-transform: uppercase; color: var(--text-faint); }
+.wsv-dates{ font-size: 15px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
+.wsv-phase{ display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.wsv-phase-n{ font-size: 15px; font-weight: 700; color: var(--text); }
+.wsv-phase-w{ font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.wsv-purpose{ font-size: var(--fs-support); color: var(--text-dim); margin-top: -6px; }
+.wsv-flag, .wsv-custom, .wsv-note{ font-size: 13px; line-height: 1.4; padding: 10px 12px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--hairline); color: var(--text-dim); }
+.wsv-note{ color: var(--text); white-space: pre-wrap; }
+.wsv-stats{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.wsv-stats > div{ display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--hairline); min-width: 0; }
+.wsv-stats b{ font-size: 17px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wsv-stats span{ font-size: 12px; color: var(--text-dim); }
+.wsv .sec-head{ margin-top: 20px; }
+.wsv-days{ display: flex; flex-direction: column; border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface-1); overflow: hidden; }
+.wsv-day{ border-top: 1px solid var(--hairline); }
+.wsv-day:first-child{ border-top: 0; }
+.wsv-day[data-fam]{ box-shadow: inset 3px 0 0 rgba(var(--fam-rgb), 0.55); }
+.wsv-day-row{ display: flex; align-items: center; }
+.wsv-day-main{ flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 10px 8px 14px;
+  background: none; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.wsv-day-main:disabled{ cursor: default; }
+.wsv-d{ display: flex; flex-direction: column; align-items: center; width: 30px; flex: 0 0 auto; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-dim); }
+.wsv-dn{ font-size: 14px; font-weight: 600; letter-spacing: 0; color: var(--text); font-variant-numeric: tabular-nums; }
+.wsv-rest-dot{ width: 22px; flex: 0 0 22px; }
+.wsv-name{ flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.wsv-n1{ font-size: 14.5px; font-weight: 600; color: var(--text); overflow-wrap: break-word; }
+.wsv-rest .wsv-n1{ color: var(--text-faint); font-weight: 500; }
+.wsv-tag{ display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 6px; font-size: 11px; font-weight: 700; color: var(--accent); background: var(--accent-soft); vertical-align: 1px; }
+.wsv-st{ display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-dim); }
+.wsv .wk-mark{ position: relative; box-sizing: border-box; width: 11px; height: 11px; border-radius: 50%; border: 1.5px solid var(--text-faint); }
+.wsv-planned .wk-mark{ border-color: var(--text-dim); }
+.wsv-today .wk-mark{ border-color: var(--accent); border-width: 2px; }
+.wsv-today .wsv-st{ color: var(--accent); }
+.wsv-done .wk-mark{ background: var(--c-progress); border-color: var(--c-progress); }
+.wsv-done .wsv-st{ color: var(--c-progress); }
+.wsv-missed .wk-mark{ border-color: var(--c-warning); }
+.wsv-missed .wk-mark::after{ content: ''; position: absolute; left: 50%; top: -1.5px; width: 1.5px; height: 11px; margin-left: -0.75px; background: var(--c-warning); transform: rotate(45deg); }
+.wsv-missed .wsv-st{ color: var(--c-warning); }
+.wsv-rest .wk-mark{ width: 9px; height: 2px; border: 0; border-radius: 1px; background: rgba(115,126,146,0.55); }
+.wsv-paused .wk-mark{ width: 8px; height: 9px; border: 0; border-radius: 0; border-left: 2px solid var(--text-faint); border-right: 2px solid var(--text-faint); }
+.wsv-move{ flex: 0 0 auto; min-width: 64px; min-height: 44px; margin-right: 6px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--hairline-strong);
+  background: var(--surface-2); color: var(--accent); font: inherit; font-size: 13px; font-weight: 700; cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-feedback) var(--ease-out); }
+.wsv-move:active{ transform: var(--press); }
+.wsv-moving .wsv-move{ background: var(--accent); color: #06121F; border-color: var(--accent); }
+.wsv-moving .wsv-day-main{ background: rgba(255,255,255,0.03); }
+.wsv-moveto{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 4px 10px 12px; animation: d159In var(--dur-step) var(--ease-out) both; }
+.wsv-day-opt{ display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 52px; padding: 8px 10px; border-radius: 10px;
+  border: 1px solid var(--hairline-strong); background: var(--surface-2); color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out), border-color var(--dur-feedback) var(--ease-out); }
+.wsv-day-opt:active{ transform: var(--press); border-color: var(--accent); }
+.wsv-day-opt.off{ opacity: 0.35; cursor: default; }
+.wsv-do-d{ font-size: 13px; font-weight: 700; }
+.wsv-do-c{ font-size: 11.5px; color: var(--text-dim); overflow-wrap: anywhere; }
+.wsv-ex{ display: flex; flex-direction: column; gap: 2px; padding: 0 14px 12px 54px; animation: d159In var(--dur-step) var(--ease-out) both; }
+.wsv-ex-r{ display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; padding: 6px 0; border-top: 1px solid var(--hairline); }
+.wsv-ex-n{ font-size: 13.5px; font-weight: 600; color: var(--text); }
+.wsv-ex-s{ font-size: 12.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.wsv-link{ align-self: flex-start; min-height: 44px; padding: 0 2px; background: none; border: 0; font: inherit; font-size: 13.5px; font-weight: 700; color: var(--accent); cursor: pointer; }
+.wsv-mus{ display: flex; flex-direction: column; gap: 6px; }
+.wsv-mus-r{ display: grid; grid-template-columns: 88px minmax(0, 1fr) 28px; align-items: center; gap: 10px; font-size: 13px; }
+.wsv-mus-n{ color: var(--text); }
+.wsv-mus-bar{ height: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.wsv-mus-bar span{ display: block; height: 100%; border-radius: 4px; background: var(--accent); opacity: 0.75; }
+.wsv-mus-v{ text-align: right; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.wsv-fine{ margin-top: 8px; font-size: 12px; line-height: 1.45; color: var(--text-faint); }
+.wsv-work{ display: flex; flex-direction: column; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface-1); }
+.wsv-work-r{ display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--hairline); font-size: 13.5px; color: var(--text); }
+.wsv-work-r:first-child{ border-top: 0; }
+.wsv-work-r span:last-child{ color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.wsv-sugs{ display: flex; flex-direction: column; gap: 10px; }
+.wsv-sug{ display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: var(--r-card); background: var(--surface-1); border: 1px solid var(--hairline); }
+.wsv-sug-cluster{ border-color: rgba(var(--c-warning-rgb, 240,160,60), 0.35); }
+.wsv-sug-t{ font-size: 14.5px; font-weight: 700; color: var(--text); }
+.wsv-sug-w{ font-size: 13px; line-height: 1.45; color: var(--text-dim); }
+.wsv-sug-e, .wsv-sug-prev{ font-size: 12px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.wsv-sug-rows{ display: flex; flex-direction: column; }
+.wsv-sug-r{ display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1px 10px; padding: 7px 0; border-top: 1px solid var(--hairline); font-size: 13px; }
+.wsv-sug-r b{ font-weight: 600; color: var(--text); }
+.wsv-sug-r span{ color: var(--text-dim); text-align: right; font-variant-numeric: tabular-nums; }
+.wsv-sug-r em{ grid-column: 1 / -1; font-style: normal; font-size: 12px; color: var(--text-faint); }
+.wsv-lift-up span{ color: var(--c-progress); }
+.wsv-sug-acts{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 2px; }
+.wsv-btn{ min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--accent); background: var(--accent); color: #06121F;
+  font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; transition: transform var(--dur-press) var(--ease-out); }
+.wsv-btn:active{ transform: var(--press); }
+.wsv-btn-q{ background: none; color: var(--text-dim); border-color: var(--hairline-strong); }
+.wsv-next{ display: flex; flex-direction: column; gap: 2px; margin-top: 18px; padding: 12px 14px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--hairline); font-size: 13.5px; color: var(--text-dim); }
+.wsv-next b{ color: var(--text); font-size: 14.5px; }
+.wsv-acts{ display: flex; flex-direction: column; border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface-1); overflow: hidden; }
+.wsv-act{ min-height: 48px; padding: 0 14px; border: 0; border-top: 1px solid var(--hairline); background: none; color: var(--text); font: inherit; font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; }
+.wsv-act:first-child{ border-top: 0; }
+.wsv-act::after{ content: ' \203A'; color: var(--text-faint); }
+.wsv-words{ display: flex; flex-direction: column; gap: 6px; margin-top: 10px; animation: d159In var(--dur-step) var(--ease-out) both; }
+.wsv-lbl{ font-size: 12px; font-weight: 700; color: var(--text-dim); }
+.wsv-in{ width: 100%; box-sizing: border-box; min-height: 44px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--hairline-strong); background: var(--surface-2); color: var(--text); font: inherit; font-size: 16px; }
+textarea.wsv-in{ resize: vertical; }
+.wsv-notice-host{ display: none; padding: 0 16px; }
+.wsv-notice-host.open{ display: block; }
+.wsv-notice{ display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 6px 6px 14px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--hairline-strong);
+  font-size: 13px; color: var(--text); animation: d159In var(--dur-feedback) var(--ease-out) both; }
+.wsv-notice button{ min-height: 44px; padding: 0 12px; background: none; border: 0; font: inherit; font-size: 13px; font-weight: 700; color: var(--accent); cursor: pointer; }
+.wsv button:focus-visible, .wss button:focus-visible, .wss-in:focus-visible, .wsv-in:focus-visible, .wsv-notice button:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- one session, this week ---------- */
+.wss{ display: flex; flex-direction: column; gap: 10px; }
+.wss-sub{ font-size: 13px; color: var(--text-dim); }
+.wss-ex{ padding: 10px 12px; border-radius: var(--r-card); background: var(--surface-1); border: 1px solid var(--hairline); }
+.wss-ex-top{ display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.wss-ex-n{ font-size: 14.5px; font-weight: 700; color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.wss-ex-acts{ display: inline-flex; flex: 0 0 auto; }
+.wss-ic{ width: 40px; height: 44px; border: 0; background: none; color: var(--text-dim); font: inherit; font-size: 16px; cursor: pointer; border-radius: 8px; }
+.wss-ic:disabled{ opacity: 0.25; cursor: default; }
+.wss-grid{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 6px; }
+.wss-f{ display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.wss .wss-l{ display: block; margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-faint); }
+.wss-step{ display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; height: 44px; border-radius: 10px; border: 1px solid var(--hairline-strong); background: var(--surface-2); }
+.wss-step button{ height: 44px; border: 0; background: none; color: var(--accent); font: inherit; font-size: 18px; font-weight: 700; cursor: pointer; }
+.wss-step b{ text-align: center; font-size: 14.5px; color: var(--text); font-variant-numeric: tabular-nums; }
+.wss-in{ height: 44px; box-sizing: border-box; padding: 0 10px; border-radius: 10px; border: 1px solid var(--hairline-strong); background: var(--surface-2); color: var(--text); font: inherit; font-size: 16px; min-width: 0; }
+.wss-diff{ display: flex; flex-direction: column; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface-1); }
+.wss-dl{ padding: 10px 12px; border-top: 1px solid var(--hairline); font-size: 13.5px; color: var(--text); }
+.wss-dl:first-child{ border-top: 0; }
+.wss-dl-in::before{ content: '+ '; color: var(--c-progress); font-weight: 700; }
+.wss-dl-out::before{ content: '− '; color: var(--c-warning); font-weight: 700; }
+.wss-dl-ch::before{ content: '~ '; color: var(--accent); font-weight: 700; }
+
+/* ---------- the program map's way into a week ---------- */
+button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; border: 0; background: none; padding: 0; min-height: 44px; }
+.pm-phase-card{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--hairline); }
+.pm-phase-card b{ font-size: 14px; color: var(--text); }
+.pm-phase-card span{ font-size: 12px; color: var(--text-dim); }
+.pm-phase-card em{ flex-basis: 100%; font-style: normal; font-size: 12.5px; color: var(--text-dim); }
+.pm-week-open{ display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-height: 52px; margin-top: 10px; padding: 10px 14px;
+  border-radius: 12px; border: 1px solid var(--hairline-strong); background: var(--surface-2); color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out); }
+.pm-week-open:active{ transform: var(--press); }
+.pm-wo-t{ font-size: 14px; font-weight: 700; color: var(--accent); }
+.pm-wo-t::after{ content: ' \203A'; }
+.pm-wo-s{ font-size: 12px; color: var(--text-dim); }
+@keyframes d159In{ from{ opacity: 0; transform: translateY(4px); } to{ opacity: 1; transform: none; } }
+/* ==== D159 WEEKS END ==== */
 </style>
 </head>
 <body>
@@ -12242,6 +12418,29 @@ button.cal-cell:focus-visible{ outline: 2px solid var(--accent); outline-offset:
     <div class="sheet-actions">
       <button class="btn-secondary" onclick="closeDayEdit()">Close</button>
     </div>
+  </div>
+</div>
+
+<!-- D159 — one week of a program: its days, sessions, numbers and suggestions. Changes made here are that week's only. -->
+<div class="overlay" id="weekSheetOverlay" onclick="backdropDismiss(event, closeWeekSheet)">
+  <div class="sheet wsv-sheet" role="dialog" aria-modal="true" aria-labelledby="weekSheetTitle">
+    <div class="sheet-scroll">
+      <h2 id="weekSheetTitle">Week</h2>
+      <div id="weekSheetBody"></div>
+    </div>
+    <div class="wsv-notice-host" id="wsvNotice" aria-live="polite"></div>
+    <div class="sheet-actions">
+      <button class="btn-secondary" onclick="closeWeekSheet()">Done</button>
+    </div>
+  </div>
+</div>
+<div class="overlay" id="weekSessionOverlay" onclick="backdropDismiss(event, closeWeekSession)">
+  <div class="sheet wss-sheet" role="dialog" aria-modal="true" aria-labelledby="weekSessionTitle">
+    <div class="sheet-scroll">
+      <h2 id="weekSessionTitle">Session</h2>
+      <div id="weekSessionBody"></div>
+    </div>
+    <div class="sheet-actions" id="weekSessionActions"></div>
   </div>
 </div>
 
@@ -14471,6 +14670,21 @@ function build(){
     end:  S({ trunk:176, nua:18, nfa:150, fua:14, ffa:146 }),
     gear:[['cable', { from:[92, 98], to:'nW', grip:'rope' }]], track:'nW' },
 
+  /* D159 — the reverse curl: the barbell curl's arc with the hands over a light EZ bar; a pronated grip tops out a
+     little lower. */
+  curl_reverse_ez: { view:'side', arch:'arc', crop:'upper', ghost:'arms',
+    start:S({ nua:6, nfa:14, fua:2, ffa:10 }),
+    end:  S({ nua:16, nfa:138, fua:12, ffa:134 }),
+    gear:[['plate', { at:'nW', r:6.2 }]], track:'nW' },
+
+  /* D159 — the Bayesian curl: facing away from a low pulley, the working arm trails behind the body so the curl
+     starts from a stretch; the cable runs back to the column behind. The free arm hangs. */
+  curl_bayesian: { view:'side', arch:'cable', crop:'upper', ghost:'arms',
+    scene:[['column', { x:8, top:44 }]],
+    start:S({ trunk:178, nua:-26, nfa:-22, fua:4, ffa:6 }),
+    end:  S({ trunk:178, nua:-18, nfa:116, fua:4, ffa:6 }),
+    gear:[['cable', { from:[12, 92], to:'nW' }]], track:'nW' },
+
   concentration_curl: { view:'side', arch:'arc', crop:'upper', ghost:'arms',
     scene:[['bench', { x1:20, x2:58, y:92 }]],
     start:{ pin:['hip', [44, 86]], trunk:132, neck:142, nua:8, nfa:4, fua:44, ffa:34, nth:90, nsh:-8, fth:90, fsh:-12 },
@@ -15039,6 +15253,13 @@ function build(){
     start:{ pin:['hip', [44, 90]], trunk:164, neck:170, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:84, nfa:84, fua:80, ffa:80 },
     end:  { pin:['hip', [44, 90]], trunk:178, neck:180, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:-58, nfa:86, fua:-62, ffa:82 },
     gear:[['cable', { from:[98, 78], to:'nW', grip:'bar' }]], track:'nW' },
+
+  /* D159 — the single-arm cable row: the seated row with one handle; the free hand rests on the thigh. */
+  row_cable_single: { view:'side', arch:'cable', path:'line', arrow:{ side:-1, trim:[0.1, 0.9] }, ghost:'arms',
+    scene:[['pad', { a:[26, 96], b:[52, 96], w:5 }], ['post', { a:[39, 99], b:[39, G] }], ['post', { a:[92, 88], b:[92, G] }], ['column', { x:102, top:60 }]],
+    start:{ pin:['hip', [44, 90]], trunk:164, neck:170, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:84, nfa:84, fua:34, ffa:78 },
+    end:  { pin:['hip', [44, 90]], trunk:178, neck:180, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:-58, nfa:86, fua:34, ffa:78 },
+    gear:[['cable', { from:[98, 78], to:'nW' }]], track:'nW' },
 
   row_machine: { view:'side', arch:'machine', path:'pivot', pivot:ROW_PIVOT, ghost:'arms',
     scene:[['pad', { a:[36, 92], b:[58, 92], w:5 }], ['post', { a:[47, 95], b:[47, G] }], ['post', { a:[74, 78], b:[74, G] }],
@@ -15927,6 +16148,8 @@ var EXERCISE_HOW_TO = {
   curl_preacher:['Upper arms flat on the pad', 'Curl up, stop short of resting', 'Lower slowly to almost straight'],
   curl_cable:['Stand tall facing the low pulley', 'Elbows fixed at your sides', 'Squeeze at the top, lower slowly'],
   cable_hammer_curl:['Rope held with thumbs up', 'Elbows fixed at your sides', 'Lower slowly under tension'],
+  curl_reverse_ez:['Hands over the bar, thumbs on top', 'Elbows pinned, curl without swinging', 'Lower slowly to straight arms'],
+  curl_bayesian:['Face away from a low pulley', 'Let the arm trail behind the body', 'Curl forward; the elbow stays back'],
   concentration_curl:['Elbow braced against the inner thigh', 'Curl toward the shoulder', 'Lower to full extension'],
   curl_machine:['Arms flat on the pad, elbows on the pivot', 'Curl through the full range', 'Control the return'],
   band_curl:['Stand on the band, elbows at your sides', 'Curl against the stretch', 'Lower slowly'],
@@ -16000,6 +16223,7 @@ var EXERCISE_HOW_TO = {
   kb_row:['Hand and knee on the bench', 'Row the bell to the hip', 'Lower slowly'],
   renegade_row:['Plank on the dumbbells, feet wide', 'Row one side without twisting', 'Place it down, switch sides'],
   row_cable_seated:['Sit tall, knees soft', 'Pull the handle to the stomach', 'Let the arms extend fully'],
+  row_cable_single:['One handle; free hand on the thigh', 'Pull the elbow back past the ribs', 'Reach forward to a full stretch'],
   row_machine:['Chest on the pad', 'Pull the handles back', 'Squeeze the shoulder blades'],
   tbar_row:['Hinge over the bar, back flat', 'Pull the handle to the chest', 'Lower under control'],
   trx_row:['Lean back with a straight body', 'Pull the chest to the handles', 'Lower slowly'],
@@ -21398,6 +21622,31 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [
       'Objectives no longer says your week is on track when it has not checked'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-81',
+    version: 'LOOP 10.81',
+    title: 'Your Week, Your Way',
+    date: '2026-11-20',
+    swVersion: 'loop-v258',
+    summary: 'Rearrange one week of your program without changing the rest, see every week in detail, and train three new exercises.',
+    newFeatures: [
+      'On a program, a workout you hold and drag in This Week now moves for this week only, with Undo and an Every week option',
+      'Edit week opens your week with a Move button on every session still ahead, so you can rearrange it without dragging',
+      'Week details on your program show each week’s dates, phase, sessions and exercises with sets, reps, reps in reserve and rest, planned sets by muscle, and what comes next',
+      'Change one session for one week: sets, reps, effort and rest, or swap, add and remove exercises, and review the changes before you apply them',
+      'Each week’s suggestions say why: sessions you moved onto back-to-back days that work the same muscles, a missed session, what your progression rules suggest next, and how last week went',
+      'New exercises: EZ-Bar Reverse Curl, Single-Arm Cable Row and Bayesian Cable Curl, each with its own drawing; Cable Pull-Through is now a full exercise with its muscles and equipment'
+    ],
+    improvements: [
+      'Tap a phase on your program to jump to its weeks',
+      'Give a week a name or a note'
+    ],
+    bugFixes: [
+      'This Week no longer calls a day before your program began a rest day when your weekly plan had a session on it',
+      'This Week shows days from before LOOP had your schedule as Not tracked instead of Rest'
     ],
     changes: []
   }
@@ -33457,6 +33706,8 @@ function beginWeekDrag(){
   d.holdTimer = null;
   const cell = d.cell, strip = d.strip;
   if(!cell.isConnected || !strip.isConnected || !cell.getClientRects().length){ cleanupWeekDrag(); return; }
+  /* D159 — on a running program only a session still ahead lifts; the hold on anything else is a tap */
+  if(!weekCellMovable(cell.dataset.key)){ cleanupWeekDrag(); return; }
   d.slots = measureWeekSlots(strip);
   d.home = d.slots.find(s => s.cell === cell);
   if(!d.home){ cleanupWeekDrag(); return; }
@@ -33484,7 +33735,7 @@ function beginWeekDrag(){
   d.placeholder = ph;
   /* Every day the workout could land on is marked, so the athlete is never
      guessing where a drop is allowed. */
-  d.slots.forEach(s => { const c = s.cell; if(c !== cell) c.classList.add('wk-drop-ok'); });
+  d.slots.forEach(s => { const c = s.cell; if(c !== cell) c.classList.add(weekCellMovable(s.key, true) ? 'wk-drop-ok' : 'wk-drop-no'); });
   try{ strip.setPointerCapture(d.pointerId); }catch(e){}
   loopHaptic();
   moveWeekDrag();
@@ -33518,12 +33769,12 @@ function endWeekDrag(toKey){
   /* The release position is the transition's start, not the previous frame's. */
   try{ if(typeof getComputedStyle === 'function') void getComputedStyle(cell).translate; }catch(e){}
   d.phase = 'settling';
-  d.toKey = (toKey && toKey !== d.originKey && d.slots.some(s => s.key === toKey)) ? toKey : null;
+  d.toKey = (toKey && toKey !== d.originKey && d.slots.some(s => s.key === toKey) && weekCellMovable(toKey, true)) ? toKey : null;
   _wkClickGuardUntil = Date.now() + WEEK_DRAG.clickGuardMs;
   if(d.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(d.raf);
   d.raf = 0;
   try{ if(d.strip.hasPointerCapture && d.strip.hasPointerCapture(d.pointerId)) d.strip.releasePointerCapture(d.pointerId); }catch(e){}
-  d.slots.forEach(s => s.cell.classList.remove('wk-drop-ok', 'wk-drop-over'));
+  d.slots.forEach(s => s.cell.classList.remove('wk-drop-ok', 'wk-drop-over', 'wk-drop-no'));
   const dest = d.toKey ? d.slots.find(s => s.key === d.toKey) : d.home;
   const dx = dest.x - d.home.x, dy = dest.y - d.home.y;
   cell.classList.remove('wk-dragging');
@@ -33569,7 +33820,7 @@ function cleanupWeekDrag(){
   if(d.strip){
     d.strip.classList.remove('wk-drag-mode');
     [...d.strip.querySelectorAll('.wk-day')].forEach(c => {
-      c.classList.remove('wk-dragging', 'wk-settling', 'wk-yielding', 'wk-drop-ok', 'wk-drop-over');
+      c.classList.remove('wk-dragging', 'wk-settling', 'wk-yielding', 'wk-drop-ok', 'wk-drop-over', 'wk-drop-no');
       c.style.translate = '';
       c.style.transformOrigin = '';
     });
@@ -33590,11 +33841,10 @@ function cancelWeekDrag(opts){
 
 /* The move itself, through the writer D14 established as the only one that
    keeps the plan layer and the active program in step. */
+/* D159 — on a running program a drop changes THIS WEEK only (commitWeekMoveScoped); the weekly plan, which has no dates,
+   still changes every week, and the confirmation says which. */
 function commitWeekMove(fromKey, toKey){
-  const before = snapshotWeekForUndo();
-  try{ swapScheduledDays(fromKey, toKey); }catch(e){ return; }
-  renderAll();
-  showWeekUndo(before, fromKey, toKey);
+  return commitWeekMoveScoped(fromKey, toKey);
 }
 
 /* Undo restores the exact schedule that existed before the move, both
@@ -33609,7 +33859,8 @@ function snapshotWeekForUndo(){
     const p = dayEditProgram();
     if(p){
       snap.program = { id: p.id, schedule: JSON.parse(JSON.stringify(p.schedule || {})),
-        revisions: Array.isArray(p.revisions) ? JSON.parse(JSON.stringify(p.revisions)) : null };
+        revisions: Array.isArray(p.revisions) ? JSON.parse(JSON.stringify(p.revisions)) : null,
+        weekPlans: p.weekPlans ? JSON.parse(JSON.stringify(p.weekPlans)) : null };   // D159
     }
   }catch(e){}
   return snap;
@@ -33648,6 +33899,7 @@ async function undoWeekMove(){
         if(!q) return false;
         q.schedule = JSON.parse(JSON.stringify(s.program.schedule));
         if(s.program.revisions) q.revisions = JSON.parse(JSON.stringify(s.program.revisions)); else delete q.revisions;
+        if(s.program.weekPlans) q.weekPlans = JSON.parse(JSON.stringify(s.program.weekPlans)); else delete q.weekPlans;   // D159
         q.updatedAt = new Date().toISOString();
         return { ok:true, errors:[], program:q };
       });
@@ -34787,8 +35039,10 @@ function weekOverview(){
   const tKey = todayKey();
   const todayIdx = DAY_ORDER.indexOf(tKey);
   let consDays = [];
+  let trackFrom = null;   // D159 — D27's tracking start, as the Log calendar reads it
   try{
     const cons = computeConsistencyData();
+    trackFrom = cons.trackingStart || null;
     const wk = cons.weeks[cons.weeks.length - 1];
     consDays = (wk && wk.days) ? wk.days : [];
   }catch(e){ consDays = []; }
@@ -34803,7 +35057,13 @@ function weekOverview(){
     let dayState = cd ? cd.state : null;
     if(cd && cd.date){
       try{
-        if(hasActiveProgram()){
+        /* D159 — a day already over from before the active program began answers from the plan in force on it
+           (planTargetOn), as D44 and the Log calendar read it: the program did not exist yet. */
+        const ap = hasActiveProgram() ? getActiveProgram() : null;
+        if(ap && i < todayIdx && ap.startDate && cd.date < String(ap.startDate)){
+          const t = planTargetOn(cd.date);
+          cat = t.planned ? (t.category || cat) : 'rest';
+        } else if(hasActiveProgram()){
           const pd = getProgramWorkoutForDate(cd.date);
           if(pd){
             cat = (pd.entry && pd.entry.type === 'workout') ? pd.category : 'rest';
@@ -34835,6 +35095,8 @@ function weekOverview(){
     else if(cd && dayState === 'missed') state = 'missed';
     else if(cat === 'rest') state = 'rest';
     else if(i > todayIdx) state = 'upcoming';
+    /* D159 — a planned day from before LOOP had the athlete's schedule is unknown, as the Log calendar says (D27) */
+    else if(cd && cd.date && (!trackFrom || cd.date < trackFrom)) state = 'unknown';
     else state = 'rest';
 
     return {
@@ -34888,6 +35150,7 @@ function thisWeekShortName(name){
    else, except a workout under way, which outranks today's plan exactly as it does on the hero. */
 function thisWeekDayStatus(d, isToday, active){
   if(isToday && active) return 'active';
+  if(d.state === 'unknown') return 'unknown';   // D159
   if(d.state === 'done' || d.state === 'done-today') return 'completed';
   if(d.state === 'missed') return 'missed';
   if(d.state === 'today' || d.state === 'upcoming') return d.cat === 'rest' ? 'rest' : 'planned';
@@ -34907,7 +35170,7 @@ function thisWeekCatText(cat){
   return s.charAt(0) + s.slice(1).toLowerCase();
 }
 
-const THIS_WEEK_STATUS_WORD = { completed: 'Completed', missed: 'Missed', planned: 'Planned', rest: 'Rest', active: 'In progress', paused: 'Paused' };
+const THIS_WEEK_STATUS_WORD = { completed: 'Completed', missed: 'Missed', planned: 'Planned', rest: 'Rest', active: 'In progress', paused: 'Paused', unknown: 'Not tracked' };
 
 function deriveThisWeek(){
   const wk = weekOverview();
@@ -35093,7 +35356,11 @@ function renderWeekCard(){
        the whole plan lives. */
     const n = m.upNext;
     ctx = (n ? col('Up next', thisWeekShortName(n.title), n.when, 'wk2-next') : col('Up next', 'Nothing scheduled', '', 'wk2-next wk2-none'))
-      + '<button type="button" class="wk2-plan" onclick="openTraining(\'plan\')">Full plan</button>';
+      /* D159 — on a running program, the week can be rearranged without a drag: Edit week opens it with a Move on every
+         session still ahead */
+      + (weekEditProgram()
+        ? '<span class="wk2-links"><button type="button" class="wk2-plan wk2-edit" onclick="openWeekSheet(null,{schedule:true})">Edit week</button><button type="button" class="wk2-plan" onclick="openTraining(\'plan\')">Full plan</button></span>'
+        : '<button type="button" class="wk2-plan" onclick="openTraining(\'plan\')">Full plan</button>');
   }
 
   el.innerHTML = `
@@ -35227,6 +35494,943 @@ function renderToday(){
   /* D155 — friends, once there is a confirmed one: drawn just after Today from what is known, refreshed in the background, never waited on */
   try{ socialTodayFriendsSoon(); }catch(e){}
 
+}
+
+/* =========================================================
+   WEEKS THE ATHLETE SHAPES  (Phase D159)
+   ---------------------------------------------------------
+   Every way of moving a day before this — the This Week drag, the day sheet's Move this day, its category buttons —
+   changed the WEEKLY plan: the move held for every week after it. Rearranging one week because Friday is busy rewrote
+   the program. This is the other scope: THIS WEEK ONLY.
+
+   ONE TIMELINE, STILL. A week the athlete changed for itself is recorded on the program as the changes themselves —
+   program.weekPlans[<that week's Monday>].ops — and programPlanOn applies them on top of the dated plan D51 resolves.
+   Every reader that already asks programPlanOn for a date (Today, This Week, D43's slots, D44, the Log calendar, the
+   program map, the missed check, the next session) sees the week as changed without knowing weeks can change; recurring
+   edits made later still reach the week, the way D143's move reaches a revision already waiting.
+     · {t:'swap', a, b}                    two weekdays exchange what they hold this week (a move onto an empty day
+                                           is a swap with its rest);
+     · {t:'session', day, id, exercises}   the session on `day` runs these exercises, sets, reps, effort and rest this
+                                           week — the numbers the athlete saw and set, so no phase or deload overlay is
+                                           applied to them again (weekEdit). Ignored if the day no longer holds that
+                                           session (id), never applied to another one.
+   Both keep the week's count of sessions, so slot counts, a paused program's end date and every adherence
+   denominator are unchanged by construction.
+
+   PAST TRUTH STAYS PAST (D143's rule, for one week). A change is made, undone or reset only when every date it touches
+   is today or later and inside the program, no workout is under way on an affected today, no session it moves has
+   been trained, and D43 pairs every logged workout with the same date with and without it. Nothing here writes the
+   workout log, a record, XP, a score or a stored prescription.
+
+   An athlete with no running program has only the weekly plan, which has no dates: a move there is a change to every
+   week, and it says so.
+   ========================================================= */
+
+/* What identifies a scheduled session, so a week's edit applies to the session it was made for and no other. */
+function weekEntryIdentity(e){
+  if(!e || e.type !== 'workout') return 'rest';
+  return [e.category || '', e.planId || '', e.templateId || '', e.templateId ? '' : (e.name || '')].join('|');
+}
+function weekPlanOf(p, monday){
+  const w = p && p.weekPlans && p.weekPlans[monday];
+  return (w && typeof w === 'object') ? w : null;
+}
+/* The seven days of a week as the dated plan has them, before any change the athlete made to that week. */
+function programTimelineWeek(p, monday){
+  const out = {};
+  PROGRAM_DAY_KEYS.forEach((k, i) => { out[k] = programTimelinePlanOn(p, civilAddDays(monday, i))[k]; });   // a day with no entry keeps none
+  return out;
+}
+/* A week's changes, in the order they were made. */
+function applyWeekOps(week, ops){
+  const out = Object.assign({}, week);
+  (ops || []).forEach(op => {
+    if(!op) return;
+    if(op.t === 'swap' && op.a !== op.b && PROGRAM_DAY_KEYS.indexOf(op.a) !== -1 && PROGRAM_DAY_KEYS.indexOf(op.b) !== -1){
+      const x = out[op.a]; out[op.a] = out[op.b]; out[op.b] = x;
+    } else if(op.t === 'session' && Array.isArray(op.exercises) && op.exercises.length && out[op.day] && weekEntryIdentity(out[op.day]) === op.id){
+      out[op.day] = Object.assign({}, out[op.day], { exercises: JSON.parse(JSON.stringify(op.exercises)), weekEdit: true });
+    }
+  });
+  return out;
+}
+function programWeekPlanApply(p, dateStr, base){
+  if(!p || !dateStr || !p.weekPlans) return base;
+  const w = weekPlanOf(p, civilMonday(dateStr));
+  if(!w || !Array.isArray(w.ops) || !w.ops.length) return base;
+  const week = applyWeekOps(programTimelineWeek(p, civilMonday(dateStr)), w.ops), out = Object.assign({}, base);
+  PROGRAM_DAY_KEYS.forEach(k => { if(week[k] === undefined) delete out[k]; else out[k] = week[k]; });
+  return out;
+}
+
+/* ---------- writing a week ---------- */
+/* The program a week can be changed on: the one being trained now (active, begun, not ended, not paused). */
+function weekEditProgram(){
+  let p = null;
+  try{ p = getRunningProgram(); }catch(e){ p = null; }
+  return p && programHasBegun(p) ? p : null;
+}
+function weekDateOf(monday, key){ const i = PROGRAM_DAY_KEYS.indexOf(key); return i === -1 ? null : civilAddDays(monday, i); }
+const WEEK_BLOCK_WORDS = {
+  program:  'Only a program you are training now can change one week at a time.',
+  past:     'A day that is already over keeps what it held.',
+  done:     'A session you have already trained stays on its day.',
+  draft:    'A workout is under way today.',
+  outside:  'That day is outside your program.',
+  claims:   'That would change which day an earlier workout counts for.',
+  save:     "That didn't save, so nothing changed. Try again."
+};
+/* Why these dates cannot change this week now, or null. */
+function weekChangeBlocker(p, dates){
+  if(!p) return 'program';
+  const today = localDateStr();
+  let end = null;
+  try{ end = programEndDate(p); }catch(e){ end = null; }
+  for(const d of dates){
+    if(!d || d < today) return 'past';
+    if(d < String(p.startDate) || (end && d > end)) return 'outside';
+    try{ if(dateIsSuspended(p, d, today)) return 'outside'; }catch(e){}
+  }
+  try{ if(activeDraftIsCurrent() && dates.indexOf(today) !== -1) return 'draft'; }catch(e){}
+  const f = deriveProgramPlanFulfillment(p, workoutLog || []);
+  if(f.slots.some(s => s.workoutId && dates.indexOf(s.date) !== -1)) return 'done';
+  return null;
+}
+function weekTidy(q, monday){
+  const w = weekPlanOf(q, monday);
+  if(w){
+    if(Array.isArray(w.ops) && !w.ops.length) delete w.ops;
+    if(Array.isArray(w.dismissed) && !w.dismissed.length) delete w.dismissed;
+    if(!w.name) delete w.name;
+    if(!w.note) delete w.note;
+    const keep = Object.keys(w).filter(k => k !== 'at');
+    if(!keep.length) delete q.weekPlans[monday];
+  }
+  if(q.weekPlans && !Object.keys(q.weekPlans).length) delete q.weekPlans;
+}
+/* The one write path: change a copy, prove D43 still pairs every logged workout with the same date, then commit. */
+async function weekCommit(monday, change, opts){
+  const o = opts || {};
+  const p = o.meta ? (getActiveProgram() || null) : weekEditProgram();
+  if(!p) return { ok:false, reason:'program' };
+  if(o.dates){ const b = weekChangeBlocker(p, o.dates); if(b) return { ok:false, reason:b }; }
+  if(!o.meta){
+    const trial = JSON.parse(JSON.stringify(p));
+    trial.weekPlans = trial.weekPlans || {};
+    trial.weekPlans[monday] = trial.weekPlans[monday] || {};
+    change(trial.weekPlans[monday], trial); weekTidy(trial, monday);
+    if(programWorkClaims(trial) !== programWorkClaims(p)) return { ok:false, reason:'claims' };
+  }
+  const r = await commitProgramChange(() => {
+    const q = getProgram(p.id);
+    if(!q) return false;
+    q.weekPlans = q.weekPlans || {};
+    q.weekPlans[monday] = q.weekPlans[monday] || {};
+    change(q.weekPlans[monday], q);
+    q.weekPlans[monday].at = new Date().toISOString();
+    weekTidy(q, monday);
+    return { ok:true, errors:[], program:q };
+  });
+  invalidateProgramCache();
+  return (r && r.ok) ? { ok:true } : { ok:false, reason:'save' };
+}
+/* Two days of one week exchange what they hold, this week only. Swapping back removes the change rather than
+   stacking a second one, so a week moved and moved back is a week with no changes. */
+async function weekSwapDays(monday, a, b){
+  if(!a || !b || a === b) return { ok:false, reason:'past' };
+  return weekCommit(monday, w => {
+    const ops = Array.isArray(w.ops) ? w.ops : (w.ops = []);
+    const last = ops[ops.length - 1];
+    if(last && last.t === 'swap' && ((last.a === a && last.b === b) || (last.a === b && last.b === a))) ops.pop();
+    else ops.push({ t:'swap', a, b });
+  }, { dates: [weekDateOf(monday, a), weekDateOf(monday, b)] });
+}
+/* One session's exercises, this week only. */
+async function weekSetSession(monday, day, exercises){
+  const p = weekEditProgram();
+  if(!p) return { ok:false, reason:'program' };
+  const date = weekDateOf(monday, day);
+  const entry = programPlanOn(p, date)[day];
+  if(!entry || entry.type !== 'workout') return { ok:false, reason:'past' };
+  const id = weekEntryIdentity(entry);
+  return weekCommit(monday, w => {
+    const ops = (Array.isArray(w.ops) ? w.ops : (w.ops = [])).filter(op => !(op.t === 'session' && op.day === day));
+    if(exercises) ops.push({ t:'session', day, id, exercises: JSON.parse(JSON.stringify(exercises)) });
+    w.ops = ops;
+  }, { dates: [date] });
+}
+/* The week back to its program: every change removed — only while every day a change touched is still ahead. */
+function weekOpDates(monday, ops){
+  const out = [];
+  (ops || []).forEach(op => {
+    if(op.t === 'swap'){ out.push(weekDateOf(monday, op.a), weekDateOf(monday, op.b)); }
+    else if(op.t === 'session') out.push(weekDateOf(monday, op.day));
+  });
+  return out.filter((d, i, a) => d && a.indexOf(d) === i);
+}
+async function weekReset(monday){
+  const p = weekEditProgram();
+  const w = weekPlanOf(p, monday);
+  if(!w || !w.ops || !w.ops.length) return { ok:true };
+  return weekCommit(monday, x => { x.ops = []; }, { dates: weekOpDates(monday, w.ops) });
+}
+/* Another week's changes, applied to this one (only when this week's days are all still ahead). */
+async function weekCopyFrom(srcMonday, monday){
+  const p = weekEditProgram();
+  const src = weekPlanOf(p, srcMonday);
+  if(!src || !src.ops || !src.ops.length) return { ok:false, reason:'past' };
+  const dates = PROGRAM_DAY_KEYS.map(k => weekDateOf(monday, k));
+  return weekCommit(monday, w => {
+    /* a session edit travels only to the same session: applyWeekOps keeps ignoring one whose day holds another */
+    w.ops = JSON.parse(JSON.stringify(src.ops));
+  }, { dates });
+}
+/* What the athlete calls a week, and what they want to remember about it. Words only: no date rule applies. */
+async function weekSetWords(monday, name, note){
+  return weekCommit(monday, w => {
+    w.name = String(name || '').trim().slice(0, 40) || undefined;
+    w.note = String(note || '').trim().slice(0, 280) || undefined;
+  }, { meta:true });
+}
+async function weekDismiss(monday, id){
+  return weekCommit(monday, w => {
+    const d = Array.isArray(w.dismissed) ? w.dismissed : (w.dismissed = []);
+    if(d.indexOf(id) === -1) d.push(id);
+  }, { meta:true });
+}
+
+/* ---------- This Week's drag, scoped ---------- */
+/* Whether a day of this week can be picked up, or receive a session, as a change to this week. A running program
+   only: the weekly plan keeps its every-day behaviour. */
+function weekCellMovable(key, asTarget){
+  const p = weekEditProgram();
+  if(!p) return true;
+  const monday = civilMonday(localDateStr());
+  const date = weekDateOf(monday, key);
+  if(weekChangeBlocker(p, [date])) return false;
+  if(asTarget) return true;
+  const e = programPlanOn(p, date)[key];
+  return !!(e && e.type === 'workout');
+}
+function weekSessionName(p, date, key){
+  try{
+    const pd = getProgramWorkoutForDate(date, p);
+    if(pd && pd.template && pd.template.name) return thisWeekShortName(pd.template.name);
+    const e = programPlanOn(p, date)[key];
+    if(e && e.type === 'workout') return CAT_LABEL[e.category] || 'Workout';
+  }catch(e){}
+  return null;
+}
+/* The drop: this week only on a running program; the weekly plan otherwise, said plainly. */
+async function commitWeekMoveScoped(fromKey, toKey){
+  const p = weekEditProgram();
+  if(!p){
+    const before = snapshotWeekForUndo();
+    /* exactly 10.80's write: the plan layer changes before the first await inside it, so the redraw sees it */
+    try{ swapScheduledDays(fromKey, toKey); }catch(e){ return; }
+    renderAll();
+    showWeekToast({ snapshot: before, from: fromKey, to: toKey, scope: 'every' });
+    return;
+  }
+  const monday = civilMonday(localDateStr());
+  const moving = weekSessionName(p, weekDateOf(monday, fromKey), fromKey);
+  const other = weekSessionName(p, weekDateOf(monday, toKey), toKey);
+  const before = snapshotWeekForUndo();
+  const r = await weekSwapDays(monday, fromKey, toKey);
+  renderAll();
+  if(!r.ok){ showWeekToast({ message: WEEK_BLOCK_WORDS[r.reason] || WEEK_BLOCK_WORDS.save }); return; }
+  showWeekToast({ snapshot: before, from: fromKey, to: toKey, scope: 'week', moving, other, monday });
+}
+/* The confirmation: what moved, to where, for how long — with Undo, and "Every week" when the athlete meant the
+   weekly plan after all. A move that puts two sessions with the same main muscles on consecutive days says so. */
+function showWeekToast(t){
+  const host = document.getElementById('weekUndo');
+  if(!host) return;
+  if(_weekUndo && _weekUndo.timer) clearTimeout(_weekUndo.timer);
+  _weekUndo = { snapshot: t.snapshot || null, timer: null, from: t.from, to: t.to, scope: t.scope };
+  let text, sub = '', actions = '';
+  if(t.message){
+    text = escapeHtml(t.message);
+  } else {
+    const F = DAY_LABEL_FULL[t.from], T = DAY_LABEL_FULL[t.to];
+    if(t.scope === 'week'){
+      text = t.other ? `${escapeHtml(t.moving || 'Workout')} ⇄ ${escapeHtml(t.other)}` : `${escapeHtml(t.moving || 'Workout')} → ${escapeHtml(T)}`;
+      sub = t.other ? `${escapeHtml(F)} and ${escapeHtml(T)} swapped, this week only` : `This week only`;
+      const clash = weekClusterAfterMove(t.monday);
+      if(clash) sub += `<span class="wk-toast-warn">${escapeHtml(clash)}</span>`;
+      actions = `<button type="button" class="wk-undo-btn wk-undo-alt" onclick="weekMoveEveryWeek()">Every week</button>`;
+    } else {
+      text = `${escapeHtml(F)} → ${escapeHtml(T)}`;
+      sub = 'Every week';
+    }
+    actions += `<button type="button" class="wk-undo-btn" onclick="undoWeekMove()">Undo</button>`;
+  }
+  host.innerHTML = `
+    <div class="wk-undo wk-toast" role="status">
+      <span class="wk-toast-body"><span class="wk-undo-text">${text}</span>${sub ? `<span class="wk-toast-sub">${sub}</span>` : ''}</span>
+      ${actions}
+    </div>`;
+  host.classList.add('open');
+  _weekUndo.timer = setTimeout(hideWeekUndo, t.message ? 4000 : 6500);
+}
+/* "Every week": this week's swap is taken back and the same two days are swapped in the weekly plan, through the
+   writer every recurring move uses (D143's rule decides whether it starts today or next Monday). Undo still returns
+   the week exactly as it was before the first move. */
+async function weekMoveEveryWeek(){
+  const u = _weekUndo;
+  if(!u || !u.snapshot || u.scope !== 'week') return;
+  const monday = civilMonday(localDateStr());
+  const r = await weekSwapDays(monday, u.from, u.to);   // swapping back removes the week's change
+  if(!r.ok){ showWeekToast({ message: WEEK_BLOCK_WORDS[r.reason] || WEEK_BLOCK_WORDS.save }); return; }
+  try{ await swapScheduledDays(u.from, u.to); }catch(e){}
+  renderAll();
+  showWeekToast({ snapshot: u.snapshot, from: u.from, to: u.to, scope: 'every' });
+}
+
+/* ---------- reading a week ---------- */
+function weekStatusOfDay(p, date, key, f){
+  const today = localDateStr();
+  const e = programPlanOn(p, date)[key];
+  const workout = !!(e && e.type === 'workout');
+  const slot = f.slots.find(s => s.date === date);
+  if(slot && slot.workoutId) return 'done';
+  if(!workout) return 'rest';
+  if(date < String(p.startDate)) return 'rest';
+  try{ if(dateIsSuspended(p, date, today)) return 'paused'; }catch(e){}
+  if(date < today) return 'missed';
+  if(date === today) return 'today';
+  return 'planned';
+}
+function weekPhaseFor(p, week){
+  return (p.blocks || []).find(b => week >= b.startWeek && week <= b.endWeek) || null;
+}
+/* Everything the week sheet shows, derived from the engines that own each answer. */
+function deriveWeekView(p, monday){
+  const today = localDateStr();
+  const f = deriveProgramPlanFulfillment(p, workoutLog || []);
+  const w = weekPlanOf(p, monday) || {};
+  const calWeek = programCalendarWeek(p, monday);
+  const days = PROGRAM_DAY_KEYS.map(key => {
+    const date = weekDateOf(monday, key);
+    let pd = null;
+    try{ pd = getProgramWorkoutForDate(date, p); }catch(e){ pd = null; }
+    const e = programPlanOn(p, date)[key] || { type:'rest' };
+    const workout = e.type === 'workout' && !!(pd && pd.template) && !(pd && pd.ended);
+    const slot = f.slots.find(s => s.date === date);
+    const logged = slot && slot.workoutId ? (workoutLog || []).find(l => String(l.id) === String(slot.workoutId)) : null;
+    return { key, date, entry: e, workout, template: workout ? pd.template : null, category: workout ? e.category : 'rest',
+      week: pd ? pd.week : null, phase: pd ? pd.phase : null, status: workout || logged ? weekStatusOfDay(p, date, key, f) : 'rest',
+      logged, edited: !!e.weekEdit, movable: workout && !weekChangeBlocker(p, [date]) };
+  });
+  const progWeek = (days.find(d => d.week) || {}).week || calWeek;
+  const phase = weekPhaseFor(p, progWeek);
+  const ptype = phase ? getProgramPhase(phase.phaseType) : null;
+  const sessions = days.filter(d => d.workout);
+  const mins = sessions.reduce((n, d) => n + (builderEstimateMinutes(d.template) || 0), 0);
+  const tally = {};
+  sessions.forEach(d => { const prof = deriveWorkoutProfile(d.template); Object.keys(prof.tally).forEach(g => { tally[g] = (tally[g] || 0) + prof.tally[g]; }); });
+  const sunday = civilAddDays(monday, 6);
+  const state = sunday < today ? 'past' : (monday > today ? 'upcoming' : 'current');
+  const deload = days.some(d => d.phase === 'deload');
+  return { program: p, monday, sunday, calWeek, progWeek, weeks: parseInt(p.durationWeeks, 10) || null, state,
+    name: w.name || null, note: w.note || null, ops: w.ops || [], dismissed: w.dismissed || [],
+    phase, phaseType: ptype, multiPhase: (p.blocks || []).length > 1 || !!(phase && phase.phaseType !== 'custom'),
+    days, planned: sessions.length + days.filter(d => !d.workout && d.status === 'done').length,
+    done: days.filter(d => d.status === 'done').length, missed: days.filter(d => d.status === 'missed').length,
+    minutes: mins, tally, deload,
+    editable: state !== 'past' && !!weekEditProgram() && weekEditProgram().id === p.id };
+}
+/* A lift's session in this week against the session before it, by the rule the plateau engine uses (D126): heavier,
+   or the same load for more reps. Bodyweight lifts are left out (their own engines read them). */
+function weekLiftChanges(p, monday){
+  const sunday = civilAddDays(monday, 6);
+  const names = [];
+  (workoutLog || []).filter(l => l.date >= monday && l.date <= sunday).forEach(l => (l.exercises || []).forEach(x => {
+    if(x && x.name && !x.bodyweight && names.indexOf(x.name) === -1) names.push(x.name);
+  }));
+  const out = [];
+  names.forEach(n => {
+    let h = [];
+    try{ h = exerciseSessionHistory(n, 8); }catch(e){ h = []; }
+    const i = h.findIndex(s => s.date >= monday && s.date <= sunday);
+    if(i === -1) return;
+    const now = h[i], prev = h.slice(i + 1).find(s => s.date < monday);
+    if(!prev){ out.push({ name: n, kind: 'first', now }); return; }
+    const kind = now.weight > prev.weight || (now.weight === prev.weight && now.topReps > prev.topReps) ? 'up'
+      : (now.weight === prev.weight && now.topReps === prev.topReps) ? 'same' : 'down';
+    out.push({ name: n, kind, now, prev });
+  });
+  return out;
+}
+/* Logged working sets against planned sets, per trained session of the week. */
+function weekWorkDone(view){
+  return view.days.filter(d => d.logged && d.template).map(d => {
+    const planned = (d.template.exercises || []).reduce((n, x) => n + (parseInt(x.sets, 10) || 0), 0);
+    const done = (d.logged.exercises || []).reduce((n, x) => n + (x.sets || []).filter(s => isWorkingSet(s) !== false && s.completed !== false && performedReps(s.reps) !== null).length, 0);
+    return { key: d.key, name: thisWeekShortName(d.template.name), planned, done };
+  });
+}
+
+/* ---------- suggestions ---------- */
+/* Two sessions on consecutive days that lead with the same muscles, where this week's own changes put them together
+   (the program's written week is the program's decision, not something to flag every week). */
+function weekClusters(p, monday){
+  const today = localDateStr();
+  const now = applyWeekOps(programTimelineWeek(p, monday), (weekPlanOf(p, monday) || {}).ops);
+  const was = programTimelineWeek(p, monday);
+  const prim = e => {
+    if(!e || e.type !== 'workout') return [];
+    try{ return deriveWorkoutProfile(resolveProgramWorkout(e, null)).primary; }catch(x){ return []; }
+  };
+  const out = [];
+  for(let i = 0; i < 6; i++){
+    const a = PROGRAM_DAY_KEYS[i], b = PROGRAM_DAY_KEYS[i + 1];
+    if(weekDateOf(monday, b) < today) continue;
+    const pa = prim(now[a]), pb = prim(now[b]);
+    const shared = pa.filter(g => pb.indexOf(g) !== -1);
+    if(!shared.length) continue;
+    const wa = prim(was[a]), wb = prim(was[b]);
+    if(wa.filter(g => wb.indexOf(g) !== -1).length) continue;
+    out.push({ a, b, shared });
+  }
+  return { clusters: out, week: now };
+}
+/* The simplest change that removes a cluster: move the later session to the first day still ahead this week where it
+   lands next to nothing it overlaps, by a swap the week rule allows. Deterministic: days in order. */
+function weekClusterFix(p, monday, c){
+  /* a free day first, in order, so the fix never takes another session's day while a free one would do; then a swap */
+  const week = applyWeekOps(programTimelineWeek(p, monday), (weekPlanOf(p, monday) || {}).ops);
+  const free = k => !week[k] || week[k].type !== 'workout';
+  const days = PROGRAM_DAY_KEYS.filter(free).concat(PROGRAM_DAY_KEYS.filter(k => !free(k)));
+  for(const target of days){
+    if(target === c.a || target === c.b) continue;
+    const trial = JSON.parse(JSON.stringify(p));
+    trial.weekPlans = trial.weekPlans || {};
+    trial.weekPlans[monday] = trial.weekPlans[monday] || {};
+    const ops = trial.weekPlans[monday].ops = (trial.weekPlans[monday].ops || []).concat([{ t:'swap', a: c.b, b: target }]);
+    if(weekChangeBlocker(p, [weekDateOf(monday, c.b), weekDateOf(monday, target)])) continue;
+    if(weekClusters(trial, monday).clusters.length) continue;
+    if(programWorkClaims(trial) !== programWorkClaims(p)) continue;
+    return { a: c.b, b: target, ops };
+  }
+  return null;
+}
+function weekClusterAfterMove(monday){
+  const p = weekEditProgram();
+  if(!p || !monday) return null;
+  const c = weekClusters(p, monday).clusters[0];
+  if(!c) return null;
+  return `${DAY_LABEL_FULL[c.a]} and ${DAY_LABEL_FULL[c.b]} now both lead with ${c.shared.map(muscleGroupLabel).join(' and ').toLowerCase()}.`;
+}
+/* The week's suggestions. Each one says what it suggests, why, from what evidence; only a schedule change can be
+   applied (the one thing the week can do safely); every one can be dismissed for this week. */
+function deriveWeekSuggestions(view){
+  const p = view.program, monday = view.monday, out = [];
+  const today = localDateStr();
+  if(view.editable){
+    weekClusters(p, monday).clusters.forEach(c => {
+      const fix = weekClusterFix(p, monday, c);
+      const nameOf = k => { const d = view.days.find(x => x.key === k); return d && d.template ? thisWeekShortName(d.template.name) : CAT_LABEL[(d && d.category) || 'rest']; };
+      const na = nameOf(c.a), nb = nameOf(c.b);
+      /* the week after the fix, for the days it touches: what the athlete would see before applying it */
+      const after = fix ? (() => {
+        const wk = applyWeekOps(programTimelineWeek(p, monday), ((weekPlanOf(p, monday) || {}).ops || []).concat([{ t:'swap', a: fix.a, b: fix.b }]));
+        const label = k => { const e = wk[k]; if(!e || e.type !== 'workout') return 'Rest'; try{ const t = resolveProgramWorkout(e, null); return t && t.name ? thisWeekShortName(t.name) : (CAT_LABEL[e.category] || 'Workout'); }catch(x){ return CAT_LABEL[e.category] || 'Workout'; } };
+        return PROGRAM_DAY_KEYS.filter(k => k === c.a || k === fix.a || k === fix.b).map(k => DAY_LABEL_FULL[k].slice(0, 3) + ' ' + label(k)).join(' · ');
+      })() : null;
+      out.push({ id: 'cluster:' + c.a + c.b, kind: 'cluster',
+        title: na === nb ? `${na} on consecutive days: ${DAY_LABEL_FULL[c.a]} and ${DAY_LABEL_FULL[c.b]}` : `${na} and ${nb} are on consecutive days`,
+        why: `Both lead with ${c.shared.map(muscleGroupLabel).join(' and ').toLowerCase()}, and this week's changes put them back to back.`,
+        evidence: `${DAY_LABEL_FULL[c.a]}: ${na} · ${DAY_LABEL_FULL[c.b]}: ${nb}`,
+        fix: fix ? { a: fix.a, b: fix.b, text: `Move ${nb} to ${DAY_LABEL_FULL[fix.b]}`, after } : null });
+    });
+  }
+  if(view.state === 'current'){
+    view.days.filter(d => d.status === 'missed').forEach(d => {
+      out.push({ id: 'missed:' + d.key, kind: 'missed', title: `${d.template ? thisWeekShortName(d.template.name) : CAT_LABEL[d.category]} on ${DAY_LABEL_FULL[d.key]} was missed`,
+        why: 'LOOP leaves the rest of your week as planned instead of squeezing it in. You can move a session that is still ahead if a day suits you better.',
+        evidence: `Planned ${weekDayDate(d.date)} · nothing logged that day` });
+    });
+    /* the next session's lifts: what the progression engine would ask next time, and why — its own words */
+    const next = view.days.find(d => d.workout && d.date >= today && d.status !== 'done');
+    if(next && next.template){
+      const rows = [], fresh = [];
+      (next.template.exercises || []).slice(0, 6).forEach(x => {
+        let r = null;
+        try{ r = progressionRecommendationFor(x.name, x.reps, x.recommended); }catch(e){ r = null; }
+        if(!r) return;
+        if(r.tag === 'new') fresh.push(x.name);
+        else rows.push({ name: x.name, headline: r.headline, why: r.why });
+      });
+      if(rows.length || fresh.length){
+        out.push({ id: 'next:' + next.key, kind: 'progress', title: `Next: ${thisWeekShortName(next.template.name)}, ${DAY_LABEL_FULL[next.key]}`,
+          why: rows.length ? 'What your progression rules suggest for each lift, from your last sessions.' : 'No history yet for these lifts.',
+          rows, fresh });
+      }
+    }
+  }
+  /* last week, in numbers, when this is the current week; the week itself when it is over */
+  const reviewMonday = view.state === 'current' ? civilAddDays(monday, -7) : (view.state === 'past' ? monday : null);
+  if(reviewMonday && reviewMonday >= programWeekMonday(p)){
+    const rv = reviewMonday === monday ? view : deriveWeekView(p, reviewMonday);
+    const lifts = weekLiftChanges(p, reviewMonday);
+    const work = weekWorkDone(rv);
+    const setsPlanned = work.reduce((n, x) => n + x.planned, 0), setsDone = work.reduce((n, x) => n + x.done, 0);
+    if(rv.planned || lifts.length){
+      out.push({ id: 'review:' + reviewMonday, kind: 'review', title: reviewMonday === monday ? 'How this week went' : 'Last week',
+        why: `${rv.done} of ${rv.planned} planned session${rv.planned === 1 ? '' : 's'}` + (setsPlanned ? ` · ${setsDone} of ${setsPlanned} planned sets` : ''),
+        lifts });
+    }
+  }
+  if(!(workoutLog || []).length){
+    out.push({ id: 'sparse', kind: 'sparse', title: 'Nothing to compare yet',
+      why: 'Once you log a lift twice, LOOP can show whether it moved and what your progression rules suggest next. It does not guess before then.' });
+  }
+  return out.filter(s => view.dismissed.indexOf(s.id) === -1);
+}
+
+/* ---------- the week sheet ---------- */
+let weekSheetState = null;   // { monday, open: dayKey|null, moving: dayKey|null, words: bool }
+function openWeekSheet(monday, opts){
+  const p = getActiveProgram();
+  if(!p || !p.startDate) return;
+  const first = programWeekMonday(p);
+  weekSheetState = { programId: p.id, monday: monday || civilMonday(localDateStr()), open: null, moving: null, words: false };
+  if(weekSheetState.monday < first) weekSheetState.monday = first;
+  renderWeekSheet();
+  const ov = document.getElementById('weekSheetOverlay');
+  if(ov){ ov.classList.add('open'); const s = ov.querySelector('.sheet-scroll'); if(s) s.scrollTop = 0; }
+  if(opts && opts.schedule){ const el = document.getElementById('wsvSchedule'); if(el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); }
+}
+function closeWeekSheet(){
+  const ov = document.getElementById('weekSheetOverlay');
+  if(ov) ov.classList.remove('open');
+  weekSheetState = null;
+  renderAll();
+}
+function weekSheetStep(delta){
+  const st = weekSheetState, p = st ? getProgram(st.programId) : null;
+  if(!p) return;
+  const next = civilAddDays(st.monday, 7 * delta);
+  const first = programWeekMonday(p);
+  let last = null;
+  try{ last = civilMonday(programEndDate(p)); }catch(e){ last = null; }
+  if(next < first || (last && next > last)) return;
+  st.monday = next; st.open = null; st.moving = null; st.words = false;
+  renderWeekSheet('step');
+}
+function weekSheetToggle(key){ const st = weekSheetState; if(!st) return; st.open = st.open === key ? null : key; st.moving = null; renderWeekSheet(); }
+function weekSheetMove(key){ const st = weekSheetState; if(!st) return; st.moving = st.moving === key ? null : key; renderWeekSheet(); }
+async function weekSheetMoveTo(to){
+  const st = weekSheetState;
+  if(!st || !st.moving) return;
+  const from = st.moving;
+  const before = snapshotWeekForUndo();
+  const p = getProgram(st.programId);
+  const moving = p ? weekSessionName(p, weekDateOf(st.monday, from), from) : null;
+  const other = p ? weekSessionName(p, weekDateOf(st.monday, to), to) : null;
+  const r = await weekSwapDays(st.monday, from, to);
+  st.moving = null;
+  renderWeekSheet();
+  weekSheetNotice(r.ok ? { snapshot: before, text: other ? `${moving} ⇄ ${other}, this week only` : `${moving} → ${DAY_LABEL_FULL[to]}, this week only` }
+    : { text: WEEK_BLOCK_WORDS[r.reason] || WEEK_BLOCK_WORDS.save });
+}
+let _weekSheetUndo = null;
+function weekSheetNotice(n){
+  const host = document.getElementById('wsvNotice');
+  if(!host) return;
+  _weekSheetUndo = n.snapshot || null;
+  host.innerHTML = `<div class="wsv-notice" role="status"><span>${escapeHtml(n.text)}</span>${n.snapshot ? '<button type="button" onclick="weekSheetUndo()">Undo</button>' : ''}</div>`;
+  host.classList.add('open');
+  clearTimeout(weekSheetNotice._t);
+  weekSheetNotice._t = setTimeout(() => { host.classList.remove('open'); host.innerHTML = ''; _weekSheetUndo = null; }, 6000);
+}
+async function weekSheetUndo(){
+  if(!_weekSheetUndo) return;
+  _weekUndo = { snapshot: _weekSheetUndo, timer: null };
+  _weekSheetUndo = null;
+  await undoWeekMove();
+  renderWeekSheet();
+  const host = document.getElementById('wsvNotice');
+  if(host){ host.classList.remove('open'); host.innerHTML = ''; }
+}
+async function weekSheetApplyFix(a, b){
+  const st = weekSheetState;
+  if(!st) return;
+  const before = snapshotWeekForUndo();
+  const r = await weekSwapDays(st.monday, a, b);
+  renderWeekSheet();
+  weekSheetNotice(r.ok ? { snapshot: before, text: `Moved to ${DAY_LABEL_FULL[b]}, this week only` } : { text: WEEK_BLOCK_WORDS[r.reason] || WEEK_BLOCK_WORDS.save });
+}
+async function weekSheetDismiss(id){
+  const st = weekSheetState;
+  if(!st) return;
+  await weekDismiss(st.monday, id);
+  renderWeekSheet();
+}
+async function weekSheetReset(){
+  const st = weekSheetState;
+  if(!st) return;
+  const before = snapshotWeekForUndo();
+  const r = await weekReset(st.monday);
+  renderWeekSheet();
+  weekSheetNotice(r.ok ? { snapshot: before, text: 'This week follows your program again' } : { text: WEEK_BLOCK_WORDS[r.reason] || WEEK_BLOCK_WORDS.save });
+}
+async function weekSheetCopyPrev(){
+  const st = weekSheetState;
+  if(!st) return;
+  const before = snapshotWeekForUndo();
+  const r = await weekCopyFrom(civilAddDays(st.monday, -7), st.monday);
+  renderWeekSheet();
+  weekSheetNotice(r.ok ? { snapshot: before, text: "Last week's changes now apply to this week" } : { text: WEEK_BLOCK_WORDS[r.reason] || WEEK_BLOCK_WORDS.save });
+}
+function weekSheetWords(on){ const st = weekSheetState; if(!st) return; st.words = !!on; renderWeekSheet(); }
+async function weekSheetSaveWords(){
+  const st = weekSheetState;
+  if(!st) return;
+  const n = document.getElementById('wsvName'), t = document.getElementById('wsvNote');
+  await weekSetWords(st.monday, n ? n.value : '', t ? t.value : '');
+  st.words = false;
+  renderWeekSheet();
+}
+function weekRestText(x){
+  const s = (x && x.restSec > 0) ? x.restSec : restSecondsForReps(x && x.reps);
+  return s ? formatMMSS(s) : null;
+}
+function weekRirText(x){
+  const r = effortToRir(x && x.effort);
+  if(r === null) return null;
+  return 'RIR ' + (Math.round(r * 2) / 2).toString().replace('.5', '½');
+}
+function weekDayDate(date){ const d = new Date(date + "T12:00:00"); return d.toLocaleDateString("en-US", { month: "short" }) + " " + d.getDate(); }
+function weekRangeText(monday){
+  const a = new Date(monday + 'T12:00:00'), b = new Date(civilAddDays(monday, 6) + 'T12:00:00');
+  const m = d => d.toLocaleDateString('en-US', { month: 'short' });
+  return a.getMonth() === b.getMonth() ? `${m(a)} ${a.getDate()}–${b.getDate()}` : `${m(a)} ${a.getDate()} – ${m(b)} ${b.getDate()}`;
+}
+const WEEK_DAY_WORD = { done: 'Done', missed: 'Missed', today: 'Today', planned: 'Planned', rest: 'Rest', paused: 'Paused' };
+function renderWeekSheet(how){
+  const st = weekSheetState;
+  const body = document.getElementById('weekSheetBody');
+  if(!st || !body) return;
+  const p = getProgram(st.programId);
+  if(!p){ body.innerHTML = ''; return; }
+  const v = deriveWeekView(p, st.monday);
+  const today = localDateStr();
+  const title = document.getElementById('weekSheetTitle');
+  if(title) title.textContent = v.name || p.name || 'Week';
+  const firstMon = programWeekMonday(p);
+  let lastMon = null; try{ lastMon = civilMonday(programEndDate(p)); }catch(e){}
+  const stateWord = v.state === 'current' ? 'This week' : v.state === 'past' ? 'Finished' : 'Upcoming';
+
+  /* 1 — overview */
+  const focus = v.multiPhase && v.phase
+    ? `<div class="wsv-phase"><span class="wsv-phase-n">${escapeHtml(v.phase.name)}</span><span class="wsv-phase-w">Weeks ${v.phase.startWeek}–${v.phase.endWeek}</span></div>
+       <div class="wsv-purpose">${escapeHtml(v.phase.description || (v.phaseType && v.phaseType.purpose) || '')}</div>`
+    : '';
+  const deload = v.deload ? `<div class="wsv-flag">A planned lighter week: fewer sets and a little more in reserve, by your program's rule.</div>` : '';
+  const overview = `
+    <div class="wsv-head">
+      <div class="wsv-nav">
+        <button type="button" class="wsv-step" onclick="weekSheetStep(-1)" aria-label="Previous week" ${st.monday <= firstMon ? 'disabled' : ''}>‹</button>
+        <div class="wsv-when"><span class="wsv-k">${escapeHtml(stateWord)} · Week ${v.calWeek}${v.weeks ? ' of ' + v.weeks : ''}</span><span class="wsv-dates">${escapeHtml(weekRangeText(v.monday))}</span></div>
+        <button type="button" class="wsv-step" onclick="weekSheetStep(1)" aria-label="Next week" ${lastMon && st.monday >= lastMon ? 'disabled' : ''}>›</button>
+      </div>
+      ${focus}${deload}
+      <div class="wsv-stats">
+        <div><b>${v.done}</b><span>of ${v.planned} done</span></div>
+        <div><b>${v.minutes ? '~' + (v.minutes >= 60 ? Math.floor(v.minutes / 60) + ' h ' + (v.minutes % 60 ? (v.minutes % 60) + ' min' : '') : v.minutes + ' min') : '—'}</b><span>planned time</span></div>
+        <div><b>${v.missed}</b><span>missed</span></div>
+      </div>
+      ${v.note ? `<div class="wsv-note">${escapeHtml(v.note)}</div>` : ''}
+      ${v.ops.length ? `<div class="wsv-custom">This week has its own changes. Other weeks follow your program.</div>` : ''}
+    </div>`;
+
+  /* 2 — the seven days, each session one tap from its exercises, and every session still ahead one tap from a new day */
+  const rows = v.days.map(d => {
+    const name = d.template ? d.template.name : (d.status === 'done' && d.logged ? d.logged.title : 'Rest');
+    const open = st.open === d.key && d.template;
+    const moving = st.moving === d.key;
+    const exHtml = open ? `<div class="wsv-ex">${(d.template.exercises || []).map(x => {
+        const bits = [`${escapeHtml(String(x.sets))} × ${escapeHtml(String(x.reps))}`];
+        const rir = weekRirText(x); if(rir) bits.push(rir);
+        const rest = weekRestText(x); if(rest) bits.push('rest ' + rest);
+        if(x.recommended && x.recommended !== '—' && x.recommended !== 'Bodyweight') bits.push(escapeHtml(x.recommended));
+        return `<div class="wsv-ex-r"><span class="wsv-ex-n">${escapeHtml(x.name)}</span><span class="wsv-ex-s">${bits.join(' · ')}</span></div>`;
+      }).join('')}
+      ${v.editable && d.movable ? `<button type="button" class="wsv-link" onclick="openWeekSession('${d.key}')">Customize this session</button>` : ''}
+      </div>` : '';
+    const moveHtml = moving ? `<div class="wsv-moveto" role="group" aria-label="Move ${escapeAttr(name)} to">
+        ${v.days.filter(x => x.key !== d.key).map(x => {
+          const ok = !weekChangeBlocker(p, [x.date]) && x.status !== 'done';
+          const holds = x.template ? thisWeekShortName(x.template.name) : 'Rest';
+          return `<button type="button" class="wsv-day-opt${ok ? '' : ' off'}" ${ok ? `onclick="weekSheetMoveTo('${x.key}')"` : 'disabled'}
+            aria-label="${escapeAttr(DAY_LABEL_FULL[x.key] + (x.template ? ', swap with ' + holds : ', empty'))}">
+            <span class="wsv-do-d">${escapeHtml(DAY_LABEL[x.key])}</span><span class="wsv-do-c">${escapeHtml(x.template ? 'Swap · ' + holds : 'Free')}</span></button>`;
+        }).join('')}
+      </div>` : '';
+    return `<div data-key="${d.key}" class="wsv-day wsv-${d.status}${open ? ' wsv-open' : ''}${moving ? ' wsv-moving' : ''}"${d.category === 'rest' ? '' : ' data-fam="' + trainFamilyOf(d.category) + '"'}>
+      <div class="wsv-day-row">
+        <button type="button" class="wsv-day-main" ${d.template ? `onclick="weekSheetToggle('${d.key}')" aria-expanded="${open ? 'true' : 'false'}"` : 'disabled'}>
+          <span class="wsv-d">${escapeHtml(DAY_LABEL[d.key])}<span class="wsv-dn">${Number(d.date.slice(8))}</span></span>
+          ${d.template ? workoutIdentityHtml(d.template, d.category, 'xs') : '<span class="wsv-rest-dot" aria-hidden="true"></span>'}
+          <span class="wsv-name"><span class="wsv-n1" title="${escapeAttr(name)}">${escapeHtml(d.template || d.logged ? thisWeekShortName(name) : name)}${d.edited ? '<span class="wsv-tag">Customized</span>' : ''}</span>
+            ${d.status === 'rest' ? '' : `<span class="wsv-st"><span class="wk-mark" aria-hidden="true"></span>${WEEK_DAY_WORD[d.status] || ''}</span>`}</span>
+        </button>
+        ${v.editable && d.movable ? `<button type="button" class="wsv-move" onclick="weekSheetMove('${d.key}')" aria-expanded="${moving ? 'true' : 'false'}" aria-label="Move ${escapeAttr(name)} to another day">Move</button>` : ''}
+      </div>
+      ${moveHtml}${exHtml}
+    </div>`;
+  }).join('');
+  const schedule = `<div class="sec-head" id="wsvSchedule">Schedule${v.editable ? '<span class="sec-hint">this week only</span>' : ''}</div><div class="wsv-days">${rows}</div>`;
+
+  /* 3 — what the week trains: planned sets by muscle group */
+  const groups = Object.keys(v.tally).sort((a, b) => v.tally[b] - v.tally[a]);
+  const top = groups.length ? v.tally[groups[0]] : 0;
+  const muscles = groups.length ? `<div class="sec-head">Planned sets by muscle</div><div class="wsv-mus">${groups.map(g => `
+      <div class="wsv-mus-r"><span class="wsv-mus-n">${escapeHtml(muscleGroupLabel(g))}</span>
+        <span class="wsv-mus-bar"><span style="width:${Math.max(6, Math.round(100 * v.tally[g] / top))}%"></span></span>
+        <span class="wsv-mus-v">${v.tally[g]}</span></div>`).join('')}</div>
+      <div class="wsv-fine">Sets each session prescribes, credited to the muscles its exercises lead with.</div>` : '';
+
+  /* 4 — what was done: planned against logged working sets, for the sessions trained */
+  const work = weekWorkDone(v);
+  const done = work.length ? `<div class="sec-head">Planned and done</div><div class="wsv-work">${work.map(x => `
+      <div class="wsv-work-r"><span>${escapeHtml(x.name)}</span><span>${x.done} of ${x.planned} sets</span></div>`).join('')}</div>` : '';
+
+  /* 5 — suggestions, each with its reason and evidence */
+  const sug = deriveWeekSuggestions(v);
+  const sugHtml = sug.length ? `<div class="sec-head">Suggestions</div><div class="wsv-sugs">${sug.map(s => `
+    <div class="wsv-sug wsv-sug-${s.kind}">
+      <div class="wsv-sug-t">${escapeHtml(s.title)}</div>
+      <div class="wsv-sug-w">${escapeHtml(s.why)}</div>
+      ${s.evidence ? `<div class="wsv-sug-e">${escapeHtml(s.evidence)}</div>` : ''}
+      ${s.rows ? `<div class="wsv-sug-rows">${s.rows.map(r => `<div class="wsv-sug-r"><b>${escapeHtml(r.name)}</b><span>${escapeHtml(r.headline)}</span><em>${escapeHtml(r.why)}</em></div>`).join('')}</div>` : ''}
+      ${s.fresh && s.fresh.length ? `<div class="wsv-sug-e">No history yet: ${escapeHtml(s.fresh.join(', '))}. Log them once to start tracking.</div>` : ''}
+      ${s.lifts && s.lifts.length ? `<div class="wsv-sug-rows">${s.lifts.map(l => `<div class="wsv-sug-r wsv-lift-${l.kind}"><b>${escapeHtml(l.name)}</b><span>${
+          l.kind === 'first' ? escapeHtml(l.now.weight + ' × ' + l.now.topReps) + ' · first time'
+          : escapeHtml(l.now.weight + ' × ' + l.now.topReps) + (l.kind === 'up' ? ' · up from ' : l.kind === 'same' ? ' · same as ' : ' · below ') + escapeHtml(l.prev.weight + ' × ' + l.prev.topReps)}</span></div>`).join('')}</div>` : ''}
+      ${s.fix && s.fix.after ? `<div class="wsv-sug-prev">After: ${escapeHtml(s.fix.after)}</div>` : ''}
+      <div class="wsv-sug-acts">
+        ${s.fix ? `<button type="button" class="wsv-btn" onclick="weekSheetApplyFix('${s.fix.a}','${s.fix.b}')">${escapeHtml(s.fix.text)}</button>` : ''}
+        <button type="button" class="wsv-btn wsv-btn-q" onclick="weekSheetDismiss('${escapeAttr(s.id)}')">Dismiss</button>
+      </div>
+    </div>`).join('')}</div>` : '';
+
+  /* 6 — what comes next */
+  let nextHtml = '';
+  if(v.state !== 'past'){
+    const nm = civilAddDays(v.monday, 7);
+    if(lastMon && nm > lastMon) nextHtml = `<div class="wsv-next">This is your program's last week.</div>`;
+    else {
+      const nv = deriveWeekView(p, nm);
+      const first = nv.days.find(d => d.workout);
+      const phaseChange = nv.phase && v.phase && nv.phase.id !== v.phase.id;
+      nextHtml = `<div class="wsv-next"><span class="wsv-k">Next week</span>${phaseChange ? `<b>${escapeHtml(nv.phase.name)} begins</b>` : ''}<span>${first ? escapeHtml(thisWeekShortName(first.template.name)) + ' on ' + escapeHtml(DAY_LABEL_FULL[first.key]) + ' · ' : ''}${nv.days.filter(d => d.workout).length} sessions</span></div>`;
+    }
+  }
+
+  /* 7 — the week's own words and changes */
+  const prevW = weekPlanOf(p, civilAddDays(v.monday, -7));
+  const canCopy = v.editable && v.state === 'upcoming' && prevW && prevW.ops && prevW.ops.length && !v.ops.length;
+  const canReset = v.editable && v.ops.length && !weekChangeBlocker(p, weekOpDates(v.monday, v.ops));
+  const words = st.words ? `<div class="wsv-words">
+      <label class="wsv-lbl" for="wsvName">Week name</label>
+      <input id="wsvName" class="wsv-in" maxlength="40" value="${escapeAttr(v.name || '')}" placeholder="Week ${v.calWeek}">
+      <label class="wsv-lbl" for="wsvNote">Note or goal</label>
+      <textarea id="wsvNote" class="wsv-in" maxlength="280" rows="3" placeholder="What this week is for">${escapeHtml(v.note || '')}</textarea>
+      <div class="wsv-sug-acts"><button type="button" class="wsv-btn" onclick="weekSheetSaveWords()">Save</button><button type="button" class="wsv-btn wsv-btn-q" onclick="weekSheetWords(false)">Cancel</button></div>
+    </div>` : '';
+  const actions = `<div class="sec-head">This week</div><div class="wsv-acts">
+      <button type="button" class="wsv-act" onclick="weekSheetWords(true)">${v.name || v.note ? 'Edit name and note' : 'Name this week or add a note'}</button>
+      ${canCopy ? `<button type="button" class="wsv-act" onclick="weekSheetCopyPrev()">Use last week's changes</button>` : ''}
+      ${canReset ? `<button type="button" class="wsv-act" onclick="weekSheetReset()">Reset to the program</button>` : ''}
+      <button type="button" class="wsv-act" onclick="closeWeekSheet(); openProgramSessionEditorFromWeek()">Change every week…</button>
+    </div>${words}`;
+
+  body.innerHTML = `<div class="wsv${how === 'step' ? ' wsv-step-in' : ''}">${overview}${schedule}${muscles}${done}${sugHtml}${nextHtml}${actions}
+    <div class="wsv-fine">Changes here apply to this week only and never to a day already over. Workouts you have logged are never changed.</div></div>`;
+}
+/* "Change every week" is the program's own editor, where recurring changes have always lived. */
+function openProgramSessionEditorFromWeek(){
+  try{ openTraining('program'); }catch(e){}
+}
+
+/* ---------- one session, this week ---------- */
+let weekSessionDraft = null;   // { monday, day, name, base:[…], ex:[…], review:false }
+function openWeekSession(day){
+  const st = weekSheetState;
+  const p = weekEditProgram();
+  if(!st || !p) return;
+  const date = weekDateOf(st.monday, day);
+  if(weekChangeBlocker(p, [date])) return;
+  const pd = getProgramWorkoutForDate(date, p);
+  if(!pd || !pd.template) return;
+  const ex = JSON.parse(JSON.stringify(pd.template.exercises || []));
+  weekSessionDraft = { monday: st.monday, day, date, name: pd.template.name, category: pd.category,
+    base: JSON.parse(JSON.stringify(ex)), ex, review: false };
+  renderWeekSession();
+  const ov = document.getElementById('weekSessionOverlay');
+  if(ov) ov.classList.add('open');
+}
+function closeWeekSession(){
+  const ov = document.getElementById('weekSessionOverlay');
+  if(ov) ov.classList.remove('open');
+  weekSessionDraft = null;
+  renderWeekSheet();
+}
+function weekSessionSet(i, field, value){
+  const d = weekSessionDraft;
+  if(!d || !d.ex[i]) return;
+  const x = d.ex[i];
+  if(field === 'sets') x.sets = Math.max(1, Math.min(10, (parseInt(x.sets, 10) || 3) + value));
+  else if(field === 'rest'){ const cur = x.restSec > 0 ? x.restSec : (restSecondsForReps(x.reps) || 90); x.restSec = Math.max(30, Math.min(300, cur + value)); }
+  else if(field === 'rir'){ x.effort = String(10 - 2 * Number(value)); }
+  else if(field === 'reps'){ const s = String(value || '').trim().replace(/-/g, '–').slice(0, 12); if(s && parseRepRange(s)) x.reps = s; }
+  renderWeekSession();
+}
+function weekSessionRemove(i){ const d = weekSessionDraft; if(!d || d.ex.length <= 1) return; d.ex.splice(i, 1); renderWeekSession(); }
+function weekSessionMoveEx(i, delta){
+  const d = weekSessionDraft; if(!d) return;
+  const j = i + delta; if(j < 0 || j >= d.ex.length) return;
+  const t = d.ex[i]; d.ex[i] = d.ex[j]; d.ex[j] = t; renderWeekSession();
+}
+function weekSessionPick(replaceIdx){
+  const d = weekSessionDraft; if(!d) return;
+  exPickerState = exPickerNewState('week', { replaceIdx: (typeof replaceIdx === 'number' ? replaceIdx : null),
+    category: d.category || null, already: d.ex.map(x => x.name) });
+  exPickerShow(exPickerState.replaceIdx === null ? 'Add exercises' : 'Replace exercise');   // D33 paints it above the sheets: stacking is open order
+}
+/* Picked in the shared picker: an added exercise brings the library's own prescription, as one added to a workout
+   does; a replacement keeps the slot's sets, reps, effort and rest (Program Studio's rule, D62) and drops a starting
+   weight that belonged to the movement it replaces. */
+function weekSessionPicked(st, names){
+  const d = weekSessionDraft; if(!d) return;
+  if(st.replaceIdx === null){
+    names.forEach(n => {
+      const rx = libraryPrescriptionFor(n, d.category) || {};
+      d.ex.push({ name: n, sets: parseInt(rx.sets, 10) || 3, reps: rx.reps || '8–12', effort: rx.effort || '7', recommended: '—' });
+    });
+  } else if(d.ex[st.replaceIdx] && names[0] && names[0] !== d.ex[st.replaceIdx].name){
+    d.ex[st.replaceIdx] = Object.assign({}, d.ex[st.replaceIdx], { name: names[0], recommended: '—' });
+  }
+  renderWeekSession();
+}
+/* What would change, line by line, before anything is applied. */
+function weekSessionDiff(d){
+  const lines = [];
+  const key = x => String(x.name).trim().toLowerCase();
+  const before = d.base, after = d.ex;
+  before.forEach(b => { if(!after.some(a => key(a) === key(b))) lines.push({ kind: 'out', text: `${b.name} removed` }); });
+  after.forEach(a => {
+    const b = before.find(x => key(x) === key(a));
+    if(!b){ lines.push({ kind: 'in', text: `${a.name} added · ${a.sets} × ${a.reps}` }); return; }
+    const ch = [];
+    if(String(a.sets) !== String(b.sets)) ch.push(`${b.sets} → ${a.sets} sets`);
+    if(String(a.reps) !== String(b.reps)) ch.push(`reps ${b.reps} → ${a.reps}`);
+    if(String(a.effort) !== String(b.effort)) ch.push(`${weekRirText(b) || 'effort'} → ${weekRirText(a)}`);
+    if((a.restSec || 0) !== (b.restSec || 0)) ch.push(`rest ${weekRestText(b)} → ${weekRestText(a)}`);
+    if(ch.length) lines.push({ kind: 'ch', text: `${a.name}: ${ch.join(', ')}` });
+  });
+  const order = a => a.map(key).filter(k => before.some(b => key(b) === k));
+  if(!lines.length && JSON.stringify(order(after)) !== JSON.stringify(before.map(key))) lines.push({ kind: 'ch', text: 'New exercise order' });
+  else if(lines.length && JSON.stringify(order(after)) !== JSON.stringify(order(before.filter(b => after.some(a => key(a) === key(b)))))) lines.push({ kind: 'ch', text: 'New exercise order' });
+  return lines;
+}
+function weekSessionReview(on){ const d = weekSessionDraft; if(!d) return; d.review = !!on; renderWeekSession(); }
+async function weekSessionApply(){
+  const d = weekSessionDraft; if(!d) return;
+  const r = await weekSetSession(d.monday, d.day, d.ex);
+  const before = d;
+  closeWeekSession();
+  weekSheetNotice(r.ok ? { text: `${thisWeekShortName(before.name)} changed for this week` } : { text: WEEK_BLOCK_WORDS[r.reason] || WEEK_BLOCK_WORDS.save });
+}
+async function weekSessionRestore(){
+  const d = weekSessionDraft; if(!d) return;
+  const r = await weekSetSession(d.monday, d.day, null);
+  const before = d;
+  closeWeekSession();
+  weekSheetNotice(r.ok ? { text: `${thisWeekShortName(before.name)} follows your program again` } : { text: WEEK_BLOCK_WORDS[r.reason] || WEEK_BLOCK_WORDS.save });
+}
+function renderWeekSession(){
+  const d = weekSessionDraft;
+  const body = document.getElementById('weekSessionBody');
+  if(!d || !body) return;
+  const t = document.getElementById('weekSessionTitle');
+  if(t) t.textContent = thisWeekShortName(d.name);
+  const p = weekEditProgram();
+  const edited = p ? !!(programPlanOn(p, d.date)[d.day] || {}).weekEdit : false;
+  if(d.review){
+    const lines = weekSessionDiff(d);
+    body.innerHTML = `<div class="wss">
+      <div class="wss-sub">${escapeHtml(DAY_LABEL_FULL[d.day])}, ${escapeHtml(weekDayDate(d.date))} · this week only</div>
+      ${lines.length ? `<div class="wss-diff">${lines.map(l => `<div class="wss-dl wss-dl-${l.kind}">${escapeHtml(l.text)}</div>`).join('')}</div>`
+        : '<div class="wss-sub">No changes yet.</div>'}
+      <div class="wsv-fine">Other weeks keep your program's session. Nothing you have logged changes.</div>
+    </div>`;
+    document.getElementById('weekSessionActions').innerHTML = `
+      <button class="btn-secondary" onclick="weekSessionReview(false)">Back</button>
+      <button class="btn-primary" ${lines.length ? '' : 'disabled'} onclick="weekSessionApply()">Apply to this week</button>`;
+    return;
+  }
+  body.innerHTML = `<div class="wss">
+    <div class="wss-sub">${escapeHtml(DAY_LABEL_FULL[d.day])}, ${escapeHtml(weekDayDate(d.date))} · changes apply to this week only</div>
+    ${d.ex.map((x, i) => {
+      const rir = effortToRir(x.effort);
+      const rirSel = [0, 1, 2, 3, 4].map(n => `<option value="${n}"${rir !== null && Math.round(rir) === n ? ' selected' : ''}>RIR ${n}</option>`).join('');
+      return `<div class="wss-ex">
+        <div class="wss-ex-top"><span class="wss-ex-n">${escapeHtml(x.name)}</span>
+          <span class="wss-ex-acts">
+            <button type="button" class="wss-ic" onclick="weekSessionMoveEx(${i},-1)" aria-label="Move ${escapeAttr(x.name)} up" ${i === 0 ? 'disabled' : ''}>↑</button>
+            <button type="button" class="wss-ic" onclick="weekSessionMoveEx(${i},1)" aria-label="Move ${escapeAttr(x.name)} down" ${i === d.ex.length - 1 ? 'disabled' : ''}>↓</button>
+            <button type="button" class="wss-ic" onclick="weekSessionPick(${i})" aria-label="Replace ${escapeAttr(x.name)}">⇄</button>
+            <button type="button" class="wss-ic" onclick="weekSessionRemove(${i})" aria-label="Remove ${escapeAttr(x.name)}" ${d.ex.length <= 1 ? 'disabled' : ''}>×</button>
+          </span></div>
+        <div class="wss-grid">
+          <div class="wss-f"><span class="wss-l">Sets</span><span class="wss-step">
+            <button type="button" onclick="weekSessionSet(${i},'sets',-1)" aria-label="Fewer sets">−</button><b>${escapeHtml(String(x.sets))}</b>
+            <button type="button" onclick="weekSessionSet(${i},'sets',1)" aria-label="More sets">+</button></span></div>
+          <div class="wss-f"><label class="wss-l" for="wssReps${i}">Reps</label><input id="wssReps${i}" class="wss-in" value="${escapeAttr(String(x.reps))}" inputmode="text" maxlength="12"
+            onchange="weekSessionSet(${i},'reps',this.value)" aria-label="Reps for ${escapeAttr(x.name)}"></div>
+          <div class="wss-f"><label class="wss-l" for="wssRir${i}">Effort</label><select id="wssRir${i}" class="wss-in" onchange="weekSessionSet(${i},'rir',this.value)" aria-label="Reps in reserve for ${escapeAttr(x.name)}">${rir === null ? '<option selected>—</option>' : ''}${rirSel}</select></div>
+          <div class="wss-f"><span class="wss-l">Rest</span><span class="wss-step">
+            <button type="button" onclick="weekSessionSet(${i},'rest',-15)" aria-label="Less rest">−</button><b>${escapeHtml(weekRestText(x) || '—')}</b>
+            <button type="button" onclick="weekSessionSet(${i},'rest',15)" aria-label="More rest">+</button></span></div>
+        </div>
+      </div>`;
+    }).join('')}
+    <button type="button" class="wsv-link" onclick="weekSessionPick()">+ Add exercise</button>
+    ${edited ? `<button type="button" class="wsv-link" onclick="weekSessionRestore()">Use the program's session again</button>` : ''}
+  </div>`;
+  document.getElementById('weekSessionActions').innerHTML = `
+    <button class="btn-secondary" onclick="closeWeekSession()">Cancel</button>
+    <button class="btn-primary" onclick="weekSessionReview(true)">Review changes</button>`;
+}
+
+/* ---------- the phase a week sits in, on the program map ---------- */
+/* A tapped phase selects the week the athlete is in when it is inside that phase, else the phase's first week. */
+function programMapSelectPhase(prefix, blockId){
+  const def = programMapDefs[prefix];
+  if(!def) return;
+  const b = (def.blocks || []).find(x => x.id === blockId);
+  if(!b) return;
+  const now = (programMapOpts[prefix] || {}).today;
+  programMapSelect(prefix, now && now >= b.startWeek && now <= b.endWeek ? now : b.startWeek);
+}
+/* One line under the selected week of a running program's map: its dates, how it went or will go, and the way in. */
+function programMapWeekFootHtml(def, week, prefix){
+  if(!def || !def.startDate || !def.id) return '';
+  const p = getProgram(def.id);
+  if(!p) return '';
+  const monday = civilAddDays(programWeekMonday(p), 7 * (week - 1));
+  const v = deriveWeekView(p, monday);
+  const phase = v.multiPhase && v.phase && v.phase.startWeek === week
+    ? `<div class="pm-phase-card"><b>${escapeHtml(v.phase.name)}</b><span>Weeks ${v.phase.startWeek}–${v.phase.endWeek}</span><em>${escapeHtml(v.phase.description || (v.phaseType && v.phaseType.purpose) || '')}</em></div>` : '';
+  const facts = [weekRangeText(monday), v.state === 'upcoming' ? `${v.planned} sessions planned` : `${v.done} of ${v.planned} done`];
+  if(v.ops.length) facts.push('customized');
+  if(v.name) facts.unshift(v.name);
+  return `${phase}<button type="button" class="pm-week-open" onclick="openWeekSheet('${monday}')">
+      <span class="pm-wo-t">Week ${week} details</span><span class="pm-wo-s">${escapeHtml(facts.join(' · '))}</span></button>`;
 }
 
 /* ---------- DAY EDIT SHEET ---------- */
@@ -35374,7 +36578,7 @@ function swapProgramDays(sched, a, b){
 function moveProgramDaysFrom(p, a, b, when){
   const from = programRevisionDate(when);
   const later = Array.isArray(p.revisions) ? p.revisions.filter(r => r && r.schedule && String(r.effectiveFrom) > from) : [];
-  const base = later.length ? programPlanOn(p, from) : p.schedule;
+  const base = later.length ? programTimelinePlanOn(p, from) : p.schedule;   // D159 — never a week's own changes
   const latest = swapProgramDays(p.schedule, a, b);
   later.forEach(r => { r.schedule = swapProgramDays(r.schedule, a, b); });
   addProgramRevision(p, swapProgramDays(base, a, b), from);
@@ -35467,7 +36671,7 @@ function setProgramDayFrom(p, key, entry, when){
   const from = programRevisionDate(when);
   const put = s => Object.assign({}, s || {}, { [key]: entry });
   const later = Array.isArray(p.revisions) ? p.revisions.filter(r => r && r.schedule && String(r.effectiveFrom) > from) : [];
-  const base = later.length ? programPlanOn(p, from) : p.schedule;
+  const base = later.length ? programTimelinePlanOn(p, from) : p.schedule;   // D159 — never a week's own changes
   const latest = put(p.schedule);
   const kept = materializeProgramPlan({ [key]: entry })[key];
   later.forEach(r => { r.schedule = Object.assign({}, r.schedule, { [key]: kept }); });
@@ -42223,6 +43427,8 @@ const CANONICAL_EXERCISES = [
   { id:'row_barbell',           displayName:'Barbell Row',            aliases:['barbell row','bent over row','bent-over row','bb row','barbell bent over row','pendlay row'], pattern:'horizontal_pull', equipment:'Barbell', primary:['back'], secondary:['biceps'], supports1RM:true },
   { id:'row_dumbbell',          displayName:'Dumbbell Row',           aliases:['dumbbell row','db row','one arm dumbbell row','single arm dumbbell row','one-arm row'], pattern:'horizontal_pull', equipment:'Dumbbell', primary:['back'], secondary:['biceps'], supports1RM:true },
   { id:'row_cable_seated',      displayName:'Seated Cable Row',       aliases:['seated cable row','cable row','seated row'], pattern:'horizontal_pull', equipment:'Cable', primary:['back'], secondary:['biceps'], supports1RM:false },
+  /* D159 — one handle at a time: the back's horizontal pull, one side. Reps are per arm, as LOOP writes one-sided work. */
+  { id:'row_cable_single',      displayName:'Single-Arm Cable Row',   aliases:['single-arm cable row','single arm cable row','one-arm cable row','one arm cable row','single-arm seated cable row','one-arm seated cable row','unilateral cable row'], pattern:'horizontal_pull', equipment:'Cable', primary:['back'], secondary:['biceps'], supports1RM:false },
   { id:'row_machine',           displayName:'Machine Row',            aliases:['machine row','chest supported row','chest-supported row','t-bar row','t bar row','seated machine row','iso-lateral row','plate-loaded row','low row machine'], pattern:'horizontal_pull', equipment:'Machine', primary:['back'], secondary:['biceps'], supports1RM:true },
   { id:'lat_pulldown',          displayName:'Lat Pulldown',           aliases:['lat pulldown','lat pull down','pulldown','lat pull-down','wide grip pulldown','lat pulldown machine'], pattern:'vertical_pull', equipment:'Cable', primary:['back'], secondary:['biceps'], supports1RM:false },
   { id:'pullup',                displayName:'Pull-Up',                aliases:['pull-up','pull up','pullup','pullups','pull-ups'], pattern:'vertical_pull', equipment:'Bodyweight', primary:['back'], secondary:['biceps'], supports1RM:false, bodyweight:true },
@@ -42244,6 +43450,8 @@ const CANONICAL_EXERCISES = [
   { id:'leg_curl',              displayName:'Leg Curl',               aliases:['leg curl','leg curls','lying leg curl','lying hamstring curl','prone leg curl','hamstring curl','leg curl machine','lying leg curl machine'], pattern:'hinge', equipment:'Machine', primary:['hamstrings'], secondary:[], supports1RM:false },
   { id:'leg_curl_seated',       displayName:'Seated Leg Curl',        aliases:['seated leg curl','seated leg curls','seated hamstring curl','machine seated leg curl'], pattern:'hinge', equipment:'Machine', primary:['hamstrings'], secondary:[], supports1RM:false },
   { id:'hip_thrust',            displayName:'Hip Thrust',             aliases:['hip thrust','barbell hip thrust'], pattern:'hinge', equipment:'Barbell', primary:['glutes'], secondary:['hamstrings'], supports1RM:true },
+  /* D159 — drawn and prescribed by a plan since D64's art, never registered: a hinge for the glutes. */
+  { id:'cable_pull_through',    displayName:'Cable Pull-Through',     aliases:['cable pull-through','cable pull through','pull-through','pull through','rope pull-through','glute pull-through'], pattern:'hinge', equipment:'Cable', primary:['glutes'], secondary:['hamstrings'], supports1RM:false },
   { id:'hip_thrust_machine',    displayName:'Hip Thrust Machine',     aliases:['hip thrust machine','machine hip thrust','glute drive','glute drive machine','plate-loaded hip thrust'], pattern:'hinge', equipment:'Machine', primary:['glutes'], secondary:['hamstrings'], supports1RM:true },
   { id:'glute_bridge',            displayName:'Glute Bridge',           aliases:['glute bridge','glute bridges','bodyweight glute bridge','floor glute bridge'], pattern:'hinge', equipment:'Bodyweight', primary:['glutes'], secondary:['hamstrings'], supports1RM:false, bodyweight:true },
   { id:'single_leg_glute_bridge', displayName:'Single-Leg Glute Bridge',aliases:['single-leg glute bridge','single leg glute bridge','single-leg glute bridges','one-leg glute bridge','single-leg bridge'], pattern:'hinge', equipment:'Bodyweight', primary:['glutes'], secondary:['hamstrings'], supports1RM:false, bodyweight:true },
@@ -42270,6 +43478,10 @@ const CANONICAL_EXERCISES = [
   { id:'curl_incline_db',       displayName:'Incline Dumbbell Curl',  aliases:['incline dumbbell curl','incline db curl','incline curl'], pattern:'isolation', equipment:'Dumbbell', primary:['biceps'], secondary:[], supports1RM:false },
   { id:'curl_preacher',         displayName:'Preacher Curl',          aliases:['preacher curl','ez bar preacher curl'], pattern:'isolation', equipment:'Barbell', primary:['biceps'], secondary:[], supports1RM:false },
   { id:'curl_cable',            displayName:'Cable Curl',             aliases:['cable curl','cable bicep curl','rope curl'], pattern:'isolation', equipment:'Cable', primary:['biceps'], secondary:[], supports1RM:false },
+  /* D159 — the reverse curl works the elbow flexors with the hands over the bar (the brachioradialis most; LOOP's group
+     for the elbow flexors is biceps). The Bayesian curl is a cable curl from behind the body: its own movement. */
+  { id:'curl_reverse_ez',       displayName:'EZ-Bar Reverse Curl',    aliases:['ez-bar reverse curl','ez bar reverse curl','reverse ez-bar curl','reverse ez bar curl','ez reverse curl','reverse curl','reverse grip curl','reverse-grip curl','reverse barbell curl'], pattern:'isolation', equipment:'Barbell', primary:['biceps'], secondary:[], supports1RM:false },
+  { id:'curl_bayesian',         displayName:'Bayesian Cable Curl',    aliases:['bayesian cable curl','bayesian curl','bayesian bicep curl','behind-the-body cable curl','behind the body cable curl'], pattern:'isolation', equipment:'Cable', primary:['biceps'], secondary:[], supports1RM:false },
   { id:'curl_machine',          displayName:'Machine Curl',           aliases:['machine curl','machine bicep curl','machine biceps curl','bicep curl machine','biceps curl machine','biceps machine','bicep machine','machine preacher curl','preacher curl machine'], pattern:'isolation', equipment:'Machine', primary:['biceps'], secondary:[], supports1RM:false },
   { id:'bench_press_close_grip',displayName:'Close-Grip Bench Press', aliases:['close-grip bench press','close grip bench press','cgbp'], pattern:'horizontal_push', equipment:'Barbell', primary:['triceps'], secondary:['chest','shoulders'], supports1RM:true },
   { id:'chest_fly_incline_cable',displayName:'Incline Cable Fly',     aliases:['incline cable fly','low to high cable fly','low-to-high fly'], pattern:'horizontal_push', equipment:'Cable', primary:['chest'], secondary:[], supports1RM:false },
@@ -47517,6 +48729,14 @@ function getBlockForWeek(program, week){
 function programPlanOn(program, dateStr){
   const p = program || getActiveProgram();
   if(!p) return {};
+  /* D159 — on a date in a week the athlete changed for itself, those changes on top (programWeekPlanApply). */
+  return programWeekPlanApply(p, dateStr, programTimelinePlanOn(p, dateStr));
+}
+/* D159 — the dated plan as the program's own timeline has it: D51's revisions, before any one-week change. A writer
+   that records a recurring revision reads this, so a change made for one week never becomes every week's. */
+function programTimelinePlanOn(program, dateStr){
+  const p = program || getActiveProgram();
+  if(!p) return {};
   const revs = Array.isArray(p.revisions) ? p.revisions : null;
   if(!revs || !revs.length) return p.schedule || {};
   /* Ordered by effectiveFrom; the last one that had started by `dateStr`
@@ -47760,7 +48980,7 @@ function getProgramWorkoutForDate(dateStr, program){
   if(template && Array.isArray(template.exercises)){
     const tp = trainingPhaseForPrescription(p, day, week);
     phase = tp.phase;
-    if(tp.apply){
+    if(tp.apply && !entry.weekEdit){   // D159 — the athlete set this week's numbers with the phase already in them
       return { entry, category: entry.category, week, phase,
         template: Object.assign({}, template,
           { exercises: deriveEffectivePrescription(template.exercises, tp.phase) }) };
@@ -48695,7 +49915,11 @@ const LIBRARY_EXTRAS = [
   { id:'hip_abduction_side_lying',  roles:['legs','lower','fullbody'], sets:3, reps:'12\u201315/side', effort:'7' },
   /* Leg Raise was found through the plans' Hanging Leg Raise rows while that was
      its alias. Split apart, it declares its own, for the days that train the abs. */
-  { id:'leg_raise',                 roles:['core','fullbody'],         sets:3, reps:'10\u201315', effort:'7' }
+  { id:'leg_raise',                 roles:['core','fullbody'],         sets:3, reps:'10\u201315', effort:'7' },
+  /* D159 */
+  { id:'curl_reverse_ez',           roles:['pull','upper','arms'],     sets:3, reps:'10\u201312', effort:'7' },
+  { id:'curl_bayesian',             roles:['pull','upper','arms'],     sets:3, reps:'10\u201315', effort:'7' },
+  { id:'row_cable_single',          roles:['pull','upper','fullbody'], sets:3, reps:'10\u201312/arm', effort:'7\u20138' }
 ];
 function libraryExtraFor(name){
   let id = null;
@@ -48839,7 +50063,8 @@ const NEVER_PRIMARY_IDS = [
   'nordic_curl', 'shrug', 'calf_raise',
   /* D63 */ 'lateral_raise_machine', 'reverse_pec_deck', 'leg_curl_seated',
   'calf_raise_seated', 'calf_raise_leg_press',
-  /* D64 */ 'bench_dip', 'wall_sit', 'glute_bridge', 'single_leg_glute_bridge'
+  /* D64 */ 'bench_dip', 'wall_sit', 'glute_bridge', 'single_leg_glute_bridge',
+  /* D159 */ 'cable_pull_through'
 ];
 
 /* ---------- ROLE ----------
@@ -48938,7 +50163,8 @@ function composeProgramSession(entry, base, phaseRx){
     const own = { id: (base && base.id) || ('own_' + (entry.category || 'session')),
       name: entry.name || (base && base.name) || CAT_LABEL[entry.category] || 'Session',
       exercises: entry.exercises.slice() };
-    const rxOwn = phaseRx || entry.rx || null;
+    /* D159 — a session the athlete set for one week carries the numbers they saw, phase included: not applied twice */
+    const rxOwn = entry.weekEdit ? null : (phaseRx || entry.rx || null);
     if(rxOwn) own.exercises = applyPrescription(own.exercises, rxOwn);
     return own;
   }
@@ -52522,6 +53748,8 @@ function exPickerApply(st, names){
   } else if(st.target === 'template'){
     if(st.replaceIdx === null) addPickedToTemplate(names);
     else replaceTemplateExercise(st.replaceIdx, names[0]);
+  } else if(st.target === 'week'){
+    weekSessionPicked(st, names);   // D159
   }
 }
 
@@ -53293,10 +54521,12 @@ function programMapInnerHtml(def, opts){
   const phaseLine = multi
     ? `<div class="pm-phases">${blocks.map(b => {
         const on = selPhase && b.id === selPhase.id;
-        return `<div class="pm-ph${on ? ' on' : ''}" style="flex:${b.endWeek - b.startWeek + 1}">
+        /* D159 — on a running program's map a phase is a button: it selects the phase's weeks */
+        const tag = o.interactive && o.dated ? 'button' : 'div';
+        return `<${tag}${tag === 'button' ? ` type="button" onclick="programMapSelectPhase('${prefix}','${escapeAttr(b.id)}')" aria-pressed="${on ? 'true' : 'false'}"` : ''} class="pm-ph${on ? ' on' : ''}" style="flex:${b.endWeek - b.startWeek + 1}">
           <span class="pm-ph-n">${escapeHtml(b.name)}</span>
           <span class="pm-ph-w">W${b.startWeek}–${b.endWeek}</span>
-        </div>`; }).join('')}</div>`
+        </${tag}>`; }).join('')}</div>`
     : (selPhase ? `<div class="pm-single"><b>${escapeHtml(selPhase.name)}</b>` +
         `${selPhase.description ? '<span>·</span>' + escapeHtml(selPhase.description) : ''}</div>` : '');
 
@@ -53305,7 +54535,8 @@ function programMapInnerHtml(def, opts){
   const context = deriveWeekContext(def, sel);
   const contextLine = context ? `<div class="pm-context">${escapeHtml(context)}</div>` : '';
 
-  return phaseLine + strip + contextLine + programMapWeekHtml(def, sel, o);
+  return phaseLine + strip + contextLine + programMapWeekHtml(def, sel, o)
+    + (o.interactive && o.dated ? programMapWeekFootHtml(def, sel, prefix) : '');   // D159
 }
 
 /* The selected week, as seven days. Rest is quiet; training days carry their
@@ -58627,6 +59858,7 @@ const EXERCISE_EQUIPMENT = {
   row_meadows:            ['barbell','landmine'],
   row_dumbbell:           ['dumbbells'],
   row_cable_seated:       ['seated_cable_row'],
+  row_cable_single:       [ANY_CABLE.concat(['seated_cable_row'])],   /* D159 — any cable, or the seated row's own */
   row_machine:            ['machine_row'],
   lat_pulldown:           ['lat_pulldown'],
   pullup:                 [['pullup_bar','assisted_pullup']],
@@ -58659,6 +59891,7 @@ const EXERCISE_EQUIPMENT = {
   good_morning:           ['barbell', ANY_RACK],
   hip_thrust:             [['barbell','hip_thrust_machine'], ANY_BENCH],
   hip_thrust_machine:     ['hip_thrust_machine'],
+  cable_pull_through:     [ANY_CABLE],   /* D159 */
   glute_bridge:           [],
   single_leg_glute_bridge: [],
   leg_curl:               ['leg_curl'],
@@ -58675,6 +59908,8 @@ const EXERCISE_EQUIPMENT = {
   curl_hammer:            ['dumbbells'],
   curl_incline_db:        ['dumbbells','adjustable_bench'],
   curl_cable:             [ANY_CABLE],
+  curl_reverse_ez:        [['barbell','ez_curl_bar']],   /* D159 */
+  curl_bayesian:          [ANY_CABLE],
   curl_machine:           ['curl_machine'],
   triceps_pushdown:       [ANY_CABLE],
   overhead_ext_triceps:   [ANY_CABLE],
@@ -61502,7 +62737,7 @@ async function startTemplateLog(cat, tplId, date){
     for(let i=0;i<setCount;i++) sets.push({ weight: weightVal, reps: plan ? plan.reps[i] : repVal });
     const meta = { targetSets: ex.sets, targetReps: ex.reps, recommended: ex.recommended };
     if(plan && plan.source !== 'program') meta.rxPlan = plan.reps.join(',');
-    addLogExerciseRow(ex.name, firstNumber(ex.effort), isBW, sets, restSecondsForReps(ex.reps), rec, meta);
+    addLogExerciseRow(ex.name, firstNumber(ex.effort), isBW, sets, ex.restSec > 0 ? ex.restSec : restSecondsForReps(ex.reps), rec, meta);   // D159 — a rest the athlete set for the week
   });
   openLogSheet();
 }

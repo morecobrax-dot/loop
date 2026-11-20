@@ -2805,6 +2805,21 @@ score — this workout was not logged against a prescribed plan", which was untr
 same alone as in the workout's history (Contract 281 A5). Workouts edited before D157 lost theirs; LOOP keeps no other
 copy, so nothing is restored and nothing is invented — they keep reading "No session score".
 
+## E83 — This Week answered a day already over from the active program even before the program existed, and called unknown days Rest · P3 · PROVEN · **CLOSED in D159 (LOOP 10.81)**
+
+Noted in D158 ("This Week marks pre-history days missed while the Log calendar shows them unknown"); that wording did not
+reproduce when D159 re-tested it on 10.80 (for the athlete D158 saw, This Week and the calendar agreed). Two real
+disagreements did (scratch probe-missed.js, Friday 20 Nov 2026):
+
+- **A program begun mid-week on other weekdays.** The weekly plan had Push on Monday, the program (Tue / Thu / Sat) began on
+  Wednesday. D44 and the Log calendar answer Monday from the plan in force that day (D145's `planTargetOn`: the weekly
+  plan) and say *missed*; This Week asked the active program, which did not exist yet, and said *Rest*.
+- **A planned day before the tracking start (D27).** The calendar says *unknown*; This Week said *Rest*.
+
+**D159.** `weekOverview` answers a day already over from before the active program began from `planTargetOn`, as D44 and
+the calendar do, and a planned day before the tracking start is "Not tracked" (status `unknown`). No unknown day became
+missed, and D44, the calendar and the day line are unchanged (Contract 283 F).
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

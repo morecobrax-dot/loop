@@ -20785,3 +20785,72 @@ before for one under way today; what follows is unchanged.
 **Held.** Every engine (Session Score, records, XP, Mastery, D44, programs), DATA_KEYS (16), the schema (1), Friends,
 the exercise art. Older checks D157 changed on purpose are restated beside their originals, each as the exact reversal
 of the change (records ∪ baselines where a surface used to count every event) or read with 10.78's renderers.
+
+## §204 — WEEKS THE ATHLETE SHAPES: THIS WEEK ONLY, A WEEK IN DETAIL, FOUR EXERCISES (D159 · LOOP 10.81 · loop-v258)
+
+**Why.** The owner asked for programs the athlete can rearrange, understand and personalise week by week, with
+explainable suggestions and new exercises, without weakening the history they already trust.
+
+**What existed.** This Week's long-press drag (D66, a 300 ms hold, lift, nearest-day geometry, settle, one write, Undo),
+the day sheet's Move this day, D143/D144's rule for when a recurring change may take effect today, D51's dated plan
+(`programPlanOn`, revisions recording whole plans with their exercises and prescriptions), D37/D85's phase prescription,
+the program map with phase bands and a week strip (D33/D150), and the progression engines (D49, D119, D152). Every move
+was RECURRING: dragging Legs from Friday to Saturday moved it for every following week.
+
+**THIS WEEK ONLY.** A running program records a week the athlete changed for itself as the changes themselves —
+`program.weekPlans[<Monday>].ops` — and `programPlanOn` applies them on top of the dated plan (`programTimelinePlanOn`,
+D51's resolution, unchanged). Two ops: `swap` (two weekdays exchange what they hold; a move to a free day is a swap with
+its rest) and `session` (the exercises, sets, reps, effort and rest of the session on a day, for that week; ignored if the
+day no longer holds that session; marked `weekEdit` so D37's phase prescription and D85's deload overlay are not applied
+over numbers the athlete set seeing them). Both keep the week's number of sessions, so D43's slot count, D90's end date
+and every adherence denominator are unchanged by construction. Every reader that already asks `programPlanOn` for a date
+— Today, This Week, D43, D44, the Log calendar, the program map, the missed check, the next session — sees the changed
+week; recurring edits still reach it, as D143's move reaches a waiting revision. The two recurring writers
+(`moveProgramDaysFrom`, `setProgramDayFrom`) build their revision from the timeline, never from a week's own changes.
+
+**The rule (D143's, for one week).** A week op is added, undone or reset only when every date it touches is today or
+later and inside the program (not before its start, not after its end, not paused), no workout is under way on an
+affected today, no session it moves has been trained, and D43 pairs every logged workout with the same date with and
+without it (`programWorkClaims`). Names, notes and dismissed suggestions are words only. Nothing here writes the workout
+log, a record, XP, a Session Score or a stored prescription. An athlete with no running program has only the weekly plan,
+which has no dates: a move there changes every week, and the confirmation says "Every week".
+
+**Interaction.** On a running program the drag lifts only a session still ahead; a day that cannot take it is dimmed and
+sends it home. The confirmation names what moved, "this week only", with Undo and "Every week" (which takes the week's
+swap back and makes the same swap through the recurring writer). Edit week opens the week sheet with a Move on every
+session still ahead and the six other days as large targets ("Swap · Push A" or "Free"). Collision policy: a drop on an
+occupied day swaps the two; one weekday holds one program session, so "keep both" is not offered.
+
+**A week in detail.** The week sheet (from This Week's Edit week and the program map's "Week N details"): week and dates,
+phase name, weeks and purpose (written phases only; the single default phase is not a phase), a planned lighter week said
+as such, sessions done of planned, planned time, missed; seven days with status by shape; each session's exercises with
+sets × reps, RIR (from effort, `effortToRir`), rest (`restSecondsForReps` unless the week set one) and a target weight only
+where the plan states one; planned sets by muscle (`deriveWorkoutProfile`'s crediting); planned against logged working
+sets for trained sessions; next week (its first session, a phase that begins). One session's week edit: sets, reps,
+effort, rest, order, replace / add (the shared picker, D62's replacement rule) / remove, then a line-by-line review
+before "Apply to this week". The program's phases on its map are buttons that select their weeks.
+
+**Suggestions (deterministic, from the engines that own each answer).** (1) Two sessions on consecutive days that lead
+with the same muscles, only where THIS WEEK'S changes put them together, with the first swap the rule allows that removes
+it (Apply / Dismiss, Undo after); (2) a missed session this week, said plainly, nothing squeezed in; (3) the next
+session's lifts as `progressionRecommendationFor` states them (its headline and its own why; lifts with no history named
+as such); (4) last week's sessions and planned sets done, and each lift against its previous session by D126's rule
+(heavier, or the same load for more reps). No confidence score, no recovery score, no load LOOP does not already compute;
+with nothing logged, LOOP says what it needs.
+
+**Data truth (the D158 note).** Re-tested on 10.80: the wording recorded in D158 did not reproduce, but This Week
+disagreed with D44 and the Log calendar in two cases: a day already over from before the active program began was read
+from the program (Rest) instead of the plan in force then (`planTargetOn`, D145); and a planned day from before the
+tracking start (D27) said Rest where the calendar says unknown. This Week now reads the first from `planTargetOn` and
+shows the second as "Not tracked". No unknown day became missed.
+
+**Exercises.** EZ-Bar Reverse Curl (`curl_reverse_ez`, Barbell / EZ bar, biceps — LOOP's elbow-flexor group), Single-Arm
+Cable Row (`row_cable_single`, back + biceps, reps per arm), Bayesian Cable Curl (`curl_bayesian`, biceps): registry,
+equipment, cues, a Program Studio prescription, and a drawing each in the existing renderer (pose + gear + scene).
+Cable Lateral Raise and Bulgarian Split Squat were already registry exercises; of the alternatives, Landmine Press was
+too and Chest-Supported T-Bar Row is already Machine Row's alias ("chest supported row", "t-bar row"), so only the
+Bayesian curl was a genuine gap. Cable Pull-Through (drawn and prescribed since D64, never registered) is registered —
+glutes, hamstrings, any cable, never a session's lead — with its drawing unchanged. Every other drawing is unchanged.
+
+**Held.** Workout log, XP, levels, records and baselines, Session Score, prescriptions of completed sessions, D43/D44
+semantics for weeks without changes, program completion, Friends, DATA_KEYS (16), schema (1), the rank insignia.
