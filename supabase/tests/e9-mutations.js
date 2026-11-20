@@ -8,7 +8,7 @@
    not text substitutions for their own sake; the ones that could not fail any
    test (an equivalent change) are not in the list.
 
-       npm install --no-save @electric-sql/pglite
+       npm install   (PGlite is a pinned devDependency)
        node supabase/tests/e9-mutations.js [M1,M5,...]                          */
 const fs = require('fs');
 const os = require('os');

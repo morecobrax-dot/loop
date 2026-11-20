@@ -10986,6 +10986,116 @@ div.fb-r{ cursor: default; }
 @keyframes sumMarkIn{ 0%{ opacity: 0; transform: scale(0.72); } 70%{ opacity: 1; transform: scale(1.04); } 100%{ transform: none; } }
 @keyframes sumStatIn{ from{ opacity: 0; transform: translateY(6px); } to{ opacity: 1; transform: none; } }
 /* ==== D156 PREMIUM PASS END ==== */
+/* ==== D158 EVERYDAY BEGIN ==== */
+/* =========================================================
+   EVERYDAY EXPERIENCE (Phase D158) — Today, Log and Progress, as one last layer.
+   Built on D132's roles and D156's motion vocabulary (--dur-press 100, --dur-feedback 140, --dur-step 200,
+   --dur-sheet 260 ms, --ease-out); nothing new is invented and the global reduced-motion rule stills all of it.
+   · Today: the unfinished card stays above today's plan (D156), quieter; the hero's actions say their full words;
+     the activity log and the check-in sit side by side as two quick tiles; This Week says what comes next.
+   · Log: Calendar | By exercise at the top; a date you can read; completed, planned and missed told apart by
+     SHAPE (filled dot, ring, struck ring), not only colour; the selected day filled, today ringed; Recent by month.
+   · Progress: a section opened draws its weekly bars in once; empty weeks are one line.
+   The exercise drawings, the rank insignia and the category colours are not touched.
+   ========================================================= */
+
+/* ---------- 1 · TODAY ---------- */
+/* An unfinished workout from another day: still its own card above today's plan, now a quiet one beside the hero. */
+.dr-card{ padding: 12px 14px; border-color: var(--hairline-strong); box-shadow: none; }
+.dr-title{ font-size: 16px; margin-top: 4px; }
+.dr-actions{ margin-top: 10px; }
+.dr-go{ flex: 0 0 auto; padding: 0 22px; color: var(--accent); }
+.dr-x{ border-color: transparent; padding: 0 14px; }
+/* The hero's secondary actions say what they do at every width: the full words wrap onto two short lines rather than
+   shrinking to "Time" and "Workout". */
+.tw-actions .tw-change{ white-space: normal; text-overflow: clip; line-height: 1.2; padding: 8px 6px; }
+@media (max-width: 419px){ .tw-action-full{ display: inline; } .tw-action-compact{ display: none; } }
+/* This Week's context: what comes next, and the whole plan one tap away. */
+.wk2-ctx{ grid-template-columns: minmax(0, 1fr) auto; align-items: center; }
+.wk2-plan{ min-height: 44px; padding: 0 2px 0 12px; background: none; border: 0; font: inherit; font-size: var(--fs-support);
+  font-weight: 600; color: var(--accent); cursor: pointer; white-space: nowrap; }
+.wk2-plan::after{ content: ' \203A'; }
+.wk2-plan:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+/* The two quick things: anything else done today, and how the athlete feels — two tiles in one row. */
+.today-quick{ display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.today-quick > div{ flex: 1 1 150px; min-width: 0; }
+.today-quick > div:empty{ display: none; }
+.today-quick > #todayActivity:has(.act-row), .today-quick > #readinessCard:has(.ready-expand, .ready-summary){ flex-basis: 100%; }
+.today-quick .act-block{ margin-top: 0; height: 100%; }
+.today-quick .act-log, .today-quick .ready-prompt{
+  display: flex; align-items: center; gap: 10px; width: 100%; height: 100%; min-height: 60px; margin: 0; padding: 10px 14px;
+  background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card); box-shadow: var(--elev-1);
+  font: inherit; text-align: left; color: var(--text); cursor: pointer;
+  transition: border-color var(--dur-feedback) var(--ease-out), transform var(--dur-press) var(--ease-out);
+}
+.today-quick .act-log{ justify-content: flex-start; }
+.today-quick .act-log-plus{ flex: 0 0 auto; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%;
+  background: var(--accent-soft); font-size: 17px; }
+.act-log-t{ display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+.act-log-s{ font-size: 12px; font-weight: 500; color: var(--text-faint); }
+.today-quick .ready-prompt{ flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; }
+.today-quick .ready-prompt-cta{ order: -1; font-size: 15px; font-weight: 700; color: var(--text); }
+.today-quick .ready-prompt-text{ font-size: 12px; font-weight: 500; color: var(--text-faint); }
+.today-quick .act-log:active, .today-quick .ready-prompt:active{ transform: var(--press); border-color: var(--hairline-strong); }
+.today-quick .ready-prompt:focus-visible, .ready-summary:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The summary is a button now: it keeps the card's look, not the browser's. */
+button.ready-summary{ width: 100%; font: inherit; color: var(--text); text-align: left; }
+.today-quick .ready-summary{ margin-top: 0; }
+
+/* ---------- 2 · LOG ---------- */
+.log-seg{ margin-top: 12px; }
+.log-seg + .history-subview{ margin-top: 2px; }
+#sv-exercise > select{ margin-top: 14px; }
+/* The calendar: a date you can read (the D132 ground and category tints stay). */
+.cal-grid{ gap: 4px; }
+.cal-cell{ gap: 4px; transition: background-color var(--dur-feedback) var(--ease-out), border-color var(--dur-feedback) var(--ease-out), color var(--dur-feedback) var(--ease-out); }
+.cal-daynum{ font-family: var(--font-ui), 'Inter', sans-serif; font-size: 14px; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.cal-has-log .cal-daynum{ color: var(--text); font-weight: 700; }
+.cal-future{ opacity: 0.5; }
+.cal-unknown{ opacity: 0.32; }
+/* States by shape as well as colour: completed a filled dot, planned a ring, missed a ring struck through. */
+.cal-mark{ width: 7px; height: 7px; box-sizing: border-box; }
+.cal-mark-planned, .cal-lg-planned{ border: 1.5px solid var(--text-dim); background: none; }
+.cal-mark-missed, .cal-lg-missed{ position: relative; border: 1.5px solid var(--c-warning); background: none; }
+.cal-mark-missed::after, .cal-lg-missed::after{ content: ''; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1.5px;
+  background: var(--c-warning); transform: translateX(-50%) rotate(45deg); }
+.cal-legend i{ width: 7px; height: 7px; box-sizing: border-box; }
+.cal-missed{ border-style: solid; }
+.cal-missed .cal-daynum{ color: var(--text-dim); }
+/* Today is ringed; the selected day is filled — the one interaction on this page reads at a glance. */
+.cal-cell.cal-selected{ border-style: solid; border-color: var(--accent); background: var(--accent); box-shadow: none; }
+.cal-cell.cal-selected .cal-daynum{ color: #06121F; font-weight: 700; }
+.cal-cell.cal-selected .cal-mark-done{ background: #06121F; }
+.cal-cell.cal-selected .cal-mark-planned, .cal-cell.cal-selected .cal-mark-missed{ border-color: #06121F; }
+.cal-cell.cal-selected .cal-mark-missed::after{ background: #06121F; }
+.cal-cell.cal-selected .cal-pr-dot{ background: #06121F; }
+.cal-nav-btn{ width: 44px; height: 44px; }
+/* On a tablet or a desktop the month is centred and wider. The 560 px rule meant to centre a 392 px grid, but the grid's
+   own margin shorthand, later in the sheet, took its auto margins away: the month sat against the card's left edge. */
+@media (min-width: 560px){
+  .cal-card .cal-grid, .cal-card .cal-weekdays{ max-width: 35rem; margin-inline: auto; }
+}
+button.cal-cell:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+/* The selected day's answer arrives under the calendar, not in a jump. */
+#historySelectedDay > *{ animation: d158Rise var(--dur-step) var(--ease-out) both; }
+/* Recent, by month. */
+.rw-month{ margin: 18px 0 2px; font-size: var(--fs-meta); font-weight: 700; letter-spacing: var(--eyebrow-track); text-transform: uppercase; color: var(--text-faint); }
+.rw-list > .rw-month:first-child{ margin-top: 6px; }
+.rw-meta{ font-family: var(--font-ui), 'Inter', sans-serif; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text-dim); }
+.rw-row{ transition: background-color var(--dur-feedback) var(--ease-out); }
+.rw-row:active{ background: var(--surface-2); }
+
+/* ---------- 3 · PROGRESS ---------- */
+.vw-none{ margin-top: 8px; padding: 14px 16px; background: var(--surface-1); border: 1px solid var(--hairline); border-radius: var(--r-card);
+  font-size: var(--fs-support); color: var(--text-dim); }
+#progVolChart .pd-delta{ margin: 8px 0 4px; }
+.rank-row:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+/* A section the athlete opens draws its weekly bars in once (the class lives 600 ms; a redraw never replays it). */
+.d158-enter #progVolChart svg rect{ transform-box: fill-box; transform-origin: 50% 100%; animation: d158Bar 320ms var(--ease-out) both; }
+.seg-btn:active{ transform: var(--press); }
+@keyframes d158Rise{ from{ opacity: 0; transform: translateY(6px); } to{ opacity: 1; transform: none; } }
+@keyframes d158Bar{ from{ transform: scaleY(0.15); } to{ transform: none; } }
+/* ==== D158 EVERYDAY END ==== */
 </style>
 </head>
 <body>
@@ -11052,9 +11162,6 @@ div.fb-r{ cursor: default; }
     <div id="missedBanner"></div>
     <!-- 1 — what am I doing today -->
     <div id="todayWorkout"></div>
-    <!-- 1b — anything else the athlete did today. Kept apart from the card
-         above on purpose: an activity is never the workout. -->
-    <div id="todayActivity"></div>
 
     <!-- 2 — how is my week going. D100: the athlete's real week comes before
          anything LOOP suggests. Objectives are optional guidance; the week is
@@ -11069,8 +11176,12 @@ div.fb-r{ cursor: default; }
          After the day and the week, never above them. -->
     <div id="todayFoundation"></div>
 
-    <!-- 3 — today's context -->
-    <div id="readinessCard"></div>
+    <!-- 3 — today's context. D158: the two quick things a day can ask for, side by side: anything else done today
+         (kept apart from the workout card on purpose, an activity is never the workout) and how the athlete feels. -->
+    <div class="today-quick" id="todayQuick">
+      <div id="todayActivity"></div>
+      <div id="readinessCard"></div>
+    </div>
 
     <!-- 4 — what is worth knowing right now -->
     <div id="todayInsights"></div>
@@ -11226,7 +11337,14 @@ div.fb-r{ cursor: default; }
       <button type="button" class="custom-log-btn" onclick="openFreeformLog()">+ Log workout</button>
     </div>
 
-    <div class="history-subview" id="sv-calendar">
+    <!-- D158: the calendar and the exercise list are the two ways into history, chosen at the top of Log. Browse by
+         exercise used to wait below the whole Recent list, and Back to calendar was its only way out. -->
+    <div class="seg log-seg" id="logSeg" role="tablist" aria-label="Log views">
+      <button type="button" class="seg-btn active" data-sv="calendar" role="tab" id="logTab-calendar" aria-controls="sv-calendar" aria-selected="true" onclick="setHistorySubView('calendar')">Calendar</button>
+      <button type="button" class="seg-btn" data-sv="exercise" role="tab" id="logTab-exercise" aria-controls="sv-exercise" aria-selected="false" onclick="setHistorySubView('exercise')">By exercise</button>
+    </div>
+
+    <div class="history-subview" id="sv-calendar" role="tabpanel" aria-labelledby="logTab-calendar">
       <div id="historyEmpty"></div>
       <div id="historyConsistency"></div>
 
@@ -11251,16 +11369,10 @@ div.fb-r{ cursor: default; }
 
       <div id="historyRecent"></div>
 
-      <button type="button" class="log-lens" onclick="setHistorySubView('exercise')">
-        <span class="log-lens-main">Browse by exercise</span>
-        <span class="log-lens-go" aria-hidden="true"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M6 3.5L10.5 8L6 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-      </button>
     </div>
 
-    <div class="history-subview" id="sv-exercise" style="display:none">
-      <button type="button" class="log-back" onclick="setHistorySubView('calendar')">
-        <span aria-hidden="true"><svg width="15" height="15" viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M10 3.5L5.5 8L10 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></span> Back to calendar
-      </button>
+    <div class="history-subview" id="sv-exercise" style="display:none" role="tabpanel" aria-labelledby="logTab-exercise">
+      <label class="sr-only" for="exHistorySelect">Exercise</label>
       <select id="exHistorySelect" onchange="renderExerciseHistoryList()"></select>
       <div id="exHistoryList"></div>
     </div>
@@ -21263,6 +21375,29 @@ const LOOP_UPDATES = [
       'The Summary compared a just-finished workout with itself when counting the sets that matched last time',
       'A workout logged for an earlier day compared its volume with a later workout',
       'Editing a past workout no longer removes its Session Score'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-80',
+    version: 'LOOP 10.80',
+    title: 'Today, Log & Progress, Clearer',
+    date: '2026-11-20',
+    swVersion: 'loop-v257',
+    summary: 'Today leads with your workout, Log makes a past session easier to find, and each Progress chart has one home.',
+    newFeatures: [],
+    improvements: [
+      'Today: Log activity and Check in sit side by side below your week, and This Week shows what comes next with a link to your full plan',
+      'Today’s workout buttons read View workout, Change time and Change workout in full on every phone',
+      'An unfinished workout from an earlier day has a quieter card, still with Resume and Discard',
+      'Log: Calendar and By exercise are tabs at the top of the page',
+      'The calendar marks a missed day with a struck-through ring as well as its colour, the day you select is filled in, and on a tablet the month is centred and full width',
+      'Recent workouts are grouped by month',
+      'Progress: the weekly volume chart lives on Volume, with its change across completed weeks and its unit; an empty week takes one line',
+      'Exercise rows on Strength open from the keyboard, and the check-in works as a button with screen readers'
+    ],
+    bugFixes: [
+      'Objectives no longer says your week is on track when it has not checked'
     ],
     changes: []
   }
@@ -34058,8 +34193,8 @@ function renderTodayActivity(){
   host.innerHTML = `
     <div class="act-block">
       ${today.length ? `<div class="act-k">Also today</div>${rows}` : ''}
-      <button type="button" class="act-log" onclick="openActivityLogger()">
-        <span class="act-log-plus" aria-hidden="true">+</span>Log activity
+      <button type="button" class="act-log" onclick="openActivityLogger()" aria-label="Log activity">
+        <span class="act-log-plus" aria-hidden="true">+</span><span class="act-log-t">Log activity<span class="act-log-s">A walk, a run, a sport</span></span>
       </button>
     </div>`;
 }
@@ -34954,9 +35089,11 @@ function renderWeekCard(){
         <span class="wk2-s">${escapeHtml(s.facts.join(' · '))}</span>
       </div>`;
   } else {
-    const t = m.today, n = m.upNext;
-    ctx = col('Today', thisWeekShortName(t.title), t.sub, 'wk2-' + t.status)
-      + (n ? col('Up next', thisWeekShortName(n.title), n.when, 'wk2-next') : col('Up next', 'Nothing scheduled', '', 'wk2-next wk2-none'));
+    /* D158 — Today's own card, just above, already says what today is: the week says what comes after it, and where
+       the whole plan lives. */
+    const n = m.upNext;
+    ctx = (n ? col('Up next', thisWeekShortName(n.title), n.when, 'wk2-next') : col('Up next', 'Nothing scheduled', '', 'wk2-next wk2-none'))
+      + '<button type="button" class="wk2-plan" onclick="openTraining(\'plan\')">Full plan</button>';
   }
 
   el.innerHTML = `
@@ -35918,6 +36055,8 @@ function setHistorySubView(sv){
   const ex = document.getElementById('sv-exercise');
   if(cal) cal.style.display = sv === 'calendar' ? 'block' : 'none';
   if(ex) ex.style.display = sv === 'exercise' ? 'block' : 'none';
+  /* D158 — the two ways into history are one control at the top of Log */
+  document.querySelectorAll('#logSeg .seg-btn').forEach(b => { const on = b.dataset.sv === sv; b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
   if(sv === 'calendar'){ renderLogPage(); renderHistoryCalendar(); }
   if(sv === 'exercise') renderExerciseHistorySelect();
 }
@@ -36397,23 +36536,36 @@ function historyOtherRowHtml(e){
    every set of every workout inline — 50 sessions came to 39,000px, so finding
    one from two weeks ago meant scrolling past ten full screens. The detail did
    not disappear; it moved one tap away, where it is actually read. */
+/* D158 — Recent is grouped by month: the month once, as a heading, and each row's day under it ("Wed 14"). */
+function recentMonthText(dateStr){
+  const d = new Date(String(dateStr) + 'T00:00:00');
+  return isNaN(d) ? '' : MONTH_NAMES[d.getMonth()] + ' ' + d.getFullYear();
+}
+function recentDayText(dateStr){
+  const d = new Date(String(dateStr) + 'T00:00:00');
+  return isNaN(d) ? String(dateStr || '') : d.toLocaleDateString('en-US', { weekday: 'short' }) + ' ' + d.getDate();
+}
 function recentWorkoutsHtml(limit){
   const logs = historyEntries();
   if(!logs.length) return '';
   const shown = logs.slice(0, limit || 8);
+  let month = '';
   const rows = shown.map(e => {
-    if(e.kind !== 'workout') return historyOtherRowHtml(e);
+    const m = String(e.date || '').slice(0, 7);
+    const head = m && m !== month ? `<h3 class="rw-month">${escapeHtml(recentMonthText(e.date))}</h3>` : '';
+    if(m) month = m;
+    if(e.kind !== 'workout') return head + historyOtherRowHtml(e);
     const l = e.rec;
     const exCount = (l.exercises || []).length;
     const setCount = (l.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
     let prs = 0;
     try{ prs = sessionRecordCount(l); }catch(e){}   // D157 — records that beat an earlier best
-    return `
+    return head + `
       <button type="button" class="rw-row" onclick="openDayDetail('${onclickArg(l.id)}')">
         ${workoutIdentityHtml(l, l.category, 'sm')}
         <span class="rw-body">
           <span class="rw-title">${escapeHtml(l.title)}</span>
-          <span class="rw-meta">${formatDateShort(l.date)} · ${exCount} exercise${exCount===1?'':'s'} · ${setCount} set${setCount===1?'':'s'}</span>
+          <span class="rw-meta">${escapeHtml(recentDayText(l.date))} · ${exCount} exercise${exCount===1?'':'s'} · ${setCount} set${setCount===1?'':'s'}</span>
         </span>
         ${prs ? `<span class="rw-pr">${prs > 1 ? prs + ' PRs' : 'PR'}</span>` : ''}
         <span class="rw-go" aria-hidden="true">${chevronRightSvg()}</span>
@@ -40106,12 +40258,10 @@ function renderTodayObjectives(){
 
   /* Absence is allowed to be positive. These lines appear only beside a row
      that does exist, so the card never exists just to say nothing is here. */
-  const todayBody = sets.daily.length
-    ? sets.daily.map(objectiveRowHtml).join('')
-    : '<div class="obj-none">You’re on track today.</div>';
-  const weekBody = sets.weekly.length
-    ? sets.weekly.map(objectiveRowHtml).join('')
-    : '<div class="obj-none">Your week is on track.</div>';
+  /* D158 — a group with nothing in it is left out. "Your week is on track" was printed for any week without a weekly
+     objective, including a week whose first two planned workouts had already been missed: a claim nothing checked. */
+  const todayBody = sets.daily.map(objectiveRowHtml).join('');
+  const weekBody = sets.weekly.map(objectiveRowHtml).join('');
 
   el.innerHTML = '' +
     '<div class="obj-card">' +
@@ -40119,8 +40269,8 @@ function renderTodayObjectives(){
         '<span class="obj-title">Objectives</span>' +
         '<button type="button" class="obj-all" onclick="openProfile(\'achievements\')">View all</button>' +
       '</div>' +
-      '<div class="obj-gl">Today</div>' + todayBody +
-      '<div class="obj-gl">This week</div>' + weekBody +
+      (todayBody ? '<div class="obj-gl">Today</div>' + todayBody : '') +
+      (weekBody ? '<div class="obj-gl">This week</div>' + weekBody : '') +
     '</div>';
   /* The one-shot arrival plays once, for the objectives that completed on this
      pass, and then never again on any later render. */
@@ -40670,6 +40820,13 @@ function switchProgTab(t){
     if(p) p.style.display = (k === t) ? 'block' : 'none';
   });
   renderProgTab();
+  /* D158 — a section the athlete opens draws its weekly bars in once: the class lives for 600 ms, so a later redraw (a
+     week tapped, a range changed) never replays it. Reduced motion stills it (the sheet's global rule). */
+  const opened = document.getElementById('ppanel-' + t);
+  if(opened && opened.classList){
+    opened.classList.remove('d158-enter'); void opened.offsetWidth; opened.classList.add('d158-enter');
+    clearTimeout(switchProgTab._enter); switchProgTab._enter = setTimeout(() => opened.classList.remove('d158-enter'), 600);
+  }
   /* D25: a newly opened Progress section starts at its top — the same rule the
      five bottom tabs already follow. Inheriting the previous section's depth
      put the athlete halfway down a screen they had just asked to see. */
@@ -41432,19 +41589,19 @@ function renderReadinessCard(){
 
   if(score === null){
     el.innerHTML = `
-      <div class="ready-prompt" onclick="toggleReadinessExpand()">
+      <button type="button" class="ready-prompt" onclick="toggleReadinessExpand()" aria-expanded="false">
         <span class="ready-prompt-text">How are you feeling today?</span>
         <span class="ready-prompt-cta">Check in ›</span>
-      </div>`;
+      </button>`;
     return;
   }
 
   el.innerHTML = `
-    <div class="ready-summary" onclick="toggleReadinessExpand()">
+    <button type="button" class="ready-summary" onclick="toggleReadinessExpand()" aria-expanded="false">
       <span class="ready-dot ready-dot-${state}"></span>
       <span class="ready-summary-text">${READINESS_STATE_LABEL[state]} <span class="ready-summary-score">${score}</span></span>
       <span class="ready-summary-edit">Edit</span>
-    </div>` + recoveryStripHtml();
+    </button>` + recoveryStripHtml();
 }
 
 /* Minimal recovery preview — a single line inside the existing readiness
@@ -43154,41 +43311,29 @@ function knownWeeklyBuckets(weeksBack){
   return { buckets: computeWeeklyVolume(known), clamped: known < weeksBack, known };
 }
 
-/* ---- TRAINING LOAD: the weekly-volume series, named for what it measures.
-   Total weight lifted is volume load, not pure strength — the graph stays on
-   the Strength tab as progression context, but it no longer claims to BE
-   strength. The per-lift trends above it carry that answer. ---- */
-function progStrengthCardHtml(){
-  const { buckets, clamped, known } = knownWeeklyBuckets(progRange);
-  const hasAny = buckets.some(b => b.volume > 0);
-  /* D154 (E77) — the week still under way is not a whole week (D25): compared in, it read every unfinished week as a
-     drop. Only completed weeks are compared. */
+/* ---- TRAINING LOAD (D154 E77; D158 reads it on Volume): how weekly volume load moved across the completed weeks on
+   screen — the later half's average against the earlier half's. The week still under way is not a whole week (D25),
+   so it is never compared in, and four completed weeks with volume are needed before anything is said. Total weight
+   lifted is volume load, not strength. Strength no longer draws this chart: it was the Volume tab's chart a second time. ---- */
+function trainingLoadDelta(buckets){
   const todayKey = localDateStr();
-  const withVol = buckets.filter(b => b.volume > 0 && !(b.start <= todayKey && todayKey < b.end));
-  let delta = null;
-  if(withVol.length >= 4){
-    const half = Math.floor(withVol.length / 2);
-    const early = withVol.slice(0, half).reduce((n,b)=>n+b.volume,0) / half;
-    const late = withVol.slice(-half).reduce((n,b)=>n+b.volume,0) / half;
-    if(early > 0) delta = Math.round(((late - early) / early) * 100);
-  }
-  return `
-    <section class="pd-card">
-      <div class="pd-card-top">
-        <div>
-          <h3 class="pd-card-title">Training load</h3>
-          <p class="pd-card-sub">Total weight lifted per week — volume load, not peak strength</p>
-        </div>
-        ${rangeBtns()}
-      </div>
-      ${hasAny ? `
-        ${delta !== null ? `<div class="pd-delta pd-${delta > 2 ? 'up' : delta < -2 ? 'down' : 'flat'}">
-          ${trendIconSvg(delta > 2 ? 'up' : delta < -2 ? 'down' : 'flat', 15)}
-          <span>${delta > 0 ? '+' : ''}${delta}% vs the first half of these completed weeks</span></div>` : ''}
-        ${volumeBarSvg(buckets)}
-        ${clamped ? `<div class="pd-chart-cov">Showing all ${known} week${known===1?'':'s'} LOOP has tracked</div>` : ''}`
-      : `<div class="pd-note">Log weighted sets and your weekly volume appears here.</div>`}
-    </section>`;
+  const withVol = (buckets || []).filter(b => b.volume > 0 && !(b.start <= todayKey && todayKey < b.end));
+  if(withVol.length < 4) return null;
+  const half = Math.floor(withVol.length / 2);
+  const early = withVol.slice(0, half).reduce((n,b)=>n+b.volume,0) / half;
+  const late = withVol.slice(-half).reduce((n,b)=>n+b.volume,0) / half;
+  return early > 0 ? Math.round(((late - early) / early) * 100) : null;
+}
+function trainingLoadDeltaHtml(delta){
+  if(delta === null || delta === undefined) return '';
+  const dir = delta > 2 ? 'up' : delta < -2 ? 'down' : 'flat';
+  return `<div class="pd-delta pd-${dir}">${trendIconSvg(dir, 15)}<span>${delta > 0 ? '+' : ''}${delta}% vs the first half of these completed weeks</span></div>`;
+}
+/* D158 — a row that opens an exercise answers Enter and Space as its tap does, so a keyboard reaches it too */
+function rankRowKey(ev){
+  if(!ev || (ev.key !== 'Enter' && ev.key !== ' ')) return;
+  ev.preventDefault();
+  if(ev.currentTarget && typeof ev.currentTarget.click === 'function') ev.currentTarget.click();
 }
 
 /* ---- MUSCLE DEVELOPMENT: the existing muscle mastery ranking, promoted ---- */
@@ -43522,7 +43667,7 @@ function renderProgStrength(){
   const readyHtml = ready.length ? `
     <div class="sec-head">Ready to progress<span class="sec-hint">from your own logged sessions</span></div>
     <div class="rank-list">${ready.slice(0,5).map(r => `
-      <div class="rank-row" onclick="openExDetail('${onclickArg(r.name)}')">
+      <div class="rank-row" role="button" tabindex="0" onclick="openExDetail('${onclickArg(r.name)}')" onkeydown="rankRowKey(event)">
         <div class="rank-name">${escapeHtml(r.name)}<span class="rank-sub">${escapeHtml(r.rec.why)}</span></div>
         <div class="rank-val up">${escapeHtml(r.rec.headline.split(' × ')[0])}</div>
       </div>`).join('')}</div>` : '';
@@ -43533,7 +43678,7 @@ function renderProgStrength(){
      Overview now answers "what have I trained" with the muscle summary,
      which reads at a glance where a ranked text list did not. */
   document.getElementById('progReady').innerHTML =
-    readyHtml + progStrengthCardHtml() + progPRCardHtml()
+    readyHtml + progPRCardHtml()   /* D158 — Training load is read on Volume, beside the weekly chart it used to draw a second time */
     + '<div class="sec-head">Most trained<span class="sec-hint">sessions logged</span></div>'
     + mostTrainedHtml(5);
 
@@ -43541,7 +43686,7 @@ function renderProgStrength(){
   document.getElementById('progExercises').innerHTML = `
     <div class="sec-head">All exercises<span class="sec-hint">tap for detail</span></div>
     ${trends.length ? `<div class="rank-list">${trends.map(t => `
-      <div class="rank-row" onclick="openExDetail('${onclickArg(t.name)}')">
+      <div class="rank-row" role="button" tabindex="0" onclick="openExDetail('${onclickArg(t.name)}')" onkeydown="rankRowKey(event)">
         <div class="rank-name">${escapeHtml(t.name)}<span class="rank-sub">${t.sessions} sessions</span></div>
         ${progTrendSparkHtml(t)}
         <div class="rank-val trend-${t.dir}">${trendIconSvg(trendDirOf(t.dir))} ${t.pct>=0?'+':''}${Math.round(t.pct)}%</div>
@@ -43585,7 +43730,12 @@ function renderProgVolume(){
       <span class="vw-c">vs <b>${f(prevV)}</b>${delta}</span></div>`;
   };
   const complete = daysIn >= 7;
-  document.getElementById('progVolCompare').innerHTML = `
+  /* D158 — two empty sides are one sentence, not four zeros measured against four zeros */
+  if(!cur.length && !prev.length){
+    document.getElementById('progVolCompare').innerHTML = `
+    <div class="sec-head">This week so far<span class="sec-hint">vs same point last week</span></div>
+    <div class="vw-none">No workouts logged yet this week, or by this point last week.</div>`;
+  } else document.getElementById('progVolCompare').innerHTML = `
     <div class="sec-head">This week so far<span class="sec-hint">vs same point last week</span></div>
     <div class="vw-grid">
       ${cell('Workouts', cur.length, prev.length)}
@@ -43605,9 +43755,9 @@ function renderProgVolume(){
   const isLatest = !sel || !buckets.length || sel.start === buckets[buckets.length - 1].start;
   document.getElementById('progVolChart').innerHTML = `
     <div class="sec-head">Weekly volume${rangeBtns()}</div>
-    ${hasAny ? volumeBarSvg(buckets, { selectKey: sel ? sel.start : '' }) +
+    ${hasAny ? trainingLoadDeltaHtml(trainingLoadDelta(buckets)) + volumeBarSvg(buckets, { selectKey: sel ? sel.start : '' }) +
       (clamped ? `<div class="pd-chart-cov">Showing all ${known} week${known===1?'':'s'} LOOP has tracked</div>` : '') +
-      `<div class="pd-chart-cov">Tap a week to see what it trained.</div>`
+      `<div class="pd-chart-cov">Total weight lifted each week, in lb: volume load, not peak strength. Tap a week to see what it trained.</div>`
     : `<div class="mini-empty">Log weighted sets to see your volume trend.</div>`}`;
 
   /* D46B — the SAME derivation Today's summary uses, which is the surface that
@@ -43627,8 +43777,10 @@ function renderProgVolume(){
     ? `Sets this week by muscle<span class="sec-hint">working sets</span>`
     : `Sets by muscle<span class="sec-hint">week of ${escapeHtml(sel.label)}</span>`;
   const wkEmpty = isLatest ? 'No working sets logged yet this week' : 'No working sets logged that week';
-  document.getElementById('progVolMuscle').innerHTML =
-    `<div class="sec-head">${wkHead}</div>
+  document.getElementById('progVolMuscle').innerHTML = !wk.muscles.length
+    /* D158 — an empty week is one line, not an unlit figure over an empty list */
+    ? `<div class="sec-head">${wkHead}</div><div class="mini-empty">${wkEmpty}.</div>`
+    : `<div class="sec-head">${wkHead}</div>
      <div class="mv-card">
        <div class="mv-top">
          <div class="mv-body">${bodyDiagramSvg(null, wk.totals)}</div>

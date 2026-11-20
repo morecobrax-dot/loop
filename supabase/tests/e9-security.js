@@ -11,7 +11,7 @@
                D has a pending request to A,  E has an account and no profile,
                anon is the publishable key and nothing else.
 
-       npm install --no-save @electric-sql/pglite
+       npm install   (PGlite is a pinned devDependency)
        node supabase/tests/e9-security.js            (all migrations)
        MIG_DIR=<dir> node supabase/tests/e9-security.js   (a mutated copy)   */
 const fs = require('fs');

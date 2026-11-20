@@ -13,7 +13,7 @@
                link and previews it before accepting; H (hana) is A's friend and
                deletes her account; anon is the publishable key and nothing else.
 
-       npm install --no-save @electric-sql/pglite
+       npm install   (PGlite is a pinned devDependency)
        node supabase/tests/d155-profiles.js                 (all migrations)
        MIG_DIR=<dir> node supabase/tests/d155-profiles.js   (a mutated copy)  */
 const fs = require('fs');

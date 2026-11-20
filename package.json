@@ -18,7 +18,11 @@
     "audit:cardio": "node loop-cardio-stress.js",
     "audit:program": "node loop-program-audit.js",
     "test:sql": "node supabase/tests/e9-security.js",
+    "test:db": "node supabase/tests/e9-security.js && node supabase/tests/e9-mutations.js && node supabase/tests/d155-profiles.js && node supabase/tests/d155-mutations.js",
     "status": "node scripts/project-status.js verify"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8"
   },
   "engines": {
     "node": ">=18"

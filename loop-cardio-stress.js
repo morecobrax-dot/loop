@@ -1,6 +1,6 @@
 /* D32 lifecycle stress — 20 sessions of start/pause/resume/finish against the
    real functions, counting every resource the session is supposed to release. */
-const path = 'C:/Users/Jacob/Desktop/Claude Coding Projects/loop/';
+const path = require('path').join(__dirname, '/');   /* D158: this folder, not one machine's own path (the repo is public) */
 const H = require(path + 'loop-test-harness.js');
 const api = (H.loadApp || H.load || H.buildApp || H.default)();
 const A = api.app || api.ctx || api;

@@ -7,13 +7,13 @@
    repo's migrations, verbatim.
 
    Needs PGlite, which the app itself never does:
-       npm install --no-save @electric-sql/pglite                          */
+       npm install   (PGlite is a pinned devDependency)                          */
 const fs = require('fs');
 const path = require('path');
 let PGlite;
 try{ ({ PGlite } = require('@electric-sql/pglite')); }
 catch(e){
-  console.error('This suite runs the migrations on a real PostgreSQL and needs PGlite:\n  npm install --no-save @electric-sql/pglite');
+  console.error('This suite runs the migrations on a real PostgreSQL and needs PGlite:\n  npm install   (PGlite is a pinned devDependency)');
   process.exit(2);
 }
 const MIG = process.env.MIG_DIR || path.join(__dirname, '..', 'migrations');

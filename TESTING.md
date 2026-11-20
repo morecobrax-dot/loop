@@ -129,9 +129,10 @@ and without a routine manual device pass.
 **VERIFY.** Run every relevant automated gate, and fix the cause of any failure:
 `npm run verify` (it runs the PROJECT-STATUS gate first), `npm run audit`,
 `audit:dates`, `audit:gps`, `audit:cardio`, `audit:program`; the database
-suites (`node supabase/tests/e9-security.js`, `e9-mutations.js`,
-`d155-profiles.js`, `d155-mutations.js`; they need PGlite, from
-`npm install --no-save @electric-sql/pglite` or `NODE_PATH`); a headless-browser check of the
+suites (`npm run test:db`: `e9-security.js`, `e9-mutations.js`,
+`d155-profiles.js`, `d155-mutations.js`; they run the migrations on PGlite, a
+pinned devDependency — `npm ci` on a fresh checkout installs exactly it, and
+the app itself still has no dependencies); a headless-browser check of the
 affected screens at phone widths, with reduced motion where motion changed;
 and the data-integrity protections (XP, levels, history, programs, Friends
 data and exercise artwork unchanged unless the phase is about them).

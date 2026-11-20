@@ -9,7 +9,7 @@
    they must not), CATALOG when only a privilege/definition check did. The repo's
    migrations are never touched.
 
-       npm install --no-save @electric-sql/pglite
+       npm install   (PGlite is a pinned devDependency)
        node supabase/tests/d155-mutations.js [D1,D5,...]                         */
 const fs = require('fs');
 const os = require('os');
