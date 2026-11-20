@@ -3,11 +3,11 @@
   "appId": "loop",
   "version": "10.79",
   "phase": null,
-  "status": "stable",
-  "needsQa": true,
+  "status": "release_ready",
+  "needsQa": false,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "Owner iPhone QA (10.79) of the release candidate rc/loop-10.79: workout logging, an unfinished workout, an edit, baselines and a program’s end. Not released.",
+  "nextAction": "LOOP 10.79 release (loop-v256): automated gates passed; deploying to GitHub Pages, then confirming the live app.",
   "blocker": null,
-  "updatedAt": "2026-11-19T21:58:22Z"
+  "updatedAt": "2026-11-20T01:23:45Z"
 }

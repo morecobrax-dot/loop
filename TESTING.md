@@ -118,6 +118,50 @@ Ground-truth decision scenarios, monotonicity (improving performance never yield
 
 ---
 
+## Release policy — BUILD → VERIFY → DEPLOY → CONFIRM
+
+Adopted by the owner on 2026-11-19 (first used for LOOP 10.79). A completed,
+verified development phase ships to the live app without another approval
+and without a routine manual device pass.
+
+**BUILD.** Implement the approved phase completely, within its scope.
+
+**VERIFY.** Run every relevant automated gate, and fix the cause of any failure:
+`npm run verify` (it runs the PROJECT-STATUS gate first), `npm run audit`,
+`audit:dates`, `audit:gps`, `audit:cardio`, `audit:program`; the database
+suites (`node supabase/tests/e9-security.js`, `e9-mutations.js`,
+`d155-profiles.js`, `d155-mutations.js`; they need PGlite, from
+`npm install --no-save @electric-sql/pglite` or `NODE_PATH`); a headless-browser check of the
+affected screens at phone widths, with reduced motion where motion changed;
+and the data-integrity protections (XP, levels, history, programs, Friends
+data and exercise artwork unchanged unless the phase is about them).
+
+**DEPLOY.** Pre-authorized when every gate passes:
+1. Add the `LOOP_UPDATES` entry in `index.html`, dated the deploy day in
+   America/New_York (Node `Intl`, never the shell's `TZ`), every line true
+   against the previous release; its `swVersion` is the new `sw.js`
+   `CACHE_VERSION`, which is never reused.
+2. `PROJECT-STATUS.json`: the new `version`, `status` `release_ready`.
+3. Commit, fast-forward `main` (`git merge --ff-only`; never force-push,
+   never rewrite history) and `git push origin main`. GitHub Pages
+   ("pages build and deployment") publishes `main`.
+
+**CONFIRM.** A push is not a release. Watch the Pages run to success, then
+compare cache-busted sha256 of the live `index.html`, `sw.js`,
+`manifest.webmanifest` and every changed file with the committed blobs, and
+check the live app reports the new version. Only then set `PROJECT-STATUS.json`
+to `stable` with the live version, commit and push it. Report the released
+version, deployment commit, test results, live status, the user-visible
+changes and any limitation.
+
+**Stop and ask the owner only when** a destructive or irreversible migration
+is required (database migrations are always applied by the owner), user data
+could be lost or corrupted, a serious security issue or critical test failure
+is unresolved, a major product decision falls outside the approved scope, or
+the deployment cannot be completed or verified safely. Never bypass a gate.
+
+---
+
 ## Mission Control status
 
 `PROJECT-STATUS.json` at the repository root is this project's public status.
