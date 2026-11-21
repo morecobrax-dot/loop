@@ -11398,6 +11398,41 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
 .wsv-lift-k{ margin-right: 6px; font-style: normal; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
 .wsv-lift-better .wsv-lift-k{ color: var(--c-progress); }
 /* ==== D161 GUIDANCE END ==== */
+/* ==== D162 ONE PLAN BEGIN ==== */
+/* Coaching cards lead with what the session starts at; evidence and the one change on request; the week's balance so far. */
+.gd{ gap: 6px; }
+.gd-plan{ display: flex; flex-direction: column; gap: 1px; padding: 8px 0 2px; border-top: 1px solid var(--hairline); }
+.gd-plan-k{ font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-faint); }
+.gd-plan-v{ font-size: 17px; font-weight: 700; line-height: 1.3; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.gd-plan-s{ font-size: 12.5px; line-height: 1.4; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.gd-st-chosen .gd-k{ color: var(--accent); }
+.gd-st-chosen .gd-plan-k{ color: var(--accent); }
+.gd-why{ font-size: 12.5px; }
+.gd-auto{ color: var(--text-faint); }
+.gd-det, .gd-conf{ display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--hairline-strong); animation: d159In var(--dur-step) var(--ease-out) both; }
+.gd-det[hidden], .gd-bal-all[hidden]{ display: none; }
+.gd-det .gd-prev-r{ grid-template-columns: 96px minmax(0, 1fr); }
+.gd-det .gd-prev-r b{ font-weight: 500; color: var(--text-dim); }
+.gd-why-full{ margin-top: 4px; }
+.gd-conf .gd-acts{ margin-top: 6px; }
+.gd-acts{ align-items: center; }
+.gd-acts .gd-det-b{ flex: 0 0 auto; min-width: 0; margin-left: auto; padding: 0 4px; }
+.gd-acts .gd-b:only-child{ flex: 0 0 auto; }
+/* the week's balance, inside Coaching notes */
+.gd-bal{ display: flex; flex-direction: column; gap: 4px; margin: 2px 0 10px; padding: 12px 14px; border-radius: var(--r-card); background: var(--surface-1); border: 1px solid var(--hairline); }
+.gd-bal-h{ margin: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-faint); }
+.gd-bal-l{ margin: 0; font-size: 13px; line-height: 1.45; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.gd-bal-l:first-of-type{ color: var(--text); }
+.gd-bal-all{ display: flex; flex-direction: column; animation: d159In var(--dur-step) var(--ease-out) both; }
+.gd-bal-r{ display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; padding: 6px 0; border-top: 1px solid var(--hairline); font-size: 13px; font-variant-numeric: tabular-nums; }
+.gd-bal-r span{ color: var(--text-dim); }
+.gd-bal-r b{ font-weight: 600; color: var(--text); }
+/* training details: the load a session ahead starts at, quiet; a load the athlete chose stands out (D161) */
+.wsv-ex-s .wsv-b-plan{ color: var(--text-dim); }
+/* Exercise Detail and the summary: the next session, when it starts elsewhere */
+.exd-plan-note{ margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: var(--text); font-variant-numeric: tabular-nums; }
+.nexttime-up{ color: var(--text); }
+/* ==== D162 ONE PLAN END ==== */
 </style>
 </head>
 <body>
@@ -21840,6 +21875,28 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [
       'A one-week phase now shows as Week 8 (W8 on the program map) instead of Weeks 8–8'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-84',
+    version: 'LOOP 10.84',
+    title: 'One Plan, Every Screen',
+    date: '2026-11-21',
+    swVersion: 'loop-v261',
+    summary: 'Coaching notes, Objectives and your week now show the same plan for each upcoming session: the weight the workout already starts at, and your own choice when you make one.',
+    newFeatures: [
+      'Training balance in your week’s Coaching notes: planned against done working sets so far, the muscle furthest from its plan, and anything you trained outside the plan',
+      'Last week now compares sessions and working sets with the week before'
+    ],
+    improvements: [
+      'Coaching cards lead with what your next session already starts at, with the full evidence under Details',
+      'A heavier or lighter weight LOOP has already planned is no longer offered as something to apply: keep your last weight instead, with a preview first and Undo after',
+      'Training details show the weight each session ahead starts at',
+      'Exercise Detail and Next Time say when your next session starts somewhere else, such as a deload week or your own choice'
+    ],
+    bugFixes: [
+      'Objectives no longer ask for a weight your next workout won’t use: after you keep your last weight, in a deload week, or when a lift is swapped or a session moved'
     ],
     changes: []
   }
@@ -35186,7 +35243,17 @@ function rankWorthKnowing(cands){
 }
 function deriveWorthKnowing(){
   const cands = [];
-  worthKnowingRecentLifts().forEach(l => { const it = worthKnowingLiftItem(l.name, l.lastDate); if(it) cands.push(it); });
+  /* D162 — a lift whose next scheduled session starts elsewhere (the athlete's choice for it, or its deload week) is not
+     called ready for a change there: the session already says what it will be */
+  worthKnowingRecentLifts().forEach(l => {
+    const it = worthKnowingLiftItem(l.name, l.lastDate);
+    if(!it) return;
+    if(it.type === 'lift' && (it.state === 'ready' || it.state === 'reduce') && it.evidence && it.evidence.next){
+      const u = guideUpcomingFor(loggedExerciseKey(String(l.name).trim()));
+      if(u && upcomingDiffersText(u, Number(it.evidence.next.weight))) return;
+    }
+    cands.push(it);
+  });
   let t = null;
   try{ t = worthKnowingTrendItem(getTopCoachInsight()); }catch(e){ t = null; }
   if(t) cands.push(t);
@@ -36436,9 +36503,14 @@ function renderWeekSheet(how, focusId){
         const bits = [`${escapeHtml(String(x.sets))} × ${escapeHtml(String(x.reps))}`];
         const rir = weekRirText(x); if(rir) bits.push(rir);
         const rest = weekRestText(x); if(rest) bits.push('rest ' + rest);
-        const own = sessionStartLoad(sl, x.name, d.date);
-        if(own > 0) bits.push('<b class="wsv-b-load">starts ' + escapeHtml(fmtLoad(own)) + '</b>');
-        else if(x.recommended && x.recommended !== '—' && x.recommended !== 'Bodyweight') bits.push(escapeHtml(x.recommended));
+        /* D162 — a session still ahead shows the load it will start at (planSessionLift: the athlete's choice, LOOP's plan or
+           the deload's), never the program's stated starting weight in its place */
+        const ahead = d.date >= localDateStr() && !d.logged && (d.status === 'planned' || d.status === 'today');
+        let L = null;
+        if(ahead){ try{ L = planSessionLift(x, { startLoads: sl, date: d.date, deload: isDeloadWorkout({ phase: d.phase }), engineDate: d.date }); }catch(e){ L = null; } }
+        const pl = plannedLoadOf(L);
+        if(pl > 0) bits.push(L.source === 'choice' ? '<b class="wsv-b-load">starts ' + escapeHtml(fmtLoad(pl)) + ' · your choice</b>' : '<span class="wsv-b-plan">starts ' + escapeHtml(fmtLoad(pl)) + '</span>');
+        else if(!ahead && x.recommended && x.recommended !== '—' && x.recommended !== 'Bodyweight') bits.push(escapeHtml(x.recommended));
         return `<div class="wsv-ex-r"><span class="wsv-ex-n">${escapeHtml(x.name)}</span><span class="wsv-ex-s">${bits.map(b => '<span class="wsv-b">' + b + '</span>').join('<span class="wsv-dot" aria-hidden="true"> · </span>')}</span></div>`;
       }).join('')}</div>
       ${v.editable && d.movable ? `<button type="button" class="wsv-link" data-fid="cust-${d.key}" onclick="openWeekSession('${d.key}')">Customize this session for this week</button>` : ''}
@@ -36459,9 +36531,10 @@ function renderWeekSheet(how, focusId){
   let guide = [];
   if(gp && gp.id === p.id && v.state !== 'past'){ try{ guide = deriveNextSessionGuidance().items.filter(it => it.date >= v.monday && it.date <= v.sunday); }catch(e){ guide = []; } }
   const guideN = guideTop(guide).length;
-  const notesHtml = guideWeekHtml(guide) + (notes.length ? `<div class="wsv-sugs">${notes.map(sugCard).join('')}</div>` : '');
+  const notesHtml = guideWeekHtml(guide) + weekBalanceHtml(v) + (notes.length ? `<div class="wsv-sugs">${notes.map(sugCard).join('')}</div>` : '');   // D162 — and the week's balance so far
   const narr = review && review.lifts ? weekReviewNarrative(review) : '';
   const lastHtml = review ? `<div class="wsv-sug wsv-sug-review"><div class="wsv-sug-w">${escapeHtml(review.why)}${narr ? '. ' + escapeHtml(narr) + '.' : ''}</div>
+      ${(() => { const vs = review.id && /^review:/.test(review.id) ? weekVersusText(p, review.id.slice(7)) : ''; return vs ? `<div class="wsv-sug-e">${escapeHtml(vs)}</div>` : ''; })()}
       ${review.deload ? `<div class="wsv-sug-e">A planned lighter week: its lifts are not compared with your heavier ones.</div>` : ''}
       ${review.changed ? `<div class="wsv-sug-e">You rearranged this week, so it is read as you set it.</div>` : ''}
       ${review.paused ? `<div class="wsv-sug-e">Paused for ${review.paused} planned day${review.paused === 1 ? '' : 's'}: not counted as missed.</div>` : ''}
@@ -36493,7 +36566,7 @@ function renderWeekSheet(how, focusId){
     weekSectionHtml('details', 'Training details', plural(sessions.length, 'session') + ' · exercises, sets, reps and rest', details),
     weekSectionHtml('muscles', 'Muscle workload', groups.length ? 'Most: ' + groups.slice(0, 2).map(muscleGroupLabel).join(', ') : '', muscles),
     weekSectionHtml('work', 'Planned and done', work.length ? work.reduce((n, x) => n + x.done, 0) + ' of ' + work.reduce((n, x) => n + x.planned, 0) + ' planned sets' : '', workHtml),
-    weekSectionHtml('coaching', 'Coaching notes', guideN ? plural(guideN, 'suggestion') + ' for your next sessions' : guide.length ? 'Every lift on track' + (notes.length ? ' · ' + plural(notes.length, 'note') : '') : plural(notes.length, 'note'), notesHtml),
+    weekSectionHtml('coaching', 'Coaching notes', guideN ? plural(guideN, 'suggestion') + ' for your next sessions' : guide.length ? 'Every lift on track' + (notes.length ? ' · ' + plural(notes.length, 'note') : '') : (notes.length ? plural(notes.length, 'note') : 'Training balance so far'), notesHtml),
     weekSectionHtml('last', review && review.title === 'Last week' ? 'Last week' : 'How this week went', review ? review.why : '', lastHtml),
     weekSectionHtml('notes', 'Notes and changes', v.name || v.note ? 'Named and noted' : 'Name, note, copy or reset', notesActs)
   ].join('');
@@ -36878,7 +36951,10 @@ function guideItemFor(s, x){
   let hist = [];
   try{ hist = bw ? (bodyweightSessionHistory(name, 3) || []) : exerciseSessionHistory(name, 3); }catch(e){ hist = []; }
   const last = hist[0] || null;
-  const own = !bw && !s.deload ? sessionStartLoad(s.startLoads, name, s.date) : null;
+  /* D162 — what the workout will start with, by the start's own rule (planSessionLift), for this session's date */
+  let L = null;
+  if(!bw){ try{ L = planSessionLift(x, { startLoads: s.startLoads, date: s.date, deload: isDeloadWorkout({ phase: s.phase }), engineDate: s.date }); }catch(e){ L = null; } }
+  const own = L ? L.own : null;
 
   let kind = rec.tag === 'increase' ? 'load-up' : rec.tag === 'reduce' ? 'load-down' : rec.tag === 'build' ? 'reps-up'
     : rec.tag === 'plateau' ? (rec.trend === 'declining' ? 'declining' : 'stalled')
@@ -36894,30 +36970,50 @@ function guideItemFor(s, x){
   const curLoad = bw ? null : (own != null ? own : (last ? last.weight : null));
   const sugLoad = bw ? null : (rec.weight != null && !isNaN(rec.weight) ? Number(rec.weight) : null);
   const rx = { sets, reps: String(x.reps || ''), rir: guideRirText(effortToRir(x.effort)) };
-  /* the sets the logger will fill in: D125's plan at each load (or D119's reps for a bodyweight lift) */
-  let planNow = null, planNext = null;
-  if(!bw && sugLoad > 0){
-    try{ planNext = deriveWorkingSetPlan(name, x.reps, sets, own != null && own !== sugLoad ? { weight: sugLoad, tag: 'hold' } : rec, { deload: s.deload }); }catch(e){ planNext = null; }
-    if(curLoad > 0 && curLoad !== sugLoad){
-      try{ planNow = deriveWorkingSetPlan(name, x.reps, sets, { weight: curLoad, tag: 'hold' }, { deload: s.deload }); }catch(e){ planNow = null; }
-    }
-  }
+  /* the planned session: the load and sets the workout starts with now (choice, trainer or deload) */
+  const planned = bw ? { load: null, reps: rec.reps != null ? [rec.reps] : null, source: 'bodyweight' }
+    : { load: plannedLoadOf(L), reps: L && L.plan ? L.plan.reps : null, source: L ? L.source : 'none' };
+  const engineLoad = bw ? null : (L && L.engine && L.engine.weight != null && !isNaN(L.engine.weight) ? Number(L.engine.weight) : null);
+  let enginePlan = null;
+  if(!bw && engineLoad > 0){ try{ enginePlan = deriveWorkingSetPlan(name, x.reps, sets, L.engine, { deload: isDeloadWorkout({ phase: s.phase }) }).reps; }catch(e){ enginePlan = null; } }
+  const lastLoad = !bw && last ? last.weight : null;
+  /* a choice stored for this lift that no longer holds: logged since, or now inside a deload week */
+  const stored = !bw && s.startLoads && s.startLoads[key] ? performedLoad(s.startLoads[key].load) : null;
+  const lapsed = stored > 0 && own === null ? (deloadActiveOn(s.date) ? 'deload' : 'logged') : null;
+  const loadKind = kind === 'load-up' || kind === 'load-down';
+  const editable = !!(s.program && s.editable);
+  /* what the athlete can choose for this one session: keep the load last performed instead of LOOP's change, or give a
+     choice back to LOOP's plan. Choosing LOOP's own number is not offered: the workout already starts there. */
+  const keepLoad = editable && loadKind && lastLoad > 0 && planned.load > 0 && lastLoad !== planned.load && (own === null || own === engineLoad) ? lastLoad : null;
+  let keepPlan = null;
+  if(keepLoad){ try{ keepPlan = deriveWorkingSetPlan(name, x.reps, sets, { weight: keepLoad, tag: 'hold' }, { deload: isDeloadWorkout({ phase: s.phase }) }).reps; }catch(e){ keepPlan = null; } }
+  const backTo = editable && own !== null && engineLoad > 0 && own !== engineLoad ? engineLoad : null;
+  /* LOOP's own load, fixed for this session (10.83's "Use"): still a week change the API can write, never offered on a card —
+     the workout already starts there */
+  const pinnable = editable && loadKind && own === null && engineLoad > 0 && lastLoad > 0 && engineLoad !== lastLoad;
+  const status = own !== null && engineLoad > 0 && own !== engineLoad ? 'chosen'
+    : bw && kind === 'reps-up' ? 'aim'
+    : (loadKind || kind === 'reps-up' || kind === 'deload' || kind === 'stalled' || kind === 'hold' || kind === 'declining') && planned.load > 0 ? 'planned'
+    : 'info';
+  /* the D161 names, kept: what the athlete is at (their choice, else the load last performed) and the engine's answer */
+  const planNow = !bw && curLoad > 0 && curLoad !== sugLoad ? (() => { try{ return deriveWorkingSetPlan(name, x.reps, sets, { weight: curLoad, tag: 'hold' }, { deload: s.deload }); }catch(e){ return null; } })() : null;
+  const planNext = L && L.plan ? L.plan : null;
   const evidence = hist.map(h => bw
     ? weekDayDate(h.date) + ' · ' + repsWord(h.topReps) + ' · ' + h.workingSets + (h.prescribedSets ? ' of ' + h.prescribedSets : '') + ' sets'
     : weekDayDate(h.date) + ' · ' + fmtLoad(h.weight) + ' × ' + h.topReps + ' · ' + h.workingSets + (h.prescribedSets ? ' of ' + h.prescribedSets : '') + ' sets'
       + (h.avgRir != null ? ' · ' + guideRirText(h.avgRir) : ' · effort not logged'));
 
-  const loadKind = kind === 'load-up' || kind === 'load-down';
-  const apply = !!(s.program && s.editable && loadKind && sugLoad > 0 && curLoad > 0 && sugLoad !== curLoad);
+  const apply = !!(keepLoad || backTo);
   const chosen = own != null && own === sugLoad && loadKind;
   const similar = !!(s.program && s.editable && kind === 'stalled');
   const value = sugLoad != null ? sugLoad : (rec.reps != null ? rec.reps : '');
-  const fp = [kind, curLoad, sugLoad, own, rec.reps, last ? last.date + '/' + last.weight + '/' + last.topReps : '-', s.date, sets, rx.reps].join('|');
+  const fp = [kind, curLoad, sugLoad, own, rec.reps, last ? last.date + '/' + last.weight + '/' + last.topReps : '-', s.date, sets, rx.reps, planned.load, (planned.reps || []).join(',')].join('|');
   return { id: 'g:' + s.date + ':' + key, key, name, date: s.date, day: s.day, category: s.category,
     session: thisWeekShortName(s.template.name || CAT_LABEL[s.category] || 'Workout'), program: !!s.program,
     kind, tag: rec.tag, state: (() => { try{ return exerciseDetailStateOf(rec); }catch(e){ return null; } })(), why, engineWhy: rec.why || '', bw, rx, phase: s.phase, deload: !!s.deload,
     current: { load: curLoad, reps: bw ? (last ? last.topReps : null) : null, own: own != null },
     suggested: { load: sugLoad, reps: bw ? (rec.reps != null ? rec.reps : null) : null },
+    planned, engineLoad, enginePlan, last, own, lapsed, status, keepLoad, keepPlan, backTo, pinnable, editable, canChange: apply,
     planNow, planNext, evidence, apply, chosen, similar, basis: startLoadBasis(name),
     dismissId: 'g:' + key + ':' + kind + ':' + value + ':' + s.date, fp };
 }
@@ -36950,8 +37046,11 @@ function guideIsDismissed(it){
 }
 /* The suggestions worth a card: an answer the athlete can act on, not set aside, the load ones first. */
 function guideActionable(it){
-  if(it.dismissed || it.chosen) return false;
-  if(it.kind === 'load-up' || it.kind === 'load-down') return it.suggested.load > 0 && it.suggested.load !== it.current.load;
+  if(it.dismissed) return false;
+  /* D162 — a card for what changes in the session ahead: a new load LOOP planned, the athlete's own choice, a stalled lift
+     that can be swapped, or an added rep */
+  if(it.status === 'chosen') return true;
+  if(it.kind === 'load-up' || it.kind === 'load-down') return it.planned.load > 0 && !!it.last && it.planned.load !== it.last.weight;
   return it.kind === 'stalled' || it.kind === 'reps-up';
 }
 function guideTop(items, n){
@@ -36961,8 +37060,9 @@ function guideTop(items, n){
 }
 /* A suggestion in a few words, for a line. */
 function guideShort(it){
-  if(it.kind === 'load-up' || it.kind === 'load-down') return fmtLoad(it.suggested.load) + (it.current.load > 0 ? ' (' + guideSignedLoad(it.suggested.load - it.current.load) + ')' : '');
-  if(it.kind === 'reps-up') return it.bw && it.suggested.reps ? 'aim for ' + repsWord(it.suggested.reps) : 'one more rep at ' + fmtLoad(it.suggested.load);
+  if(it.status === 'chosen') return fmtLoad(it.planned.load) + ', your choice';
+  if(it.kind === 'load-up' || it.kind === 'load-down') return 'starts at ' + fmtLoad(it.planned.load) + (it.last && it.last.weight > 0 ? ' (' + guideSignedLoad(it.planned.load - it.last.weight) + ')' : '');
+  if(it.kind === 'reps-up') return it.bw && it.suggested.reps ? 'aim for ' + repsWord(it.suggested.reps) : (it.planned.load > 0 ? guideSetsText(it.planned.load, it.planned.reps) : 'one more rep');
   if(it.kind === 'stalled') return 'stalled — try a similar exercise';
   return GUIDE_WORD[it.kind] || '';
 }
@@ -36974,59 +37074,35 @@ function guidePlanText(load, plan){
 /* ---------- presentation ---------- */
 const guideState = { open: {}, all: false, done: null };
 function guideCardHtml(it){
-  const when = DAY_LABEL_FULL[it.day] + ' · ' + it.session;
-  const rows = [];
-  /* once acted on, the card keeps saying what was decided, from what it showed when the athlete chose */
-  const decided = guideState.done === it.id && guideState.doneFrom;
-  if(it.kind === 'load-up' || it.kind === 'load-down'){
-    const cur = decided ? guideState.doneFrom : it.current;
-    rows.push(['Current', fmtLoad(cur.load) + ' · ' + it.rx.sets + ' × ' + it.rx.reps + (cur.own ? ' · your choice' : '')]);
-    rows.push(['Suggested', fmtLoad(it.suggested.load) + ' · ' + it.rx.sets + ' × ' + it.rx.reps]);
-  } else if(it.kind === 'reps-up'){
-    rows.push(['Current', it.bw ? repsWord(it.current.reps) : (guidePlanText(it.suggested.load, it.planNow) || fmtLoad(it.suggested.load) + ' · ' + it.rx.sets + ' × ' + it.rx.reps)]);
-    rows.push(['Suggested', it.bw ? repsWord(it.suggested.reps) : (guidePlanText(it.suggested.load, it.planNext) || fmtLoad(it.suggested.load))]);
-  } else {
-    rows.push(['Current', (it.suggested.load > 0 ? fmtLoad(it.suggested.load) + ' · ' : '') + it.rx.sets + ' × ' + it.rx.reps]);
-  }
+  const sid = it.id.replace(/[^a-z0-9]/gi, '');
+  const when = DAY_LABEL_FULL[it.day] + ', ' + weekDayDate(it.date) + ' · ' + it.session;
   const open = !!guideState.open[it.id];
-  const pid = 'gdPrev-' + it.id.replace(/[^a-z0-9]/gi, '');
+  const conf = guideState.confirm && guideState.confirm.id === it.id ? guideState.confirm.which : null;
   const done = guideState.done === it.id;
-  let prev = `<div class="gd-prev" id="${pid}" hidden></div>`;   // the region the Preview button controls, empty while closed
-  if(open){
-    const lines = [];
-    if(it.kind === 'load-up' || it.kind === 'load-down'){
-      if(it.planNow) lines.push(['Now', guidePlanText(it.current.load, it.planNow)]);
-      lines.push(['After', guidePlanText(it.suggested.load, it.planNext)]);
-    } else if(it.kind === 'reps-up' && !it.bw){
-      lines.push(['Sets', guidePlanText(it.suggested.load, it.planNext)]);
-    } else if(it.kind === 'reps-up'){
-      lines.push(['Target', repsWord(it.suggested.reps) + ' on your best set']);
-    }
-    const fine = it.apply
-      ? 'Only ' + DAY_LABEL_FULL[it.day] + ', ' + weekDayDate(it.date) + ' changes. Your program, other weeks, logged workouts, records and XP stay as they are.' + (it.current.own ? ' Applying replaces the load you chose for this session.' : '')
-      : it.kind === 'reps-up' ? 'LOOP fills these in when you start ' + it.session + '. Every set stays yours to change.'
-      : it.similar ? 'Opens ' + it.session + ' for this week only, at this exercise; its sets, reps, effort and rest stay.'
-      : 'Nothing changes unless you choose it.';
-    prev = `<div class="gd-prev" id="${pid}">
-      <div class="gd-prev-h">${escapeHtml(DAY_LABEL_FULL[it.day] + ', ' + weekDayDate(it.date) + ' · ' + it.session)}</div>
-      ${lines.map(l => `<div class="gd-prev-r"><span>${escapeHtml(l[0])}</span><b>${escapeHtml(l[1])}</b></div>`).join('')}
-      <div class="gd-fine">${escapeHtml(fine)}</div></div>`;
+  /* the headline: what the session starts with now — LOOP's plan or the athlete's choice — never the load last performed
+     presented as if it were the plan */
+  const k = it.status === 'aim' ? GUIDE_STATUS_WORD.aim : GUIDE_STATUS_WORD.planned;
+  const v = it.bw ? (it.suggested.reps ? repsWord(it.suggested.reps) : '') : guideSetsText(it.planned.load, it.planned.reps);
+  const sub = guidePlanSub(it);
+  const auto = it.status === 'planned' && (it.kind === 'load-up' || it.kind === 'load-down' || it.kind === 'reps-up')
+    ? 'Already set for this session: Start fills it in.' : '';
+  const acts = [];
+  if(!conf){
+    if(it.similar) acts.push(`<button type="button" class="wsv-btn gd-b" data-fid="gds-${escapeAttr(it.id)}" onclick="guideSimilar('${escapeAttr(it.id)}')">Choose a similar exercise</button>`);
+    if(it.keepLoad) acts.push(`<button type="button" class="wsv-btn wsv-btn-q gd-b" data-fid="gdk-${escapeAttr(it.id)}" aria-expanded="false" aria-controls="gdConf-${sid}" onclick="guideConfirm('${escapeAttr(it.id)}','current')">Keep ${escapeHtml(fmtLoad(it.keepLoad))} instead</button>`);
+    if(it.backTo) acts.push(`<button type="button" class="wsv-btn wsv-btn-q gd-b" data-fid="gdu-${escapeAttr(it.id)}" aria-expanded="false" aria-controls="gdConf-${sid}" onclick="guideConfirm('${escapeAttr(it.id)}','suggested')">Use LOOP’s ${escapeHtml(fmtLoad(it.backTo))}</button>`);
+    if(it.similar) acts.push(`<button type="button" class="wsv-btn wsv-btn-q gd-b" data-fid="gdk-${escapeAttr(it.id)}" onclick="guideDismiss('${escapeAttr(it.id)}')">Keep ${escapeHtml(it.name)}</button>`);
   }
-  const acts = done ? '' : [
-    `<button type="button" class="wsv-btn wsv-btn-q gd-b" data-fid="gdp-${escapeAttr(it.id)}" aria-expanded="${open ? 'true' : 'false'}" aria-controls="${pid}" onclick="guideTogglePreview('${escapeAttr(it.id)}')">Preview</button>`,
-    it.apply ? `<button type="button" class="wsv-btn gd-b" data-fid="gda-${escapeAttr(it.id)}" onclick="guideApply('${escapeAttr(it.id)}','${escapeAttr(it.fp)}','suggested')">Use ${escapeHtml(fmtLoad(it.suggested.load))}${it.current.own ? ' instead' : ''}</button>` : '',
-    it.similar ? `<button type="button" class="wsv-btn gd-b" data-fid="gds-${escapeAttr(it.id)}" onclick="guideSimilar('${escapeAttr(it.id)}')">Choose a similar exercise</button>` : '',
-    it.apply && !it.current.own ? `<button type="button" class="wsv-btn wsv-btn-q gd-b" data-fid="gdk-${escapeAttr(it.id)}" onclick="guideApply('${escapeAttr(it.id)}','${escapeAttr(it.fp)}','current')">Keep ${escapeHtml(fmtLoad(it.current.load))}</button>`
-      : `<button type="button" class="wsv-btn wsv-btn-q gd-b" data-fid="gdk-${escapeAttr(it.id)}" onclick="guideDismiss('${escapeAttr(it.id)}')">Keep current</button>`
-  ].join('');
-  return `<article class="gd gd-${escapeAttr(it.kind)}" data-gd="${escapeAttr(it.id)}" aria-labelledby="gdN-${escapeAttr(it.id.replace(/[^a-z0-9]/gi, ''))}">
-    <div class="gd-h"><span class="gd-k">${escapeHtml(GUIDE_WORD[it.kind] || '')}</span><span class="gd-when">${escapeHtml(when)}</span></div>
-    <div class="gd-n" id="gdN-${escapeAttr(it.id.replace(/[^a-z0-9]/gi, ''))}">${escapeHtml(it.name)}</div>
-    <div class="gd-cmp">${rows.map(r => `<div class="gd-cmp-r${r[0] === 'Suggested' ? ' gd-sug' : ''}"><span>${escapeHtml(r[0])}</span><b>${escapeHtml(r[1])}</b></div>`).join('')}</div>
-    <p class="gd-why"><span class="gd-lbl">Why</span>${escapeHtml(it.why)}</p>
-    ${it.evidence.length ? `<div class="gd-ev"><span class="gd-lbl">Evidence</span>${it.evidence.slice(0, 2).map(e => `<span>${escapeHtml(e)}</span>`).join('')}<span>Program: ${escapeHtml(it.rx.sets + ' × ' + it.rx.reps + (it.rx.rir ? ' · ' + it.rx.rir : ''))}</span></div>` : ''}
-    ${prev}
-    ${done ? `<div class="gd-done" tabindex="-1" id="gdDone">${escapeHtml(guideDoneWords(it))}</div>` : `<div class="gd-acts">${acts}</div>`}
+  const det = `<button type="button" class="gd-more gd-det-b" data-fid="gdp-${escapeAttr(it.id)}" aria-expanded="${open ? 'true' : 'false'}" aria-controls="gdDet-${sid}" onclick="guideToggleDetails('${escapeAttr(it.id)}')">${open ? 'Hide details' : 'Details'}</button>`;
+  return `<article class="gd gd-${escapeAttr(it.kind)} gd-st-${escapeAttr(it.status)}" data-gd="${escapeAttr(it.id)}" aria-labelledby="gdN-${sid}">
+    <div class="gd-h"><span class="gd-k">${escapeHtml(it.status === 'chosen' ? 'Your choice' : (GUIDE_WORD[it.kind] || ''))}</span><span class="gd-when">${escapeHtml(when)}</span></div>
+    <div class="gd-n" id="gdN-${sid}">${escapeHtml(it.name)}</div>
+    ${v ? `<div class="gd-plan"><span class="gd-plan-k">${escapeHtml(k)}</span><b class="gd-plan-v">${escapeHtml(v)}</b>${sub ? `<span class="gd-plan-s">${escapeHtml(sub)}</span>` : ''}</div>` : ''}
+    <p class="gd-why">${escapeHtml(guideFirstSentence(it.why))}${auto ? ` <span class="gd-auto">${escapeHtml(auto)}</span>` : ''}</p>
+    ${open ? guideDetailsHtml(it, sid) : `<div class="gd-det" id="gdDet-${sid}" hidden></div>`}
+    ${conf ? guideConfirmHtml(it, conf, sid) : ''}
+    ${done ? `<div class="gd-done" tabindex="-1" id="gdDone">${escapeHtml(guideDoneWords(it))}</div>` : ''}
+    ${conf ? '' : `<div class="gd-acts">${acts.join('')}${det}</div>`}
   </article>`;
 }
 function guideDoneWords(it){
@@ -37035,13 +37111,14 @@ function guideDoneWords(it){
 }
 /* A lift that has no card: one line, its answer and why. */
 function guideRowHtml(it){
-  const state = it.chosen ? 'starts at ' + fmtLoad(it.current.load) + ', your choice'
-    : it.current.own ? 'starts at ' + fmtLoad(it.current.load) + ', your choice · LOOP suggests ' + fmtLoad(it.suggested.load)
-    : it.dismissed ? guideShort(it) + ' · set aside' : guideShort(it);
+  const state = it.status === 'chosen' ? 'starts at ' + fmtLoad(it.planned.load) + ', your choice · LOOP suggests ' + fmtLoad(it.engineLoad)
+    : it.dismissed ? guideShort(it) + ' · set aside'
+    : (it.kind === 'hold' || it.kind === 'deload' || it.kind === 'declining' || it.kind === 'stalled') && it.planned && it.planned.load > 0 ? 'starts at ' + fmtLoad(it.planned.load) + (it.kind === 'stalled' ? ' · stalled' : '')
+    : guideShort(it);
   /* the state in Exercise Detail's own word (D151), so a lift is named alike wherever it is read; a lighter week is the program's */
   const word = it.kind === 'deload' ? GUIDE_WORD.deload : (it.state ? it.state.word : (GUIDE_WORD[it.kind] || ''));
   return `<div class="gd-row gd-row-${escapeAttr(it.kind)}"><div class="gd-row-t"><b>${escapeHtml(it.name)}</b><span class="gd-row-k">${escapeHtml(word)}</span></div>
-    <div class="gd-row-s">${escapeHtml(DAY_LABEL[it.day] + ' · ' + state)}</div><div class="gd-row-w">${escapeHtml(it.why)}</div></div>`;
+    <div class="gd-row-s">${escapeHtml(DAY_LABEL[it.day] + ' · ' + state)}</div><div class="gd-row-w">${escapeHtml(guideFirstSentence(it.why))}</div></div>`;
 }
 /* The coaching for a week of the week sheet: the one or two worth acting on, then every lift on request. */
 function guideWeekHtml(items){
@@ -37052,7 +37129,7 @@ function guideWeekHtml(items){
   const rest = items.filter(it => cards.indexOf(it) === -1);
   const all = guideState.all;
   return `<div class="gd-wrap" id="gdWrap">
-    <div class="gd-lede">${cards.length ? 'From what you logged, for your next sessions.' : 'Nothing to change: every lift is on track for its next session.'}</div>
+    <div class="gd-lede">${cards.length ? 'Your next sessions, as LOOP will start them, from what you logged.' : 'Nothing new for your next sessions: every lift starts where it did last time.'}</div>
     ${cards.map(guideCardHtml).join('')}
     ${rest.length ? `<button type="button" class="gd-more" data-fid="gd-all" aria-expanded="${all ? 'true' : 'false'}" aria-controls="gdAll" onclick="guideToggleAll()">${all ? 'Hide' : 'Show'} every lift (${rest.length})</button>
     <div class="gd-all" id="gdAll"${all ? '' : ' hidden'}>${all ? rest.map(guideRowHtml).join('') : ''}</div>` : ''}
@@ -37090,21 +37167,27 @@ async function guideApply(id, fp, which){
   /* recomputed now: a suggestion shown before a workout was logged, or before the week changed, is not applied */
   let it = null;
   try{ it = deriveNextSessionGuidance().items.find(x => x.id === id) || null; }catch(e){ it = null; }
-  if(!it || it.fp !== fp || !it.apply){
+  /* D162 — the card offers two changes: keep the load last performed ('current'), or give a choice back to LOOP's plan
+     ('suggested'). With no choice to give back, 'suggested' fixes LOOP's own load for the session (10.83's Use, kept for
+     the week-change machinery; no card offers it, since the workout already starts there). */
+  const to = it ? (which === 'current' ? it.keepLoad : (it.backTo || (it.pinnable ? it.engineLoad : null))) : null;
+  if(!it || it.fp !== fp || !(to > 0)){
     guideState.done = null;
+    guideState.confirm = null;
     guideRerender();
-    guideNotice({ text: 'Your training changed since this was shown, so nothing was applied. The suggestion now reflects it.' });
-    return { ok:false, reason:'stale' };
+    guideNotice({ text: it && it.fp === fp ? 'Nothing to change: ' + DAY_LABEL_FULL[it.day] + '’s ' + it.name + ' already starts at ' + fmtLoad(it.planned.load) + '.'
+      : 'Your training changed since this was shown, so nothing was applied. The suggestion now reflects it.' });
+    return { ok:false, reason: it && it.fp === fp ? 'planned' : 'stale' };
   }
   const monday = civilMonday(it.date);
-  const value = which === 'current' ? it.current.load : it.suggested.load;
   const before = snapshotWeekForUndo();
-  const r = await weekSetStartLoad(monday, it.day, it.key, value, it.basis);
-  if(r.ok && which === 'current') await weekDismiss(monday, it.dismissId);
-  const words = `${DAY_LABEL_FULL[it.day]}'s ${it.name} starts at ${fmtLoad(value)}, this session only.`;
+  const r = which === 'current' || !it.backTo ? await weekSetStartLoad(monday, it.day, it.key, to, it.basis) : await weekSetStartLoad(monday, it.day, it.key, 0, null);
+  const words = which === 'current' || !it.backTo ? `${DAY_LABEL_FULL[it.day]}'s ${it.name} starts at ${fmtLoad(to)}, your choice, this session only.`
+    : `${DAY_LABEL_FULL[it.day]}'s ${it.name} is back on LOOP's plan: ${fmtLoad(to)}.`;
   guideState.done = r.ok ? it.id : null;
   guideState.doneWords = r.ok ? words : null;
-  guideState.doneFrom = r.ok ? { load: it.current.load, own: it.current.own } : null;
+  guideState.doneFrom = null;
+  guideState.confirm = null;
   guideState.open[it.id] = false;
   guideRerender();
   if(r.ok){
@@ -37150,12 +37233,13 @@ function guideNotice(n){
 function guideTodayHtml(date){
   let g = null;
   try{ g = deriveNextSessionGuidance(); }catch(e){ return ''; }
-  /* a decision only — a load to set or a stalled lift; an add-reps answer is how the logger fills the sets in anyway */
+  /* a decision only — a load that changes, the athlete's own choice, or a stalled lift; an add-reps answer is how the
+     logger fills the sets in anyway */
   const mine = g.items.filter(it => it.date === date && it.kind !== 'reps-up');
   const top = guideTop(mine, 9);
   if(!top.length) return '';
   const a = top[0];
-  const label = 'Coaching for ' + (date === localDateStr() ? 'today' : DAY_LABEL_FULL[a.day]) + ': ' + a.name + ', ' + guideShort(a)
+  const label = 'Coaching for ' + (date === localDateStr() ? 'today' : DAY_LABEL_FULL[a.day]) + ': ' + a.name + ' ' + guideShort(a)
     + (top.length > 1 ? ', and ' + (top.length - 1) + ' more' : '') + '. Review';
   return `<button type="button" class="tw-coach" onclick="openGuideFor('${date}')" aria-label="${escapeAttr(label)}">
     <span class="tw-coach-k">Coaching</span><span class="tw-coach-v"><b>${escapeHtml(a.name)}</b> ${escapeHtml(guideShort(a))}</span>${top.length > 1 ? `<span class="tw-coach-m">+${top.length - 1}</span>` : ''}</button>`;
@@ -37191,6 +37275,7 @@ function guideSummaryHtml(entry){
   try{ g = deriveNextSessionGuidance(); }catch(e){ return ''; }
   if(g.scope !== 'program' || !entry || !entry.exercises) return '';
   const keys = entry.exercises.map(x => x && x.name ? loggedExerciseKey(String(x.name).trim()) : null).filter(Boolean);
+  /* D162 — a just-trained lift whose next session LOOP has planned differently, and that the athlete can still change */
   const top = guideTop(g.items.filter(it => it.apply && keys.indexOf(it.key) !== -1), 9);
   if(!top.length) return '';
   const a = top[0];
@@ -37240,6 +37325,283 @@ function weekLiftRowHtml(l){
 function phaseWeeksText(a, b, short){
   if(short) return a === b ? 'W' + a : 'W' + a + '–' + b;
   return a === b ? 'Week ' + a : 'Weeks ' + a + '–' + b;
+}
+/* =========================================================
+   ONE PLANNED SESSION  (Phase D162)
+   ---------------------------------------------------------
+   What a lift starts at in a session is decided in one place. In order: the program's row (sets × reps, effort, rest,
+   after this week's own changes, D159), the phase (D85's hold for the session's date; D125's lighter sets in a deload
+   session), the trainer (D49 / D47 through progressionFor, and D125's reps at that load), and a starting load the
+   athlete chose for that one session (D161's week change, only while it holds: same last session, not a deload).
+
+   startTemplateLog seeds every row from planSessionLift; Coaching notes, Objectives, the week's training details,
+   Exercise Detail, Worth Knowing and the summary's Next Time read the same answer for a session's date. So no screen
+   can name a number for an upcoming session that the workout would not start with. Nothing here is stored.
+   ========================================================= */
+function planSessionLift(ex, o){
+  o = o || {};
+  const isBW = rowStartsAsBodyweight(ex.name, ex.recommended);
+  /* the start asks D49 for today, exactly as before (no date); a screen asks for the session's own date (D161) */
+  const engine = isBW ? null : progressionFor(ex.name, ex.reps, ex.recommended, o.engineDate || undefined);
+  let rec = engine;
+  const own = !isBW && o.startLoads ? sessionStartLoad(o.startLoads, ex.name, o.date || localDateStr()) : null;
+  if(own !== null && own > 0 && !(rec && rec.weight === own)) rec = { weight: own, headline: `${own} lb × ${ex.reps}`, why: 'The starting load you chose for this session.', tag: 'hold' };
+  const weight = isBW ? '' : (rec && rec.weight != null ? rec.weight : '');
+  const setCount = parseInt(ex.sets) || 3;
+  const plan = isBW ? null : deriveWorkingSetPlan(ex.name, ex.reps, setCount, rec, { deload: !!o.deload });
+  const chose = own !== null && own > 0;
+  return { isBW, engine, rec, own: chose ? own : null, weight, setCount, plan,
+    source: isBW ? 'bodyweight' : chose ? 'choice' : weight === '' ? 'none' : o.deload ? 'deload' : 'trainer' };
+}
+/* A planned load as a number, or null. */
+function plannedLoadOf(L){
+  if(!L || L.isBW || L.weight === '' || L.weight == null) return null;
+  const n = Number(L.weight);
+  return isFinite(n) && n > 0 ? n : null;
+}
+
+/* ---------- Coaching notes: what each card can honestly offer ---------- */
+const GUIDE_STATUS_WORD = { planned: 'Planned', chosen: 'Your choice', aim: 'Aim for' };
+/* The first sentence of an engine's reason, whole (Objectives' rule): the full text stays in Details. */
+function guideFirstSentence(s){
+  const t = String(s || '').trim();
+  const i = t.indexOf('. ');
+  return i === -1 ? t : t.slice(0, i + 1);
+}
+function guideSetsText(load, reps){
+  if(!(load > 0)) return reps && reps.length ? reps.join(' · ') + ' reps' : '';
+  return fmtLoad(load) + (reps && reps.length ? ' × ' + reps.join(' · ') : '');
+}
+/* The line under the planned number: how it relates to what was last performed, or to LOOP's own plan. */
+function guidePlanSub(it){
+  if(it.status === 'chosen') return 'Your choice · LOOP suggests ' + guideSetsText(it.engineLoad, it.enginePlan);
+  const l = it.last;
+  if(!l) return '';
+  if(it.bw) return 'Last: ' + repsWord(l.topReps) + ' · bodyweight';
+  const d = it.planned && it.planned.load > 0 ? it.planned.load - l.weight : 0;
+  const lastText = fmtLoad(l.weight) + ' × ' + l.topReps;
+  if(d > 0) return '+' + fmtLoad(d) + ' from your last ' + lastText;
+  if(d < 0) return '−' + fmtLoad(-d) + ' from your last ' + lastText;
+  return 'Same load as your last ' + lastText;
+}
+function guideConfirmHtml(it, which, sid){
+  const to = which === 'current' ? it.keepLoad : it.backTo;
+  const plan = which === 'current' ? it.keepPlan : it.enginePlan;
+  const label = which === 'current' ? `Keep ${fmtLoad(to)} for ${DAY_LABEL_FULL[it.day]}` : `Use LOOP's ${fmtLoad(to)}`;
+  return `<div class="gd-conf" id="gdConf-${sid}" role="group" aria-labelledby="gdConfH-${sid}">
+      <div class="gd-prev-h" id="gdConfH-${sid}">${escapeHtml(DAY_LABEL_FULL[it.day] + ', ' + weekDayDate(it.date) + ' · ' + it.session + ' — this session only')}</div>
+      <div class="gd-prev-r"><span>Now</span><b>${escapeHtml(guideSetsText(it.planned.load, it.planned.reps))}</b></div>
+      <div class="gd-prev-r"><span>After</span><b>${escapeHtml(guideSetsText(to, plan))}</b></div>
+      <div class="gd-fine">${escapeHtml(which === 'current'
+        ? 'Other weeks, your program, logged workouts, records and XP stay as they are. Once you log ' + it.name + ' again, LOOP plans its next session afresh.'
+        : 'Your choice for this session is removed; the workout starts at LOOP’s plan.')}</div>
+      <div class="gd-acts"><button type="button" class="wsv-btn gd-b" data-fid="gdc-${escapeAttr(it.id)}" onclick="guideApply('${escapeAttr(it.id)}','${escapeAttr(it.fp)}','${which}')">${escapeHtml(label)}</button>
+        <button type="button" class="wsv-btn wsv-btn-q gd-b" data-fid="gdx-${escapeAttr(it.id)}" onclick="guideConfirm('${escapeAttr(it.id)}', null)">Cancel</button></div>
+    </div>`;
+}
+function guideDetailsHtml(it, sid){
+  const rows = [];
+  it.evidence.slice(0, 2).forEach((e, i) => rows.push([i ? '' : 'Last performed', e]));
+  rows.push(['Program', it.rx.sets + ' × ' + it.rx.reps + (it.rx.rir ? ' · ' + it.rx.rir : '')]);
+  if(!it.bw && it.engineLoad > 0 && it.status === 'chosen') rows.push(['LOOP suggests', guideSetsText(it.engineLoad, it.enginePlan)]);
+  if(!it.bw && it.own) rows.push(['Your choice', fmtLoad(it.own) + ', this session only']);
+  const fine = it.lapsed === 'logged' ? 'Your earlier choice for this session no longer applies: you have logged ' + it.name + ' since, so LOOP planned it again.'
+    : it.lapsed === 'deload' ? 'Your earlier choice for this session no longer applies: it falls in a deload week, which the program sets.'
+    : it.status === 'planned' && !it.canChange ? (it.program ? 'This session can’t be changed from here.' : 'Your weekly plan’s sessions start at LOOP’s plan; a program’s sessions can also take a load you choose.')
+    : it.kind === 'reps-up' ? 'LOOP fills these in when you start ' + it.session + '. Every set stays yours to change.' : '';
+  return `<div class="gd-det" id="gdDet-${sid}">
+      ${rows.map(r => `<div class="gd-prev-r"><span>${escapeHtml(r[0])}</span><b>${escapeHtml(r[1])}</b></div>`).join('')}
+      ${it.why && it.why !== guideFirstSentence(it.why) ? `<p class="gd-why gd-why-full">${escapeHtml(it.why)}</p>` : ''}
+      ${fine ? `<div class="gd-fine">${escapeHtml(fine)}</div>` : ''}
+    </div>`;
+}
+/* Open and close one card's Details. */
+function guideToggleDetails(id){
+  guideState.open[id] = !guideState.open[id];
+  weekKeepFocus(() => guideRerender());
+}
+/* Ask before changing a session: which = 'current' (keep the last load) or 'suggested' (back to LOOP's plan); null cancels. */
+function guideConfirm(id, which){
+  const was = guideState.confirm;
+  guideState.confirm = which ? { id, which } : null;
+  guideState.done = null;
+  guideRerender();
+  const sid = String(id).replace(/[^a-z0-9]/gi, '');
+  const f = which ? document.querySelector('[data-fid="gdc-' + id + '"]')
+    : (was ? document.querySelector('[data-fid="gd' + (was.which === 'current' ? 'k' : 'u') + '-' + id + '"]') : null);
+  if(f && f.focus){ try{ f.focus({ preventScroll: true }); }catch(e){} }
+  return sid;
+}
+
+/* ---------- Objectives: a frozen objective the session now contradicts ---------- */
+/* An objective frozen earlier today is withdrawn when the session as it now stands says otherwise: the athlete chose a
+   different starting load for that lift, the lift was replaced or removed, the session moved or became a rest day, or
+   today is a deload week. Only before any of today's work exists (nothing logged today, no workout under way); a completed
+   objective is history and is never touched. The slot is then filled by the ordinary generation, from the same session. */
+function objectiveConflictWith(inst, ev){
+  if(!objectiveInstanceIsSane(inst) || inst.kind !== 'daily' || inst.completedAt || inst.periodKey !== ev.today) return null;
+  const s = ev.session;
+  if(inst.objectiveType === 'session_today'){
+    if(!s || s.cat === 'rest') return 'rest';
+    const was = inst.sourceContext && inst.sourceContext.template;
+    const now = (s.template && s.template.name) ? String(s.template.name) : (CAT_LABEL[s.cat] || 'training');
+    return was && was !== now ? 'session' : null;
+  }
+  if(inst.objectiveType !== 'progress_lift' && inst.objectiveType !== 'match_lift') return null;
+  const t = inst.target || {};
+  const key = loggedExerciseKey(String(t.exercise || '').trim());
+  if(!key) return null;
+  if(!s || s.cat === 'rest') return 'rest';
+  const tex = ((s.template && s.template.exercises) || []).find(x => x && x.name && loggedExerciseKey(String(x.name).trim()) === key);
+  if(!tex) return 'removed';
+  if(s.deload || ev.deload) return 'deload';
+  let L = null;
+  try{ L = planSessionLift(tex, { startLoads: s.startLoads, date: ev.today, deload: s.deload, engineDate: ev.today }); }catch(e){ return null; }
+  const planned = plannedLoadOf(L);
+  if(planned === null) return null;
+  const w = Number(t.weight);
+  /* the generator's own rules, read backwards: a lift carrying a differing choice has no objective; otherwise the target is
+     the load the session starts at */
+  if(L.source === 'choice' && !(L.engine && Number(L.engine.weight) === planned)) return 'choice';
+  if(planned !== w) return planned < w ? 'lighter' : 'heavier';
+  return null;
+}
+
+/* ---------- a lift's next session, for the screens that speak about one lift ---------- */
+/* The first session ahead that holds this lift, as Coaching notes read it (or null). Only a running program can make that
+   session start somewhere other than D49's general answer (a choice for it, its phase or its deload), so with none nothing
+   is asked; with one, only that session's lift is (D49 once more, not once per lift of the fortnight). */
+function guideUpcomingFor(key){
+  if(!key) return null;
+  try{ if(!hasActiveProgram()) return null; }catch(e){ return null; }
+  let g = null;
+  try{ g = guideSessions(); }catch(e){ return null; }
+  if(g.scope !== 'program') return null;
+  for(const s of g.sessions){
+    const x = (s.template.exercises || []).find(e => e && e.name && loggedExerciseKey(String(e.name).trim()) === key);
+    if(x){ try{ return guideItemFor(s, x); }catch(e){ return null; } }
+  }
+  return null;
+}
+/* When that session will start somewhere other than LOOP's general answer (a choice for it, or its deload week), in words. */
+function upcomingDiffersText(it, generalLoad){
+  if(!it || it.bw || !it.planned || !(it.planned.load > 0) || !(generalLoad > 0) || it.planned.load === generalLoad) return null;
+  const when = DAY_LABEL_FULL[it.day] + ' ' + weekDayDate(it.date) + ' · ' + it.session;
+  if(it.own) return when + ' starts at ' + fmtLoad(it.planned.load) + ', your choice for that session.';
+  if(it.deload) return when + ' is in a deload week: it starts at ' + fmtLoad(it.planned.load) + '.';
+  return when + ' starts at ' + fmtLoad(it.planned.load) + '.';
+}
+
+/* ---------- training balance, for a week ---------- */
+/* Working sets a logged exercise counts (weekWorkDone's rule). */
+function weekWorkingSetsOf(x){
+  return (x && x.sets || []).filter(s => isWorkingSet(s) !== false && s.completed !== false && performedReps(s.reps) !== null).length;
+}
+/* Planned against performed for the days already reached, by main muscle (deriveWorkoutProfile's own count: each working
+   set credited to every main muscle its exercise works; secondary muscles not counted), plus the exercises performed
+   outside the plan, and how this week's own changes spread its sessions against the program's written week. */
+function deriveWeekBalance(v){
+  const today = localDateStr();
+  const due = v.days.filter(d => d.template && (d.status === 'done' || d.status === 'missed'));
+  const logs = (workoutLog || []).filter(l => l && l.date >= v.monday && l.date <= v.sunday && l.date <= today);
+  const planned = {}, done = {};
+  let pSets = 0, dSets = 0, pDone = 0, pMissed = 0;
+  due.forEach(d => {
+    const prof = deriveWorkoutProfile(d.template);
+    Object.keys(prof.tally).forEach(g => { planned[g] = (planned[g] || 0) + prof.tally[g]; });
+    const n = (d.template.exercises || []).reduce((n, x) => n + (parseInt(x.sets, 10) || 0), 0);
+    pSets += n;
+    if(d.status === 'done') pDone += n; else pMissed += n;
+  });
+  /* performed: the program's logged sessions, by weekWorkDone's own rule and scope, so "Planned and done" and this agree;
+     a workout outside the program's sessions is reported apart, not added to the plan's count */
+  const outside = [];
+  const matched = {};
+  v.days.forEach(d => { if(d.logged) matched[String(d.logged.id)] = d; });
+  logs.forEach(l => {
+    const rows = (l.exercises || []).map(x => ({ name: x && x.name, sets: weekWorkingSetsOf(x) })).filter(x => x.name && x.sets > 0);
+    if(!rows.length) return;
+    const day = matched[String(l.id)] || null;
+    const keys = day && day.template ? (day.template.exercises || []).map(x => loggedExerciseKey(String(x.name || '').trim())) : [];
+    if(day){
+      const prof = deriveWorkoutProfile({ exercises: rows });
+      Object.keys(prof.tally).forEach(g => { done[g] = (done[g] || 0) + prof.tally[g]; });
+      dSets += rows.reduce((n, x) => n + x.sets, 0);
+    }
+    rows.forEach(x => { const k = loggedExerciseKey(String(x.name).trim()); if(keys.indexOf(k) === -1 && !outside.some(o => o.key === k)) outside.push({ key: k, name: String(x.name).trim(), sets: x.sets }); });
+  });
+  const groups = Object.keys(Object.assign({}, planned, done)).sort((a, b) => (planned[b] || 0) - (planned[a] || 0) || (done[b] || 0) - (done[a] || 0));
+  /* the one muscle whose work most differs from its plan, when the difference is meaningful (a third of its plan, 6+ sets) */
+  let gap = null;
+  groups.forEach(g => {
+    const p = planned[g] || 0, d = done[g] || 0, diff = Math.abs(p - d);
+    if(diff < 6 || (p > 0 && diff < p / 3)) return;
+    if(!gap || diff > gap.diff) gap = { group: g, planned: p, done: d, diff };
+  });
+  /* schedule: only for a week the athlete rearranged (moves and swaps), against the program's written week */
+  const sched = [];
+  if((v.ops || []).some(op => op && op.t === 'swap')){
+    try{
+      const was = programTimelineWeek(v.program, v.monday), now = applyWeekOps(was, v.ops);
+      const train = wk => PROGRAM_DAY_KEYS.map((k, i) => wk[k] && wk[k].type === 'workout' ? i : -1).filter(i => i !== -1);
+      const run = idx => { let best = 0, cur = 0; for(let i = 0; i < 7; i++){ cur = idx.indexOf(i) !== -1 ? cur + 1 : 0; best = Math.max(best, cur); } return best; };
+      const gapOf = idx => { let g = 0; for(let i = 1; i < idx.length; i++) g = Math.max(g, idx[i] - idx[i - 1] - 1); return g; };
+      const a = train(was), b = train(now);
+      if(run(b) >= 3 && run(b) > run(a)) sched.push({ kind: 'run', text: `This week’s changes put ${run(b)} sessions on consecutive days; the program spreads them over the week.` });
+      if(gapOf(b) >= 3 && gapOf(b) >= gapOf(a) + 2) sched.push({ kind: 'gap', text: `This week’s changes leave ${gapOf(b)} days without a session between two of them; the program’s longest gap is ${gapOf(a)}.` });
+    }catch(e){}
+  }
+  return { due: due.length, sessionsDone: due.filter(d => d.status === 'done').length, missed: due.filter(d => d.status === 'missed').length, pSets, pDone, pMissed, dSets, planned, done, groups, gap, outside, sched, logs: logs.length };
+}
+/* The one or two lines worth reading, most useful first (no score, no verdict). */
+function weekBalanceLines(b){
+  const out = [];
+  if(!b) return out;
+  if(b.sched.length) out.push(b.sched[0].text);
+  if(b.gap){
+    const g = muscleGroupLabel(b.gap.group);
+    out.push(b.gap.done < b.gap.planned ? `${g}: ${b.gap.done} of ${b.gap.planned} planned sets so far.` : `${g}: ${b.gap.done} sets so far, ${b.gap.planned} planned.`);
+  }
+  if(b.outside.length) out.push('Also performed: ' + b.outside.slice(0, 3).map(o => o.name).join(', ') + (b.outside.length > 3 ? ' and ' + (b.outside.length - 3) + ' more' : '') + '.');
+  return out.slice(0, 2);
+}
+const weekBalanceState = { open: false };
+function weekBalanceToggle(){
+  weekBalanceState.open = !weekBalanceState.open;
+  weekKeepFocus(() => renderWeekSheet('section'));
+}
+function weekBalanceHtml(v){
+  if(v.state === 'upcoming') return '';
+  let b = null;
+  try{ b = deriveWeekBalance(v); }catch(e){ b = null; }
+  if(!b || (!b.due && !b.logs && !b.sched.length)) return '';
+  const lines = weekBalanceLines(b);
+  /* the same count "How this week went" and "Planned and done" give (the sessions done, against their plan), then the missed ones apart */
+  const head = !b.due && !b.logs ? '' : b.sessionsDone ? `So far: ${b.dSets} of ${b.pDone} planned working sets in the ${b.sessionsDone} session${b.sessionsDone === 1 ? '' : 's'} done` + (b.missed ? ` · ${b.missed} missed (${b.pMissed} sets)` : '') + '.'
+    : b.missed ? `So far: ${b.missed} planned session${b.missed === 1 ? '' : 's'} missed (${b.pMissed} sets).` : `So far: ${b.dSets} working set${b.dSets === 1 ? '' : 's'}, outside the plan.`;
+  const open = weekBalanceState.open;
+  const rows = b.groups.map(g => `<div class="gd-bal-r"><span>${escapeHtml(muscleGroupLabel(g))}</span><b>${b.done[g] || 0} of ${b.planned[g] || 0}</b></div>`).join('');
+  return `<div class="gd-bal" id="gdBal">
+      <h4 class="gd-bal-h">Training balance</h4>
+      ${head ? `<p class="gd-bal-l">${escapeHtml(head)}</p>` : ''}
+      ${lines.map(l => `<p class="gd-bal-l">${escapeHtml(l)}</p>`).join('')}
+      ${b.groups.length ? `<button type="button" class="gd-more" data-fid="gd-bal" aria-expanded="${open ? 'true' : 'false'}" aria-controls="gdBalAll" onclick="weekBalanceToggle()">${open ? 'Hide' : 'Show'} sets by muscle</button>
+      <div class="gd-bal-all" id="gdBalAll"${open ? '' : ' hidden'}>${open ? rows + `<div class="wsv-fine">Working sets done of those planned for the days so far, each credited to every main muscle its exercise works, as Muscle workload counts them. Secondary muscles are not counted.</div>`
+        + (b.sched.length > 1 ? b.sched.slice(1).map(s => `<div class="wsv-fine">${escapeHtml(s.text)}</div>`).join('') : '') : ''}</div>` : ''}
+    </div>`;
+}
+/* Last week against the week before it, when both have something to compare. */
+function weekVersusText(p, monday){
+  const prev = civilAddDays(monday, -7);
+  if(prev < programWeekMonday(p)) return '';
+  let a = null, b = null;
+  try{ a = deriveWeekView(p, monday); b = deriveWeekView(p, prev); }catch(e){ return ''; }
+  /* the program's logged sessions only, by weekWorkDone (the count "Planned and done" shows), so the two never differ */
+  const sets = vw => weekWorkDone(vw).reduce((n, x) => n + x.done, 0);
+  if(!b.done || !a.done) return '';
+  const sa = sets(a), sb = sets(b);
+  const lighter = b.deload ? ' (a planned lighter week)' : '';
+  return `Against the week before${lighter}: ${a.done} of ${a.planned} sessions (${b.done} of ${b.planned}) · ${sa} working set${sa === 1 ? '' : 's'} in them (${sb}).`;
 }
 /* ---------- the week sheet, in sections ---------- */
 /* Which sections are open, kept for the session (a preference of the screen, not training data). */
@@ -41701,7 +42063,7 @@ function objectiveEntryHasWork(entry){
    the plan schedule does. A suspended date has no program slot, so a paused
    program falls back exactly as This Week already shows it. */
 function objectiveTodaySession(dateStr){
-  const out = { cat:'rest', template:null, source:'plan' };
+  const out = { cat:'rest', template:null, source:'plan', startLoads:null, phase:null, deload:false };
   let programDay = null;
   try{ programDay = hasActiveProgram() ? getProgramWorkoutForDate(dateStr) : null; }catch(e){ programDay = null; }
   if(programDay){
@@ -41709,6 +42071,10 @@ function objectiveTodaySession(dateStr){
     if(!programDay.entry || programDay.entry.type !== 'workout') return out;
     out.cat = programDay.category;
     out.template = programDay.template || null;
+    /* D162 — the session as it will start: this week's starting loads and the phase that composed it */
+    out.startLoads = programDay.entry.startLoads || null;
+    out.phase = programDay.phase || null;
+    out.deload = isDeloadWorkout({ phase: out.phase });
     return out;
   }
   const d = new Date(dateStr + 'T00:00:00');
@@ -41900,18 +42266,30 @@ function objectiveDailyCandidates(ev){
        objective: LOOP may not ask for a jump its own progression engine will
        not recommend. During a deload the phase policy has already turned every
        increase into a hold, so this family cannot fire inside one. */
-    let rec = null;
-    try{ rec = progressionFor(name, reps, tex.recommended); }catch(e){ rec = null; }
-    if(rec && rec.tag === 'increase' && rec.weight > 0 && hist.length >= 2 && !ev.deload){
+    /* D162 — a lighter week has no lift target: its sets are the program's lighter ones (D125), and asking to match or
+       beat an ordinary session there would contradict the workout it starts. */
+    if(ev.deload || ev.session.deload) return;
+    /* D162 — the load this session will actually start at (planSessionLift: D49's answer, or a starting load the athlete
+       chose for it), so an objective never names a number the workout does not plan. */
+    let L = null;
+    try{ L = planSessionLift(tex, { startLoads: ev.session.startLoads, date: ev.today, deload: false, engineDate: ev.today }); }catch(e){ L = null; }
+    let rec = L && !L.isBW ? L.engine : null;
+    if(L && L.isBW){ try{ rec = progressionFor(name, reps, tex.recommended); }catch(e){ rec = null; } }
+    const planned = L && !L.isBW ? plannedLoadOf(L) : (rec && rec.tag === 'increase' && rec.weight > 0 ? Number(rec.weight) : null);
+    /* the athlete chose a different starting load for this session: the choice is respected (no other number is named)
+       and not rewarded (§123: the only load an objective may ask for is D49's) */
+    if(L && L.source === 'choice' && !(L.engine && Number(L.engine.weight) === planned)) return;
+    if(planned !== null && planned > hist[0].weight){
+      if(!(rec && rec.tag === 'increase' && hist.length >= 2 && Number(rec.weight) === planned)) return;   // more than last time only when D49 asks for it
       out.push({
         objectiveType:'progress_lift', kind:'daily',
-        title: 'Take ' + name + ' to ' + fmtLoadShort(rec.weight),
-        detail: 'Counts when one working set today is ' + fmtLoadShort(rec.weight) +
+        title: 'Take ' + name + ' to ' + fmtLoadShort(planned),
+        detail: 'Counts when one working set today is ' + fmtLoadShort(planned) +
                 ' for at least ' + range.min + ' reps.',
         reason: objectiveReasonText(rec.why),
         metric:'top_set',
         baseline: { weight: hist[0].weight, reps: hist[0].topReps, date: hist[0].date },
-        target: { exercise: name, weight: rec.weight, reps: range.min },
+        target: { exercise: name, weight: planned, reps: range.min },
         sourceContext: { exercise: name, category: cat, template: tplName, source: ev.session.source },
         confidence: 'high',
         evidenceStrength: Math.min(5, hist.length),
@@ -41919,6 +42297,8 @@ function objectiveDailyCandidates(ev){
       });
       return;                                  // one lift makes one offer, never two
     }
+    /* the session starts this lift lighter than last time (D47): no offer to match the heavier load */
+    if(planned !== null && planned < hist[0].weight) return;
 
     /* FAMILY D — match. Repeating what the athlete already did is achievable by
        definition, asks for no extra work, and is the honest offer on a day the
@@ -42141,6 +42521,22 @@ function evaluateObjectives(dateStr, nowISO){
     completed.push(inst);
   });
 
+  /* 1b. D162 — AGREEMENT. A daily objective frozen earlier today that the session as it now stands contradicts (a
+     starting load the athlete chose, a lift replaced or removed, a session moved, a lighter week) is withdrawn before
+     any of today's work exists; generation below then fills the slot from the same session. objectiveConflictWith. */
+  const withdrawn = [];
+  let underway = false;
+  try{ underway = activeDraftIsCurrent() || !!(document.getElementById('logOverlay') && document.getElementById('logOverlay').classList.contains('open')); }catch(e){ underway = false; }
+  if(!ev.loggedToday && !underway){
+    const keep = [];
+    (objectivesStore.instances || []).forEach(inst => {
+      let why = null;
+      try{ why = objectiveConflictWith(inst, ev); }catch(e){ why = null; }
+      if(why) withdrawn.push({ id: inst.id, why }); else keep.push(inst);
+    });
+    if(withdrawn.length) objectivesStore.instances = keep;
+  }
+
   /* 2. GENERATION. Only for the period the athlete is standing in, and only up
      to the limits. An instance that already exists is never replaced — that is
      what "the target stays stable" means in code. */
@@ -42181,7 +42577,7 @@ function evaluateObjectives(dateStr, nowISO){
     if(dropped.size) objectivesStore.instances = objectivesStore.instances.filter(i => !dropped.has(i.id));
   }
 
-  return { created, completed, evidence: ev };
+  return { created, completed, withdrawn, evidence: ev };
 }
 
 /* What a caller runs. Nothing is written unless something actually changed. */
@@ -47620,9 +48016,16 @@ function deriveExerciseDetail(name){
     if(rec.tag === 'plateau'){ try{ wk = worthKnowingLiftItem(raw, lastDate); }catch(e){ wk = null; } }
   }
 
+  /* D162 — the lift's next scheduled session, when it starts somewhere other than this general answer (the athlete's
+     choice for it, or its deload week): said beside the answer, so the two numbers are never read as one */
+  let upcoming = null;
+  if(rec && rec.mode !== 'bodyweight' && rec.weight != null && last && key && !assisted){
+    try{ const u = guideUpcomingFor(key); upcoming = u ? upcomingDiffersText(u, Number(rec.weight)) : null; }catch(e){ upcoming = null; }
+  }
+
   return { name: raw, key, sessions, sessionCount: sessions.length, lastDate,
     prMode, isBW, muscles, equipment, best, rec, recReps, last, points, trend, repPoints, bests, mastery,
-    state: exerciseDetailStateOf(rec), evidence, wk, bwWin, assisted };
+    state: exerciseDetailStateOf(rec), evidence, wk, bwWin, assisted, upcoming };
 }
 
 /* D151 — detectPlateau's own window, read from the sessions Exercise Detail already holds (no second scan of the log):
@@ -47828,9 +48231,10 @@ function exDetailNextHtml(d){
     + tile('exd-ln-done', 'Last · ' + escapeHtml(exdDate(last.date)), exdNum(last.weight), 'lb', '× ' + escapeHtml(String(last.topReps)) + ' reps',
       '<span class="exd-ln-x">' + escapeHtml(sets + ' · ' + rir) + '</span>' + pips)
     + '<span class="exd-ln-arrow">' + chevronRightSvg() + '</span>'
-    + tile('exd-ln-to exd-ln-plan', 'Next target', exdNum(rec.weight), 'lb', '× ' + escapeHtml(exdRange(d.recReps)) + ' reps', '<span class="exd-delta exd-delta-' + dir + '">' + delta + '</span>')
+    + tile('exd-ln-to exd-ln-plan', d.upcoming ? 'LOOP suggests' : 'Next target', exdNum(rec.weight), 'lb', '× ' + escapeHtml(exdRange(d.recReps)) + ' reps', '<span class="exd-delta exd-delta-' + dir + '">' + delta + '</span>')
     + '</div>'
-    + '<p class="sr-only">' + escapeHtml(said) + '</p>'
+    + '<p class="sr-only">' + escapeHtml(said + (d.upcoming ? ' ' + d.upcoming : '')) + '</p>'
+    + (d.upcoming ? '<p class="exd-plan-note" aria-hidden="true">' + escapeHtml(d.upcoming) + '</p>' : '')
     + (/^(increase|build|hold|reduce)$/.test(rec.tag) ? exDetailRangeHtml(d) : '')
     + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>';
 }
@@ -63605,23 +64009,16 @@ async function startTemplateLog(cat, tplId, date){
      the same reading D85 gives it once it is saved. */
   const deloadSession = isDeloadWorkout({ phase: pendingWorkoutPhase });
   tpl.exercises.forEach(ex => {
-    const isBW = rowStartsAsBodyweight(ex.name, ex.recommended);
-    let rec = isBW ? null : progressionFor(ex.name, ex.reps, ex.recommended);
-    /* D161 — a starting load the athlete chose for this session (a week change), while it holds (sessionStartLoad), is the
-       load: a hold at it, so D125 reads that load's own sets. The engine's answer stands whenever it is the same number. */
-    const own = !isBW && pick.startLoads ? sessionStartLoad(pick.startLoads, ex.name, pick.date || localDateStr()) : null;
-    if(own !== null && own > 0 && !(rec && rec.weight === own)) rec = { weight: own, headline: `${own} lb × ${ex.reps}`, why: 'The starting load you chose for this session.', tag: 'hold' };
-    const weightVal = isBW ? '' : (rec && rec.weight != null ? rec.weight : '');
+    /* D162 — every row from planSessionLift, the one answer every screen reads for an upcoming session: D49's load for
+       today (no date, as always), a starting load the athlete chose for this session while it holds (D161), and D125's
+       reps at that load (a deload session's lighter sets). Bodyweight work keeps the program's seed: D119 owns its reps. */
+    const L = planSessionLift(ex, { startLoads: pick.startLoads, date: pick.date || localDateStr(), deload: deloadSession });
     const repVal = programRepSeed(ex.reps);
-    const setCount = parseInt(ex.sets) || 3;
-    /* D125 — each working set's reps from the working-set plan, taken once, here.
-       Bodyweight work keeps the program's seed: D119 owns its reps. */
-    const plan = isBW ? null : deriveWorkingSetPlan(ex.name, ex.reps, setCount, rec, { deload: deloadSession });
     const sets = [];
-    for(let i=0;i<setCount;i++) sets.push({ weight: weightVal, reps: plan ? plan.reps[i] : repVal });
+    for(let i=0;i<L.setCount;i++) sets.push({ weight: L.weight, reps: L.plan ? L.plan.reps[i] : repVal });
     const meta = { targetSets: ex.sets, targetReps: ex.reps, recommended: ex.recommended };
-    if(plan && plan.source !== 'program') meta.rxPlan = plan.reps.join(',');
-    addLogExerciseRow(ex.name, firstNumber(ex.effort), isBW, sets, ex.restSec > 0 ? ex.restSec : restSecondsForReps(ex.reps), rec, meta);   // D159 — a rest the athlete set for the week
+    if(L.plan && L.plan.source !== 'program') meta.rxPlan = L.plan.reps.join(',');
+    addLogExerciseRow(ex.name, firstNumber(ex.effort), L.isBW, sets, ex.restSec > 0 ? ex.restSec : restSecondsForReps(ex.reps), L.rec, meta);   // D159 — a rest the athlete set for the week
   });
   openLogSheet();
 }
@@ -66010,7 +66407,10 @@ function computeNextTimeNotes(entry){
          here is what they will be handed when they train. */
       const target = (rec.weight != null && !isNaN(rec.weight))
         ? rec.weight + ' lb' + (range ? ' \u00b7 aim for ' + range : '') : null;
-      notes.push({ name: ex.name, tag: rec.tag, text: rec.why, target });
+      /* D162 — when this lift's next scheduled session starts elsewhere (its deload week), that is said too */
+      let upcoming = null;
+      if(rec.weight != null && !isNaN(rec.weight)){ try{ upcoming = upcomingDiffersText(guideUpcomingFor(loggedExerciseKey(ex.name.trim())), Number(rec.weight)); }catch(e){ upcoming = null; } }
+      notes.push({ name: ex.name, tag: rec.tag, text: rec.why, target, upcoming });
     }
   });
   return notes.slice(0, 4);
@@ -66248,7 +66648,7 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
           <div class="nexttime-row nexttime-${escapeAttr(n.tag)}">
             <div class="nexttime-name">${escapeHtml(n.name)}</div>
             ${n.target ? `<div class="nexttime-target">${escapeHtml(n.target)}</div>` : ''}
-            <div class="nexttime-text">${escapeHtml(n.text)}</div>
+            <div class="nexttime-text">${escapeHtml(n.text)}</div>${n.upcoming ? `<div class="nexttime-text nexttime-up">${escapeHtml(n.upcoming)}</div>` : ''}
           </div>`).join('')}
       </div>${guideSummaryHtml(entry)}` : '';
   }

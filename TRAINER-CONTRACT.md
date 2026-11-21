@@ -20967,3 +20967,68 @@ starting load) is a unit that wraps whole. A session changed for one week can be
 **Held (Contract 285).** The engines' answers to every existing caller (B1–B4), the brief's scenarios (C), the write and
 its limits (D), the surfaces (E), the review and labels (F), reload and backup with paused, not-yet-begun and changed
 weeks (G), start dates across local midnight, three zones and both clock changes (H).
+
+## §207 — ONE PLANNED SESSION: EVERY SCREEN NAMES THE NUMBER THE WORKOUT STARTS WITH (D162 · LOOP 10.84 · loop-v261)
+
+**Why.** After D161 the same upcoming session could be described three ways at once. Run in the app on 10.83 (Contract
+286's athlete, Monday 19 Oct 2026): the workout already started Bench Press at D49's 140 lb × 11·11·11 with nothing
+applied, while the Coaching card showed "Current 135 / Suggested 140" with "Use 140 lb" (a change that changed nothing)
+and "Keep 135 lb" (the only real change). After "Keep 135 lb", Today's Objectives still said "Take Bench Press to
+140 lb", both for the objective frozen that morning and on a fresh evaluation (the generator never read the week's
+starting loads). The same execution found two more: a lift D47 lightens (Barbell Row 155 → 150, seeded at 150) could be
+offered "Match your last Barbell Row 155 × 6", and on a deload Monday (seeded 135 × 8·8) Objectives asked to "Match your
+last Bench Press 135 × 12". The week's training details showed a program row's stated weight ("135") where the session
+would start at 140. D161's report named the Objectives contradiction with Barbell Row; executed, it is Bench Press after
+Keep (the Row case is the match offer above).
+
+**Precedence, decided once (`planSessionLift`).** For one lift of one session: (1) the program's row as this week has it
+(D159 week changes: sets, reps, effort, rest, swaps, a replaced lift); (2) the phase — D85's hold for the session's date,
+D125's lighter sets in a deload session; (3) the trainer — D49/D47 through `progressionFor`, D125's reps at that load;
+(4) a starting load the athlete chose for that one session (D161's `{t:'load'}` week change) while it holds — same last
+session (`startLoadBasis`), not inside a deload; (5) the result is what the workout starts with. `startTemplateLog` seeds
+every row from it (byte-identical to 10.83: Contract 286 B replays ten starts with 10.83's own functions, including a
+session started the day before a deload, Time Mode, a library start and bodyweight/assisted rows — the start still asks
+D85 about *today*, a policy date the helper takes separately). Once a workout is under way its own sets are
+authoritative; nothing rewrites an open log.
+
+**Who reads it.** Coaching notes (`guideItemFor`), Objectives (`objectiveDailyCandidates`, `objectiveConflictWith`), the
+week's training details, Exercise Detail and Worth Knowing (through `guideUpcomingByKey` / `upcomingDiffersText`) and the
+summary's Next Time. Exercise Detail, Worth Knowing and Next Time keep D49's general answer for the lift and add, in
+words, when its next scheduled session starts elsewhere (the athlete's choice, or a deload week); the general answer is
+then labelled "LOOP suggests" so the two numbers are never read as one.
+
+**Coaching cards.** Each card leads with what the session starts at ("Planned 140 lb × 11 · 11 · 11 · +5 lb from your last
+135 lb × 12"), one sentence of why, and only real actions: "Keep 135 lb instead" (a preview — Now / After, this session
+only — then the week change, Undo in the notice) and, once chosen, "Use LOOP's 140 lb" (removes the choice). LOOP's own
+number is never offered as something to apply: the workout already starts there. A stalled lift offers "Choose a similar
+exercise" and its decline ("Keep Lat Pulldown", a dismissal). Keeping a load is a choice, not a dismissal (D161 did both;
+now separate). Details hold the evidence (last performed, the program's row, LOOP's suggestion, your choice) and say
+when an earlier choice no longer applies (logged since, or a deload). With no program the card is information only.
+`guideApply(…,'suggested')` without a choice still fixes LOOP's own load for the session (10.83's Use, kept for the
+week-change machinery and Contract 285); no card offers it.
+
+**Objectives (restates §123's "the target never moves").** An objective still names only D49's load (§123) and still
+freezes for the day — but the session it was frozen for can change before any of today's work exists. A live daily
+objective (not completed; nothing logged today; no workout under way, the open log sheet included) is withdrawn when the
+session as it now stands contradicts it: the lift's planned load is no longer its target, the athlete chose a different
+starting load for it, the lift was replaced or removed, the session moved or became a rest day, or today is a deload.
+The ordinary generation then fills the slot from the same session, so the rules read the generator backwards and settle
+(five more evaluations write nothing — Contract 286 E2/E4). The generator itself: no lift objective inside a deload
+(10.83 offered a full-rep match there; Contract 202's deload clause restated); a lift carrying a choice that differs from
+D49 gets none (respected, not rewarded); a lift planned lighter than last time (D47) gets no match at the heavier load;
+progress only at D49's own load. Completed objectives, their XP and the weekly cap are untouched; nothing is added to the
+store. Once something is logged today the 10.83 behaviour holds (a two-workout day keeps its morning objective).
+
+**Training balance (week sheet, Coaching notes).** For the days already reached: planned working sets (the program's
+sessions due, done or missed) against those done in the program's logged sessions — `weekWorkDone`'s rule and scope, so
+"Planned and done" and this never differ; by main muscle with `deriveWorkoutProfile` (each set credited to every main
+muscle its exercise works, as Muscle workload counts; secondary muscles not counted); what was performed outside the
+plan (a substitution or an extra workout, reported apart, not added to the plan's count); and, only for a week the athlete
+rearranged, a run of consecutive days or a gap the program's written week did not have (never called unsafe; no
+automatic move — D160's cluster fix stays the one Preview → Apply → Undo). One or two lines by default, sets by muscle on
+request. Last week also reads against the week before, in the program's sessions only. No score, no verdict.
+
+**Kept.** D49, D47, D85, D125, D50B, D119, D152, the week rule, the start resolver, XP, Session Score, records, objective
+progress and freezing, backup — 10.83's to the character (Contract 286 A3). No storage key, no migration. Test runner: a
+run that leaves early now names the section it was in (D161's silent exit was at 02:29 local with the session idle and
+could not be reproduced; the suite peaks near 3.4 GB RSS of a 4.3 GB heap, each loaded app freed once its timers fire).
