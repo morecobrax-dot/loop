@@ -410,6 +410,12 @@ function rect(x, y, w, h, fill, stroke, rx){
   return '<rect x="' + n1(x) + '" y="' + n1(y) + '" width="' + n1(w) + '" height="' + n1(h) + '" rx="' + (rx == null ? 1.6 : rx) +
     '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.2"/>';
 }
+/* D160 — the bar runs straight to the hands, dips at each grip and rises between them: a W seen from the front. */
+function ezBarFront(c, a, half){
+  var pts = [[-1, 0], [-0.5, 0], [-0.36, 3.2], [-0.2, -2.4], [0, 0.8], [0.2, -2.4], [0.36, 3.2], [0.5, 0], [1, 0]];
+  var d = pts.map(function(q, i){ return (i ? 'L' : 'M') + P(mv(mv(c, a, q[0] * half), a + 90, q[1])); }).join('');
+  return '<path d="' + d + '" stroke="' + C.metal + '" stroke-width="2.2"/>';
+}
 var PROPS = {
   /* From the side a barbell is its plate: a disc centred on the bar. */
   plate: function(J, o){
@@ -425,7 +431,8 @@ var PROPS = {
   barFront: function(J, o){
     var c = o.at ? off(jp(J, o.at), o.dx, o.dy) : off(J.mid, o.dx, o.dy);
     var half = o.half || 30, pr = o.pr || 9, a = 90 + (J.rot || 0);
-    var s = line(mv(c, a, half), mv(c, a + 180, half), C.metal, 2.2);
+    /* D160 — an EZ curl bar: the same bar with its two bends where the hands hold it. */
+    var s = o.ez ? ezBarFront(c, a, half) : line(mv(c, a, half), mv(c, a + 180, half), C.metal, 2.2);
     if(o.plates !== false) [-1, 1].forEach(function(sd){
       var pc = mv(c, a, sd * (half - 3));
       s += line(mv(pc, a + 90, pr), mv(pc, a - 90, pr), C.plateEdge, 5.6) + line(mv(pc, a + 90, pr - 0.8), mv(pc, a - 90, pr - 0.8), C.plate, 3.4);
@@ -1138,12 +1145,7 @@ function build(){
     end:  S({ trunk:176, nua:18, nfa:150, fua:14, ffa:146 }),
     gear:[['cable', { from:[92, 98], to:'nW', grip:'rope' }]], track:'nW' },
 
-  /* D159 — the reverse curl: the barbell curl's arc with the hands over a light EZ bar; a pronated grip tops out a
-     little lower. */
-  curl_reverse_ez: { view:'side', arch:'arc', crop:'upper', ghost:'arms',
-    start:S({ nua:6, nfa:14, fua:2, ffa:10 }),
-    end:  S({ nua:16, nfa:138, fua:12, ffa:134 }),
-    gear:[['plate', { at:'nW', r:6.2 }]], track:'nW' },
+  /* D159's reverse curl is drawn from the front now, beside the upright row (D160). */
 
   /* D159 — the Bayesian curl: facing away from a low pulley, the working arm trails behind the body so the curl
      starts from a stretch; the cable runs back to the column behind. The free arm hangs. */
@@ -1538,6 +1540,21 @@ function build(){
     end:  F({ la:104, lfa:-52, ra:104, rfa:-52 }),
     gear:[['barFront', { half:26, pr:7.6 }]], track:'rW' },
 
+  /* D160 — the reverse curl from the front, where its bar can be seen: an EZ bar held over the top, curled from the
+     thighs to the shoulders with the elbows kept at the sides. From the side it was the barbell curl again. */
+  curl_reverse_ez: { view:'front', arch:'arc', ghost:'arms',
+    start:F({ la:6, lfa:4, ra:6, rfa:4 }),
+    end:  F({ la:12, lfa:150, ra:12, rfa:150 }),
+    front:[['barFront', { half:24, pr:4.2, ez:true }]], track:'rW' },
+
+  /* D160 — the cable external rotation: the elbow held at the side, bent to a right angle, the forearm turned out
+     from across the stomach against a cable from the far side, at elbow height. The other arm hangs. */
+  cable_external_rotation: { view:'front', arch:'cable', arrow:{ side:-1 }, ghost:'arms',
+    scene:[['column', { x:12, top:40 }]],
+    start:F({ la:-6, lfa:-4, ra:6, rfa:-84 }),
+    end:  F({ la:-6, lfa:-4, ra:6, rfa:64 }),
+    gear:[['cable', { from:[16, 66], to:'rW' }]], track:'rW' },
+
   /* Rear delt fly, from the front: hinged forward with soft knees, so the
      torso all but disappears behind the shoulders and the head hangs below
      them, looking at the floor; the arms rise out wide to level. */
@@ -1722,12 +1739,13 @@ function build(){
     end:  { pin:['hip', [44, 90]], trunk:178, neck:180, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:-58, nfa:86, fua:-62, ffa:82 },
     gear:[['cable', { from:[98, 78], to:'nW', grip:'bar' }]], track:'nW' },
 
-  /* D159 — the single-arm cable row: the seated row with one handle; the free hand rests on the thigh. */
-  row_cable_single: { view:'side', arch:'cable', path:'line', arrow:{ side:-1, trim:[0.1, 0.9] }, ghost:'arms',
-    scene:[['pad', { a:[26, 96], b:[52, 96], w:5 }], ['post', { a:[39, 99], b:[39, G] }], ['post', { a:[92, 88], b:[92, G] }], ['column', { x:102, top:60 }]],
-    start:{ pin:['hip', [44, 90]], trunk:164, neck:170, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:84, nfa:84, fua:34, ffa:78 },
-    end:  { pin:['hip', [44, 90]], trunk:178, neck:180, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:-58, nfa:86, fua:34, ffa:78 },
-    gear:[['cable', { from:[98, 78], to:'nW' }]], track:'nW' },
+  /* D160 — the single-arm cable row as it is most often done: standing in a split stance at a column, one handle at
+     chest height pulled back past the ribs while the other arm hangs. Seated, it was the seated row again. */
+  row_cable_single: { view:'side', arch:'cable', path:'line', ghost:'arms',
+    scene:[['column', { x:100, top:30 }]],
+    start:{ pin:['nA', [62, 104.3]], trunk:172, neck:176, nth:14, nsh:4, fth:-18, fsh:-12, nua:86, nfa:86, fua:4, ffa:6 },
+    end:  { pin:['nA', [62, 104.3]], trunk:178, neck:180, nth:14, nsh:4, fth:-18, fsh:-12, nua:-46, nfa:84, fua:4, ffa:6 },
+    gear:[['cable', { from:[96, 50], to:'nW' }]], track:'nW' },
 
   row_machine: { view:'side', arch:'machine', path:'pivot', pivot:ROW_PIVOT, ghost:'arms',
     scene:[['pad', { a:[36, 92], b:[58, 92], w:5 }], ['post', { a:[47, 95], b:[47, G] }], ['post', { a:[74, 78], b:[74, G] }],
@@ -2691,7 +2709,8 @@ var EXERCISE_HOW_TO = {
   kb_row:['Hand and knee on the bench', 'Row the bell to the hip', 'Lower slowly'],
   renegade_row:['Plank on the dumbbells, feet wide', 'Row one side without twisting', 'Place it down, switch sides'],
   row_cable_seated:['Sit tall, knees soft', 'Pull the handle to the stomach', 'Let the arms extend fully'],
-  row_cable_single:['One handle; free hand on the thigh', 'Pull the elbow back past the ribs', 'Reach forward to a full stretch'],
+  row_cable_single:['Split stance, free arm at your side', 'Pull the elbow back past the ribs', 'Reach forward to a full stretch'],
+  cable_external_rotation:['Elbow pinned to your side at 90°', 'Turn the forearm out, wrist straight', 'Return slowly across the stomach'],
   row_machine:['Chest on the pad', 'Pull the handles back', 'Squeeze the shoulder blades'],
   tbar_row:['Hinge over the bar, back flat', 'Pull the handle to the chest', 'Lower under control'],
   trx_row:['Lean back with a straight body', 'Pull the chest to the handles', 'Lower slowly'],

@@ -20854,3 +20854,52 @@ glutes, hamstrings, any cable, never a session's lead — with its drawing uncha
 
 **Held.** Workout log, XP, levels, records and baselines, Session Score, prescriptions of completed sessions, D43/D44
 semantics for weeks without changes, program completion, Friends, DATA_KEYS (16), schema (1), the rank insignia.
+## §205 — STEADIER WEEKS: A PROGRAM ANSWERS FOR ITS OWN DATES, A DROP THAT ASKS, A WEEK IN SECTIONS (D160 · LOOP 10.82 · loop-v259)
+
+**Why.** The owner asked for a reliability and finishing pass on D159's weeks: every program state (running, paused, not
+yet begun, ended, completed) handled honestly, no recurring change written without the athlete choosing it, the week
+sheet easier to read, phase names whole, one more exercise, and two drawings told apart from their two-handed cousins.
+
+**A program answers only for its own dates (E74 closed).** `getProgramWorkoutForDate` returns nothing for a date before
+the program's `startDate`. Before it, Today, This Week and the next session follow the weekly plan — as D44 and the Log
+calendar always did (D145's `planTargetOn`, unchanged). `startTemplateLog` records a workout as the program's only once
+the program has begun; `myTrainingNextSession` skips days before the start. Nothing stored changes.
+
+**What a drop does (weekScopeOf).** A drop on This Week has exactly one of three outcomes, decided before anything is
+written:
+- *This week only* — a program whose week can change (D159's §204 rule: every date today or later, inside the program,
+  not paused, nothing trained or under way, D43 pairing unchanged). A program set to start later can change its own
+  weeks from Edit week; its first week counts.
+- *An offer* — the weekly plan (it has no dated weeks), a paused program, or a week before the program's start. Nothing
+  is written. The toast says "Not moved", why, and offers **Change every week** or Cancel. Choosing it is D12's
+  recurring swap with D66's Undo, exactly as before; Undo restores it and the restored state is what reloads.
+- *Nothing* — an ended or completed program, a day over, trained or under way. Nothing lifts or is written; the reason
+  is given in words.
+A rejected one-week change never falls back to every week.
+
+**Precedence, in the athlete's words.** A week's own changes sit on top of the program; an every-week change reaches
+every week that has none of its own, and "this week keeps its own" is said on the sheet. Copy applies to the next week
+only, Reset returns a week to its program, each with its own Undo. A change to next week does not touch a workout
+already logged, last week's prescription, any other week, or the program's template (Contract 284 F–G).
+
+**The cluster fix (E85 closed).** When two sessions sharing their main muscles fall on consecutive days, the fix may
+move either one (the later first). A suggestion says no change can separate them only after both have been tried.
+
+**The trainer context.** `computeTrainingContext().scheduledToday` reads the dated plan (`planTargetOn`), so it follows
+a week's own changes and a program's start. It has no consumers today; it is corrected so a future one reads the truth.
+
+**The week sheet.** It opens on the week at a glance (completion, sessions, minutes, missed) and its schedule. Six
+sections wait closed, each with a one-line summary: training details, muscle workload, planned vs done, coaching, last
+week, notes and changes. A section is a button with `aria-expanded`/`aria-controls`; its state is kept for the session
+(`sessionStorage`); focus returns to the control that changed. Motion uses D156's tokens and the global reduced-motion
+rule stills it.
+
+**Phases named in full.** The journey card lists every phase with its weeks; the program map's phases are chips that
+scroll sideways at 320 px, and a line says which week of which phase is shown.
+
+**Exercises.** Cable External Rotation joins the registry (shoulders, cable, isolation, per arm, never a session's lead)
+with a new front-view drawing at a cable column. EZ-Bar Reverse Curl is drawn from the front holding its EZ bar;
+Single-Arm Cable Row stands in a split stance at a column. Every other drawing renders exactly as before.
+
+**Held.** XP, records, Session Score, D43, D44, completion, progression, the calendar, DATA_KEYS and the schema are
+10.81's. Contract 284 holds the release.

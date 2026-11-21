@@ -11272,6 +11272,68 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
 .pm-wo-s{ font-size: 12px; color: var(--text-dim); }
 @keyframes d159In{ from{ opacity: 0; transform: translateY(4px); } to{ opacity: 1; transform: none; } }
 /* ==== D159 WEEKS END ==== */
+/* ==== D160 FINISHING BEGIN ==== */
+/* =========================================================
+   PROGRAM RELIABILITY & FINISHING (Phase D160) — the drop that asks before changing every week, the week sheet in
+   sections, phases named in full on the journey and the map. D132's surfaces, D156's motion tokens (--dur-press 100,
+   --dur-feedback 140, --dur-step 200 ms, --ease-out); the global reduced-motion rule stills all of it. Transforms and
+   opacity only.
+   ========================================================= */
+
+/* ---------- This Week: a drop that did not move ---------- */
+.wk-toast-acts{ display: inline-flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; flex: 0 1 auto; }
+.wk-toast-offer{ flex-wrap: wrap; border-color: var(--hairline-strong); }
+.wk-toast-offer .wk-toast-body{ flex: 1 1 200px; }
+.wk-toast-offer .wk-undo-text{ color: var(--text); }
+
+/* ---------- the week sheet: a glance, the schedule, then sections ---------- */
+.wsv-glance{ display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.wsv-glance b{ color: var(--text); font-size: 15px; }
+.wsv-glance .wsv-g-miss b{ color: var(--c-warning); }
+.wsv-locked{ font-size: 13px; line-height: 1.4; padding: 10px 12px; border-radius: 12px; border: 1px dashed var(--hairline-strong); color: var(--text-dim); }
+.wsv-sugs-act{ margin-top: 12px; }
+.wsv-secs{ display: flex; flex-direction: column; margin-top: 18px; border-top: 1px solid var(--hairline); }
+.wsv-sec{ border-bottom: 1px solid var(--hairline); }
+.wsv-sec-h{ margin: 0; font: inherit; }
+.wsv-sec-b{ display: grid; grid-template-columns: minmax(0, 1fr) 20px; grid-template-areas: 't c' 's c'; align-items: center; gap: 2px 8px; width: 100%;
+  min-height: 56px; padding: 10px 2px; background: none; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.wsv-sec-t{ grid-area: t; font-size: 15px; font-weight: 700; color: var(--text); }
+.wsv-sec-s{ grid-area: s; font-size: 12.5px; color: var(--text-dim); overflow-wrap: break-word; }
+.wsv-sec-c{ grid-area: c; justify-self: end; width: 9px; height: 9px; border-right: 2px solid var(--text-faint); border-bottom: 2px solid var(--text-faint);
+  transform: rotate(45deg); transition: transform var(--dur-feedback) var(--ease-out); }
+.wsv-sec.is-open .wsv-sec-c{ transform: rotate(-135deg); }
+.wsv-sec-b:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+.wsv-sec-body{ padding: 0 0 16px; animation: d159In var(--dur-step) var(--ease-out) both; }
+.wsv-sess{ padding: 10px 0; border-top: 1px solid var(--hairline); }
+.wsv-sess:first-child{ border-top: 0; padding-top: 0; }
+.wsv-sess-h{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; font-size: 14px; color: var(--text); }
+.wsv-sess-h span{ font-size: 13px; color: var(--text-dim); }
+.wsv-sess .wsv-ex{ padding: 6px 0 0; animation: none; }
+.wsv-sess.is-sel{ box-shadow: inset 3px 0 0 var(--accent); padding-left: 10px; }
+.wsv-secs .wsv-sugs{ gap: 8px; }
+
+/* ---------- the journey card: every phase named in full ---------- */
+.pj-phs.pj-phs-list{ flex-wrap: wrap; gap: 4px 12px; margin: 8px 0 0; order: 2; }
+.pj-phs-list .pj-ph{ overflow: visible; text-overflow: clip; min-width: 0; }
+.pj-phs-list .pj-ph i{ margin-left: 5px; font-style: normal; font-weight: 600; letter-spacing: 0; color: var(--text-faint); opacity: 0.85; }
+.pj-time:has(.pj-phs-list){ display: flex; flex-direction: column; }
+.pj-time:has(.pj-phs-list) .pj-wks{ order: 1; }
+
+/* ---------- the program map: phases as chips, and which week is on screen ---------- */
+.pm-phases:has(.pm-ph-chip){ overflow-x: auto; gap: 8px; padding-bottom: 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
+.pm-phases:has(.pm-ph-chip)::-webkit-scrollbar{ display: none; }
+.pm-phases .pm-ph-chip{ min-height: 44px; justify-content: center; scroll-snap-align: start; cursor: pointer; padding: 6px 12px; border-radius: 10px;
+  border: 1px solid var(--hairline-strong); background: var(--surface-1); font: inherit; color: inherit; text-align: left;
+  transition: border-color var(--dur-feedback) var(--ease-out), background-color var(--dur-feedback) var(--ease-out), transform var(--dur-press) var(--ease-out); }
+.pm-phases .pm-ph-chip.on{ border-color: var(--accent); background: var(--surface-2); box-shadow: inset 0 0 0 1px var(--accent); }
+.pm-ph-chip:active{ transform: var(--press); }
+.pm-ph-chip .pm-ph-n{ overflow: visible; text-overflow: clip; font-size: 12.5px; }
+.pm-ph-chip:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.pm-sel{ display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; margin: 10px 0 2px; font-size: 14px; color: var(--text-dim); }
+.pm-sel b{ font-size: 15px; color: var(--text); }
+.pm-sel span{ color: var(--text); font-weight: 600; }
+.pm-sel em{ font-style: normal; font-size: 12px; font-weight: 700; color: var(--accent); }
+/* ==== D160 FINISHING END ==== */
 </style>
 </head>
 <body>
@@ -13942,6 +14004,12 @@ function rect(x, y, w, h, fill, stroke, rx){
   return '<rect x="' + n1(x) + '" y="' + n1(y) + '" width="' + n1(w) + '" height="' + n1(h) + '" rx="' + (rx == null ? 1.6 : rx) +
     '" fill="' + fill + '" stroke="' + stroke + '" stroke-width="1.2"/>';
 }
+/* D160 — the bar runs straight to the hands, dips at each grip and rises between them: a W seen from the front. */
+function ezBarFront(c, a, half){
+  var pts = [[-1, 0], [-0.5, 0], [-0.36, 3.2], [-0.2, -2.4], [0, 0.8], [0.2, -2.4], [0.36, 3.2], [0.5, 0], [1, 0]];
+  var d = pts.map(function(q, i){ return (i ? 'L' : 'M') + P(mv(mv(c, a, q[0] * half), a + 90, q[1])); }).join('');
+  return '<path d="' + d + '" stroke="' + C.metal + '" stroke-width="2.2"/>';
+}
 var PROPS = {
   /* From the side a barbell is its plate: a disc centred on the bar. */
   plate: function(J, o){
@@ -13957,7 +14025,8 @@ var PROPS = {
   barFront: function(J, o){
     var c = o.at ? off(jp(J, o.at), o.dx, o.dy) : off(J.mid, o.dx, o.dy);
     var half = o.half || 30, pr = o.pr || 9, a = 90 + (J.rot || 0);
-    var s = line(mv(c, a, half), mv(c, a + 180, half), C.metal, 2.2);
+    /* D160 — an EZ curl bar: the same bar with its two bends where the hands hold it. */
+    var s = o.ez ? ezBarFront(c, a, half) : line(mv(c, a, half), mv(c, a + 180, half), C.metal, 2.2);
     if(o.plates !== false) [-1, 1].forEach(function(sd){
       var pc = mv(c, a, sd * (half - 3));
       s += line(mv(pc, a + 90, pr), mv(pc, a - 90, pr), C.plateEdge, 5.6) + line(mv(pc, a + 90, pr - 0.8), mv(pc, a - 90, pr - 0.8), C.plate, 3.4);
@@ -14670,12 +14739,7 @@ function build(){
     end:  S({ trunk:176, nua:18, nfa:150, fua:14, ffa:146 }),
     gear:[['cable', { from:[92, 98], to:'nW', grip:'rope' }]], track:'nW' },
 
-  /* D159 — the reverse curl: the barbell curl's arc with the hands over a light EZ bar; a pronated grip tops out a
-     little lower. */
-  curl_reverse_ez: { view:'side', arch:'arc', crop:'upper', ghost:'arms',
-    start:S({ nua:6, nfa:14, fua:2, ffa:10 }),
-    end:  S({ nua:16, nfa:138, fua:12, ffa:134 }),
-    gear:[['plate', { at:'nW', r:6.2 }]], track:'nW' },
+  /* D159's reverse curl is drawn from the front now, beside the upright row (D160). */
 
   /* D159 — the Bayesian curl: facing away from a low pulley, the working arm trails behind the body so the curl
      starts from a stretch; the cable runs back to the column behind. The free arm hangs. */
@@ -15070,6 +15134,21 @@ function build(){
     end:  F({ la:104, lfa:-52, ra:104, rfa:-52 }),
     gear:[['barFront', { half:26, pr:7.6 }]], track:'rW' },
 
+  /* D160 — the reverse curl from the front, where its bar can be seen: an EZ bar held over the top, curled from the
+     thighs to the shoulders with the elbows kept at the sides. From the side it was the barbell curl again. */
+  curl_reverse_ez: { view:'front', arch:'arc', ghost:'arms',
+    start:F({ la:6, lfa:4, ra:6, rfa:4 }),
+    end:  F({ la:12, lfa:150, ra:12, rfa:150 }),
+    front:[['barFront', { half:24, pr:4.2, ez:true }]], track:'rW' },
+
+  /* D160 — the cable external rotation: the elbow held at the side, bent to a right angle, the forearm turned out
+     from across the stomach against a cable from the far side, at elbow height. The other arm hangs. */
+  cable_external_rotation: { view:'front', arch:'cable', arrow:{ side:-1 }, ghost:'arms',
+    scene:[['column', { x:12, top:40 }]],
+    start:F({ la:-6, lfa:-4, ra:6, rfa:-84 }),
+    end:  F({ la:-6, lfa:-4, ra:6, rfa:64 }),
+    gear:[['cable', { from:[16, 66], to:'rW' }]], track:'rW' },
+
   /* Rear delt fly, from the front: hinged forward with soft knees, so the
      torso all but disappears behind the shoulders and the head hangs below
      them, looking at the floor; the arms rise out wide to level. */
@@ -15254,12 +15333,13 @@ function build(){
     end:  { pin:['hip', [44, 90]], trunk:178, neck:180, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:-58, nfa:86, fua:-62, ffa:82 },
     gear:[['cable', { from:[98, 78], to:'nW', grip:'bar' }]], track:'nW' },
 
-  /* D159 — the single-arm cable row: the seated row with one handle; the free hand rests on the thigh. */
-  row_cable_single: { view:'side', arch:'cable', path:'line', arrow:{ side:-1, trim:[0.1, 0.9] }, ghost:'arms',
-    scene:[['pad', { a:[26, 96], b:[52, 96], w:5 }], ['post', { a:[39, 99], b:[39, G] }], ['post', { a:[92, 88], b:[92, G] }], ['column', { x:102, top:60 }]],
-    start:{ pin:['hip', [44, 90]], trunk:164, neck:170, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:84, nfa:84, fua:34, ffa:78 },
-    end:  { pin:['hip', [44, 90]], trunk:178, neck:180, nth:80, nsh:62, fth:78, fsh:60, nft:170, fft:170, nua:-58, nfa:86, fua:34, ffa:78 },
-    gear:[['cable', { from:[98, 78], to:'nW' }]], track:'nW' },
+  /* D160 — the single-arm cable row as it is most often done: standing in a split stance at a column, one handle at
+     chest height pulled back past the ribs while the other arm hangs. Seated, it was the seated row again. */
+  row_cable_single: { view:'side', arch:'cable', path:'line', ghost:'arms',
+    scene:[['column', { x:100, top:30 }]],
+    start:{ pin:['nA', [62, 104.3]], trunk:172, neck:176, nth:14, nsh:4, fth:-18, fsh:-12, nua:86, nfa:86, fua:4, ffa:6 },
+    end:  { pin:['nA', [62, 104.3]], trunk:178, neck:180, nth:14, nsh:4, fth:-18, fsh:-12, nua:-46, nfa:84, fua:4, ffa:6 },
+    gear:[['cable', { from:[96, 50], to:'nW' }]], track:'nW' },
 
   row_machine: { view:'side', arch:'machine', path:'pivot', pivot:ROW_PIVOT, ghost:'arms',
     scene:[['pad', { a:[36, 92], b:[58, 92], w:5 }], ['post', { a:[47, 95], b:[47, G] }], ['post', { a:[74, 78], b:[74, G] }],
@@ -16223,7 +16303,8 @@ var EXERCISE_HOW_TO = {
   kb_row:['Hand and knee on the bench', 'Row the bell to the hip', 'Lower slowly'],
   renegade_row:['Plank on the dumbbells, feet wide', 'Row one side without twisting', 'Place it down, switch sides'],
   row_cable_seated:['Sit tall, knees soft', 'Pull the handle to the stomach', 'Let the arms extend fully'],
-  row_cable_single:['One handle; free hand on the thigh', 'Pull the elbow back past the ribs', 'Reach forward to a full stretch'],
+  row_cable_single:['Split stance, free arm at your side', 'Pull the elbow back past the ribs', 'Reach forward to a full stretch'],
+  cable_external_rotation:['Elbow pinned to your side at 90°', 'Turn the forearm out, wrist straight', 'Return slowly across the stomach'],
   row_machine:['Chest on the pad', 'Pull the handles back', 'Squeeze the shoulder blades'],
   tbar_row:['Hinge over the bar, back flat', 'Pull the handle to the chest', 'Lower under control'],
   trx_row:['Lean back with a straight body', 'Pull the chest to the handles', 'Lower slowly'],
@@ -21647,6 +21728,31 @@ const LOOP_UPDATES = [
     bugFixes: [
       'This Week no longer calls a day before your program began a rest day when your weekly plan had a session on it',
       'This Week shows days from before LOOP had your schedule as Not tracked instead of Rest'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-82',
+    version: 'LOOP 10.82',
+    title: 'Steadier Weeks',
+    date: '2026-11-20',
+    swVersion: 'loop-v259',
+    summary: 'A move that can’t be for one week now asks first, week details are easier to read, and Cable External Rotation joins your exercises.',
+    newFeatures: [
+      'New exercise: Cable External Rotation, with its own drawing'
+    ],
+    improvements: [
+      'When a move can’t be for one week (your weekly plan, a paused program, or a day before your program starts), LOOP says why and asks before changing every week',
+      'A program set to start later can have its own weeks rearranged from Edit week',
+      'Week details open to the week at a glance and its schedule; training details, workload, coaching notes, last week and notes open when you want them, and stay open',
+      'Your program’s phases show their full names, and the program map says which week of which phase you are looking at',
+      'EZ-Bar Reverse Curl is now drawn from the front with its EZ bar, and Single-Arm Cable Row standing in a split stance, so each looks different from its two-handed cousin'
+    ],
+    bugFixes: [
+      'Before a program’s start date, Today and This Week follow your weekly plan instead of the program’s first week',
+      'A workout started before your program begins is no longer recorded as the program’s',
+      'Moving a session on a paused program no longer changes every week without asking',
+      'A suggestion to separate two back-to-back sessions now also tries moving the earlier one, instead of saying nothing can be done'
     ],
     changes: []
   }
@@ -35568,7 +35674,9 @@ function programWeekPlanApply(p, dateStr, base){
 function weekEditProgram(){
   let p = null;
   try{ p = getRunningProgram(); }catch(e){ p = null; }
-  return p && programHasBegun(p) ? p : null;
+  /* D160 — a program set to start later has dated weeks from its start date, so its own weeks can change one at a time;
+     the days before the start are outside it (weekChangeBlocker) and follow the weekly plan (E74). */
+  return p || null;
 }
 function weekDateOf(monday, key){ const i = PROGRAM_DAY_KEYS.indexOf(key); return i === -1 ? null : civilAddDays(monday, i); }
 const WEEK_BLOCK_WORDS = {
@@ -35703,12 +35811,13 @@ async function weekDismiss(monday, id){
 /* Whether a day of this week can be picked up, or receive a session, as a change to this week. A running program
    only: the weekly plan keeps its every-day behaviour. */
 function weekCellMovable(key, asTarget){
+  /* D160 — by scope (weekScopeOf): nothing lifts or lands where nothing may move; where only every week could change,
+     the drag is allowed and the drop asks first */
+  const s = weekScopeOf(key);
+  if(s.mode === 'none') return false;
+  if(s.mode === 'offer' || asTarget) return true;
   const p = weekEditProgram();
-  if(!p) return true;
-  const monday = civilMonday(localDateStr());
-  const date = weekDateOf(monday, key);
-  if(weekChangeBlocker(p, [date])) return false;
-  if(asTarget) return true;
+  const date = weekDateOf(civilMonday(localDateStr()), key);
   const e = programPlanOn(p, date)[key];
   return !!(e && e.type === 'workout');
 }
@@ -35723,15 +35832,17 @@ function weekSessionName(p, date, key){
 }
 /* The drop: this week only on a running program; the weekly plan otherwise, said plainly. */
 async function commitWeekMoveScoped(fromKey, toKey){
-  const p = weekEditProgram();
-  if(!p){
-    const before = snapshotWeekForUndo();
-    /* exactly 10.80's write: the plan layer changes before the first await inside it, so the redraw sees it */
-    try{ swapScheduledDays(fromKey, toKey); }catch(e){ return; }
+  const a = weekScopeOf(fromKey), b = weekScopeOf(toKey);
+  /* D160 — a drop changes this week only when both days can; otherwise it writes nothing and says why, offering the
+     recurring change as an explicit choice where one exists */
+  if(a.mode !== 'week' || b.mode !== 'week'){
+    const none = [a, b].find(s => s.mode === 'none');
     renderAll();
-    showWeekToast({ snapshot: before, from: fromKey, to: toKey, scope: 'every' });
+    if(none){ showWeekToast({ message: WEEK_BLOCK_WORDS[none.reason] || WEEK_BLOCK_WORDS.save }); return; }
+    showWeekToast({ offer: true, from: fromKey, to: toKey, reason: (a.mode === 'offer' ? a : b).reason });
     return;
   }
+  const p = weekEditProgram();
   const monday = civilMonday(localDateStr());
   const moving = weekSessionName(p, weekDateOf(monday, fromKey), fromKey);
   const other = weekSessionName(p, weekDateOf(monday, toKey), toKey);
@@ -35747,10 +35858,16 @@ function showWeekToast(t){
   const host = document.getElementById('weekUndo');
   if(!host) return;
   if(_weekUndo && _weekUndo.timer) clearTimeout(_weekUndo.timer);
-  _weekUndo = { snapshot: t.snapshot || null, timer: null, from: t.from, to: t.to, scope: t.scope };
+  _weekUndo = { snapshot: t.snapshot || null, timer: null, from: t.from, to: t.to, scope: t.scope, offer: !!t.offer };
   let text, sub = '', actions = '';
   if(t.message){
     text = escapeHtml(t.message);
+  } else if(t.offer){
+    /* D160 — nothing was written: the reason, and the recurring change only if the athlete chooses it */
+    text = `Not moved: ${escapeHtml(DAY_LABEL_FULL[t.from])} → ${escapeHtml(DAY_LABEL_FULL[t.to])}`;
+    sub = escapeHtml(WEEK_OFFER_WORDS[t.reason] || WEEK_OFFER_WORDS.plan);
+    actions = `<button type="button" class="wk-undo-btn" onclick="weekOfferEveryWeek()">Change every week</button>`
+      + `<button type="button" class="wk-undo-btn wk-undo-alt" onclick="hideWeekUndo()">Cancel</button>`;
   } else {
     const F = DAY_LABEL_FULL[t.from], T = DAY_LABEL_FULL[t.to];
     if(t.scope === 'week'){
@@ -35766,12 +35883,13 @@ function showWeekToast(t){
     actions += `<button type="button" class="wk-undo-btn" onclick="undoWeekMove()">Undo</button>`;
   }
   host.innerHTML = `
-    <div class="wk-undo wk-toast" role="status">
+    <div class="wk-undo wk-toast${t.offer ? ' wk-toast-offer' : ''}" role="status">
       <span class="wk-toast-body"><span class="wk-undo-text">${text}</span>${sub ? `<span class="wk-toast-sub">${sub}</span>` : ''}</span>
-      ${actions}
+      <span class="wk-toast-acts">${actions}</span>
     </div>`;
   host.classList.add('open');
-  _weekUndo.timer = setTimeout(hideWeekUndo, t.message ? 4000 : 6500);
+  weekToastInView(host);   // D160
+  _weekUndo.timer = setTimeout(hideWeekUndo, t.message ? 4000 : t.offer ? 9000 : 6500);
 }
 /* "Every week": this week's swap is taken back and the same two days are swapped in the weekly plan, through the
    writer every recurring move uses (D143's rule decides whether it starts today or next Monday). Undo still returns
@@ -35898,20 +36016,24 @@ function weekClusters(p, monday){
 /* The simplest change that removes a cluster: move the later session to the first day still ahead this week where it
    lands next to nothing it overlaps, by a swap the week rule allows. Deterministic: days in order. */
 function weekClusterFix(p, monday, c){
-  /* a free day first, in order, so the fix never takes another session's day while a free one would do; then a swap */
+  /* a free day first, in order, so the fix never takes another session's day while a free one would do; then a swap.
+     Either session of the pair may move (the later one first): when the later one's day is held (over, trained, under
+     way), moving the earlier one may still separate them (D160). */
   const week = applyWeekOps(programTimelineWeek(p, monday), (weekPlanOf(p, monday) || {}).ops);
   const free = k => !week[k] || week[k].type !== 'workout';
   const days = PROGRAM_DAY_KEYS.filter(free).concat(PROGRAM_DAY_KEYS.filter(k => !free(k)));
-  for(const target of days){
+  const tries = [];
+  [true, false].forEach(isFree => [c.b, c.a].forEach(mover => days.filter(k => free(k) === isFree).forEach(target => tries.push([mover, target]))));
+  for(const [mover, target] of tries){
     if(target === c.a || target === c.b) continue;
     const trial = JSON.parse(JSON.stringify(p));
     trial.weekPlans = trial.weekPlans || {};
     trial.weekPlans[monday] = trial.weekPlans[monday] || {};
-    const ops = trial.weekPlans[monday].ops = (trial.weekPlans[monday].ops || []).concat([{ t:'swap', a: c.b, b: target }]);
-    if(weekChangeBlocker(p, [weekDateOf(monday, c.b), weekDateOf(monday, target)])) continue;
+    const ops = trial.weekPlans[monday].ops = (trial.weekPlans[monday].ops || []).concat([{ t:'swap', a: mover, b: target }]);
+    if(weekChangeBlocker(p, [weekDateOf(monday, mover), weekDateOf(monday, target)])) continue;
     if(weekClusters(trial, monday).clusters.length) continue;
     if(programWorkClaims(trial) !== programWorkClaims(p)) continue;
-    return { a: c.b, b: target, ops };
+    return { a: mover, b: target, ops };
   }
   return null;
 }
@@ -35936,13 +36058,13 @@ function deriveWeekSuggestions(view){
       const after = fix ? (() => {
         const wk = applyWeekOps(programTimelineWeek(p, monday), ((weekPlanOf(p, monday) || {}).ops || []).concat([{ t:'swap', a: fix.a, b: fix.b }]));
         const label = k => { const e = wk[k]; if(!e || e.type !== 'workout') return 'Rest'; try{ const t = resolveProgramWorkout(e, null); return t && t.name ? thisWeekShortName(t.name) : (CAT_LABEL[e.category] || 'Workout'); }catch(x){ return CAT_LABEL[e.category] || 'Workout'; } };
-        return PROGRAM_DAY_KEYS.filter(k => k === c.a || k === fix.a || k === fix.b).map(k => DAY_LABEL_FULL[k].slice(0, 3) + ' ' + label(k)).join(' · ');
+        return PROGRAM_DAY_KEYS.filter(k => k === c.a || k === c.b || k === fix.a || k === fix.b).map(k => DAY_LABEL_FULL[k].slice(0, 3) + ' ' + label(k)).join(' · ');
       })() : null;
       out.push({ id: 'cluster:' + c.a + c.b, kind: 'cluster',
         title: na === nb ? `${na} on consecutive days: ${DAY_LABEL_FULL[c.a]} and ${DAY_LABEL_FULL[c.b]}` : `${na} and ${nb} are on consecutive days`,
         why: `Both lead with ${c.shared.map(muscleGroupLabel).join(' and ').toLowerCase()}, and this week's changes put them back to back.`,
         evidence: `${DAY_LABEL_FULL[c.a]}: ${na} · ${DAY_LABEL_FULL[c.b]}: ${nb}`,
-        fix: fix ? { a: fix.a, b: fix.b, text: `Move ${nb} to ${DAY_LABEL_FULL[fix.b]}`, after } : null });
+        fix: fix ? { a: fix.a, b: fix.b, text: `Move ${fix.a === c.a ? na : nb} to ${DAY_LABEL_FULL[fix.b]}`, after } : null });
     });
   }
   if(view.state === 'current'){
@@ -35992,15 +36114,19 @@ function deriveWeekSuggestions(view){
 /* ---------- the week sheet ---------- */
 let weekSheetState = null;   // { monday, open: dayKey|null, moving: dayKey|null, words: bool }
 function openWeekSheet(monday, opts){
-  const p = getActiveProgram();
+  const o = opts || {};
+  /* D160 — any program's weeks can be opened (an ended one from its map); only the one being trained can change */
+  const p = (o.programId && getProgram(o.programId)) || getActiveProgram();
   if(!p || !p.startDate) return;
   const first = programWeekMonday(p);
   weekSheetState = { programId: p.id, monday: monday || civilMonday(localDateStr()), open: null, moving: null, words: false };
   if(weekSheetState.monday < first) weekSheetState.monday = first;
+  let last = null; try{ last = civilMonday(programEndDate(p)); }catch(e){ last = null; }
+  if(last && weekSheetState.monday > last) weekSheetState.monday = last;
   renderWeekSheet();
   const ov = document.getElementById('weekSheetOverlay');
   if(ov){ ov.classList.add('open'); const s = ov.querySelector('.sheet-scroll'); if(s) s.scrollTop = 0; }
-  if(opts && opts.schedule){ const el = document.getElementById('wsvSchedule'); if(el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); }
+  if(o.schedule){ const el = document.getElementById('wsvSchedule'); if(el && el.scrollIntoView) el.scrollIntoView({ block: 'start' }); }
 }
 function closeWeekSheet(){
   const ov = document.getElementById('weekSheetOverlay');
@@ -36019,7 +36145,17 @@ function weekSheetStep(delta){
   st.monday = next; st.open = null; st.moving = null; st.words = false;
   renderWeekSheet('step');
 }
-function weekSheetToggle(key){ const st = weekSheetState; if(!st) return; st.open = st.open === key ? null : key; st.moving = null; renderWeekSheet(); }
+/* D160 — a day's session opens Training details at that session, rather than a second copy of its exercises in the row */
+function weekSheetToggle(key){
+  const st = weekSheetState; if(!st) return;
+  const s = weekSheetSections();
+  s.details = true;
+  try{ sessionStorage.setItem('loop_wsvSections', JSON.stringify(s)); }catch(e){}
+  st.open = key; st.moving = null;
+  renderWeekSheet();
+  const el = document.getElementById('wsvSess-' + key);
+  if(el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest', behavior: weekDragReducedMotion() ? 'auto' : 'smooth' });
+}
 function weekSheetMove(key){ const st = weekSheetState; if(!st) return; st.moving = st.moving === key ? null : key; renderWeekSheet(); }
 async function weekSheetMoveTo(to){
   const st = weekSheetState;
@@ -36092,6 +36228,9 @@ async function weekSheetSaveWords(){
   await weekSetWords(st.monday, n ? n.value : '', t ? t.value : '');
   st.words = false;
   renderWeekSheet();
+  /* D160 — focus returns to the control that opened the words */
+  const b = document.querySelector('[data-fid="words"]');
+  if(b && b.focus){ try{ b.focus({ preventScroll: true }); }catch(e){} }
 }
 function weekRestText(x){
   const s = (x && x.restSec > 0) ? x.restSec : restSecondsForReps(x && x.reps);
@@ -36109,115 +36248,148 @@ function weekRangeText(monday){
   return a.getMonth() === b.getMonth() ? `${m(a)} ${a.getDate()}–${b.getDate()}` : `${m(a)} ${a.getDate()} – ${m(b)} ${b.getDate()}`;
 }
 const WEEK_DAY_WORD = { done: 'Done', missed: 'Missed', today: 'Today', planned: 'Planned', rest: 'Rest', paused: 'Paused' };
-function renderWeekSheet(how){
+function renderWeekSheet(how, focusId){
   const st = weekSheetState;
   const body = document.getElementById('weekSheetBody');
   if(!st || !body) return;
   const p = getProgram(st.programId);
   if(!p){ body.innerHTML = ''; return; }
   const v = deriveWeekView(p, st.monday);
-  const today = localDateStr();
   const title = document.getElementById('weekSheetTitle');
   if(title) title.textContent = v.name || p.name || 'Week';
   const firstMon = programWeekMonday(p);
   let lastMon = null; try{ lastMon = civilMonday(programEndDate(p)); }catch(e){}
   const stateWord = v.state === 'current' ? 'This week' : v.state === 'past' ? 'Finished' : 'Upcoming';
+  const mins = v.minutes ? '~' + (v.minutes >= 60 ? Math.floor(v.minutes / 60) + ' h' + (v.minutes % 60 ? ' ' + (v.minutes % 60) + ' min' : '') : v.minutes + ' min') : null;
 
-  /* 1 — overview */
+  /* 1 — at a glance: the week, its phase, how far through it is, and what it asks; why it cannot change, if it cannot */
+  const locked = weekLockedWords(v);
   const focus = v.multiPhase && v.phase
     ? `<div class="wsv-phase"><span class="wsv-phase-n">${escapeHtml(v.phase.name)}</span><span class="wsv-phase-w">Weeks ${v.phase.startWeek}–${v.phase.endWeek}</span></div>
        <div class="wsv-purpose">${escapeHtml(v.phase.description || (v.phaseType && v.phaseType.purpose) || '')}</div>`
     : '';
-  const deload = v.deload ? `<div class="wsv-flag">A planned lighter week: fewer sets and a little more in reserve, by your program's rule.</div>` : '';
   const overview = `
     <div class="wsv-head">
       <div class="wsv-nav">
-        <button type="button" class="wsv-step" onclick="weekSheetStep(-1)" aria-label="Previous week" ${st.monday <= firstMon ? 'disabled' : ''}>‹</button>
+        <button type="button" class="wsv-step" data-fid="prev" onclick="weekSheetStep(-1)" aria-label="Previous week" ${st.monday <= firstMon ? 'disabled' : ''}>‹</button>
         <div class="wsv-when"><span class="wsv-k">${escapeHtml(stateWord)} · Week ${v.calWeek}${v.weeks ? ' of ' + v.weeks : ''}</span><span class="wsv-dates">${escapeHtml(weekRangeText(v.monday))}</span></div>
-        <button type="button" class="wsv-step" onclick="weekSheetStep(1)" aria-label="Next week" ${lastMon && st.monday >= lastMon ? 'disabled' : ''}>›</button>
+        <button type="button" class="wsv-step" data-fid="next" onclick="weekSheetStep(1)" aria-label="Next week" ${lastMon && st.monday >= lastMon ? 'disabled' : ''}>›</button>
       </div>
-      ${focus}${deload}
-      <div class="wsv-stats">
-        <div><b>${v.done}</b><span>of ${v.planned} done</span></div>
-        <div><b>${v.minutes ? '~' + (v.minutes >= 60 ? Math.floor(v.minutes / 60) + ' h ' + (v.minutes % 60 ? (v.minutes % 60) + ' min' : '') : v.minutes + ' min') : '—'}</b><span>planned time</span></div>
-        <div><b>${v.missed}</b><span>missed</span></div>
-      </div>
+      ${focus}
+      ${v.deload ? `<div class="wsv-flag">A planned lighter week: fewer sets and a little more in reserve, by your program's rule.</div>` : ''}
+      <div class="wsv-glance"><span><b>${v.done}</b> of ${v.planned} done</span>${mins ? `<span><b>${escapeHtml(mins)}</b> planned</span>` : ''}${v.missed ? `<span class="wsv-g-miss"><b>${v.missed}</b> missed</span>` : ''}</div>
       ${v.note ? `<div class="wsv-note">${escapeHtml(v.note)}</div>` : ''}
-      ${v.ops.length ? `<div class="wsv-custom">This week has its own changes. Other weeks follow your program.</div>` : ''}
+      ${v.ops.length ? `<div class="wsv-custom">This week has its own changes. Changes to every week still apply to the other weeks; this week keeps its own.</div>` : ''}
+      ${locked && v.state !== 'past' ? `<div class="wsv-locked">${escapeHtml(locked)}</div>` : ''}
     </div>`;
 
-  /* 2 — the seven days, each session one tap from its exercises, and every session still ahead one tap from a new day */
+  /* 2 — the seven days: each session a tap from its details, each one still ahead a tap from another day */
   const rows = v.days.map(d => {
     const name = d.template ? d.template.name : (d.status === 'done' && d.logged ? d.logged.title : 'Rest');
-    const open = st.open === d.key && d.template;
     const moving = st.moving === d.key;
-    const exHtml = open ? `<div class="wsv-ex">${(d.template.exercises || []).map(x => {
-        const bits = [`${escapeHtml(String(x.sets))} × ${escapeHtml(String(x.reps))}`];
-        const rir = weekRirText(x); if(rir) bits.push(rir);
-        const rest = weekRestText(x); if(rest) bits.push('rest ' + rest);
-        if(x.recommended && x.recommended !== '—' && x.recommended !== 'Bodyweight') bits.push(escapeHtml(x.recommended));
-        return `<div class="wsv-ex-r"><span class="wsv-ex-n">${escapeHtml(x.name)}</span><span class="wsv-ex-s">${bits.join(' · ')}</span></div>`;
-      }).join('')}
-      ${v.editable && d.movable ? `<button type="button" class="wsv-link" onclick="openWeekSession('${d.key}')">Customize this session</button>` : ''}
-      </div>` : '';
     const moveHtml = moving ? `<div class="wsv-moveto" role="group" aria-label="Move ${escapeAttr(name)} to">
         ${v.days.filter(x => x.key !== d.key).map(x => {
           const ok = !weekChangeBlocker(p, [x.date]) && x.status !== 'done';
           const holds = x.template ? thisWeekShortName(x.template.name) : 'Rest';
-          return `<button type="button" class="wsv-day-opt${ok ? '' : ' off'}" ${ok ? `onclick="weekSheetMoveTo('${x.key}')"` : 'disabled'}
+          return `<button type="button" class="wsv-day-opt${ok ? '' : ' off'}" data-fid="to-${x.key}" ${ok ? `onclick="weekSheetMoveTo('${x.key}')"` : 'disabled'}
             aria-label="${escapeAttr(DAY_LABEL_FULL[x.key] + (x.template ? ', swap with ' + holds : ', empty'))}">
             <span class="wsv-do-d">${escapeHtml(DAY_LABEL[x.key])}</span><span class="wsv-do-c">${escapeHtml(x.template ? 'Swap · ' + holds : 'Free')}</span></button>`;
         }).join('')}
       </div>` : '';
-    return `<div data-key="${d.key}" class="wsv-day wsv-${d.status}${open ? ' wsv-open' : ''}${moving ? ' wsv-moving' : ''}"${d.category === 'rest' ? '' : ' data-fam="' + trainFamilyOf(d.category) + '"'}>
+    return `<div data-key="${d.key}" class="wsv-day wsv-${d.status}${st.open === d.key ? ' wsv-open' : ''}${moving ? ' wsv-moving' : ''}"${d.category === 'rest' ? '' : ' data-fam="' + trainFamilyOf(d.category) + '"'}>
       <div class="wsv-day-row">
-        <button type="button" class="wsv-day-main" ${d.template ? `onclick="weekSheetToggle('${d.key}')" aria-expanded="${open ? 'true' : 'false'}"` : 'disabled'}>
+        <button type="button" class="wsv-day-main" data-fid="day-${d.key}" ${d.template ? `onclick="weekSheetToggle('${d.key}')" aria-label="${escapeAttr(DAY_LABEL_FULL[d.key] + ': ' + name + ', ' + (WEEK_DAY_WORD[d.status] || '') + '. Show its exercises')}"` : 'disabled'}>
           <span class="wsv-d">${escapeHtml(DAY_LABEL[d.key])}<span class="wsv-dn">${Number(d.date.slice(8))}</span></span>
           ${d.template ? workoutIdentityHtml(d.template, d.category, 'xs') : '<span class="wsv-rest-dot" aria-hidden="true"></span>'}
           <span class="wsv-name"><span class="wsv-n1" title="${escapeAttr(name)}">${escapeHtml(d.template || d.logged ? thisWeekShortName(name) : name)}${d.edited ? '<span class="wsv-tag">Customized</span>' : ''}</span>
             ${d.status === 'rest' ? '' : `<span class="wsv-st"><span class="wk-mark" aria-hidden="true"></span>${WEEK_DAY_WORD[d.status] || ''}</span>`}</span>
         </button>
-        ${v.editable && d.movable ? `<button type="button" class="wsv-move" onclick="weekSheetMove('${d.key}')" aria-expanded="${moving ? 'true' : 'false'}" aria-label="Move ${escapeAttr(name)} to another day">Move</button>` : ''}
+        ${v.editable && d.movable ? `<button type="button" class="wsv-move" data-fid="move-${d.key}" onclick="weekSheetMove('${d.key}')" aria-expanded="${moving ? 'true' : 'false'}" aria-label="Move ${escapeAttr(name)} to another day">Move</button>` : ''}
       </div>
-      ${moveHtml}${exHtml}
+      ${moveHtml}
     </div>`;
   }).join('');
   const schedule = `<div class="sec-head" id="wsvSchedule">Schedule${v.editable ? '<span class="sec-hint">this week only</span>' : ''}</div><div class="wsv-days">${rows}</div>`;
 
-  /* 3 — what the week trains: planned sets by muscle group */
-  const groups = Object.keys(v.tally).sort((a, b) => v.tally[b] - v.tally[a]);
-  const top = groups.length ? v.tally[groups[0]] : 0;
-  const muscles = groups.length ? `<div class="sec-head">Planned sets by muscle</div><div class="wsv-mus">${groups.map(g => `
-      <div class="wsv-mus-r"><span class="wsv-mus-n">${escapeHtml(muscleGroupLabel(g))}</span>
-        <span class="wsv-mus-bar"><span style="width:${Math.max(6, Math.round(100 * v.tally[g] / top))}%"></span></span>
-        <span class="wsv-mus-v">${v.tally[g]}</span></div>`).join('')}</div>
-      <div class="wsv-fine">Sets each session prescribes, credited to the muscles its exercises lead with.</div>` : '';
-
-  /* 4 — what was done: planned against logged working sets, for the sessions trained */
-  const work = weekWorkDone(v);
-  const done = work.length ? `<div class="sec-head">Planned and done</div><div class="wsv-work">${work.map(x => `
-      <div class="wsv-work-r"><span>${escapeHtml(x.name)}</span><span>${x.done} of ${x.planned} sets</span></div>`).join('')}</div>` : '';
-
-  /* 5 — suggestions, each with its reason and evidence */
+  /* the suggestions: one that can be applied stays in view under the schedule; the rest are coaching notes */
   const sug = deriveWeekSuggestions(v);
-  const sugHtml = sug.length ? `<div class="sec-head">Suggestions</div><div class="wsv-sugs">${sug.map(s => `
+  const sugCard = s => `
     <div class="wsv-sug wsv-sug-${s.kind}">
       <div class="wsv-sug-t">${escapeHtml(s.title)}</div>
       <div class="wsv-sug-w">${escapeHtml(s.why)}</div>
       ${s.evidence ? `<div class="wsv-sug-e">${escapeHtml(s.evidence)}</div>` : ''}
       ${s.rows ? `<div class="wsv-sug-rows">${s.rows.map(r => `<div class="wsv-sug-r"><b>${escapeHtml(r.name)}</b><span>${escapeHtml(r.headline)}</span><em>${escapeHtml(r.why)}</em></div>`).join('')}</div>` : ''}
       ${s.fresh && s.fresh.length ? `<div class="wsv-sug-e">No history yet: ${escapeHtml(s.fresh.join(', '))}. Log them once to start tracking.</div>` : ''}
-      ${s.lifts && s.lifts.length ? `<div class="wsv-sug-rows">${s.lifts.map(l => `<div class="wsv-sug-r wsv-lift-${l.kind}"><b>${escapeHtml(l.name)}</b><span>${
-          l.kind === 'first' ? escapeHtml(l.now.weight + ' × ' + l.now.topReps) + ' · first time'
-          : escapeHtml(l.now.weight + ' × ' + l.now.topReps) + (l.kind === 'up' ? ' · up from ' : l.kind === 'same' ? ' · same as ' : ' · below ') + escapeHtml(l.prev.weight + ' × ' + l.prev.topReps)}</span></div>`).join('')}</div>` : ''}
       ${s.fix && s.fix.after ? `<div class="wsv-sug-prev">After: ${escapeHtml(s.fix.after)}</div>` : ''}
+      ${s.kind === 'cluster' && !s.fix ? `<div class="wsv-sug-e">No change this week’s rules allow would separate them, so LOOP leaves them as you arranged.</div>` : ''}
       <div class="wsv-sug-acts">
-        ${s.fix ? `<button type="button" class="wsv-btn" onclick="weekSheetApplyFix('${s.fix.a}','${s.fix.b}')">${escapeHtml(s.fix.text)}</button>` : ''}
+        ${s.fix ? `<button type="button" class="wsv-btn" data-fid="fix-${escapeAttr(s.id)}" onclick="weekSheetApplyFix('${s.fix.a}','${s.fix.b}')">${escapeHtml(s.fix.text)}</button>` : ''}
         <button type="button" class="wsv-btn wsv-btn-q" onclick="weekSheetDismiss('${escapeAttr(s.id)}')">Dismiss</button>
       </div>
-    </div>`).join('')}</div>` : '';
+    </div>`;
+  const act = sug.filter(s => s.kind === 'cluster');
+  const notes = sug.filter(s => s.kind !== 'cluster' && s.kind !== 'review');
+  const review = sug.find(s => s.kind === 'review');
+  const actHtml = act.length ? `<div class="wsv-sugs wsv-sugs-act">${act.map(sugCard).join('')}</div>` : '';
 
-  /* 6 — what comes next */
+  /* 3 — the sections: each closed by default, each saying in a line what it holds */
+  const sessions = v.days.filter(d => d.template);
+  const details = sessions.length ? sessions.map(d => `
+    <div class="wsv-sess${st.open === d.key ? ' is-sel' : ''}" id="wsvSess-${d.key}">
+      <div class="wsv-sess-h"><b>${escapeHtml(DAY_LABEL_FULL[d.key])}</b><span>${escapeHtml(thisWeekShortName(d.template.name))}${d.edited ? ' · customized' : ''}</span></div>
+      <div class="wsv-ex">${(d.template.exercises || []).map(x => {
+        const bits = [`${escapeHtml(String(x.sets))} × ${escapeHtml(String(x.reps))}`];
+        const rir = weekRirText(x); if(rir) bits.push(rir);
+        const rest = weekRestText(x); if(rest) bits.push('rest ' + rest);
+        if(x.recommended && x.recommended !== '—' && x.recommended !== 'Bodyweight') bits.push(escapeHtml(x.recommended));
+        return `<div class="wsv-ex-r"><span class="wsv-ex-n">${escapeHtml(x.name)}</span><span class="wsv-ex-s">${bits.join(' · ')}</span></div>`;
+      }).join('')}</div>
+      ${v.editable && d.movable ? `<button type="button" class="wsv-link" data-fid="cust-${d.key}" onclick="openWeekSession('${d.key}')">Customize this session for this week</button>` : ''}
+    </div>`).join('') : '';
+  const groups = Object.keys(v.tally).sort((a, b) => v.tally[b] - v.tally[a]);
+  const top = groups.length ? v.tally[groups[0]] : 0;
+  const muscles = groups.length ? `<div class="wsv-mus">${groups.map(g => `
+      <div class="wsv-mus-r"><span class="wsv-mus-n">${escapeHtml(muscleGroupLabel(g))}</span>
+        <span class="wsv-mus-bar"><span style="width:${Math.max(6, Math.round(100 * v.tally[g] / top))}%"></span></span>
+        <span class="wsv-mus-v">${v.tally[g]}</span></div>`).join('')}</div>
+      <div class="wsv-fine">Sets each session prescribes, credited to the muscles its exercises lead with.</div>` : '';
+  const work = weekWorkDone(v);
+  const workHtml = work.length ? `<div class="wsv-work">${work.map(x => `
+      <div class="wsv-work-r"><span>${escapeHtml(x.name)}</span><span>${x.done} of ${x.planned} sets</span></div>`).join('')}</div>` : '';
+  const notesHtml = notes.length ? `<div class="wsv-sugs">${notes.map(sugCard).join('')}</div>` : '';
+  const lastHtml = review ? `<div class="wsv-sug wsv-sug-review"><div class="wsv-sug-w">${escapeHtml(review.why)}</div>
+      ${review.lifts && review.lifts.length ? `<div class="wsv-sug-rows">${review.lifts.map(l => `<div class="wsv-sug-r wsv-lift-${l.kind}"><b>${escapeHtml(l.name)}</b><span>${
+          l.kind === 'first' ? escapeHtml(l.now.weight + ' × ' + l.now.topReps) + ' · first time'
+          : escapeHtml(l.now.weight + ' × ' + l.now.topReps) + (l.kind === 'up' ? ' · up from ' : l.kind === 'same' ? ' · same as ' : ' · below ') + escapeHtml(l.prev.weight + ' × ' + l.prev.topReps)}</span></div>`).join('')}</div>` : ''}
+      <div class="wsv-sug-acts"><button type="button" class="wsv-btn wsv-btn-q" onclick="weekSheetDismiss('${escapeAttr(review.id)}')">Dismiss</button></div></div>` : '';
+  const prevW = weekPlanOf(p, civilAddDays(v.monday, -7));
+  const canCopy = v.editable && v.state === 'upcoming' && prevW && prevW.ops && prevW.ops.length && !v.ops.length;
+  const canReset = v.editable && v.ops.length && !weekChangeBlocker(p, weekOpDates(v.monday, v.ops));
+  const words = st.words ? `<div class="wsv-words">
+      <label class="wsv-lbl" for="wsvName">Week name</label>
+      <input id="wsvName" class="wsv-in" maxlength="40" value="${escapeAttr(v.name || '')}" placeholder="Week ${v.calWeek}">
+      <label class="wsv-lbl" for="wsvNote">Note or goal</label>
+      <textarea id="wsvNote" class="wsv-in" maxlength="280" rows="3" placeholder="What this week is for">${escapeHtml(v.note || '')}</textarea>
+      <div class="wsv-sug-acts"><button type="button" class="wsv-btn" onclick="weekSheetSaveWords()">Save</button><button type="button" class="wsv-btn wsv-btn-q" onclick="weekSheetWords(false)">Cancel</button></div>
+    </div>` : '';
+  const notesActs = `<div class="wsv-acts">
+      <button type="button" class="wsv-act" data-fid="words" onclick="weekSheetWords(true)">${v.name || v.note ? 'Edit name and note' : 'Name this week or add a note'}</button>
+      ${canCopy ? `<button type="button" class="wsv-act" onclick="weekSheetCopyPrev()">Use last week's changes</button>` : ''}
+      ${canReset ? `<button type="button" class="wsv-act" onclick="weekSheetReset()">Reset to the program</button>` : ''}
+      <button type="button" class="wsv-act" onclick="closeWeekSheet(); openProgramSessionEditorFromWeek()">Change every week…</button>
+    </div>${words}
+    <div class="wsv-fine">This week only: changes here never touch a day already over or a workout you logged. Every week: the program's own editor; a week you changed keeps its own changes.</div>`;
+  const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
+  const sections = [
+    weekSectionHtml('details', 'Training details', plural(sessions.length, 'session') + ' · exercises, sets, reps and rest', details),
+    weekSectionHtml('muscles', 'Muscle workload', groups.length ? 'Most: ' + groups.slice(0, 2).map(muscleGroupLabel).join(', ') : '', muscles),
+    weekSectionHtml('work', 'Planned and done', work.length ? work.reduce((n, x) => n + x.done, 0) + ' of ' + work.reduce((n, x) => n + x.planned, 0) + ' planned sets' : '', workHtml),
+    weekSectionHtml('coaching', 'Coaching notes', plural(notes.length, 'note'), notesHtml),
+    weekSectionHtml('last', review && review.title === 'Last week' ? 'Last week' : 'How this week went', review ? review.why : '', lastHtml),
+    weekSectionHtml('notes', 'Notes and changes', v.name || v.note ? 'Named and noted' : 'Name, note, copy or reset', notesActs)
+  ].join('');
+
+  /* 4 — what comes next */
   let nextHtml = '';
   if(v.state !== 'past'){
     const nm = civilAddDays(v.monday, 7);
@@ -36229,27 +36401,8 @@ function renderWeekSheet(how){
       nextHtml = `<div class="wsv-next"><span class="wsv-k">Next week</span>${phaseChange ? `<b>${escapeHtml(nv.phase.name)} begins</b>` : ''}<span>${first ? escapeHtml(thisWeekShortName(first.template.name)) + ' on ' + escapeHtml(DAY_LABEL_FULL[first.key]) + ' · ' : ''}${nv.days.filter(d => d.workout).length} sessions</span></div>`;
     }
   }
-
-  /* 7 — the week's own words and changes */
-  const prevW = weekPlanOf(p, civilAddDays(v.monday, -7));
-  const canCopy = v.editable && v.state === 'upcoming' && prevW && prevW.ops && prevW.ops.length && !v.ops.length;
-  const canReset = v.editable && v.ops.length && !weekChangeBlocker(p, weekOpDates(v.monday, v.ops));
-  const words = st.words ? `<div class="wsv-words">
-      <label class="wsv-lbl" for="wsvName">Week name</label>
-      <input id="wsvName" class="wsv-in" maxlength="40" value="${escapeAttr(v.name || '')}" placeholder="Week ${v.calWeek}">
-      <label class="wsv-lbl" for="wsvNote">Note or goal</label>
-      <textarea id="wsvNote" class="wsv-in" maxlength="280" rows="3" placeholder="What this week is for">${escapeHtml(v.note || '')}</textarea>
-      <div class="wsv-sug-acts"><button type="button" class="wsv-btn" onclick="weekSheetSaveWords()">Save</button><button type="button" class="wsv-btn wsv-btn-q" onclick="weekSheetWords(false)">Cancel</button></div>
-    </div>` : '';
-  const actions = `<div class="sec-head">This week</div><div class="wsv-acts">
-      <button type="button" class="wsv-act" onclick="weekSheetWords(true)">${v.name || v.note ? 'Edit name and note' : 'Name this week or add a note'}</button>
-      ${canCopy ? `<button type="button" class="wsv-act" onclick="weekSheetCopyPrev()">Use last week's changes</button>` : ''}
-      ${canReset ? `<button type="button" class="wsv-act" onclick="weekSheetReset()">Reset to the program</button>` : ''}
-      <button type="button" class="wsv-act" onclick="closeWeekSheet(); openProgramSessionEditorFromWeek()">Change every week…</button>
-    </div>${words}`;
-
-  body.innerHTML = `<div class="wsv${how === 'step' ? ' wsv-step-in' : ''}">${overview}${schedule}${muscles}${done}${sugHtml}${nextHtml}${actions}
-    <div class="wsv-fine">Changes here apply to this week only and never to a day already over. Workouts you have logged are never changed.</div></div>`;
+  body.innerHTML = `<div class="wsv${how === 'step' ? ' wsv-step-in' : ''}">${overview}${schedule}${actHtml}<div class="wsv-secs">${sections}</div>${nextHtml}</div>`;
+  if(focusId){ const b = document.getElementById(focusId); if(b && b.focus){ try{ b.focus({ preventScroll: true }); }catch(e){} } }
 }
 /* "Change every week" is the program's own editor, where recurring changes have always lived. */
 function openProgramSessionEditorFromWeek(){
@@ -36287,13 +36440,13 @@ function weekSessionSet(i, field, value){
   else if(field === 'rest'){ const cur = x.restSec > 0 ? x.restSec : (restSecondsForReps(x.reps) || 90); x.restSec = Math.max(30, Math.min(300, cur + value)); }
   else if(field === 'rir'){ x.effort = String(10 - 2 * Number(value)); }
   else if(field === 'reps'){ const s = String(value || '').trim().replace(/-/g, '–').slice(0, 12); if(s && parseRepRange(s)) x.reps = s; }
-  renderWeekSession();
+  weekKeepFocus(renderWeekSession);   // D160
 }
-function weekSessionRemove(i){ const d = weekSessionDraft; if(!d || d.ex.length <= 1) return; d.ex.splice(i, 1); renderWeekSession(); }
+function weekSessionRemove(i){ const d = weekSessionDraft; if(!d || d.ex.length <= 1) return; d.ex.splice(i, 1); weekKeepFocus(renderWeekSession); }
 function weekSessionMoveEx(i, delta){
   const d = weekSessionDraft; if(!d) return;
   const j = i + delta; if(j < 0 || j >= d.ex.length) return;
-  const t = d.ex[i]; d.ex[i] = d.ex[j]; d.ex[j] = t; renderWeekSession();
+  const t = d.ex[i]; d.ex[i] = d.ex[j]; d.ex[j] = t; weekKeepFocus(renderWeekSession);
 }
 function weekSessionPick(replaceIdx){
   const d = weekSessionDraft; if(!d) return;
@@ -36429,8 +36582,122 @@ function programMapWeekFootHtml(def, week, prefix){
   const facts = [weekRangeText(monday), v.state === 'upcoming' ? `${v.planned} sessions planned` : `${v.done} of ${v.planned} done`];
   if(v.ops.length) facts.push('customized');
   if(v.name) facts.unshift(v.name);
-  return `${phase}<button type="button" class="pm-week-open" onclick="openWeekSheet('${monday}')">
+  return `${phase}<button type="button" class="pm-week-open" onclick="openWeekSheet('${monday}', { programId: '${escapeAttr(p.id)}' })">
       <span class="pm-wo-t">Week ${week} details</span><span class="pm-wo-s">${escapeHtml(facts.join(' · '))}</span></button>`;
+}
+
+/* =========================================================
+   WHERE A WEEK CAN CHANGE ON ITS OWN, AND WHAT HAPPENS OTHERWISE  (Phase D160)
+   ---------------------------------------------------------
+   D159's drag changed this week only on a running program, and anything else — the weekly plan, a paused program, the
+   days before a program begins — went straight to the recurring writer and said "Every week" afterwards. The athlete
+   who expected one week got every week. Now each day of this week has a scope:
+     · 'week'   a running program's own date that may change (weekChangeBlocker passes): a drop changes this week only;
+     · 'offer'  no dated week can hold the change — the weekly plan (no dates), a paused program, a day before the
+                program begins: a drop writes NOTHING and asks, with the reason, whether to change every week;
+     · 'none'   nothing may move there — a day already over, a session trained, a workout under way, after the end, or
+                an ended program: a drop writes nothing and says why.
+   ========================================================= */
+const WEEK_OFFER_WORDS = {
+  plan:    'Your weekly plan has no dated weeks, so a move there changes every week.',
+  paused:  'Your program is paused, so one week can’t change on its own. A move now changes every week.',
+  before:  'That day is before your program starts, so it follows your weekly plan. A move there changes every week.'
+};
+/* the words for a drop where nothing may move because the program is over */
+WEEK_BLOCK_WORDS.ended = 'Your program’s weeks are over, so nothing here moves.';
+function weekScopeOf(key){
+  const today = localDateStr();
+  const monday = civilMonday(today);
+  const date = weekDateOf(monday, key);
+  const p = weekEditProgram();
+  if(p){
+    const b = weekChangeBlocker(p, [date]);
+    if(!b) return { mode: 'week' };
+    if(b === 'outside' && date >= today && date < String(p.startDate)) return { mode: 'offer', reason: 'before' };
+    return { mode: 'none', reason: b };
+  }
+  let a = null;
+  try{ a = getActiveProgram(); }catch(e){ a = null; }
+  if(a){
+    const life = deriveProgramLifecycle(a, today);
+    if(life === 'paused') return { mode: 'offer', reason: 'paused' };
+    if(life === 'ended' || life === 'completed') return { mode: 'none', reason: 'ended' };
+  }
+  return { mode: 'offer', reason: 'plan' };
+}
+/* The confirmation appears under the strip. On a short phone a two-line one (an offer, a warning) can fall under the tab
+   bar, where its buttons cannot be reached: bring it just above the bar, and only when it is not already in full view
+   (instant under Reduce Motion). */
+function weekToastInView(host){
+  try{
+    const R = host.getBoundingClientRect();
+    if(!R.height) return;
+    const bar = document.querySelector('.tabbar');
+    const B = bar ? bar.getBoundingClientRect() : null;
+    const limit = B && B.height && B.top < window.innerHeight ? B.top : window.innerHeight;
+    const over = R.bottom + 8 - limit;
+    if(over <= 0 || R.top - over < 0) return;
+    window.scrollBy({ top: over, behavior: weekDragReducedMotion() ? 'auto' : 'smooth' });
+  }catch(e){}
+}
+/* The drop the athlete did not get: nothing written, the reason, and the recurring change offered as a choice. */
+async function weekOfferEveryWeek(){
+  const u = _weekUndo;
+  if(!u || !u.offer) return;
+  const before = snapshotWeekForUndo();
+  try{ swapScheduledDays(u.from, u.to); }catch(e){ return; }
+  renderAll();
+  showWeekToast({ snapshot: before, from: u.from, to: u.to, scope: 'every' });
+}
+
+/* ---------- the week sheet, in sections ---------- */
+/* Which sections are open, kept for the session (a preference of the screen, not training data). */
+const WEEK_SHEET_SECTIONS = ['details', 'muscles', 'work', 'coaching', 'last', 'notes'];
+function weekSheetSections(){
+  if(weekSheetSections._s) return weekSheetSections._s;
+  let s = {};
+  try{ s = JSON.parse(sessionStorage.getItem('loop_wsvSections') || '{}') || {}; }catch(e){ s = {}; }
+  weekSheetSections._s = s;
+  return s;
+}
+function weekSheetSection(id){
+  const s = weekSheetSections();
+  s[id] = !s[id];
+  try{ sessionStorage.setItem('loop_wsvSections', JSON.stringify(s)); }catch(e){}
+  renderWeekSheet('section', 'wsvSec-' + id);
+}
+/* A section: its heading is a button that says whether it is open, and a one-line summary when closed. */
+function weekSectionHtml(id, title, summary, inner){
+  if(!inner) return '';
+  const open = !!weekSheetSections()[id];
+  return `<section class="wsv-sec${open ? ' is-open' : ''}" aria-labelledby="wsvSec-${id}">
+    <h3 class="wsv-sec-h"><button type="button" id="wsvSec-${id}" class="wsv-sec-b" data-fid="sec-${id}" aria-expanded="${open ? 'true' : 'false'}" aria-controls="wsvSecBody-${id}" onclick="weekSheetSection('${id}')">
+      <span class="wsv-sec-t">${escapeHtml(title)}</span>${summary ? `<span class="wsv-sec-s">${escapeHtml(summary)}</span>` : ''}<span class="wsv-sec-c" aria-hidden="true"></span></button></h3>
+    <div class="wsv-sec-body" id="wsvSecBody-${id}"${open ? '' : ' hidden'}>${open ? inner : ''}</div>
+  </section>`;
+}
+/* Keyboard focus survives a redraw: the element that had it is found again by its data-fid. */
+function weekKeepFocus(render){
+  const a = document.activeElement;
+  const fid = a && a.getAttribute ? a.getAttribute('data-fid') : null;
+  const oc = a && a.getAttribute && !fid ? a.getAttribute('onclick') : null;   // a stepper is found again by what it does
+  render();
+  let b = null;
+  try{
+    if(fid) b = document.querySelector('[data-fid="' + fid + '"]');
+    else if(oc) b = [...document.querySelectorAll('[onclick]')].find(x => x.getAttribute('onclick') === oc) || null;
+  }catch(e){ b = null; }
+  if(b && b.focus){ try{ b.focus({ preventScroll: true }); }catch(e){} }
+}
+/* Why a week shown here cannot be changed, in a sentence (or nothing when it can). */
+function weekLockedWords(v){
+  if(v.editable) return null;
+  if(v.state === 'past') return 'A finished week is kept exactly as it was planned and trained.';
+  let life = null;
+  try{ life = deriveProgramLifecycle(v.program, localDateStr()); }catch(e){ life = null; }
+  if(life === 'paused') return 'Your program is paused. Its weeks can be changed again once you resume it.';
+  if(life === 'ended' || life === 'completed') return 'Your program’s weeks are over, so they are shown as they were.';
+  return 'Only the program you are training now can be changed one week at a time.';
 }
 
 /* ---------- DAY EDIT SHEET ---------- */
@@ -43470,6 +43737,9 @@ const CANONICAL_EXERCISES = [
   { id:'rear_delt_fly',         displayName:'Rear Delt Fly',          aliases:['rear delt fly','reverse fly','rear delt raise','bent over rear delt fly','dumbbell rear delt fly','db rear delt fly'], pattern:'horizontal_pull', equipment:'Dumbbell', primary:['shoulders'], secondary:['back'], supports1RM:false },
   { id:'reverse_pec_deck',      displayName:'Reverse Pec Deck',       aliases:['reverse pec deck','reverse pec deck fly','machine rear delt','machine rear delt fly','rear delt machine','reverse fly machine','machine reverse fly'], pattern:'horizontal_pull', equipment:'Machine', primary:['shoulders'], secondary:['back'], supports1RM:false },
   { id:'lateral_raise_cable',   displayName:'Cable Lateral Raise',    aliases:['cable lateral raise','cable side raise'], pattern:'vertical_push', equipment:'Cable', primary:['shoulders'], secondary:[], supports1RM:false },
+  /* D160 — the rotator cuff's external rotation against a cable: the elbow fixed at the side, the forearm turned out.
+     LOOP's group for it is shoulders; reps are per arm, as LOOP writes one-sided work. */
+  { id:'cable_external_rotation', displayName:'Cable External Rotation', aliases:['cable external rotation','external rotation','cable er','standing cable external rotation','cable shoulder external rotation','rotator cuff external rotation'], pattern:'isolation', equipment:'Cable', primary:['shoulders'], secondary:[], supports1RM:false },
   { id:'shoulder_press_arnold', displayName:'Arnold Press',           aliases:['arnold press','arnolds'], pattern:'vertical_push', equipment:'Dumbbell', primary:['shoulders'], secondary:['triceps'], supports1RM:true },
   { id:'upright_row',           displayName:'Upright Row',            aliases:['upright row','cable upright row'], pattern:'vertical_push', equipment:'Barbell', primary:['shoulders'], secondary:['back'], supports1RM:false },
   { id:'landmine_press',        displayName:'Landmine Press',         aliases:['landmine press','half kneeling landmine press'], pattern:'vertical_push', equipment:'Barbell', primary:['shoulders'], secondary:['chest','triceps'], supports1RM:true },
@@ -43822,7 +44092,9 @@ function computeTrainingContext(){
     .sort((a,b) => muscles14[b] - muscles14[a]);
 
   const tKey = todayKey();
-  const scheduledToday = schedule ? schedule[tKey] : null;
+  /* D160 — what is planned today is the dated plan's answer (a program's own week, its changes, its start, its pauses),
+     as This Week and D44 read it; the weekly plan only where no program covers today */
+  const scheduledToday = (() => { try{ const t = planTargetOn(localDateStr()); return t.planned ? (t.category || null) : 'rest'; }catch(e){ return schedule ? schedule[tKey] : null; } })();
 
   // Days since each muscle group was last trained — the raw input a future
   // recovery-aware planner needs. No recovery claims made here.
@@ -48953,6 +49225,9 @@ function getProgramWorkoutForDate(dateStr, program){
   if(!p) return null;
   const d = new Date((dateStr || localDateStr()) + 'T00:00:00');
   if(isNaN(d)) return null;
+  /* D160 (E74) — a program answers for its own dates. Before its start date it has prescribed nothing, so every reader
+     falls back to the weekly plan in force then, as D44 and the Log calendar always have (D145). */
+  if(p.startDate && (dateStr || localDateStr()) < String(p.startDate)) return null;
   const key = JS_DAY_TO_KEY[d.getDay()];
   /* D38 \u2014 a finished program schedules nothing. Without this the week was
      clamped to the last one and the program kept prescribing sessions into
@@ -49919,7 +50194,9 @@ const LIBRARY_EXTRAS = [
   /* D159 */
   { id:'curl_reverse_ez',           roles:['pull','upper','arms'],     sets:3, reps:'10\u201312', effort:'7' },
   { id:'curl_bayesian',             roles:['pull','upper','arms'],     sets:3, reps:'10\u201315', effort:'7' },
-  { id:'row_cable_single',          roles:['pull','upper','fullbody'], sets:3, reps:'10\u201312/arm', effort:'7\u20138' }
+  { id:'row_cable_single',          roles:['pull','upper','fullbody'], sets:3, reps:'10\u201312/arm', effort:'7\u20138' },
+  /* D160 */
+  { id:'cable_external_rotation',   roles:['push','upper','fullbody'], sets:3, reps:'12\u201315/arm', effort:'7' }
 ];
 function libraryExtraFor(name){
   let id = null;
@@ -50064,7 +50341,8 @@ const NEVER_PRIMARY_IDS = [
   /* D63 */ 'lateral_raise_machine', 'reverse_pec_deck', 'leg_curl_seated',
   'calf_raise_seated', 'calf_raise_leg_press',
   /* D64 */ 'bench_dip', 'wall_sit', 'glute_bridge', 'single_leg_glute_bridge',
-  /* D159 */ 'cable_pull_through'
+  /* D159 */ 'cable_pull_through',
+  /* D160 */ 'cable_external_rotation'
 ];
 
 /* ---------- ROLE ----------
@@ -54461,6 +54739,8 @@ function programMapSelect(prefix, week){
   if(!host || !def) return;
   const o = Object.assign({}, programMapOpts[prefix] || {}, { week, idPrefix:prefix });
   host.innerHTML = programMapInnerHtml(def, o);
+  /* D160 — a phase row and a week strip that scroll sideways bring the selected phase and week into view */
+  try{ host.querySelectorAll('.pm-ph.on, .pm-w.on').forEach(x => { const r = x.parentElement; if(r && r.scrollWidth > r.clientWidth) r.scrollLeft = Math.max(0, x.offsetLeft - r.offsetLeft - 16); }); }catch(e){}
   /* Retrigger the settle so a week change reads as the same surface moving,
      not a new page appearing. */
   host.classList.remove('pm-swap');
@@ -54523,7 +54803,8 @@ function programMapInnerHtml(def, opts){
         const on = selPhase && b.id === selPhase.id;
         /* D159 — on a running program's map a phase is a button: it selects the phase's weeks */
         const tag = o.interactive && o.dated ? 'button' : 'div';
-        return `<${tag}${tag === 'button' ? ` type="button" onclick="programMapSelectPhase('${prefix}','${escapeAttr(b.id)}')" aria-pressed="${on ? 'true' : 'false'}"` : ''} class="pm-ph${on ? ' on' : ''}" style="flex:${b.endWeek - b.startWeek + 1}">
+        /* D160 — on a running program's map each phase is a chip with its whole name, in a row that scrolls sideways */
+        return `<${tag}${tag === 'button' ? ` type="button" onclick="programMapSelectPhase('${prefix}','${escapeAttr(b.id)}')" aria-pressed="${on ? 'true' : 'false'}"` : ''} class="pm-ph${on ? ' on' : ''}${tag === 'button' ? ' pm-ph-chip' : ''}" style="flex:${tag === 'button' ? '0 0 auto' : b.endWeek - b.startWeek + 1}">
           <span class="pm-ph-n">${escapeHtml(b.name)}</span>
           <span class="pm-ph-w">W${b.startWeek}–${b.endWeek}</span>
         </${tag}>`; }).join('')}</div>`
@@ -54535,7 +54816,10 @@ function programMapInnerHtml(def, opts){
   const context = deriveWeekContext(def, sel);
   const contextLine = context ? `<div class="pm-context">${escapeHtml(context)}</div>` : '';
 
-  return phaseLine + strip + contextLine + programMapWeekHtml(def, sel, o)
+  /* D160 — on a running program's map, one line says which week and which phase are on screen */
+  const selLine = o.interactive && o.dated && def.startDate
+    ? `<div class="pm-sel" aria-live="polite"><b>Week ${sel}</b>${selPhase && multi ? `<span>${escapeHtml(selPhase.name)}</span>` : ''}${o.today === sel ? '<em>This week</em>' : ''}</div>` : '';
+  return phaseLine + strip + selLine + contextLine + programMapWeekHtml(def, sel, o)
     + (o.interactive && o.dated ? programMapWeekFootHtml(def, sel, prefix) : '');   // D159
 }
 
@@ -58030,7 +58314,9 @@ function programJourneyTimelineHtml(m){
     segs.push('<span class="pj-wk ' + cls + (start ? ' pj-ph-start' : '') + '"><span class="pj-bar"></span>' + ticks + '</span>');
   }
   const labels = m.phases.length > 1
-    ? '<span class="pj-phs">' + m.phases.map(x => '<span class="pj-ph' + (x.now ? ' is-now' : '') + '" style="flex:' + (x.to - x.from + 1) + '">' + escapeHtml(x.name) + '</span>').join('') + '</span>'
+    /* D160 — every phase named in full, in order, the current one marked, wrapping as a line of text does; the bars below
+       keep the proportions. A name squeezed into its share of the bar read "FOUNDATI…" and "DEL…". */
+    ? '<span class="pj-phs pj-phs-list">' + m.phases.map(x => '<span class="pj-ph' + (x.now ? ' is-now' : '') + '">' + escapeHtml(x.name) + '<i>W' + x.from + (x.to > x.from ? '–' + x.to : '') + '</i></span>').join('') + '</span>'
     : '';
   const spoken = (m.week === null ? 'Not started; ' + m.total + ' weeks. ' : 'Week ' + m.week + ' of ' + m.total + (m.paused ? ', paused' : '') + '. ')
     + (m.phases.length > 1 ? m.phases.map(x => x.name + ', weeks ' + x.from + ' to ' + x.to + (x.now ? ', now' : '')).join('; ') + '. ' : '')
@@ -58300,7 +58586,7 @@ function myTrainingNextSession(){
          force then. A revision starting before it is already true for it. */
       const when = new Date(today); when.setDate(when.getDate() + i);
       let program = hasActiveProgram() ? getActiveProgram() : null;
-      const entry = program ? programEntryOn(program, key, localDateStr(when)) : null;
+      const entry = program && !(program.startDate && localDateStr(when) < String(program.startDate)) ? programEntryOn(program, key, localDateStr(when)) : null;   // D160 (E74)
       const tpl = entry && entry.type === 'workout' ? resolveProgramWorkout(entry) : null;
       if(tpl) workoutName = tpl.name;
     }catch(e){}
@@ -59849,6 +60135,7 @@ const EXERCISE_EQUIPMENT = {
   lateral_raise:          ['dumbbells'],
   front_raise:            ['dumbbells'],
   lateral_raise_cable:    [ANY_CABLE],
+  cable_external_rotation: [ANY_CABLE],   /* D160 */
   lateral_raise_machine:  ['lateral_raise_machine'],
   upright_row:            ['barbell'],
   landmine_press:         ['barbell','landmine'],
@@ -62695,7 +62982,7 @@ async function startTemplateLog(cat, tplId, date){
       /* D147 (E71) — only a program still running owns a workout: one whose weeks are over has no session left to give it
          (D38), so a library workout started after its end is extra training, never the finished program's. */
       const _op = getRunningProgram();
-      if(_op && _op.id && programPrescribesTemplate(_op, cat, tplId)){
+      if(_op && _op.id && programHasBegun(_op) && programPrescribesTemplate(_op, cat, tplId)){   // D160 (E74)
         pendingWorkoutOrigin = 'program';
         pendingWorkoutProgramId = _op.id;
         /* Only a session the program composed carries a phase: training the

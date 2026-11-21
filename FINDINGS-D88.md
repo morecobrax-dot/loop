@@ -2605,7 +2605,7 @@ Found by D147's reproduction, on 10.69 and unchanged by it.
 paused programs (D90). It needs a decision on what a paused program's days are for the forward-looking readers: the
 weekly plan, or nothing.
 
-## E74 — A program set to start on a later date already schedules its sessions before its start · P3 · PROVEN · OPEN
+## E74 — A program set to start on a later date already schedules its sessions before its start · P3 · PROVEN · **CLOSED in D160 (LOOP 10.82)**
 
 Found by D147's reproduction, on 10.69 and unchanged by it.
 
@@ -2622,6 +2622,11 @@ that session, and a workout started from it is recorded as the program's. Meanwh
 
 **Why it was not fixed in D147.** E71 is the end of a schedule; this is its beginning. The not-yet-started state is
 deliberately left exactly as 10.69 had it (Contract 271) and needs its own phase.
+
+**D160.** getProgramWorkoutForDate answers nothing before the program's start date, so Today, This Week and the
+next session follow the weekly plan until then, as D44 and the calendar already did; a workout started before the start
+is not recorded as the program's. The program's own first week can be rearranged from Edit week before it begins
+(Contract 284 C).
 
 ## E75 — A program another has replaced gives the days after its end back to the weekly plan · P3 · PROVEN · OPEN
 
@@ -2819,6 +2824,25 @@ disagreements did (scratch probe-missed.js, Friday 20 Nov 2026):
 **D159.** `weekOverview` answers a day already over from before the active program began from `planTargetOn`, as D44 and
 the calendar do, and a planned day before the tracking start is "Not tracked" (status `unknown`). No unknown day became
 missed, and D44, the calendar and the day line are unchanged (Contract 283 F).
+
+## E84 — A drop that could not be one week's wrote the every-week change at once · P3 · PROVEN · **CLOSED in D160 (LOOP 10.82)**
+
+Found by D160 on 10.81. This Week's drop asked `weekEditProgram()` for a program whose week could change; for a paused
+program, or one set to start later, there was none, so `commitWeekMoveScoped` made D12's recurring swap straight away
+(its toast said "every week", with Undo). The athlete had not chosen every week.
+
+**D160.** `weekScopeOf` decides first: one week, an offer, or nothing. Paused, not-yet-begun and weekly-plan drops write
+nothing and offer **Change every week** with the reason; ended and completed programs lift nothing and say why
+(Contract 284 B, C).
+
+## E85 — A week suggestion said no change could separate two back-to-back sessions when one could · P3 · PROVEN · **CLOSED in D160 (LOOP 10.82)**
+
+Found by D160 on 10.81. `weekClusterFix` only tried moving the later session. With a workout under way today (Thursday),
+Legs moved to Saturday next to Sunday's Legs, and Friday free, it found nothing — moving Sunday's to Friday keeps them
+together — and the sheet said "No change this week's rules allow would separate them", although moving Saturday's to
+Friday would.
+
+**D160.** Either session may move (the later first); the words and the preview name the one that moves (Contract 284 H4).
 
 ## Not findings — checked and clean
 
