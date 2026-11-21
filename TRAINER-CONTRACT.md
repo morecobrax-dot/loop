@@ -20903,3 +20903,67 @@ Single-Arm Cable Row stands in a split stance at a column. Every other drawing r
 
 **Held.** XP, records, Session Score, D43, D44, completion, progression, the calendar, DATA_KEYS and the schema are
 10.81's. Contract 284 holds the release.
+
+## §206 — NEXT SESSION COACHING: ONE DERIVATION OVER THE TRUSTED ENGINES, A STARTING LOAD FOR ONE SESSION, THE WEEK IN WORDS (D161 · LOOP 10.83 · loop-v260)
+
+**Why.** The owner asked LOOP to answer: am I improving, should I add reps, add weight or hold, what evidence says so,
+is my program still right for what I did, and what happens to my next workout if I accept a change. Not a new engine,
+not an assistant: the existing trainer's answers, made visible where the athlete decides, and actionable only where the
+plan model can express the action safely.
+
+**What already answered (the audit).** One progression chain decides every next-time answer:
+`progressionRecommendationFor` → D152 (an assisted lift gets no load answer) → D119 (pure bodyweight: reps) → D49
+(`buildProgressionRecommendation`: plateau, increase only on a completed prescription at the top of the range with
+recorded effort to spare, D47's reduce after two grinding sessions, build, insufficient evidence, hold) → D85
+(`applyPhaseProgressionPolicy`: an increase inside a planned lighter week becomes a hold). D125 turns D49's load into
+each set's reps at the start; D50B coaches the next set during the workout; D137 owns stalled vs declining. LOOP has
+always started a session at D49's load and D125's reps without asking — that default is unchanged. What was missing:
+the answer for a session that is not today's (D85 read *today's* deload for every future session), a way to see the
+evidence and act on a load answer for one session, and a week review that tells a lighter week from a lower one.
+
+**One derivation, not an engine.** `deriveNextSessionGuidance()` asks the chain once per lift, for the first session ahead
+that holds it, with that session's date: the program's own session (`getProgramWorkoutForDate`), or the weekly plan's
+when no program schedules the day (no program, or a day before its start — E74). Skipped: days over, trained, paused,
+past the program's end (D147), and today while a workout is under way (the live coach owns it). The only new engine
+input is the date, and only D85 and D119's deload question read it (`deloadActiveOn`); asked without a date, every
+caller gets 10.82's answer byte for byte (Contract 285 B). Inside a planned lighter week every answer is the lighter
+week's (D125 and D50B already treat it so); the words are the deload's, not an overload's.
+
+**Kinds, in the athlete's words.** Increase weight (D49 increase), Lighter weight (D47 reduce), Add reps (build), Keep the
+target (hold, fewer reps, regain), Lighter week (inside a deload), Stalled / Declining (D137), More sessions needed
+(insufficient, new). An assisted lift and a timed hold are not shown. The Why is the engine's own sentence; the Evidence
+is the engine's own window (`exerciseSessionHistory` / `bodyweightSessionHistory`) as logged, with the prescription.
+Cards: at most two, load answers first, then stalled, then add reps; every other lift on request, named in Exercise
+Detail's word (D151).
+
+**What can be done, and how.**
+- *A load answer* (heavier or lighter) for a session of the program being trained can be fixed for that one session:
+  **Use 140 lb** or **Keep 135 lb**. It is a week change `{t:'load', day, id, ex, load, basis}` written through
+  `weekCommit`, so D159/D160's rule applies (over, trained, paused, outside, under way, D43's claims) and the sheet's
+  Undo restores it exactly. It does not freeze the session (it is not a session edit: phase and deload numbers still
+  apply and every-week changes still reach it), it travels with the session through this week's swaps, it is not
+  copied to another week, Reset removes it, and replacing the lift leaves it behind. Keep current also sets that
+  suggestion aside for that session (`weekPlans[monday].dismissed`).
+- *It holds only while its evidence stands* (`sessionStartLoad`): the lift's last logged session when it was chosen
+  (`basis`) must still be its last, and the session must not be inside a planned lighter week. Otherwise D49 answers
+  again, as it always has. A suggestion is recomputed before Apply and refused if anything changed.
+- *An add-reps answer* is how the session's sets are already filled in (D125): shown with its exact plan, not applied.
+- *A stalled lift* opens that session's own editor at the exercise, to choose a similar one for that week (D159).
+- Nothing here writes the log, a record, XP, a score, a template, another week or a stored prescription.
+
+**Where it is seen.** The week sheet's Coaching notes are the one place to act. Today's workout card and the rest day's
+Next show one quiet line when that session has a decision in it (a load or a stalled lift), below Start and its
+controls. A dated workout preview lists its lifts' suggestions and links to them; the summary's Next Time links to a
+just-finished lift's next session. During a workout nothing new appears (D50B unchanged).
+
+**The week looked back on.** Sessions and sets against the plan; each lift better (heavier, or the same load for more
+reps — `weekLiftChanges`, unchanged), similar, lower than the time before (with "one lower session is not a trend"),
+first time, or a planned lighter week (not compared); where fewer sets were done than planned; a rearranged week and
+paused days said plainly; missed sessions counted, rest days never.
+
+**Small things.** A one-week phase is "Week 8" / "W8". Training details: each fact (sets × reps, RIR, rest, a chosen
+starting load) is a unit that wraps whole. A session changed for one week can be undone.
+
+**Held (Contract 285).** The engines' answers to every existing caller (B1–B4), the brief's scenarios (C), the write and
+its limits (D), the surfaces (E), the review and labels (F), reload and backup with paused, not-yet-begun and changed
+weeks (G), start dates across local midnight, three zones and both clock changes (H).
