@@ -21159,3 +21159,33 @@ activates a new 8-week program (reachable from Ready-made plans › choose a pla
 every hero state (C), roadmap rows equal to their sheets including a paused-and-resumed program (D), Results as the one
 place for decisions (E), navigation, keyboard, the drag's confirmation on the page and Undo (F), the start screen and
 Create my own (G), release (K).
+
+## §210 — ONE COLOUR BAND, AND THE PROGRESS OVERVIEW IN THE OWNER'S ORDER (D165 · LOOP 10.87 · loop-v264)
+
+**Why.** The owner drew two Apple Freeform references: a universal colour band that wraps a component's rounded corners,
+placed on six components; and a simpler Progress › Overview. D165 implements exactly those; no engine, reader, writer,
+stored value or storage key changes.
+
+**The band.** One CSS pattern (the D165 layer): an overlay (`::after`, or Today's existing `::before`) that inherits the
+component's `border-radius` and paints an inset edge (`box-shadow: inset …`). Because it takes the component's own rounded
+shape, the band follows the corner and tapers into the sides — never a square stripe. Edges: top, left, bottom
+(`.ux-band` + `.ux-band-top|-left|-bottom` for later use); width `--band-w` (3px; 2.5px under a range button); colour
+`--band` from semantic tokens. Pointer-transparent; it sits over the component's 1px border on its edge (`--band-bw`); no
+animation, gradient or glow.
+
+| Component | Edge | Colour |
+|---|---|---|
+| Today's Training Foundation (`.fd`) — the program card | top | `--c-program` (violet) |
+| Objectives (`.obj-card`) | top | `--c-mastery` (the "+XP" colour) |
+| Achievements on Progress (`.pac`) | top | `--c-progress` (green) |
+| The Program page's next workout (`.pgx-hero`) | left | `--c-action` (LOOP blue); its 1px blue ring became a neutral hairline, so the blue is not doubled |
+| The selected range (`.range-btn.active`: 12W / 26W / 52W / All and the 4W–12W ranges) | bottom | `--c-action` |
+| Today's workout card (`.tw`) | left | its category / family colour, as D153 had it — now the same band, following the corners |
+
+**Progress › Overview.** Weekly Review first, then Training rhythm, the program card, Achievements. "Your training"
+(`progHeroHtml`, the strength trend that Strength holds per lift) and the rank block (`progLevelHtml`) are no longer drawn
+there; both readers are unchanged, and the level, rank, XP bar and the rank showcase stay on Today's header (and the Profile).
+
+**Contract 289** (in the app): the file and protected readers (A), the band's rule, edges and colours (B), the Overview's
+order and what stays reachable (C), the banded components' actions (D), release (K). The band's rendering — corner
+continuity, thickness, contrast, clipping — is the browser rig's (rig165).

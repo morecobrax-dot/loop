@@ -11689,6 +11689,37 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
   .pgx-tab, .pgx-primary, .pgx-secondary, .pgx-edit, .pgx-way, .pgx-rw{ transition: none; }
 }
 /* ==== D164 PROGRAM HOME END ==== */
+/* ==== D165 COLOR BAND BEGIN ==== */
+/* One colour band for LOOP (the owner's Freeform reference). It is a thin edge drawn INSIDE the component's own rounded
+   shape: an overlay that inherits the border-radius and paints an inset edge, so the band follows the corner's curve and
+   tapers into the sides instead of stopping square. One rule, three edges, a colour from the context:
+     .ux-band + .ux-band-top | .ux-band-left | .ux-band-bottom, coloured by --band (default the LOOP blue), --band-w 3px.
+   The components below wear it by the same rule. The overlay is pointer-transparent, sits over the component's 1px border
+   on its own edge (--band-bw), and draws nothing else: no glow, no gradient, no motion. */
+.ux-band, .fd, .obj-card, .pac, .pgx-hero, .range-btn.active{ position: relative; }
+.ux-band::after, .fd::after, .obj-card::after, .pac::after, .pgx-hero::after, .range-btn.active::after{
+  content: ''; position: absolute; inset: calc(-1 * var(--band-bw, 0px)); border-radius: inherit; pointer-events: none; z-index: 2;
+  box-shadow: var(--band-edge);
+}
+.ux-band-top, .fd, .obj-card, .pac{ --band-edge: inset 0 var(--band-w, 3px) 0 0 var(--band, var(--c-action)); }
+.ux-band-left, .pgx-hero{ --band-edge: inset var(--band-w, 3px) 0 0 0 var(--band, var(--c-action)); }
+.ux-band-bottom, .range-btn.active{ --band-edge: inset 0 calc(-1 * var(--band-w, 3px)) 0 0 var(--band, var(--c-action)); }
+/* where each one is, and what its colour says */
+.fd{ --band: var(--c-program); --band-bw: 1px; }          /* the program (Today's Training Foundation): violet */
+.obj-card{ --band: var(--c-mastery); --band-bw: 1px; }    /* objectives: the colour of the XP they pay */
+.pac{ --band: var(--c-progress); --band-bw: 1px; }        /* achievements: LOOP's green for what was earned */
+.pgx-hero{ --band: var(--c-action);                        /* the next workout: the LOOP blue its Start wears … */
+  box-shadow: inset 0 0 0 1px var(--hairline-strong), inset 0 1px 0 var(--edge-hi), 0 18px 34px -24px rgba(46,107,255,0.75); }   /* … so its blue ring goes, not doubled */
+.range-btn.active{ --band: var(--c-action); --band-w: 2.5px; }   /* the selected range (12W, 26W …): the blue line under it */
+/* Today's workout card: its category stripe (D153) is the same band — the category's colour, the corners followed */
+.tw[class]::before{ left: 0; right: 0; top: 0; bottom: 0; width: auto; height: auto; border-radius: inherit; opacity: 1; z-index: 1;
+  background: none; pointer-events: none; box-shadow: inset var(--band-w, 3px) 0 0 0 var(--band, var(--accent)); }
+.tw[class]{ --band: var(--wi, var(--accent)); }
+.tw.tw-push{ --band: var(--push); } .tw.tw-pull{ --band: var(--pull); } .tw.tw-legs{ --band: var(--legs); } .tw.tw-core{ --band: var(--core); }
+.tw.tw-fullbody{ --band: var(--full); } .tw.tw-upper{ --band: var(--upper); } .tw.tw-lower{ --band: var(--lower); } .tw.tw-arms{ --band: var(--arms); }
+.tw.tw-rest{ --band: var(--text-faint); }
+.tw[data-fam]{ --band: var(--fam); }
+/* ==== D165 COLOR BAND END ==== */
 </style>
 </head>
 <body>
@@ -22200,6 +22231,23 @@ const LOOP_UPDATES = [
       'The Program page now updates as soon as you change a week, instead of only when you reopen it',
       'The Program page no longer offers “Change schedule” while a program runs, because it rewrote the program’s weeks. Use Edit schedule or Edit program instead'
     ],
+    changes: []
+  },
+  {
+    id: 'v10-87',
+    version: 'LOOP 10.87',
+    title: 'Cleaner Progress, Clearer Cards',
+    date: '2026-11-22',
+    swVersion: 'loop-v264',
+    summary: 'Progress Overview now opens on your Weekly Review, and the key cards share one colour band that follows their rounded corners.',
+    newFeatures: [],
+    improvements: [
+      'Progress Overview starts with your Weekly Review, then your training rhythm, your program and your achievements',
+      'Your training and the rank block are no longer on the Overview. Your lifts are under Strength, and your level and XP are on Today',
+      'A colour band marks your program (violet), objectives (XP gold), achievements (green), your next workout and the selected range (blue)',
+      'Today’s workout card keeps its colour stripe, which now follows the card’s rounded corners'
+    ],
+    bugFixes: [],
     changes: []
   }
 ];
@@ -47019,13 +47067,14 @@ function renderProgDashboard(){
      is one tap from that surface. */
   /* D154 — strength first, then the rhythm of the training and its workload, the review and the program, then what
      it has earned. The week-by-muscle summary is Today's and Volume's; it is not drawn a third time here. */
+  /* D165 — the owner's markup: the Weekly Review leads, then the rhythm, the program and what was earned. "Your
+     training" (progHeroHtml: the strength trend, which Strength holds in full) and the rank block (progLevelHtml: the
+     level, which Today's header and the Profile hold) are no longer drawn on the Overview; both functions stay. */
   host.innerHTML = `
-    ${progHeroHtml()}
-    ${progRhythmHtml()}
     ${weeklyReviewEntryHtml()}
+    ${progRhythmHtml()}
     ${progProgramCardHtml()}
-    ${progAchievementsHtml()}
-    ${progLevelHtml()}`;
+    ${progAchievementsHtml()}`;
   /* D115 — an open review is redrawn with the screen beneath it, so a workout
      opened from it, then edited or deleted, is never shown as it was. */
   if(weeklyReviewIsOpen()) renderWeeklyReview();
