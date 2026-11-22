@@ -21086,3 +21086,76 @@ sheet, Objectives and Start agree (Contract 287 C2). The D161/D162 card buttons 
 
 **Kept.** D49, D85, D125, D137, D39, the plan's fulfilment and lifecycle, completion and outcome, the week rules, Time
 Mode, XP, Session Score, objectives' progress and freezing, backup — 10.84's to the character (Contract 287 A3).
+
+## §209 — ONE PROGRAM DESTINATION: A FIVE-SECOND HOME, EVERY WEEK ONE TAP AWAY (D164 · LOOP 10.86 · loop-v263)
+
+**Why.** The owner asked for the program system to become simple on the surface without losing depth: an athlete
+opening their program must see within five seconds which program it is, what it is for, where they are in it, what to
+train next and where to change the week. 10.85's Program page was 4,263 px tall at 390×844 with 55 buttons, the program
+named twice, no Start, and "Edit schedule" three screens down; the only row called "Change schedule" rewrote the
+program's weeks. D164 is presentation: no engine, rule, stored value or storage key changes.
+
+**The destination.** `#myTrainingOverlay`, titled Program, with local tabs **Overview · My plan · Results** (a tablist,
+roving tabindex, arrows/Home/End; no new bottom-nav tabs). All three panels are drawn on every paint and the tabs show
+one (`hidden`), so every reader of `#myTrainingBody` still finds its content and each tab keeps its scroll for the
+session. The ready-made weekly plans are a view of the same page (`trainingTab === 'plan'`, with a Back row).
+`openTraining('program')` → Overview; `openTraining('plan')` → My plan when there is a program to show, the ready-made
+plans when there is not; `openTraining('results')` and `openProgramReview` → Results. The header chip names the current
+program (running, paused, not begun, or just ended) and opens it (`openProgramHome`). An open Program page is redrawn
+with everything else (`renderAll`), so a change made in the week sheet, a drag on its strip or a finished workout shows
+at once; this also covers LOOP's new-day redraw.
+
+**Overview (in order).**
+1. Identity: name; the goal in plain words from the program's own goal (`TRAINING_GOALS`: "Strength: heavier loads,
+   lower reps, longer rest."), or "Your own program. It has no goal set."; status · days a week · weeks · minutes per
+   session only where the program's sessions say (`deriveProgramExplanation`).
+2. Phase: Week N of M, the written phase, `phasePurposeText` (the athlete's description first), a strip of the weeks
+   coloured by phase, every phase by full name with its weeks, and one transition line. Paused: since when, weeks wait,
+   nothing counts as missed, and Resume program (`resumeProgram`) as the one primary action. Not begun: its start date.
+3. Next workout — the answer Today gives: a workout under way today → Resume workout (`resumeActiveWorkout`); one left
+   from another day → Today's own recovery card (`draftRecoveryHtml`, its ids made unique on this page); today's
+   program session not yet trained → **Start workout**, `startTemplateLog(cat, id, today)` with `dayTemplateFor` — the
+   exact call Today's card makes — and View; otherwise This Week's Up next (`deriveThisWeek().upNext`) previewed
+   (`openTrainDetail`, whose own Start is the start), never a second Start; trained today → "Done today: …" (the day's
+   last workout, D107) above the next; nothing ahead → said, with Train anyway. Size uses Time Mode as Today does. D162's
+   one coaching line sits under the action.
+4. This week: Today's strip (`deriveThisWeek` cells and marks) inside the program, the count from the week sheet's own
+   model (`deriveWeekView`: one number for the week across the card, the sheet and My plan), Edit schedule → the D159/D160
+   week sheet at its schedule (Move, swap, Undo, the keyboard path), a tap → the week at that day's session, and the D66
+   hold-drag unchanged (strip-agnostic; commit through `commitWeekMoveScoped`). Its confirmation and Undo show on the
+   Program page while it is open (`weekToastHost` → `#pgxWeekUndo`), under Today's week otherwise.
+5. Worth a look (amber): D163's top suggestion that changes something (schedule conflict, stalled lift), one line opening
+   Results, the one place it is decided.
+6. Results in brief: sessions done of due to date and a lift moving up (`deriveProgramReview`, 'program'); before two
+   program sessions, one honest line and no zero panels.
+
+**My plan.** Every program week as a row under its phase (full names, week ranges, purpose): a row says what its week
+sheet says at its top — "Week N" (the sheet's calendar week) and "done of planned" with missed (weeks behind and this
+week ARE `deriveWeekView`, one fulfilment pass); a week ahead asks each day the question the model asks
+(`getProgramWorkoutForDate`: a session, not past the end). Tags: This week, Lighter, Changed (D159 week ops), missed.
+One tap opens that week's sheet (`openWeekSheet(monday, { programId })`). Then the program's sessions
+(`myTrainingSessionsHtml`), Program settings (Edit program, Program details, How this program works, New to programs?),
+Weekly plan (Ready-made plans, Change goal) and the athlete's programs (switch, create). "Change training days" is not
+offered while a program is current: `applyTrainingSetup` revises the current program's every week (and with a paused one
+creates a new program — E86).
+
+**Results.** The D163 review (its decisions are made only here), Progress so far (D39), Training volume, earlier programs.
+
+**No program.** Three ways in, each an existing flow: Build for me (`openProgramBuilderFlow('create')`), Follow a
+ready-made plan (the six plans, each now saying the equipment its exercises use from the exercise library, keyboard
+operable), Create my own (the same builder, opened once at its own-week mode when the athlete reaches the week's shape,
+D62.5). A program just built or edited lands on its Program home.
+
+**Retired from the page (functionality kept).** The Plan|Program segment (→ tabs + plans view); the always-on "New to
+programs?" card (→ My plan and the start screen); the portfolio above the program (→ My plan); the journey card (→
+Overview); the old map of phase pills, week numbers and one selected week (→ roadmap rows); "Your workouts", the
+ready-made plan's templates (the same list and Start are on Train › My plan).
+
+**Findings recorded, not changed.** Time Mode is session state not cleared at midnight (D163); a past week's phase
+reading subtracts later pauses (D163, §208); E86 — `applyTrainingSetup` with a paused current program creates and
+activates a new 8-week program (reachable from Ready-made plans › choose a plan; no longer from the Program page).
+
+**Contract 288** (in the app): the file and protected engines (A), the five answers in order with Today's own Start (B),
+every hero state (C), roadmap rows equal to their sheets including a paused-and-resumed program (D), Results as the one
+place for decisions (E), navigation, keyboard, the drag's confirmation on the page and Undo (F), the start screen and
+Create my own (G), release (K).

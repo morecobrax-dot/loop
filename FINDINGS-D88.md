@@ -2844,6 +2844,18 @@ Friday would.
 
 **D160.** Either session may move (the later first); the words and the preview name the one that moves (Contract 284 H4).
 
+## E86 — Choosing training days with a paused program creates and activates a new program · P2 · PROVEN · OPEN
+
+Found by D164's premortem on 10.85, confirmed in code. `applyTrainingSetup` keeps a program in step with the weekly plan:
+with an active program it revises that program's every week (`updateProgram(schedule)`); with none it creates one. A
+paused program is not "active" (`hasActiveProgram` reads `status === 'active'`), so with the current program paused it
+creates a new 8-week program, and `createProgram` makes every new program the current one. The paused program is kept
+(nothing is deleted), but it is no longer the program Today follows.
+
+**D164.** The Program page no longer offers "Change training days" while a program is current (Contract 288 D8). The path
+remains through Ready-made plans › choosing a plan (`choosePlan` → `openTrainingSetup`). Not changed: the fix (ask first,
+or revise the paused program) is a decision about the Programs flow, left to the owner.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

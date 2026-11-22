@@ -11480,6 +11480,215 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
 /* Objectives: one set before today's plan changed */
 .obj-row-stale .obj-t{ color: var(--text-dim); }
 /* ==== D163 PROGRAM REVIEW END ==== */
+/* ==== D164 PROGRAM HOME BEGIN ==== */
+/* One Program destination: Overview, My plan, Results. Colour carries meaning and nothing else: blue is the next workout
+   and its action, emerald training done and progress, amber something worth the athlete's attention, violet the program's
+   phases, slate everything that supports them. Exercise art, workout marks and rank insignia are drawn as they were. */
+#myTrainingOverlay .sheet-scroll{ scroll-padding-top: 64px; }
+.pgx-tabs{
+  position: sticky; top: 0; z-index: 3; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px;
+  margin: 0 0 14px; padding: 4px; border-radius: var(--r-control); background: var(--surface-inset);
+  box-shadow: inset 0 0 0 1px var(--hairline), 0 10px 18px -12px rgba(0,0,0,0.85);
+}
+.pgx-tabs[hidden]{ display: none; }
+/* stuck, the tabs keep the page ground above them: nothing scrolls visibly through the scroller's top padding */
+.pgx-tabs::before{ content: ''; position: absolute; left: -20px; right: -20px; top: -19px; height: 19px; background: var(--bg); }
+.pgx-tab{
+  min-height: 44px; border: 0; border-radius: 9px; background: transparent; color: var(--text-dim);
+  font: 600 14px/1.1 var(--font-ui); cursor: pointer; transition: background var(--dur-feedback) var(--ease-out), color var(--dur-feedback) var(--ease-out);
+}
+.pgx-tab.is-on{ background: var(--surface-3); color: var(--text); box-shadow: inset 0 1px 0 var(--edge-hi), 0 2px 8px rgba(0,0,0,0.35); }
+.pgx-tab:active{ transform: scale(0.98); }
+.pgx-tab:focus-visible{ outline: 2px solid var(--accent); outline-offset: 1px; }
+.pgx-panel{ display: flex; flex-direction: column; gap: 12px; }
+.pgx-panel[hidden]{ display: none; }
+.pgx-panel:focus{ outline: none; }
+.pgx-panel.pgx-in{ animation: pgxIn var(--dur-step) var(--ease-out) both; }
+@keyframes pgxIn{ from{ opacity: 0; transform: translateY(6px); } to{ opacity: 1; transform: none; } }
+.pgx-panel > .sec-head{ margin: 6px 0 -6px; }
+#trainingProgramBody[hidden], #programGuideCard[hidden], #trSeg{ display: none !important; }
+#trainingProgramBody:not(:empty){ margin-top: 18px; }
+/* the program's panel in order: the tabs and panels, then the guide and the athlete's programs (My plan's last parts) */
+#trpanel-program.pgx-prog[style*="block"]{ display: flex !important; flex-direction: column; }
+#trpanel-program.pgx-prog #myTrainingBody{ order: 1; }
+#trpanel-program.pgx-prog #programGuideCard{ order: 2; margin-top: 14px; }
+#trpanel-program.pgx-prog #trainingProgramBody{ order: 3; }
+
+/* identity: the program and what it is for */
+.pgx-id{ display: flex; flex-direction: column; gap: 5px; padding: 0 2px; }
+.pgx-status{ display: inline-flex; align-items: center; gap: 6px; font-weight: 600; color: var(--text); }
+.pgx-sep{ margin: 0 6px; }
+.pgx-status i{ width: 8px; height: 8px; border-radius: 50%; background: var(--c-progress); box-shadow: 0 0 0 3px var(--c-progress-soft); }
+.pgx-life-paused .pgx-status i, .pgx-life-ended .pgx-status i{ background: var(--c-effort); box-shadow: 0 0 0 3px var(--c-effort-soft); }
+.pgx-life-upcoming .pgx-status i{ background: var(--c-action); box-shadow: 0 0 0 3px var(--accent-soft); }
+.pgx-life-completed .pgx-status i{ background: var(--c-progress); }
+.pgx-name{ margin: 0; font: 700 27px/1.12 var(--font-display); letter-spacing: -0.015em; color: var(--text); text-wrap: balance; overflow-wrap: anywhere; }
+.pgx-goal{ margin: 0; font-size: 15px; line-height: 1.4; color: var(--text); }
+.pgx-facts{ margin: 0; font-size: 13px; line-height: 1.4; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+
+/* the phase: where in the weeks, and what this stretch is for */
+.pgx-phase{
+  display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: var(--r-card);
+  background: linear-gradient(160deg, rgba(143,124,247,0.16), rgba(143,124,247,0.05) 62%, rgba(14,20,31,0.6));
+  box-shadow: inset 0 0 0 1px rgba(143,124,247,0.26), inset 0 1px 0 var(--edge-hi);
+}
+.pgx-phase.is-paused{ background: linear-gradient(160deg, rgba(240,168,69,0.12), rgba(14,20,31,0.6)); box-shadow: inset 0 0 0 1px rgba(240,168,69,0.28); }
+.pgx-phase-top{ display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pgx-week{ margin: 0; font: 600 16px/1.1 var(--font-ui); color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.pgx-week b{ font: 700 26px/1 var(--font-display); color: var(--text); }
+.pgx-week span{ color: var(--text-dim); }
+.pgx-phase-name{ padding: 6px 12px; border-radius: var(--r-chip); background: rgba(143,124,247,0.2); color: #D6CEFF; font: 700 14px/1.1 var(--font-ui); box-shadow: inset 0 0 0 1px rgba(164,147,255,0.35); }
+.pgx-purpose{ margin: 0; font-size: 14.5px; line-height: 1.45; color: var(--text); }
+.pgx-strip{ display: flex; gap: 3px; height: 10px; }
+.pgx-wk{ flex: 1; border-radius: 3px; background: rgba(164,147,255,0.16); }
+.pgx-wk.is-start{ margin-left: 4px; }
+.pgx-wk.is-past{ background: rgba(164,147,255,0.62); }
+.pgx-wk.is-now{ background: #B9ADFF; box-shadow: 0 0 0 2px rgba(7,11,18,0.9), 0 0 0 3.5px #B9ADFF; }
+.pgx-wk.is-light.is-ahead{ background: repeating-linear-gradient(135deg, rgba(164,147,255,0.22) 0 3px, rgba(164,147,255,0.06) 3px 6px); }
+.pgx-phase.is-paused .pgx-wk.is-now{ background: var(--c-effort); box-shadow: 0 0 0 2px rgba(7,11,18,0.9), 0 0 0 3.5px var(--c-effort); }
+.pgx-phs{ display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; list-style: none; }
+.pgx-ph{ display: inline-flex; align-items: baseline; gap: 6px; font-size: 13px; color: var(--text-dim); }
+.pgx-ph span{ font-weight: 600; }
+.pgx-ph i{ font-style: normal; font-size: 12px; color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.pgx-ph.is-now span{ color: #D6CEFF; }
+.pgx-ph.is-now i{ color: var(--text-dim); }
+.pgx-next-ph{ margin: 0; padding-top: 8px; border-top: 1px solid rgba(164,147,255,0.18); font-size: 13.5px; line-height: 1.45; color: var(--text-dim); }
+
+/* the next workout: the one primary action on the screen */
+.pgx-hero{
+  display: flex; flex-direction: column; gap: 6px; padding: 18px 16px 16px; border-radius: var(--r-card);
+  background: linear-gradient(165deg, rgba(76,194,255,0.17), rgba(46,107,255,0.08) 55%, rgba(14,20,31,0.75));
+  box-shadow: inset 0 0 0 1px rgba(76,194,255,0.34), inset 0 1px 0 var(--edge-hi), 0 18px 34px -24px rgba(46,107,255,0.75);
+}
+.pgx-hero.is-none{ background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.pgx-k{ margin: 0; font: 700 13px/1.2 var(--font-ui); color: var(--accent); }
+.pgx-hero.is-none .pgx-k{ color: var(--text-dim); }
+.pgx-hero-t{ display: flex; align-items: center; gap: 10px; margin: 2px 0 0; font: 700 22px/1.2 var(--font-display); color: var(--text); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.pgx-hero-t > span:last-child{ min-width: 0; }
+.pgx-hero-m{ margin: 0; font-size: 14px; font-weight: 600; color: var(--text); }
+.pgx-hero-m .tl-muscles-2{ color: var(--text-dim); font-weight: 500; }
+.pgx-hero-s{ margin: 0; font-size: 13px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+/* the primary action wears Today's Start (.tw-cta, D21's one primary gradient); this only places it */
+.pgx-primary{ width: 100%; min-height: 54px; margin-top: 10px; transition: transform var(--dur-press) var(--ease-out); }
+.pgx-primary:active, .pgx-secondary:active, .pgx-edit:active, .pgx-way:active, .pgx-rw:active, .pgx-attn:active{ transform: var(--press); }
+.pgx-primary:focus-visible, .pgx-secondary:focus-visible, .pgx-edit:focus-visible, .pgx-way:focus-visible, .pgx-rw:focus-visible, .pgx-attn:focus-visible, .pgx-link:focus-visible, .pgx-back:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.pgx-phase .pgx-primary{ margin-top: 4px; }
+.pgx-secondary{
+  width: 100%; min-height: 46px; border: 0; border-radius: var(--r-button); cursor: pointer; background: rgba(148,170,205,0.08);
+  color: var(--text); font: 600 15px/1 var(--font-ui); box-shadow: inset 0 0 0 1px var(--hairline-strong);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.pgx-acts{ display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 10px; }
+.pgx-acts .pgx-primary{ margin-top: 0; }
+.pgx-acts .pgx-secondary{ width: auto; min-height: 54px; padding: 0 18px; }
+.pgx-coach{ margin-top: 6px; }
+.pgx-coach:empty{ display: none; }
+.pgx-done{ display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0; font-size: 14px; color: var(--text-dim); }
+.pgx-done b{ color: var(--text); font-weight: 600; }
+.pgx-done-ic{ display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--c-progress); color: #04150D; }
+.pgx-link{ min-height: 44px; padding: 0 4px; border: 0; background: none; color: var(--accent); font: 600 14px/1 var(--font-ui); cursor: pointer; }
+
+/* this week: Today's strip, inside the program */
+.pgx-week-card, .pgx-res, .pgx-map{ display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: var(--r-card); background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--hairline), inset 0 1px 0 var(--edge-hi); }
+.pgx-row-h{ display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pgx-row-h h3{ margin: 0; font: 700 17px/1.2 var(--font-ui); color: var(--text); }
+.pgx-row-h h3 span{ margin-left: 6px; font-size: 13px; font-weight: 500; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.pgx-row-s{ font-size: 13px; color: var(--text-dim); }
+.pgx-edit{ min-height: 44px; padding: 0 14px; border: 0; border-radius: var(--r-chip); background: var(--accent-soft); color: var(--accent); font: 700 14px/1 var(--font-ui); cursor: pointer; box-shadow: inset 0 0 0 1px rgba(76,194,255,0.3); transition: transform var(--dur-press) var(--ease-out); }
+.pgx-week-sum{ margin: 0; font-size: 14px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.pgx-week-sum b{ color: var(--c-progress); font-weight: 700; }
+.pgx-week-sum b.is-zero{ color: var(--text); }
+.pgx-fact{ white-space: nowrap; }
+.pgx-wk2{ padding: 0; background: none; border: 0; box-shadow: none; }
+.pgx-wk2 .wk-days{ margin: 2px -6px 0; }
+.pgx-wk2 .wk-day{ min-height: 64px; }
+.pgx-hint{ margin: 0; font-size: 12.5px; color: var(--text-dim); }
+
+/* results, briefly */
+.pgx-sig{ display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+.pgx-sig-c{ display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: var(--r-control); background: var(--c-progress-soft); box-shadow: inset 0 0 0 1px rgba(70,195,142,0.22); }
+.pgx-sig-c b{ font: 700 18px/1.15 var(--font-display); color: var(--text); overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.pgx-sig-c b i{ font-style: normal; font-weight: 500; font-size: 14px; color: var(--text-dim); }
+.pgx-sig-c > span{ font-size: 12.5px; color: var(--text-dim); }
+.pgx-sig-c.is-review{ background: rgba(148,170,205,0.07); box-shadow: inset 0 0 0 1px var(--hairline-strong); }
+.pgx-res-empty{ margin: 0; font-size: 13.5px; line-height: 1.45; color: var(--text-dim); }
+
+/* worth the athlete's attention: amber, and only when real */
+.pgx-attn{
+  display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 10px; width: 100%; min-height: 56px; padding: 12px 14px;
+  border: 0; border-radius: var(--r-control); text-align: left; cursor: pointer; color: var(--text);
+  background: var(--c-effort-soft); box-shadow: inset 0 0 0 1px rgba(240,168,69,0.32);
+}
+.pgx-attn-k{ grid-column: 1; font: 700 12px/1.2 var(--font-ui); color: var(--c-effort); }
+.pgx-attn-t{ grid-column: 1; font-size: 14.5px; font-weight: 600; line-height: 1.35; }
+.pgx-attn-go{ grid-column: 2; grid-row: 1 / span 2; color: var(--c-effort); display: inline-flex; }
+
+/* My plan: every week, one tap from its sheet */
+.pgx-map-g{ display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.pgx-map-ph{ display: flex; align-items: baseline; gap: 8px; margin: 4px 0 0; font: 700 15px/1.2 var(--font-ui); color: #D6CEFF; }
+.pgx-map-ph i{ font-style: normal; font-weight: 500; font-size: 12.5px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.pgx-map-pp{ margin: -2px 0 2px; font-size: 13px; line-height: 1.4; color: var(--text-dim); }
+.pgx-map-l{ display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.pgx-rw{
+  display: grid; grid-template-columns: 74px minmax(0, 1fr) auto 18px; align-items: center; gap: 8px; width: 100%; min-height: 56px;
+  padding: 8px 10px 8px 12px; border: 0; border-radius: var(--r-control); text-align: left; cursor: pointer; color: var(--text);
+  background: rgba(148,170,205,0.05); box-shadow: inset 0 0 0 1px var(--hairline); transition: transform var(--dur-press) var(--ease-out);
+}
+.pgx-rw.is-current{ background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px rgba(76,194,255,0.55); }
+.pgx-rw.is-past .pgx-rw-n{ color: var(--text-dim); }
+.pgx-rw-n{ font: 700 15px/1.1 var(--font-ui); font-variant-numeric: tabular-nums; }
+.pgx-rw-b{ display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pgx-rw-d{ font-size: 13px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.pgx-rw-c{ font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pgx-rw-t{ display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; max-width: 120px; }
+.pgx-rw-go{ display: inline-flex; color: var(--text-faint); }
+.pgx-tag{ padding: 3px 8px; border-radius: var(--r-chip); font: 600 12px/1.2 var(--font-ui); white-space: nowrap; background: rgba(148,170,205,0.1); color: var(--text-dim); }
+.pgx-tag.is-now{ background: rgba(76,194,255,0.18); color: var(--accent); }
+.pgx-tag.is-light{ background: rgba(143,124,247,0.18); color: #D6CEFF; }
+.pgx-tag.is-changed{ background: rgba(148,170,205,0.14); color: var(--text); }
+.pgx-tag.is-missed{ background: var(--c-effort-soft); color: var(--c-effort); }
+
+/* no program yet: three ways in */
+.pgx-start{ display: flex; flex-direction: column; gap: 10px; }
+.pgx-start-t{ margin: 0; font: 700 26px/1.15 var(--font-display); color: var(--text); letter-spacing: -0.015em; }
+.pgx-start-s{ margin: 0; font-size: 14.5px; line-height: 1.45; color: var(--text-dim); }
+.pgx-ways{ display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+.pgx-way{
+  display: grid; grid-template-columns: minmax(0, 1fr) 18px; gap: 4px 10px; width: 100%; padding: 16px; border: 0; border-radius: var(--r-card);
+  text-align: left; cursor: pointer; color: var(--text); background: var(--surface-1); box-shadow: inset 0 0 0 1px var(--hairline-strong), inset 0 1px 0 var(--edge-hi);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.pgx-way.is-build{ background: linear-gradient(165deg, rgba(76,194,255,0.16), rgba(14,20,31,0.8)); box-shadow: inset 0 0 0 1px rgba(76,194,255,0.34); }
+.pgx-way-t{ grid-column: 1; font: 700 18px/1.2 var(--font-display); }
+.pgx-way-s{ grid-column: 1; font-size: 14px; line-height: 1.45; color: var(--text-dim); }
+.pgx-way-m{ grid-column: 1; font-size: 12.5px; color: var(--text-faint); }
+.pgx-way-go{ grid-column: 2; grid-row: 1 / span 3; align-self: center; display: inline-flex; color: var(--text-dim); }
+.pgx-guide{ align-self: flex-start; }
+.mt-hero.mt-hero-quiet{ padding: 14px 16px; }
+.mt-hero.mt-hero-quiet .mt-title{ font-size: 18px; }
+
+/* the ready-made plans view */
+.pgx-back{ min-height: 44px; margin: 0 0 6px; padding: 0 8px 0 2px; border: 0; background: none; color: var(--accent); font: 600 15px/1 var(--font-ui); cursor: pointer; }
+.plan-card-uses{ margin-top: 8px; font-size: 12.5px; line-height: 1.4; color: var(--text-dim); }
+.plan-card:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 359px){
+  .pgx-name{ font-size: 24px; }
+  .pgx-rw{ grid-template-columns: 64px minmax(0, 1fr) auto 14px; gap: 6px; padding-left: 10px; }
+  .pgx-rw-t{ max-width: 84px; }
+  .pgx-hero-t{ font-size: 20px; }
+  .pgx-hero{ padding-left: 14px; padding-right: 14px; }
+  .pgx-acts .pgx-secondary{ padding: 0 14px; }
+}
+@media (min-width: 720px){
+  .pgx-panel{ gap: 16px; }
+  .pgx-name{ font-size: 32px; }
+}
+@media (prefers-reduced-motion: reduce){
+  .pgx-panel.pgx-in{ animation: none; }
+  .pgx-tab, .pgx-primary, .pgx-secondary, .pgx-edit, .pgx-way, .pgx-rw{ transition: none; }
+}
+/* ==== D164 PROGRAM HOME END ==== */
 </style>
 </head>
 <body>
@@ -21965,6 +22174,31 @@ const LOOP_UPDATES = [
     ],
     bugFixes: [
       'An objective set before today’s plan changed now says so, instead of reading as today’s instruction'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-86',
+    version: 'LOOP 10.86',
+    title: 'Your Program at a Glance',
+    date: '2026-11-22',
+    swVersion: 'loop-v263',
+    summary: 'Your program now opens on one clear page: what it is for, where you are in it, your next workout with Start, and this week. Your full plan and your results are one tap away.',
+    newFeatures: [
+      'The Program page now has three parts: Overview, My plan and Results',
+      'Overview shows your program’s goal, your week and phase, your next workout with Start or Resume, and this week. Hold a session to move it, or tap Edit schedule',
+      'My plan lists every week of your program under its phase. Tap a week to see or change it'
+    ],
+    improvements: [
+      'Results brings together your program review, progress so far and training volume. A suggestion worth a look is flagged once on the Overview',
+      'With no program yet, start with Build for me, a ready-made plan, or Create my own',
+      'The header shows the program you are following, and opens it',
+      'Ready-made plans say which equipment they use, and can be chosen with the keyboard',
+      'After you build or edit a program, its Program page opens'
+    ],
+    bugFixes: [
+      'The Program page now updates as soon as you change a week, instead of only when you reopen it',
+      'The Program page no longer offers “Change schedule” while a program runs, because it rewrote the program’s weeks. Use Edit schedule or Edit program instead'
     ],
     changes: []
   }
@@ -34187,7 +34421,7 @@ function snapshotWeekForUndo(){
   return snap;
 }
 function showWeekUndo(snapshot, fromKey, toKey){
-  const host = document.getElementById('weekUndo');
+  const host = weekToastHost();   // D164 — the Program page's own host while it is open
   if(!host) return;
   if(_weekUndo && _weekUndo.timer) clearTimeout(_weekUndo.timer);
   _weekUndo = { snapshot, timer: null };
@@ -34200,8 +34434,8 @@ function showWeekUndo(snapshot, fromKey, toKey){
   _weekUndo.timer = setTimeout(hideWeekUndo, 5000);
 }
 function hideWeekUndo(){
-  const host = document.getElementById('weekUndo');
-  if(host){ host.classList.remove('open'); host.innerHTML = ''; }
+  /* D164 — either host: under Today's week, or on the Program page */
+  ['weekUndo', 'pgxWeekUndo'].forEach(id => { const host = document.getElementById(id); if(host){ host.classList.remove('open'); host.innerHTML = ''; } });
   if(_weekUndo && _weekUndo.timer) clearTimeout(_weekUndo.timer);
   _weekUndo = null;
 }
@@ -36087,7 +36321,7 @@ async function commitWeekMoveScoped(fromKey, toKey){
 /* The confirmation: what moved, to where, for how long — with Undo, and "Every week" when the athlete meant the
    weekly plan after all. A move that puts two sessions with the same main muscles on consecutive days says so. */
 function showWeekToast(t){
-  const host = document.getElementById('weekUndo');
+  const host = weekToastHost();   // D164 — the Program page's own host while it is open
   if(!host) return;
   if(_weekUndo && _weekUndo.timer) clearTimeout(_weekUndo.timer);
   _weekUndo = { snapshot: t.snapshot || null, timer: null, from: t.from, to: t.to, scope: t.scope, offer: !!t.offer };
@@ -38078,7 +38312,7 @@ function programReviewEntryHtml(){
 function openProgramReview(period){
   reviewState.period = period || null;
   reviewState.lifts = false; reviewState.more = false;
-  openTraining('program');
+  openTraining('results');   // D164 — the review lives in Results
   setTimeout(() => {
     const h = document.getElementById('prvH');
     if(h){ try{ h.scrollIntoView({ block: 'start' }); }catch(e){} try{ h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }catch(e){} }
@@ -38089,6 +38323,540 @@ async function programReviewEntryDismiss(monday){
   try{ renderTrainingFoundation(); }catch(e){}
   const m = document.querySelector('#todayFoundation .fd-main');
   if(m && m.focus){ try{ m.focus({ preventScroll: true }); }catch(e){} }
+}
+/* =========================================================
+   ONE PROGRAM, THREE PLACES  (Phase D164)
+   ---------------------------------------------------------
+   The Program page answers five questions on its first screen: which program, what it is for, where the athlete is
+   in it, what to train next, and where to change the week. Everything else is one tap away, under Overview, My plan
+   and Results. Presentation only: every fact is asked of the reader that already owns it.
+     lifecycle, position, phases   programJourneyModel (D150: deriveProgramLifecycle, getProgramProgress, blocks)
+     goal                          the program's own goal (TRAINING_GOALS); none is said as none
+     phase purpose                 phasePurposeText (the athlete's own description first)
+     next workout                  deriveThisWeek (Today's This Week: today, then Up next) + dayTemplateFor (Today's card)
+     start, resume, recovery       startTemplateLog, resumeActiveWorkout, draftRecoveryHtml (Today's own calls)
+     this week                     deriveThisWeek's days; moved by the D66 hold-drag or the D159/D160 week sheet
+     roadmap                       deriveWeekView (weeks behind, as the review reads them) and the D43 slots ahead
+     results                       deriveProgramReview / deriveProgramSuggestions (D163), deriveProgramPerformance (D39)
+   Rendering writes nothing. All three panels are drawn on every paint; the tabs show one of them.
+   ========================================================= */
+let programTab = 'overview';
+const PGX_TABS = [['overview', 'Overview'], ['plan', 'My plan'], ['results', 'Results']];
+const _pgxScroll = {};
+let _pgxMode = 'start';   // 'program' when there is a program to show, 'start' when there is none
+function pgxScroller(){ try{ return document.querySelector('#myTrainingOverlay .sheet-scroll'); }catch(e){ return null; } }
+function pgxReducedMotion(){ try{ return weekDragReducedMotion(); }catch(e){ return false; } }
+/* hidden as a property: the element reflects it to the attribute, and the [hidden] rules below read the attribute */
+function pgxHide(el, on){ if(el) el.hidden = !!on; }
+
+/* The program this page is about: the current one being trained, paused or not yet begun (D150's journey), else the
+   program just finished. None means the start screen. */
+function pgxSubject(){
+  let journey = null, finished = null;
+  try{
+    if(!getRunningProgram()){
+      const last = getLastFinishedProgram();
+      if(last) finished = last;
+    }
+  }catch(e){ finished = null; }
+  if(!finished){ try{ journey = programJourneyModel(getActiveProgram()); }catch(e){ journey = null; } }
+  return { journey, finished };
+}
+function pgxHasProgram(){ const s = pgxSubject(); return !!(s.journey || s.finished); }
+
+/* The tabs: a tablist of three, each controlling its panel, roving tabindex (pgxTabKey). Drawn with the panels. */
+function pgxTabsHtml(){
+  return '<div class="pgx-tabs" id="pgxTabs" role="tablist" aria-label="Program sections">' + PGX_TABS.map(([id, label]) => {
+    const on = id === programTab;
+    return '<button type="button" class="pgx-tab' + (on ? ' is-on' : '') + '" id="pgxTab-' + id + '" role="tab" aria-selected="' + on + '" aria-controls="pgxPanel-' + id + '" tabindex="' + (on ? '0' : '-1') + '" onclick="switchProgramTab(\'' + id + '\')" onkeydown="pgxTabKey(event)">' + label + '</button>';
+  }).join('') + '</div>';
+}
+function switchProgramTab(tab, opts){
+  if(!PGX_TABS.some(x => x[0] === tab)) return;
+  const o = opts || {};
+  const sc = pgxScroller();
+  if(sc && programTab !== tab && _pgxMode === 'program') _pgxScroll[programTab] = sc.scrollTop;
+  const changed = programTab !== tab;
+  programTab = tab;
+  pgxApplyTab(changed && !o.instant);
+  if(sc){
+    const tabs = document.getElementById('pgxTabs');
+    const y = typeof o.top === 'number' ? o.top : (_pgxScroll[tab] || 0);
+    /* back where this tab was left, never above the tabs once the page has scrolled past the identity */
+    try{ sc.scrollTo({ top: y, behavior: 'instant' }); }catch(e){ sc.scrollTop = y; }
+    if(o.focus && tabs){ const b = document.getElementById('pgxTab-' + tab); if(b && b.focus){ try{ b.focus({ preventScroll: true }); }catch(e){} } }
+  }
+}
+/* Which panel shows. A changed tab fades its panel in on the step token; Reduce Motion shows it at once. */
+function pgxApplyTab(animate){
+  const prog = _pgxMode === 'program';
+  const tabs = document.getElementById('pgxTabs');
+  if(tabs){
+    pgxHide(tabs, !prog);
+    PGX_TABS.forEach(([id]) => {
+      const b = document.getElementById('pgxTab-' + id);
+      if(!b) return;
+      const on = id === programTab;
+      if(b.setAttribute){ b.setAttribute('aria-selected', on ? 'true' : 'false'); b.setAttribute('tabindex', on ? '0' : '-1'); }
+      if(b.classList) b.classList.toggle('is-on', on);
+    });
+  }
+  PGX_TABS.forEach(([id]) => {
+    const p = document.getElementById('pgxPanel-' + id);
+    if(!p) return;
+    const on = !prog || id === programTab;
+    pgxHide(p, !on);
+    if(p.classList){ p.classList.remove('pgx-in'); if(on && animate && prog && !pgxReducedMotion()){ void p.offsetWidth; p.classList.add('pgx-in'); } }
+  });
+  /* the athlete's programs and the guide: part of My plan (after its settings), and of the start screen (the guide first) */
+  const port = document.getElementById('trainingProgramBody');
+  pgxHide(port, prog && programTab !== 'plan');
+  const guide = document.getElementById('programGuideCard');
+  pgxHide(guide, prog && programTab !== 'plan');
+  const panel = document.getElementById('trpanel-program');
+  if(panel && panel.classList) panel.classList.toggle('pgx-prog', prog);
+}
+/* Tabs, by keyboard: arrows and Home/End move between them and select (the tabs pattern), Tab leaves. */
+function pgxTabKey(ev){
+  const ids = PGX_TABS.map(x => x[0]);
+  const i = ids.indexOf(programTab);
+  let n = null;
+  if(ev.key === 'ArrowRight') n = ids[(i + 1) % ids.length];
+  else if(ev.key === 'ArrowLeft') n = ids[(i - 1 + ids.length) % ids.length];
+  else if(ev.key === 'Home') n = ids[0];
+  else if(ev.key === 'End') n = ids[ids.length - 1];
+  if(!n) return;
+  ev.preventDefault();
+  switchProgramTab(n, { focus: true });
+}
+
+/* ---------- Overview: who, what for, where ---------- */
+const PGX_STATUS = { active: 'Active', paused: 'Paused', upcoming: 'Not started', ended: 'Weeks over', completed: 'Completed' };
+function pgxGoalSentence(p){
+  const g = p && p.goal && TRAINING_GOALS[p.goal];
+  if(!g) return null;
+  const note = String(g.note || '');
+  return g.label + (note ? ': ' + note.charAt(0).toLowerCase() + note.slice(1) + '.' : '.');
+}
+/* Minutes per session, only where the program's own sessions say (deriveProgramExplanation). */
+function pgxMinutesText(p){
+  let ex = null;
+  try{ ex = deriveProgramExplanation(p); }catch(e){ ex = null; }
+  const m = ex && ex.minutes;
+  if(!m || !m.max) return '';
+  return '~' + (m.min && m.min !== m.max ? m.min + '–' + m.max : m.max) + ' min';
+}
+function pgxIdentityHtml(p, life, days, upcomingFrom){
+  const goal = pgxGoalSentence(p);
+  const weeks = Math.max(1, parseInt(p.durationWeeks, 10) || 1);
+  const facts = [days ? days + ' day' + (days === 1 ? '' : 's') + ' a week' : '', weeks + ' week' + (weeks === 1 ? '' : 's'), pgxMinutesText(p)].filter(Boolean);
+  const status = life === 'upcoming' ? 'Starts ' + blockDateLabel(upcomingFrom, true) : PGX_STATUS[life] || '';
+  return `<header class="pgx-id pgx-life-${life}">
+      <h2 class="pgx-name" id="pgxName">${escapeHtml(p.name || 'Your program')}</h2>
+      <p class="pgx-goal">${escapeHtml(goal || 'Your own program. It has no goal set.')}</p>
+      <p class="pgx-facts"><span class="pgx-status"><i aria-hidden="true"></i>${escapeHtml(status)}</span>${facts.map(f => '<span class="pgx-sep" aria-hidden="true">·</span><span class="pgx-fact">' + escapeHtml(f) + '</span>').join('')}</p>
+    </header>`;
+}
+
+/* The phase: where the athlete is in the program's weeks, what this stretch is for, and what comes next. The weeks are
+   drawn as a strip coloured by the phases the athlete wrote; the words carry every fact the picture shows. */
+function pgxPhaseHtml(m, p){
+  const cur = m.phases.find(x => x.now) || null;
+  const block = cur ? (p.blocks || []).find(b => b.startWeek === cur.from && b.endWeek === cur.to) || null : null;
+  const purpose = block ? phasePurposeText(block) : '';
+  const segs = [];
+  for(let w = 1; w <= m.total; w++){
+    const ph = m.phases.find(x => w >= x.from && w <= x.to);
+    const idx = ph ? m.phases.indexOf(ph) : -1;
+    const cls = m.week === null ? 'is-ahead' : w < m.week ? 'is-past' : w === m.week ? 'is-now' : 'is-ahead';
+    segs.push(`<span class="pgx-wk ${cls}${ph && ph.type === 'deload' ? ' is-light' : ''}${ph && ph.from === w && w > 1 ? ' is-start' : ''}" data-ph="${idx % 4}"></span>`);
+  }
+  const names = m.phases.length > 1
+    ? `<ul class="pgx-phs">${m.phases.map((x, i) => `<li class="pgx-ph${x.now ? ' is-now' : ''}" data-ph="${i % 4}"><span>${escapeHtml(x.name)}</span><i>${x.to > x.from ? 'Weeks ' + x.from + '–' + x.to : 'Week ' + x.from}</i></li>`).join('')}</ul>`
+    : '';
+  let next = '';
+  if(m.paused){
+    next = 'Paused since ' + blockDateLabel(m.pausedOn || localDateStr(), true) + '. Your weeks wait while it is paused, and nothing counts as missed.';
+  } else if(m.upcoming){
+    const first = m.phases[0];
+    next = 'Starts ' + blockDateLabel(m.start, true) + (first ? ', with ' + first.name + '.' : '.');
+  } else if(m.week !== null){
+    const nx = m.phases.find(x => x.from > m.week);
+    if(nx && nx.from === m.week + 1) next = nx.name + (nx.type === 'deload' ? ', a planned lighter week,' : '') + ' starts next week.';
+    else if(nx) next = nx.name + ' starts in week ' + nx.from + '.';
+    else if(m.week === m.total) next = 'Final week of the program. It ends ' + blockDateLabel(m.end, true) + '.';
+    else next = 'Ends ' + blockDateLabel(m.end, true) + '.';
+  }
+  const spoken = (m.week === null ? m.total + ' weeks' : 'Week ' + m.week + ' of ' + m.total) + (cur ? ', ' + cur.name : '')
+    + (m.phases.length > 1 ? '. ' + m.phases.map(x => x.name + ' weeks ' + x.from + ' to ' + x.to).join('; ') : '');
+  const resume = m.paused ? `<button type="button" class="tw-cta pgx-primary pgx-resume" onclick="pgxResume()">Resume program</button>` : '';
+  return `<section class="pgx-phase${m.paused ? ' is-paused' : ''}" aria-labelledby="pgxPhaseH">
+      <div class="pgx-phase-top">
+        <h3 class="pgx-week" id="pgxPhaseH">${m.week === null ? escapeHtml(m.total + ' weeks') : `Week <b>${m.week}</b> <span>of ${m.total}</span>`}</h3>
+        ${cur ? `<span class="pgx-phase-name">${escapeHtml(cur.name)}</span>` : ''}
+      </div>
+      ${purpose ? `<p class="pgx-purpose">${escapeHtml(purpose)}</p>` : ''}
+      <div class="pgx-strip" role="img" aria-label="${escapeAttr(spoken)}">${segs.join('')}</div>
+      ${names}
+      ${next ? `<p class="pgx-next-ph">${escapeHtml(next)}</p>` : ''}
+      ${resume}
+    </section>`;
+}
+async function pgxResume(){
+  let p = null;
+  try{ p = getActiveProgram(); }catch(e){ p = null; }
+  if(!p) return;
+  const ok = await resumeProgram(p.id);
+  renderAll();
+  try{ renderTraining(); }catch(e){}
+  if(!ok) alert("That didn't save, so the program is still paused. Nothing was changed — try again.");
+}
+
+/* ---------- Overview: the next workout ----------
+   The same answer Today gives. A workout under way today resumes; today's program session not yet trained starts with
+   Today's own call; otherwise the next session is previewed (its own Start lives in the preview). Nothing is invented
+   when nothing is scheduled. Coaching stays where it is decided (Today's card line, the week sheet, Results), so nothing
+   competes with Start here. */
+function pgxNextModel(m){
+  if(!m || m.paused) return null;
+  const today = localDateStr();
+  if(m.upcoming){
+    for(let i = 0; i < 14; i++){
+      const d = civilAddDays(m.start, i);
+      let pd = null;
+      try{ pd = getProgramWorkoutForDate(d); }catch(e){ pd = null; }
+      if(pd && !pd.ended && pd.entry && pd.entry.type === 'workout' && pd.template) return { kind: 'preview', date: d, cat: pd.category, tpl: pd.template, when: 'First session · ' + blockDateLabel(d, true) };
+    }
+    return { kind: 'none' };
+  }
+  let tw = null;
+  try{ tw = deriveThisWeek(); }catch(e){ tw = null; }
+  if(!tw) return { kind: 'none' };
+  const td = tw.days.find(d => d.isToday) || {};
+  if(td.status === 'active'){
+    const info = activeDraftInfo || {};
+    return { kind: 'resume', title: info.title || 'Workout', identity: info.identity || null, time: info.time || '', summary: info.summary || '' };
+  }
+  let done = null;
+  if(td.status === 'completed'){ const e = workoutsOnDate(today).slice(-1)[0] || null; if(e) done = e; }
+  if(td.status === 'planned'){
+    const tpl = dayTemplateFor(td.category, today);
+    if(tpl) return { kind: 'start', date: today, cat: td.category, tpl, when: 'Today' };
+  }
+  const n = tw.upNext;
+  if(n){
+    const tpl = dayTemplateFor(n.category, n.date);
+    if(tpl) return { kind: 'preview', date: n.date, cat: n.category, tpl, when: n.when === 'Tomorrow' ? 'Tomorrow' : n.when + ' · ' + blockDateLabel(n.date, false), done };
+  }
+  return { kind: 'none', done, ended: (() => { try{ return programEndedOn(today); }catch(e){ return false; } })() };
+}
+function pgxHeroHtml(n){
+  if(!n) return '';
+  const doneLine = n.done ? `<p class="pgx-done"><span class="pgx-done-ic" aria-hidden="true">${checkIconSvg(12)}</span>Done today: <b>${escapeHtml(n.done.title || CAT_LABEL[n.done.category] || 'Workout')}</b><button type="button" class="pgx-link" onclick="openWorkoutSummary('${onclickArg(n.done.id)}')">Summary</button></p>` : '';
+  if(n.kind === 'resume'){
+    const wid = n.identity || workoutIdentity(null, null);
+    return `<section class="pgx-hero is-resume" aria-labelledby="pgxHeroH">
+        <p class="pgx-k">Workout in progress</p>
+        <h3 class="pgx-hero-t" id="pgxHeroH">${workoutIconHtml(wid, 'md')}<span>${escapeHtml(n.title)}</span></h3>
+        ${n.time || n.summary ? `<p class="pgx-hero-s">${escapeHtml([n.time, n.summary].filter(Boolean).join(' · '))}</p>` : ''}
+        <button type="button" class="tw-cta pgx-primary" onclick="resumeActiveWorkout()">Resume workout</button>
+      </section>`;
+  }
+  if(n.kind === 'none'){
+    return doneLine + `<section class="pgx-hero is-none" aria-labelledby="pgxHeroH">
+        <p class="pgx-k">Next</p>
+        <h3 class="pgx-hero-t" id="pgxHeroH"><span>${n.ended ? 'No sessions left in your program' : 'Nothing scheduled this week'}</span></h3>
+        <p class="pgx-hero-s">${n.ended ? 'Its weeks are over. Your training history is kept.' : 'Rest, or train anyway from Train.'}</p>
+        <button type="button" class="pgx-secondary" onclick="closeMyTraining(); switchTab('train');">Train anyway</button>
+      </section>`;
+  }
+  const shown = applyTimeModeToTemplate(n.tpl);
+  const count = shown && shown.exercises ? shown.exercises.length : 0;
+  let mins = null;
+  try{ mins = shown ? computeWorkoutDuration(shown) : null; }catch(e){ mins = null; }
+  const muscles = shown ? trainMusclesHtml(shown) : '';
+  const size = [count ? count + ' exercise' + (count === 1 ? '' : 's') : '', mins ? '~' + mins + ' min' : ''].filter(Boolean).join(' · ');
+  const wid = workoutIdentity(n.tpl, n.cat);
+  const id = onclickArg(n.tpl.id), cat = onclickArg(n.cat);
+  const start = n.kind === 'start';
+  return doneLine + `<section class="pgx-hero" data-fam="${trainFamilyOf(n.cat)}" aria-labelledby="pgxHeroH">
+      <p class="pgx-k">${escapeHtml(start ? 'Today' : 'Next · ' + n.when)}</p>
+      <h3 class="pgx-hero-t" id="pgxHeroH">${workoutIconHtml(wid, 'md')}<span>${escapeHtml(n.tpl.name || CAT_LABEL[n.cat] || 'Workout')}</span></h3>
+      ${muscles ? `<p class="pgx-hero-m">${muscles}</p>` : ''}
+      ${size ? `<p class="pgx-hero-s">${escapeHtml([CAT_LABEL[n.cat], size].filter(Boolean).join(' · '))}</p>` : ''}
+      ${start
+        ? `<div class="pgx-acts"><button type="button" class="tw-cta pgx-primary" onclick="startTemplateLog('${cat}','${id}','${n.date}')">Start workout</button>
+           <button type="button" class="pgx-secondary" onclick="openTrainDetail('${cat}','${id}','${n.date}')" aria-label="View workout">View</button></div>`
+        : `<button type="button" class="tw-cta pgx-primary is-preview" onclick="openTrainDetail('${cat}','${id}','${n.date}')">Preview workout</button>`}
+    </section>`;
+}
+
+/* ---------- Overview: this week ----------
+   Today's own week strip (deriveThisWeek, the same cells and marks), with the same hold-and-drag (D66, written through
+   commitWeekMoveScoped) and an explicit Edit schedule into the week sheet (D159/D160: Move, swap, Undo, the keyboard
+   path). A tap opens that week's sheet at the day. */
+function pgxWeekHtml(m){
+  if(!m || m.paused || m.upcoming) return '';
+  let tw = null;
+  try{ tw = deriveThisWeek(); }catch(e){ return ''; }
+  /* the count is the week sheet's own (deriveWeekView), so this card, the sheet Edit schedule opens and the My plan row say
+     one number for the week */
+  let wv = null;
+  try{ const ap = getActiveProgram(); wv = ap ? deriveWeekView(ap, civilMonday(localDateStr())) : null; }catch(e){ wv = null; }
+  const cells = tw.days.map(d => `
+    <button type="button" class="wk-day wk-${d.state} wk2-${d.status}${d.isToday ? ' wk2-today' : ''}"${d.category === 'rest' ? '' : ' data-fam="' + trainFamilyOf(d.category) + '"'}
+      data-key="${d.key}"${d.isToday ? ' aria-current="date"' : ''} aria-label="${escapeAttr(thisWeekDayName(d) + '. Opens the week.')}">
+      <span class="wk-dl">${d.letter}</span>
+      <span class="wk-mark" aria-hidden="true"></span>
+      <span class="wk-dc">${d.category === 'rest' ? '' : escapeHtml(thisWeekCatText(d.category))}</span>
+    </button>`).join('');
+  let range = '';
+  try{ range = weekRangeText(civilMonday(localDateStr())); }catch(e){ range = ''; }
+  const canMove = (() => { try{ return !!weekEditProgram(); }catch(e){ return false; } })();
+  return `<section class="pgx-week-card" aria-labelledby="pgxWeekH">
+      <div class="pgx-row-h">
+        <h3 id="pgxWeekH">This week <span>${escapeHtml((m.week ? "Week " + m.week + " · " : "") + range)}</span></h3>
+        <button type="button" class="pgx-edit" onclick="openWeekSheet(null,{schedule:true})">Edit schedule</button>
+      </div>
+      <p class="pgx-week-sum">${wv && wv.planned ? `<b${wv.done ? '' : ' class="is-zero"'}>${wv.done}</b> of ${wv.planned} done${wv.missed ? ' · ' + wv.missed + ' missed' : ''}` : 'No sessions planned this week'}</p>
+      <div class="wk2 pgx-wk2"><div class="wk-days" id="pgxWeekDays" role="group" aria-label="Days this week">${cells}</div></div>
+      ${canMove ? '<p class="pgx-hint">Hold a session to move it to another day, this week only.</p>' : ''}
+      <div id="pgxWeekUndo" class="wk-undo-host"></div>
+    </section>`;
+}
+/* The strip's gestures: the D66 hold-drag, unchanged and strip-agnostic; its own tap. One listener set per drawn strip. */
+function attachProgramWeekGestures(){
+  let strip = null;
+  try{ strip = document.getElementById('pgxWeekDays'); }catch(e){ strip = null; }
+  if(!strip || !strip.addEventListener || strip.dataset.gestures === 'on') return;
+  strip.dataset.gestures = 'on';
+  strip.addEventListener('pointerdown', weekPointerDown);
+  strip.addEventListener('click', pgxWeekDayClick);
+  strip.addEventListener('touchmove', ev => { if(_wkDrag && _wkDrag.phase === 'active' && ev.cancelable) ev.preventDefault(); }, { passive: false });
+  strip.addEventListener('lostpointercapture', ev => { if(_wkDrag && _wkDrag.phase === 'active' && ev.pointerId === _wkDrag.pointerId && ev.target === strip) cancelWeekDrag(); });
+  strip.addEventListener('dragstart', ev => ev.preventDefault());
+  strip.addEventListener('selectstart', ev => { if(_wkDrag) ev.preventDefault(); });
+  strip.addEventListener('contextmenu', ev => { if(_wkDrag) ev.preventDefault(); });
+  try{ attachWeekDragGuards(); }catch(e){}
+}
+function pgxWeekDayClick(ev){
+  if(Date.now() < _wkClickGuardUntil){ _wkClickGuardUntil = 0; ev.preventDefault(); ev.stopPropagation(); return; }
+  if(_wkDrag) return;
+  const cell = ev.target && ev.target.closest ? ev.target.closest('.wk-day') : null;
+  if(!cell) return;
+  pgxOpenDay(cell.dataset.key);
+}
+/* A day opens this week's sheet; a session day opens at its session. */
+function pgxOpenDay(key){
+  openWeekSheet(null);
+  let v = null;
+  try{ const st = weekSheetState; const p = st ? getProgram(st.programId) : null; v = p ? deriveWeekView(p, st.monday) : null; }catch(e){ v = null; }
+  const d = v ? v.days.find(x => x.key === key) : null;
+  if(d && d.workout){ try{ weekSheetToggle(key); }catch(e){} }
+}
+/* Where the drag's confirmation shows: inside the Program page while it is open, under Today's week otherwise. */
+function weekToastHost(){
+  try{
+    const ov = document.getElementById('myTrainingOverlay');
+    const h = document.getElementById('pgxWeekUndo');
+    if(ov && ov.classList.contains('open') && h) return h;
+  }catch(e){}
+  return document.getElementById('weekUndo');
+}
+
+/* ---------- Overview: results, briefly, and anything that needs the athlete ---------- */
+function pgxResultsPreviewHtml(p, m){
+  if(!p || (m && m.upcoming)) return '';
+  let r = null, logged = 0;
+  try{ logged = programWorkouts(p).length; }catch(e){ logged = 0; }
+  if(logged < REVIEW.minLogged){
+    return `<section class="pgx-res" aria-labelledby="pgxResH"><div class="pgx-row-h"><h3 id="pgxResH">Results</h3></div>
+        <p class="pgx-res-empty">After ${REVIEW.minLogged} program sessions LOOP compares your lifts here. Nothing is guessed before then.</p></section>`;
+  }
+  try{ r = deriveProgramReview(p, 'program'); }catch(e){ r = null; }
+  if(!r) return '';
+  const s = r.summary;
+  const signals = [];
+  if(s && s.due) signals.push({ v: `${s.done}<i> of ${s.due}</i>`, k: 'sessions done so far', tone: 'done' });
+  const up = (r.lifts || []).filter(l => REVIEW_UP[l.kind]);
+  if(up.length) signals.push({ v: escapeHtml(up[0].name), k: up.length > 1 ? 'and ' + (up.length - 1) + ' more lift' + (up.length === 2 ? '' : 's') + ' moving up' : 'moving up', tone: 'up' });
+  let entry = null;
+  try{ entry = programReviewEntry(); }catch(e){ entry = null; }
+  if(entry && signals.length < 2) signals.push({ v: 'Week ' + entry.week, k: 'review ready', tone: 'review' });
+  if(!signals.length) return '';
+  return `<section class="pgx-res" aria-labelledby="pgxResH">
+      <div class="pgx-row-h"><h3 id="pgxResH">Results</h3><button type="button" class="pgx-edit" onclick="switchProgramTab('results',{focus:true})">See results</button></div>
+      <div class="pgx-sig">${signals.slice(0, 2).map(x => `<span class="pgx-sig-c is-${x.tone}"><b>${x.v}</b><span>${escapeHtml(x.k)}</span></span>`).join('')}</div>
+    </section>`;
+}
+/* One amber line, only for a decision the evidence actually asks for (D163's top suggestion that changes something);
+   the decision itself is made in Results, the one place it is offered. */
+function pgxAttentionHtml(p){
+  let x = null;
+  try{
+    const run = getRunningProgram();
+    if(!run || run.id !== p.id) return '';
+    x = (deriveProgramSuggestions(p) || []).find(s => s.go && (s.kind === 'schedule' || s.kind === 'stalled')) || null;
+  }catch(e){ x = null; }
+  if(!x) return '';
+  return `<button type="button" class="pgx-attn" onclick="pgxOpenSuggestions()">
+      <span class="pgx-attn-k">Worth a look</span><span class="pgx-attn-t">${escapeHtml(x.title)}</span><span class="pgx-attn-go" aria-hidden="true">${chevronRightSvg()}</span>
+    </button>`;
+}
+function pgxOpenSuggestions(){
+  switchProgramTab('results');
+  setTimeout(() => {
+    const el = document.querySelector('#prv .prv-sugs') || document.getElementById('prvH');
+    if(el){ try{ el.scrollIntoView({ block: 'start' }); }catch(e){} }
+    const h = document.getElementById('prvH');
+    if(h){ try{ h.setAttribute('tabindex', '-1'); h.focus({ preventScroll: true }); }catch(e){} }
+  }, 30);
+}
+
+/* ---------- My plan: the whole program, one tap from any week ----------
+   Each program week is a row under its phase, and a row says what that week's sheet says at its top: "Week N of M" (the
+   sheet's calendar week), the phase, and "done of planned" with what was missed. Weeks behind and this week ARE the sheet's
+   model (deriveWeekView, one fulfilment pass for all of them, as the review reads them); a week ahead asks the same
+   question the model asks of each of its days (getProgramWorkoutForDate: a session, not past the end) without the parts a
+   week ahead cannot have (nothing done, nothing missed). A row opens that week's sheet, which carries every change a week
+   can take. */
+function pgxRoadmapModel(p){
+  if(!p || !p.startDate) return null;
+  const today = localDateStr();
+  const first = programWeekMonday(p);
+  let last = null;
+  try{ last = civilMonday(programEndDate(p)); }catch(e){ last = null; }
+  if(!first || !last) return null;
+  let f = null;
+  try{ f = deriveProgramPlanFulfillment(p, workoutLog || []); }catch(e){ f = null; }
+  const weeks = [];
+  for(let mon = first; mon <= last && weeks.length < 160; mon = civilAddDays(mon, 7)){
+    const sunday = civilAddDays(mon, 6);
+    const state = sunday < today ? 'past' : mon > today ? 'upcoming' : 'current';
+    const plan = weekPlanOf(p, mon);
+    const changed = !!(plan && ((plan.ops && plan.ops.length) || plan.name));
+    let calWeek = null, progWeek = null, done = 0, planned = 0, missed = 0, paused = false, phase = null, light = false;
+    if(state !== 'upcoming' && f){
+      let v = null;
+      try{ v = deriveWeekView(p, mon, f); }catch(e){ v = null; }
+      if(!v) continue;
+      calWeek = v.calWeek; progWeek = v.progWeek; done = v.done; planned = v.planned; missed = v.missed; phase = v.phase; light = !!v.deload;
+      const owed = v.days.filter(d => d.status !== 'rest');
+      paused = owed.length > 0 && owed.every(d => d.status === 'paused');
+    } else {
+      calWeek = programCalendarWeek(p, mon);
+      for(let i = 0; i < 7; i++){
+        let pd = null;
+        try{ pd = getProgramWorkoutForDate(civilAddDays(mon, i), p); }catch(e){ pd = null; }
+        if(pd && pd.week && progWeek === null) progWeek = pd.week;
+        if(pd && pd.template && !pd.ended && pd.entry && pd.entry.type === 'workout'){ planned++; if(pd.phase === 'deload') light = true; }
+      }
+      phase = weekPhaseFor(p, progWeek || calWeek);
+    }
+    weeks.push({ monday: mon, sunday, state, calWeek, progWeek, phase, changed, done, planned, missed, paused, light,
+      name: plan && plan.name ? plan.name : null });
+  }
+  return { weeks, total: Math.max(1, parseInt(p.durationWeeks, 10) || 1) };
+}
+function pgxRoadmapHtml(p){
+  let r = null;
+  try{ r = pgxRoadmapModel(p); }catch(e){ r = null; }
+  if(!r || !r.weeks.length) return '';
+  const written = (p.blocks || []).slice().sort((a, b) => a.startWeek - b.startWeek);
+  const phased = !(written.length <= 1 && (!written.length || written[0].phaseType === 'custom'));
+  const groups = [];
+  r.weeks.forEach(w => {
+    const key = phased && w.phase ? w.phase.id || w.phase.name : (w.paused ? 'paused' : 'all');
+    let g = groups[groups.length - 1];
+    if(!g || g.key !== key){ g = { key, phase: phased ? w.phase : null, paused: w.paused && !w.phase, weeks: [] }; groups.push(g); }
+    g.weeks.push(w);
+  });
+  const pid = onclickArg(p.id);
+  const row = w => {
+    const label = 'Week ' + w.calWeek;
+    const count = w.paused ? 'Paused · nothing due' : w.state === 'upcoming' ? (w.planned ? w.planned + ' session' + (w.planned === 1 ? '' : 's') : 'No sessions') : w.done + ' of ' + w.planned + ' done';
+    const tags = [w.state === 'current' ? '<span class="pgx-tag is-now">This week</span>' : '',
+      w.light ? '<span class="pgx-tag is-light">Lighter</span>' : '',
+      w.changed ? '<span class="pgx-tag is-changed">Changed</span>' : '',
+      w.state === 'past' && w.missed ? `<span class="pgx-tag is-missed">${w.missed} missed</span>` : ''].join('');
+    return `<li><button type="button" class="pgx-rw is-${w.state}${w.paused ? ' is-paused' : ''}" onclick="openWeekSheet('${w.monday}',{programId:'${pid}'})"
+        aria-label="${escapeAttr(label + ', ' + weekRangeText(w.monday) + ', ' + count + (w.state === 'current' ? ', this week' : '') + (w.changed ? ', changed' : '') + '. Opens the week.')}">
+        <span class="pgx-rw-n">${escapeHtml(label)}</span>
+        <span class="pgx-rw-b"><span class="pgx-rw-d">${escapeHtml(weekRangeText(w.monday))}${w.name ? ' · ' + escapeHtml(w.name) : ''}</span><span class="pgx-rw-c">${escapeHtml(count)}</span></span>
+        <span class="pgx-rw-t">${tags}</span>
+        <span class="pgx-rw-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </button></li>`;
+  };
+  return `<section class="pgx-map" aria-labelledby="pgxMapH">
+      <div class="pgx-row-h"><h3 id="pgxMapH">Your weeks</h3><span class="pgx-row-s">Tap a week to see or change it</span></div>
+      ${groups.map(g => `<div class="pgx-map-g"${g.phase ? ` data-ph="${Math.max(0, written.indexOf(g.phase)) % 4}"` : ''}>
+          ${g.phase ? `<h4 class="pgx-map-ph"><span>${escapeHtml(g.phase.name || phaseTypeLabel(g.phase) || 'Phase')}</span><i>${escapeHtml(g.phase.endWeek > g.phase.startWeek ? 'Weeks ' + g.phase.startWeek + '–' + g.phase.endWeek : 'Week ' + g.phase.startWeek)}</i></h4>
+            ${phasePurposeText(g.phase) ? `<p class="pgx-map-pp">${escapeHtml(phasePurposeText(g.phase))}</p>` : ''}` : ''}
+          <ul class="pgx-map-l">${g.weeks.map(row).join('')}</ul></div>`).join('')}
+    </section>`;
+}
+/* Program settings and the weekly plan outside it: every action the old Adjust list held, under names that say what
+   each one changes. */
+function pgxSettingsHtml(t, subject){
+  const row = (main, sub, on, extra) => `<button type="button" class="mt-act"${extra || ''} onclick="${on}">
+      <span class="mt-act-main">${escapeHtml(main)}</span><span class="mt-act-sub">${escapeHtml(sub)}</span><span class="mt-act-go">${chevronRightSvg()}</span></button>`;
+  const prog = [];
+  if(t.hasProgram) prog.push(row('Edit program', 'Length, goal and the whole week at once', "openProgramBuilderFlow('edit')"));
+  const pid = subject ? subject.id : null;
+  if(pid) prog.push(row('Program details', 'Phases, start date, pause, complete', `openProgramDetail('${onclickArg(pid)}')`));
+  if(t.hasProgram) prog.push(`<button type="button" class="mt-act mt-explain-toggle" onclick="toggleMtExplain()" aria-expanded="${mtExplainOpen}">
+      <span class="mt-act-main">How this program works</span><span class="mt-act-sub">Why each week and session is set as it is</span><span class="mt-act-go">${chevronRightSvg()}</span></button>`);
+  /* Change training days rewrites the current program's weeks (applyTrainingSetup revises it, or with a paused program
+     starts a new one), so it is not offered as a weekly-plan setting while a program is current: Edit program and the week
+     sheet change a program's days. */
+  let current = null;
+  try{ const ap = getActiveProgram(); current = ap && ap.status !== 'completed' ? ap : null; }catch(e){ current = null; }
+  const plan = [current ? '' : row('Change training days', 'The days your weekly plan trains', 'openTrainingSetup()'),
+    row('Ready-made plans', t.planName || 'Pick a starting point', "switchTrainingTab('plan')"),
+    row('Change goal', t.goal || 'Not set', 'closeMyTraining(); openAthleteProfile();')];
+  return `<div class="sec-head">Program settings</div><div class="mt-actions">${prog.join('')}</div>
+    ${t.hasProgram && mtExplainOpen ? programWhyRowsHtml(t.expl) : ''}
+    <div class="sec-head">Weekly plan</div><div class="mt-actions">${plan.join('')}</div>`;
+}
+
+/* ---------- no program yet: three ways in ---------- */
+function pgxStartHtml(t){
+  let saved = [];
+  try{ saved = getPrograms(); }catch(e){ saved = []; }
+  const card = (k, title, sub, on, meta) => `<button type="button" class="pgx-way is-${k}" onclick="${on}">
+      <span class="pgx-way-t">${escapeHtml(title)}</span><span class="pgx-way-s">${escapeHtml(sub)}</span>${meta ? `<span class="pgx-way-m">${escapeHtml(meta)}</span>` : ''}
+      <span class="pgx-way-go" aria-hidden="true">${chevronRightSvg()}</span></button>`;
+  return `<section class="pgx-start" aria-labelledby="pgxStartH">
+      <h2 class="pgx-start-t" id="pgxStartH">${saved.length ? 'Start a program' : 'Train with a plan'}</h2>
+      <p class="pgx-start-s">A program plans your weeks for you: which days you train, what each workout holds, and how it moves on. Nothing you have logged changes, and a program is not required: you can keep training from your own workouts.</p>
+      <div class="pgx-ways">
+        ${card('build', 'Build for me', 'Answer a few questions (goal, days, time, equipment) and LOOP writes the weeks and the workouts.', "openProgramBuilderFlow('create')", 'About a minute · change anything after')}
+        ${card('plans', 'Follow a ready-made plan', 'Six repeating weeks you can start today. Each says its days, session length and equipment.', "switchTrainingTab('plan')", 'A repeating week, no phases')}
+        ${card('own', 'Create my own', 'Choose your days and what each one trains. LOOP fills in exercises you can change.', 'pgxCreateOwn()', 'Change anything after')}
+      </div>
+    </section>`;
+}
+/* Create my own: the builder, opened at its own-week mode (D62.5) when the athlete reaches the week's shape. */
+let pbOwnWeek = false;
+function pgxCreateOwn(){
+  pbOwnWeek = true;
+  openProgramBuilderFlow('create');
+}
+
+/* ---------- ready-made plans: what each one asks of the athlete ---------- */
+const _planEquipCache = {};
+function planEquipmentText(id){
+  if(_planEquipCache[id] !== undefined) return _planEquipCache[id];
+  const plan = DEFAULT_PLANS[id];
+  const seen = [];
+  try{
+    Object.keys(plan.templates || {}).forEach(c => (plan.templates[c] || []).forEach(t => (t.exercises || []).forEach(x => {
+      const meta = x && x.name ? getExerciseMetadata(x.name) : null;
+      const e = meta && meta.mapped ? String(meta.equipment || '') : '';
+      if(e && e !== 'Unknown' && e.toLowerCase() !== 'none' && seen.indexOf(e) === -1) seen.push(e);
+    })));
+  }catch(e){}
+  return (_planEquipCache[id] = seen.slice(0, 5).join(', '));
 }
 /* ---------- the week sheet, in sections ---------- */
 /* Which sections are open, kept for the session (a preference of the screen, not training data). */
@@ -48942,7 +49710,19 @@ function exDetailShowAllBests(){
 function paintPlanChip(){
   const el = document.getElementById('currentPlanLabel');
   const plan = DEFAULT_PLANS[selectedPlanId];
-  if(el && plan) el.textContent = plan.name;
+  /* D164 — while a program is current (running, paused, not yet begun, or its weeks just over) the chip names it, since
+     the program is what Today follows; otherwise the weekly plan, as before. */
+  let prog = null;
+  try{ const p = getActiveProgram(); prog = p && p.status !== 'completed' ? p : null; }catch(e){ prog = null; }
+  let kind = null;
+  try{ kind = document.querySelector('.plan-chip-label'); }catch(e){ kind = null; }
+  if(kind) kind.textContent = prog ? 'Program' : 'Plan';
+  if(el && prog) el.textContent = prog.name || 'Your program';
+  else if(el && plan) el.textContent = plan.name;
+  /* D164 — the chip is renderAll's first surface: an open Program page (this week, the next workout) is redrawn with
+     everything else, so a move in the week sheet, a drag on its own strip or a finished workout shows at once, instead
+     of waiting for the page to be reopened. renderAll itself is unchanged. */
+  try{ const ov = document.getElementById('myTrainingOverlay'); if(ov && ov.classList.contains('open') && trainingTab === 'program') renderSurface('renderMyTraining', renderMyTraining); }catch(e){}
 }
 
 /* D88 — each surface is painted independently. These ran as one unbroken
@@ -53503,6 +54283,7 @@ function pbClose(){
   pbPersistDraft();
   document.getElementById('pbOverlay').classList.remove('open');
   pbState = null;
+  pbOwnWeek = false;   // D164
 }
 
 /* ---------- resuming ---------- */
@@ -53638,6 +54419,8 @@ function renderProgramBuilderFlow(){
   const steps = pbSteps();
   const atReview = pbAtReview();
   const step = atReview ? null : steps[pbState.step];
+  /* D164 — Create my own: the split question opens in the builder's own-week mode (D62.5), once */
+  if(pbOwnWeek && step && step.id === 'split' && !pbState.customSplit && pbState.mode !== 'edit'){ pbOwnWeek = false; pbStartCustomSplit(); return; }
 
   title.textContent = pbState.mode === 'edit' ? 'Edit program' : 'Build your program';
   const pos = atReview ? pbTotal() : pbState.step + 1;
@@ -56134,6 +56917,8 @@ async function pbCommit(btn){
   try{ closePrograms(); }catch(e){}
   renderAll();
   if(typeof switchTab === 'function') switchTab('today');
+  /* D164 — and its Program home is shown over Today: the program, where it starts, and the next workout with its Start */
+  try{ openTraining('program'); }catch(e){}
 }
 
 /* The program is the intent; `schedule` is what Today reads. This copies the
@@ -59584,8 +60369,14 @@ let trainingTab = 'program';
 function openTraining(tab){
   try{ closeSettings(); }catch(e){}
   try{ closePlanSwitcher(); }catch(e){}
-  if(tab === 'plan' || tab === 'program') trainingTab = tab;
+  /* D164 — from outside (the header chip, Today's week), 'plan' means the plan being followed: the program's home when there
+     is a program, the ready-made weekly plans when there is not. 'program' opens the Overview; 'results' the Results. */
+  if(tab === 'plan' && pgxHasProgram()){ trainingTab = 'program'; programTab = 'overview'; }
+  else if(tab === 'results'){ trainingTab = 'program'; programTab = 'results'; }
+  else if(tab === 'program'){ trainingTab = 'program'; programTab = 'overview'; }
+  else if(tab === 'plan') trainingTab = 'plan';
   renderTraining();
+  try{ const sc = document.querySelector('#myTrainingOverlay .sheet-scroll'); if(sc) sc.scrollTop = 0; }catch(e){}
   document.getElementById('myTrainingOverlay').classList.add('open');
 }
 /* Every existing caller — Settings, the Progress program card, Today's
@@ -59596,6 +60387,14 @@ function closeMyTraining(){ document.getElementById('myTrainingOverlay').classLi
 function applyTrainingTabs(){
   document.querySelectorAll('#trSeg .seg-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.tr === trainingTab));
+  /* D164 — one Program destination: the Plan|Program segment is retired (the ready-made plans are a view with a way back,
+     the program has its own tabs), the page's title says which view it is, and the program's panel lays out its parts in
+     order (the tabs and panels, then the guide and the athlete's programs, which belong to My plan). The markup is 10.85's. */
+  try{
+    const seg = document.getElementById('trSeg'); if(seg) seg.style.display = 'none';
+    const ttl = document.querySelector('#myTrainingOverlay .workout-topbar-title');
+    if(ttl) ttl.textContent = trainingTab === 'plan' ? 'Ready-made plans' : 'Program';
+  }catch(e){}
   ['plan', 'program'].forEach(k => {
     const p = document.getElementById('trpanel-' + k);
     if(p) p.style.display = (k === trainingTab) ? 'block' : 'none';
@@ -59624,11 +60423,17 @@ function renderTrainingPlanTab(){
   const cards = ids.map(id => {
     const p = DEFAULT_PLANS[id];
     const active = id === selectedPlanId;
-    return `<div class="plan-card ${active ? 'plan-card-active' : ''}" onclick="choosePlan('${id}')">${planCardBody(id, p, active)}</div>`;
+    return `<div class="plan-card ${active ? 'plan-card-active' : ''}" role="button" tabindex="0" aria-label="${escapeAttr(p.name + (active ? ', current plan' : '') + '. ' + p.tagline)}" onclick="choosePlan('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();choosePlan('${id}');}">${planCardBody(id, p, active)}${(() => { const u = planEquipmentText(id); return u ? `<div class="plan-card-uses">Uses ${escapeHtml(u)}</div>` : ''; })()}</div>`;
   }).join('');
   const current = (selectedPlanId && DEFAULT_PLANS[selectedPlanId]) ? DEFAULT_PLANS[selectedPlanId].name : null;
+  /* D164 — said plainly when a program is current: it sets the workouts while it runs; a plan is what is trained without one */
+  let prog = null;
+  try{ const ap = getActiveProgram(); prog = ap && ap.status !== 'completed' ? ap : null; }catch(e){ prog = null; }
   el.innerHTML = `
-    <div class="tr-lede">${current
+    <button type="button" class="pgx-back" id="pgxPlansBack" onclick="switchTrainingTab('program')" aria-label="Back to Program">‹ Back</button>
+    <div class="tr-lede">${prog
+      ? `Ready-made plans are repeating weeks without phases. Your program, <b>${escapeHtml(prog.name || 'Your program')}</b>, sets your workouts while it runs${current ? `; <b>${escapeHtml(current)}</b> is the plan you train without one` : ''}. Switching keeps your history.`
+      : current
       ? `You are following <b>${escapeHtml(current)}</b>. Switching keeps your history and each plan’s own edits, so you can switch back at any time.`
       : 'Choose the structure you want to follow. Your history is kept whichever you pick.'}</div>
     <div class="plan-grid">${cards}</div>
@@ -59684,14 +60489,10 @@ function renderTrainingProgramTab(){
   try{ activeId = programsStore.activeProgramId; }catch(e){}
 
   if(!list.length){
-    /* Not an empty screen: what a program is, and one way to make one. */
-    el.innerHTML = `
-      <div class="tr-empty">
-        <div class="tr-empty-t">No programs yet</div>
-        <div class="tr-empty-s">A program runs your training for a set number of weeks, with its own schedule, its own exercises and phases that build and then deload. Your plan already works without one — nothing you have logged is affected either way.</div>
-        <button type="button" class="tr-cta" onclick="openProgramBuilderFlow('create')">Create Program</button>
-      </div>`;
-    if(detail) detail.innerHTML = '';
+    /* D164 — not an empty screen: the start screen (renderMyTraining) says what a program is and offers the three ways
+       to begin, Build for me, a ready-made plan, and Create my own. */
+    el.innerHTML = '';
+    try{ renderMyTraining(); }catch(e){ if(detail) detail.innerHTML = ''; }
     return;
   }
 
@@ -59885,6 +60686,8 @@ function programJourneyHtml(m){
 function renderMyTraining(){
   const el = document.getElementById('myTrainingBody');
   if(!el) return;
+  /* D164 — the strip a gesture holds is about to be replaced: end it first (as renderWeekCard does for Today's) */
+  try{ if(_wkDrag && _wkDrag.strip && _wkDrag.strip.id === 'pgxWeekDays') cancelWeekDrag({ immediate: true }); }catch(e){}
   const t = myTrainingState();
   const todayK = todayKey();
   const doneToday = workoutLog.some(l => l.date === localDateStr());
@@ -59893,7 +60696,8 @@ function renderMyTraining(){
      stale. */
   let expl = null;
   if(t.hasProgram){ try{ expl = deriveProgramExplanation(getActiveProgram()); }catch(e){} }
-  /* D38 \u2014 when nothing is running, the page shows what was just finished
+  t.expl = expl;
+  /* D38 — when nothing is running, the page shows what was just finished
      and the way on, instead of reading as an empty or broken screen. */
   let finishedSum = null, finishedId = null;
   try{
@@ -59903,19 +60707,11 @@ function renderMyTraining(){
     }
   }catch(e){}
 
-  /* D150 — a program being trained, paused, or not yet begun is drawn as its journey (programJourneyHtml), in place of
-     the title, the time bar and the two stat cells below; with none, the page is 10.72's. */
+  /* D150 — a program being trained, paused, or not yet begun is its journey (programJourneyModel); D164 draws it as the
+     Program home's identity, phase, next workout and week. With none and nothing finished, the start screen. */
   let journey = null;
   if(!finishedSum){ try{ journey = programJourneyModel(getActiveProgram()); }catch(e){ journey = null; } }
-
-  /* The program says where the athlete is, once. A second progress bar
-     underneath the map would be the same fact twice. */
-  const progressLine = (t.hasProgram && t.week && t.totalWeeks)
-    ? `<div class="mt-prog">
-         <div class="mt-prog-top"><span>Week ${t.week} of ${t.totalWeeks}${t.phase ? ' · ' + escapeHtml(t.phase.name) : ''}</span>
-           <span class="mt-status">${escapeHtml(programStatusWord(t))}</span></div>
-         <div class="mt-prog-bar"><span style="width:${Math.min(100, Math.round((t.week / t.totalWeeks) * 100))}%"></span></div>
-       </div>` : '';
+  _pgxMode = (journey || finishedSum) ? 'program' : 'start';
 
   const dayRows = t.days.map(d => {
     const isToday = d.key === todayK;
@@ -59935,114 +60731,87 @@ function renderMyTraining(){
       </div>`;
   }).join('');
 
-  el.innerHTML = `
-    ${finishedSum ? '' : journey ? programJourneyHtml(journey) : `<div class="mt-hero">
-      <div class="mt-title">${escapeHtml(t.title)}</div>
-      <div class="mt-sub">${t.trainingDays} day${t.trainingDays===1?'':'s'} a week${t.structure ? ' · ' + escapeHtml(t.structure) : ''}${t.goal ? ' · ' + escapeHtml(t.goal) : ''}${
-        expl && expl.minutes.max ? ' · ~' + (expl.minutes.min === expl.minutes.max ? expl.minutes.min : expl.minutes.min + '\u2013' + expl.minutes.max) + ' min' : ''}${
-        expl && expl.emphasis && expl.emphasis.effective ? ' · ' + escapeHtml(expl.emphasis.label) + ' emphasis' : ''}</div>
-      ${progressLine}
-    </div>`}
+  let subject = null;
+  try{ subject = finishedId ? getProgram(finishedId) : getActiveProgram(); }catch(e){ subject = null; }
+  const panel = (id, html) => `<div class="pgx-panel" id="pgxPanel-${id}" role="tabpanel" aria-labelledby="pgxTab-${id}" tabindex="-1">${html}</div>`;
 
-    ${finishedSum || journey ? '' : myTrainingStatsHtml(t)}
+  /* ---- no program to show: the start screen, then the weekly plan the athlete trains without one ---- */
+  if(_pgxMode === 'start'){
+    const traj = (() => { const s = trajectoryHtml(); return /trj-empty/.test(s) ? '' : `<div class="sec-head">Training volume<span class="sec-hint">logged vs planned</span></div>${s}`; })();
+    el.innerHTML = `<div class="pgx-panel pgx-panel-start" id="pgxPanel-overview">
+      ${myTrainingDraftHtml()}
+      ${pgxStartHtml(t)}
+      <div class="sec-head">This week, without a program</div>
+      <div class="mt-hero mt-hero-quiet">
+        <div class="mt-title">${escapeHtml(t.title)}</div>
+        <div class="mt-sub">${t.trainingDays} day${t.trainingDays===1?'':'s'} a week${t.structure ? ' · ' + escapeHtml(t.structure) : ''}${t.goal ? ' · ' + escapeHtml(t.goal) : ''}</div>
+      </div>
+      <div class="mt-days">${dayRows}</div>
+      ${programHistoryHtml(null)}
+      ${traj}
+      <div class="sec-head">Weekly plan</div>
+      <div class="mt-actions">
+        <button type="button" class="mt-act" onclick="openTrainingSetup()">
+          <span class="mt-act-main">Change training days</span><span class="mt-act-sub">Training days and how often</span><span class="mt-act-go">${chevronRightSvg()}</span></button>
+        <button type="button" class="mt-act" onclick="mtChangePlan()">
+          <span class="mt-act-main">Ready-made plans</span><span class="mt-act-sub">${escapeHtml(t.planName || 'Pick a starting point')}</span><span class="mt-act-go">${chevronRightSvg()}</span></button>
+        <button type="button" class="mt-act" onclick="closeMyTraining(); openAthleteProfile();">
+          <span class="mt-act-main">Change goal</span><span class="mt-act-sub">${escapeHtml(t.goal || 'Not set')}</span><span class="mt-act-go">${chevronRightSvg()}</span></button>
+      </div>
+      <p class="mt-note">Changing your training only affects what comes next. Everything you have already logged stays exactly as it is.</p>
+    </div>`;
+    pgxApplyTab(false);
+    return;
+  }
 
-    ${/* D51D — unfinished work, offered where the athlete's programs live.
-          Below the current program because current training is what this page
-          is for; above everything else because a saved draft they cannot find
-          is a saved draft they have lost. */''}
-    ${myTrainingDraftHtml()}
+  /* ---- Overview: the program home ---- */
+  let overview = '';
+  if(journey){
+    const life = journey.paused ? 'paused' : journey.upcoming ? 'upcoming' : 'active';
+    const next = pgxNextModel(journey);
+    const stale = (() => { try{ return activeDraftInfo && activeDraftInfo.stale ? draftRecoveryHtml(activeDraftInfo).split('drTitle').join('pgxDrTitle') : '';   /* Today draws the same card: its own ids */ }catch(e){ return ''; } })();
+    overview = pgxIdentityHtml(subject, life, journey.days, journey.start)
+      + pgxPhaseHtml(journey, subject)
+      + stale
+      + pgxHeroHtml(next)
+      + pgxWeekHtml(journey)
+      + pgxAttentionHtml(subject)
+      + pgxResultsPreviewHtml(subject, journey)
+      + myTrainingDraftHtml();
+  } else {
+    const life = deriveProgramLifecycle(subject, localDateStr());
+    let days = 0;
+    try{ const plan = programPlanOn(subject, programEndDate(subject)) || {}; days = PROGRAM_DAY_KEYS.filter(k => plan[k] && plan[k].type === 'workout').length; }catch(e){ days = 0; }
+    overview = pgxIdentityHtml(subject, life === 'completed' ? 'completed' : 'ended', days, null)
+      + `<div class="sec-head">Last program</div>
+       ${programCompletionHtml(finishedSum, { programId: finishedId })}`
+      + myTrainingDraftHtml();
+  }
 
-    ${/* D46B — with no program running, this page used to read as a schedule
-          with the program feature reduced to the fourth row of "Adjust", far
-          below the fold. Structured training is the point of the screen, so
-          when none is running the way into it is stated here, once, above the
-          week rather than under it. It never appears while a program is
-          running, and it does not disparage training without one. */''}
-    ${(!t.hasProgram && !finishedSum && !journey) ? (() => {
-      let saved = [];
-      try{ saved = getPrograms(); }catch(e){}
-      /* D140 — the current program, when it is paused: the card above says Paused, so this says how to resume it */
-      let paused = null;
-      try{ const cur = getActiveProgram(); paused = cur && cur.status === 'paused' ? cur : null; }catch(e){}
-      return `
-        <button type="button" class="mt-start" onclick="${saved.length
-          ? 'closeMyTraining(); openPrograms();'
-          : "openProgramBuilderFlow('create')"}">
-          <span class="mt-start-k">${paused ? 'Program paused' : 'No program running'}</span>
-          <span class="mt-start-t">${paused ? 'Resume or start a program' : saved.length ? 'Start a program' : 'Build my program'}</span>
-          <span class="mt-start-s">${paused
-            ? `“${escapeHtml(paused.name || 'Your program')}” is paused · open it to resume, or build a new one`
-            : saved.length
-            ? `${saved.length} saved program${saved.length===1?'':'s'} · or build a new one`
-            : 'A few questions and LOOP writes the weeks, the days and the sessions'}</span>
-          <span class="mt-start-go" aria-hidden="true">${chevronRightSvg()}</span>
-        </button>
-        <div class="mt-start-alt">You can keep training from your own workouts below — a program is not required.</div>`;
-    })() : ''}
+  /* ---- My plan: every week, the sessions, and the settings ---- */
+  const plan = (subject ? pgxRoadmapHtml(subject) : '')
+    + (t.hasProgram && !finishedSum ? myTrainingSessionsHtml(t) : '')
+    + pgxSettingsHtml(t, subject)
+    + `<p class="mt-note">Changing your training only affects what comes next. Everything you have already logged stays exactly as it is.</p>`;
 
-    ${finishedSum ? `<div class="sec-head">Last program</div>
-       ${programCompletionHtml(finishedSum, { programId: finishedId })}` : ''}${(() => { let rp = null; try{ rp = finishedId ? getProgram(finishedId) : getActiveProgram(); }catch(e){ rp = null; } return rp ? programReviewHtml(rp) : ''; })()}
+  /* ---- Results: the review (D163), progress so far, volume, earlier programs ---- */
+  const results = (subject ? programReviewHtml(subject) : '')
+    + ((t.hasProgram && !finishedSum) ? (() => {
+        /* Progress so far, for a program still being trained. Same
+           function and same evidence rules as the completion panel, so
+           the two surfaces can never report different numbers. */
+        let perf = null;
+        try{ const rp = getRunningProgram(); if(rp) perf = deriveProgramPerformance(rp); }catch(e){}
+        const block = performanceHighlightsHtml(perf, { limit:3 });
+        return block ? `<div class="sec-head">Progress so far</div>${block}` : '';
+      })() : '')
+    + `<div class="sec-head">Training volume<span class="sec-hint">logged vs planned</span></div>
+    ${trajectoryHtml()}`
+    + programHistoryHtml(finishedId);
 
-    ${(t.hasProgram && !finishedSum)
-      ? `<div class="sec-head">Your program<span class="sec-hint">tap a week</span></div>
-         ${myTrainingProgramMapHtml(t)}
-         ${myTrainingSessionsHtml(t)}
-         ${(() => {
-           /* Progress so far, for a program still being trained. Same
-              function and same evidence rules as the completion panel, so
-              the two surfaces can never report different numbers. */
-           let perf = null;
-           try{ const rp = getRunningProgram(); if(rp) perf = deriveProgramPerformance(rp); }catch(e){}
-           const block = performanceHighlightsHtml(perf, { limit:3 });
-           return block ? `<div class="sec-head">Progress so far</div>${block}` : '';
-         })()}
-         <button type="button" class="mt-explain-toggle" onclick="toggleMtExplain()"
-           aria-expanded="${mtExplainOpen}">How this program works</button>
-         ${mtExplainOpen ? programWhyRowsHtml(expl) : ''}`
-      : (finishedSum ? '' : `<div class="sec-head">This week</div>
-         <div class="mt-days">${dayRows}</div>`)}
-
-    ${programHistoryHtml(finishedId)}
-
-    <div class="sec-head">Training volume<span class="sec-hint">logged vs planned</span></div>
-    ${trajectoryHtml()}
-
-    <div class="sec-head">Your workouts</div>
-    ${myTrainingVariantsHtml()}
-
-    <div class="sec-head">Adjust</div>
-    <div class="mt-actions">
-      <button type="button" class="mt-act" onclick="openTrainingSetup()">
-        <span class="mt-act-main">Change schedule</span>
-        <span class="mt-act-sub">Training days and how often</span>
-        <span class="mt-act-go">${chevronRightSvg()}</span>
-      </button>
-      <button type="button" class="mt-act" onclick="mtChangePlan()">
-        <span class="mt-act-main">Change plan</span>
-        <span class="mt-act-sub">${escapeHtml(t.planName || 'Pick a starting point')}</span>
-        <span class="mt-act-go">${chevronRightSvg()}</span>
-      </button>
-      <button type="button" class="mt-act" onclick="closeMyTraining(); openAthleteProfile();">
-        <span class="mt-act-main">Change goal</span>
-        <span class="mt-act-sub">${escapeHtml(t.goal || 'Not set')}</span>
-        <span class="mt-act-go">${chevronRightSvg()}</span>
-      </button>
-      ${t.hasProgram ? `<button type="button" class="mt-act" onclick="openProgramBuilderFlow('edit')">
-        <span class="mt-act-main">Edit program</span>
-        <span class="mt-act-sub">Length, goal and the whole week at once</span>
-        <span class="mt-act-go">${chevronRightSvg()}</span>
-      </button>` : `<button type="button" class="mt-act" onclick="openProgramBuilderFlow('create')">
-        <span class="mt-act-main">Build my program</span>
-        <span class="mt-act-sub">A few quick choices and LOOP builds it</span>
-        <span class="mt-act-go">${chevronRightSvg()}</span>
-      </button>`}
-      ${t.hasProgram ? `<button type="button" class="mt-act" onclick="openProgramDetail('${onclickArg(t.programId)}')">
-        <span class="mt-act-main">Program details</span>
-        <span class="mt-act-sub">Phases, start date and status</span>
-        <span class="mt-act-go">${chevronRightSvg()}</span>
-      </button>` : ''}
-    </div>
-    <p class="mt-note">Changing your training only affects what comes next. Everything you have already logged stays exactly as it is.</p>`;
+  el.innerHTML = pgxTabsHtml() + panel('overview', overview) + panel('plan', plan) + panel('results', results);
+  pgxApplyTab(false);
+  attachProgramWeekGestures();
 }
 
 /* Three numbers, from state My Training already computes: where you are in
