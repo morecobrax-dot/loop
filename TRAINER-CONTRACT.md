@@ -21032,3 +21032,57 @@ request. Last week also reads against the week before, in the program's sessions
 progress and freezing, backup — 10.83's to the character (Contract 286 A3). No storage key, no migration. Test runner: a
 run that leaves early now names the section it was in (D161's silent exit was at 02:29 local with the session idle and
 could not be reproduced; the suite peaks near 3.4 GB RSS of a 4.3 GB heap, each loaded app freed once its timers fire).
+
+## §208 — PROGRAM REVIEW: THE PROGRAM OVER ITS WEEKS, AND THE WEEKS AHEAD FROM THE RULES THAT OWN THEM (D163 · LOOP 10.85 · loop-v262)
+
+**Why.** The owner asked LOOP to show how a program is going across its weeks without opening every week, and to surface
+safe, explainable changes to future training — not a new engine. Every fact the review states already had an owner; D163
+composes them on the Program page and adds no rule, no stored summary and no storage key.
+
+**What the review reads (the audit).**
+- Weeks and sessions: `deriveWeekView` per program week, D43's slots — done, missed, paused; today and the days ahead are
+  never counted. The plan's fulfilment is worked out once per review and handed to each week (`deriveWeekView(p, monday,
+  fulfilment)`; without the third argument it behaves exactly as before), so the cost does not grow with the weeks
+  (Contract 287 B9).
+- Working sets: `weekWorkDone` — the count "Planned and done" and "How this week went" show — missed sessions apart.
+- Rearranged weeks: the week's own swap/session changes (D159). Lighter weeks: from the phase each workout was saved with
+  (D85), so a later pause cannot move them; a week with no workouts falls back to the program's phase. Finding: a past
+  week's phase *reading* (getCurrentProgramWeek for a past date) subtracts later pauses — recorded, not changed here.
+- Workouts outside the plan: logs in the period no planned session claims (D43). Never counted as sessions done.
+- Lifts: one week in the week sheet's own words (`weekLiftReview`, D161: against the session before). Longer periods in
+  Progress so far's reading (`derivePerformanceProgress`, D39 — Trending up / Steady / Trending down) where it names a
+  direction; before it can, the lift's first and last session in the period by D126's rule, as facts, deload sessions set
+  aside. The two never sit side by side for one lift. Assisted lifts are left out (D152: more assistance is not more
+  strength). D137's Stalled/Declining is shown only for a program still being trained.
+- Lifecycle: `deriveProgramLifecycle` — active, paused, not begun (no review yet), ended ("Weeks over"), completed.
+
+**Periods.** This week, Last week (the default), This phase (the current written phase's weeks so far, when more than
+one), To date / Whole program. A period is offered only when program weeks lie behind it.
+
+**Suggestions (deriveProgramSuggestions).** Only for the program being trained, most useful first, two shown, the rest
+on request; each from the rule that owns it:
+1. schedule — D160's weekClusters + weekClusterFix for this week or next (opens the week sheet's preview, Apply, Undo);
+2. stalled — D137 through Coaching notes (opens D159's similar-exercise editor for that week);
+3. workload — the lift's last two sessions both short of the prescribed sets: information and the one-week session
+   editor. LOOP has no rule that changes sets for the athlete and invents none;
+4. planned — a load change D49/D47 already planned (planSessionLift): information, with Keep in Coaching notes;
+5. phase — the program's deload within the week: explained, never cancelled or intensified.
+Every change is made in that week's own sheet — one session or one week, with its preview and Undo. Multiweek
+application is not offered (the program's own editor changes every week). "Keep current plan" (or "Hide" for
+information) is kept on that week's own list (`weekDismiss`, backed up); ids carry their evidence, so new training reads
+a suggestion afresh, and acting on one the evidence has replaced opens nothing.
+
+**Today.** One quiet row in the program card after a finished program week that had sessions due, once at least two
+program sessions are logged — and only when the card has no line of its own (a deload to review, a lighter week under
+way, a block to rebuild). Hidden per week. Never during a workout.
+
+**D162 follow-ups.** (A) A daily objective kept because today's training exists, though today's *session* changed since
+(moved, rest, a lift removed, a deload, a choice), says "Set before today's plan changed" instead of reading as an
+instruction; target, progress and XP untouched; a day's training that only moves the trainer's reading adds no note.
+(B) Time Mode: today's card says what the shorter workout holds, from planSessionLift on the trimmed row — exactly what
+Start fills in. Finding: Time Mode is session state that is not cleared at midnight; the card stays true to what Start
+does. (C) The weekly plan's coaching says LOOP sets those loads at Start. (D) The review's planned targets, the week
+sheet, Objectives and Start agree (Contract 287 C2). The D161/D162 card buttons escape a lift name with an apostrophe.
+
+**Kept.** D49, D85, D125, D137, D39, the plan's fulfilment and lifecycle, completion and outcome, the week rules, Time
+Mode, XP, Session Score, objectives' progress and freezing, backup — 10.84's to the character (Contract 287 A3).
