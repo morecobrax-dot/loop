@@ -21189,3 +21189,26 @@ there; both readers are unchanged, and the level, rank, XP bar and the rank show
 **Contract 289** (in the app): the file and protected readers (A), the band's rule, edges and colours (B), the Overview's
 order and what stays reachable (C), the banded components' actions (D), release (K). The band's rendering — corner
 continuity, thickness, contrast, clipping — is the browser rig's (rig165).
+
+## §211 — TIME MODE ENDS WITH ITS DAY; A PAST WEEK KEEPS ITS WEEK AFTER A LATER PAUSE (D166 · LOOP 10.88 · loop-v265)
+
+**Time Mode (E87).** Time Mode is today's choice, never stored, cleared by a saved workout. D166 adds the one missing
+boundary: the choice records its civil day (`timeModeDay`), and the day boundary (`noticeNewDay` — the midnight timer and
+the return to the foreground) ends a choice from an earlier day before redrawing (`timeModeNewDay`). Today's card, the
+Program page's preview, coaching (D163, today's session only) and Start all read the same `selectedWorkoutMinutes`, so they
+agree on both days. A workout under way keeps its draft and its planned time (`pendingPlannedMinutes`); a choice made
+after midnight is the new day's.
+
+**Program week on a past date (E88).** `getCurrentProgramWeek(p, date)` — how far the athlete had got — is the calendar
+week less the paused days that had happened by that date (`programPausedDaysBefore`, from D90's dated spans), frozen at
+the pause day only for that day and after it. With every pause before the date, or none, it is exactly what it was, so
+the current week, prescriptions and everything ahead are unchanged; a past date no longer moves when the program is
+paused later. Pauses from before D90 (banked days, no dates) keep the old reading: their timing cannot be known.
+
+**The band and focus.** A control with keyboard focus inside a banded component (`.fd`, `.obj-card`, `.pac`,
+`.pgx-hero`) sits above the D165 band (`position: relative; z-index: 3`). Today's Training Foundation is one button from
+edge to edge, and its ring's top line had been painted under the violet. The band itself is unchanged.
+
+**Contract 290**: the file (A), Time Mode across the day boundary (T), past weeks and phases through pause, resume,
+pause-in-progress, deload, completion, backup and restore, a pre-D90 pause and the November clock change (P), the focus
+rule (F), release (K).

@@ -2856,6 +2856,30 @@ creates a new 8-week program, and `createProgram` makes every new program the cu
 remains through Ready-made plans › choosing a plan (`choosePlan` → `openTrainingSetup`). Not changed: the fix (ask first,
 or revise the paused program) is a decision about the Programs flow, left to the owner.
 
+## E87 — Time Mode outlived its day when LOOP stayed open past midnight · P3 · PROVEN · **CLOSED in D166 (LOOP 10.88)**
+
+Recorded by D163. Time Mode is today's choice by its own definition ("tomorrow the workout is back to full length"; a saved
+workout clears it), held in memory only. Nothing cleared it when the civil day turned, so with LOOP left open (or resumed
+from the background) past midnight, yesterday's 30 minutes still shortened today's card, the Program page's preview,
+coaching and Start.
+
+**D166.** The choice records its day (`timeModeDay`); the day boundary (`noticeNewDay`, at midnight and on return to the
+foreground) ends a choice from an earlier day before the tabs are redrawn (`timeModeNewDay`). Only the choice: a workout
+already under way keeps its draft's sets and its planned time. A choice made on the new day stays (Contract 290 T).
+
+## E88 — A past week's program week and phase moved after a later pause · P3 · PROVEN · **CLOSED in D166 (LOOP 10.88)** (limitation below)
+
+Recorded by D163 (§208). `getCurrentProgramWeek` subtracted every banked paused day from any date, including pauses that
+came after it, and while a program was paused it answered the pause day's week for every date. So a later pause moved a
+past week back: the week of Oct 5 read "Foundation · week 2" instead of "Build · week 3" in its sheet and wherever its
+phase was read. Logged workouts were never changed (they keep the phase they were saved with).
+
+**D166.** A date is less only the paused days that had happened by then, from D90's dated spans
+(`programPausedDaysBefore`), and a date before a current pause is answered as itself. Today and every date after the last
+pause read exactly as before (Contract 290 P). **Limitation:** pauses from before D90 began recording when they happened
+are banked days with no dates; for those programs a past date keeps 10.87's reading — when the pause happened cannot be
+known, so nothing is invented and nothing is migrated.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.

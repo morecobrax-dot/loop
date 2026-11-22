@@ -11720,6 +11720,13 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
 .tw.tw-rest{ --band: var(--text-faint); }
 .tw[data-fam]{ --band: var(--fam); }
 /* ==== D165 COLOR BAND END ==== */
+/* ==== D166 BAND FOCUS BEGIN ==== */
+/* The D165 band is drawn over its component's edge, so a focus ring running along that edge was painted under it —
+   Today's Training Foundation is one button from edge to edge, and its ring's top line disappeared under the violet. A
+   control with keyboard focus inside a banded component now sits above the band. Every such control is static or
+   relative, so this moves nothing. The band itself is D165's, unchanged. */
+.fd :focus-visible, .obj-card :focus-visible, .pac :focus-visible, .pgx-hero :focus-visible{ position: relative; z-index: 3; }
+/* ==== D166 BAND FOCUS END ==== */
 </style>
 </head>
 <body>
@@ -22248,6 +22255,22 @@ const LOOP_UPDATES = [
       'Today’s workout card keeps its colour stripe, which now follows the card’s rounded corners'
     ],
     bugFixes: [],
+    changes: []
+  },
+  {
+    id: 'v10-88',
+    version: 'LOOP 10.88',
+    title: 'Steadier Days and Weeks',
+    date: '2026-11-22',
+    swVersion: 'loop-v265',
+    summary: 'Time Mode now lasts for the day you choose it, and past program weeks keep their week and phase when you pause later.',
+    newFeatures: [],
+    improvements: [],
+    bugFixes: [
+      'Time Mode now ends at midnight, so a new day starts from your full planned workout. A workout you already started keeps its sets',
+      'A past program week keeps its week number and phase when you pause the program later',
+      'The keyboard focus ring on Today’s program card is no longer hidden under its colour band'
+    ],
     changes: []
   }
 ];
@@ -49989,10 +50012,24 @@ function compressWorkoutForTime(tpl, minutes){
 /* ---------- SESSION STATE ----------
    In memory only. Never persisted, never written to any plan. */
 let selectedWorkoutMinutes = null;
+/* D166 — the civil day the choice was made on. Time Mode is TODAY's choice, as it always said ("tomorrow the workout is
+   back to full length"; a saved workout clears it): it was only ever cleared by a save or a reload, so a phone left open
+   past midnight carried yesterday's 30 minutes into today's card, preview, coaching and Start. */
+let timeModeDay = null;
 
 function setWorkoutTime(minutes){
   selectedWorkoutMinutes = minutes || null;
+  timeModeDay = selectedWorkoutMinutes === null ? null : localDateStr();
   renderTodayWorkout();
+}
+/* D166 — a new civil day starts from the full planned workout. Only the choice is cleared: a workout already under way
+   keeps the sets it was started with (they are its draft) and its planned time (pendingPlannedMinutes). */
+function timeModeNewDay(){
+  if(selectedWorkoutMinutes === null || timeModeDay === localDateStr()) return false;
+  selectedWorkoutMinutes = null;
+  timeModeDay = null;
+  timePickerOpen = false;
+  return true;
 }
 function clearWorkoutTime(){ setWorkoutTime(null); }
 
@@ -51230,16 +51267,39 @@ function getCurrentProgramWeek(program, todayStr){
   const p = program || getActiveProgram();
   if(!p || !p.startDate) return null;
   // While paused the week freezes at the day it was paused.
-  const ref = (p.status === 'paused' && p.pausedOnDate) ? p.pausedOnDate : (todayStr || localDateStr());
+  /* D166 — for that day and every day after it. A date BEFORE the pause is answered as itself: it used to be answered as
+     the pause day too, so while a program was paused every past week read as the week it was paused in. */
+  const asked = todayStr || localDateStr();
+  const ref = (p.status === 'paused' && p.pausedOnDate && asked > p.pausedOnDate) ? p.pausedOnDate : asked;
   /* D89 — counted from the same Monday the grid is, so that with no paused
      time this is exactly programCalendarWeek. It used to count from the start
      date, which is why it lagged the grid by the start weekday's offset. */
   const monday = programWeekMonday(p);
   const raw = monday === null ? null : daysBetweenDates(monday, ref);
   if(raw === null) return null;
-  const elapsed = raw - (p.pausedDays || 0);
+  /* D166 — paused time counts from when it happened: a date is less only the pauses that had happened by then
+     (programPausedDaysBefore). It subtracted every banked paused day, so a later pause moved past weeks back — their
+     week number and their phase. Today and every date after the last pause read exactly as before. */
+  const elapsed = raw - programPausedDaysBefore(p, ref);
   if(elapsed < 0) return 1;                       // starts in the future
   return Math.min(p.durationWeeks, Math.floor(elapsed / 7) + 1);
+}
+/* D166 — the paused days a program had banked by `ref`: each recorded pause span (D90) counts only the part of it before
+   ref. Banked days that no span accounts for — pauses from before D90 began recording when they happened — have no date,
+   so they still count in full: for those programs a past date keeps the reading it always had (it cannot be known). With
+   every span closed before ref this is exactly pausedDays, so the current week is unchanged. Civil dates throughout, so
+   a clock change cannot move it. */
+function programPausedDaysBefore(p, ref){
+  const banked = Math.max(0, Number(p && p.pausedDays) || 0);
+  const spans = pauseSpansOf(p).filter(s => s.to !== null);
+  if(!spans.length) return banked;
+  let dated = 0, before = 0;
+  spans.forEach(s => {
+    dated += Math.max(0, daysBetweenDates(s.from, s.to) || 0);
+    const end = s.to < ref ? s.to : ref;
+    if(end > s.from) before += Math.max(0, daysBetweenDates(s.from, end) || 0);
+  });
+  return Math.min(banked, before + Math.max(0, banked - dated));
 }
 function getCurrentTrainingBlock(program, todayStr){
   const p = program || getActiveProgram();
@@ -68485,6 +68545,7 @@ function noticeNewDay(){
   const today = currentDayKey();
   if(today === loopDay) return false;
   loopDay = today;
+  timeModeNewDay();   // D166 — yesterday's Time Mode is not today's
   renderAll();
   return true;
 }
