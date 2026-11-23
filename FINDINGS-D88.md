@@ -2905,11 +2905,20 @@ finished one, and Resume could not be reached there.
 **D167.** The current program, running or paused, comes first; only with none is the last finished program shown
 (Contract 291 P5).
 
-## E90 — While a program is paused, This Week's total still includes the paused days · P4 · PROVEN · OPEN
+## E90 — While a program is paused, This Week's total still includes the paused days · P4 · PROVEN · **CLOSED in D169 (LOOP 10.91)**
 
 Carried from E72's third point when D168 closed the rest of E72. A planned day the athlete paused stays in This Week's
 total (`weekOverview().planned`) though nothing is owed on it (D90): D44 and the Log calendar leave it out, and the day's
 cell already reads paused. The count itself (D44's pairing) is right. Not changed in D168, which kept the total as it was.
+
+**D169.** The brief asked for exactly this: an athlete is not penalized for workouts not expected while paused, and work
+done before the pause is kept. This Week's total is now the planned days owed: the days ahead, and the days already due
+that D44 measures. A paused day, today inside a pause included, is left out and said beside the count ("2 sessions
+paused", or "Nothing due" for a week paused throughout). The Program page's week count (`deriveWeekView`) does the same.
+Measured in the headless rig, every case in the brief reads the same as D44, the Log calendar, the Weekly Review and the
+Program review: paused before the week, partway through, resumed partway, paused twice, a workout during the pause
+(extra), resumed with this week's move, across Sunday into Monday, and across the November clock change. A pause from
+before D90 stays as §112 has it (E96) (Contract 293 W).
 
 ## E91 — D167's hold on the viewport could outlast the finger · P3 · PROVEN · **CLOSED in D168 (LOOP 10.90)**
 
@@ -2928,6 +2937,37 @@ pagehide let go of every touch (Contract 292 D).
 Found by D168's audit of D167's set selection. Choosing set 3, stepping to the next exercise and back found set 3 still
 open in the editor, with the set you are on folded, though the coach, the rest timer and Next follow the set you are on.
 **D168.** Leaving an exercise hands its choice back (`setFocusLeave`; Contract 292 S, rig S1).
+
+## E93 — A planned session trained another day of its week read plainly missed · P4 · PROVEN · **CLOSED in D169 (LOOP 10.91)**
+
+Raised in D168's report and investigated in D169. Friday's Legs trained on Sunday counted toward the week (D43 and D44 pair
+the slot with Sunday's workout, "3 of 3"), but Friday read plainly Missed on This Week and the Weekly Review strip. The
+Log's day line said "Legs was planned — nothing logged." The adherence rules were correct and are unchanged: the day did
+pass untrained, and its session was done. **D169.** D44 records which day the session was trained (`doneOn`, one added
+pass, no count changed). This Week and the Weekly Review draw the day as done another day ("trained Sunday instead"). The
+Log keeps the day's own missed mark and says when the session was trained. An early session reads the same way (Contract
+293 L).
+
+## E94 — This Week counted a day from before tracking in its total · P4 · PROVEN · **CLOSED in D169 (LOOP 10.91)**
+
+Found with E90. A planned day from before LOOP had the athlete's schedule reads "Not tracked" (D159, after D27), but it was
+still in This Week's total, so a plan begun on Wednesday read "1 of 3" with D44 at 1 of 1. **D169.** It is not owed, as
+D27 has always said (Contract 293 W16).
+
+## E95 — 10.90 dropped the logged count for a week with nothing planned · P4 · PROVEN · **CLOSED in D169 (LOOP 10.91)**
+
+A regression of D168. A week with no planned days read "No workouts planned · 2 logged" until 10.89. D168 made the count
+the planned workouts done, which is 0 with nothing planned, so the logged count disappeared. **D169.** The head says the
+week's workouts logged (D44's own count) again (Contract 293 W17).
+
+## E96 — A program still paused from before D90 reads its paused days as missed · P4 · PROVEN · OPEN
+
+Found by D169's case 9. A program paused before D90 began recording spans, and still paused today, carries its start
+(`pausedOnDate`) but no `pauses`. §112 asserts that a program without `pauses` is "not treated as ever having been paused",
+so the planned days since that start read missed on every surface (This Week, D44, the Log, the Program review), exactly as
+they did in 10.90. The open pause's start is a stored fact, not a guess, so a span `[pausedOnDate, today)` could be read
+while it stays paused. On resume it could be recorded. Doing so changes the D90 slot grid for that program and reverses an
+asserted contract boundary, so it is left for the owner. Not changed in D169 (Contract 293 W13 holds the boundary).
 
 ## Not findings — checked and clean
 

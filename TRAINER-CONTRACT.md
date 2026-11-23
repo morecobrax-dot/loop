@@ -21280,3 +21280,48 @@ made), so a deferred reading cannot overwrite a newer state.
 (`setFocusLeave` from `renderWorkoutStep`); the choice stays a view.
 
 **Contract 292**: the file (A), This Week (W), the dock (D), the chosen set (S), release (K).
+
+## §214 — WEEKS THAT ADD UP: PAUSED DAYS OWE NOTHING; A SESSION TRAINED ANOTHER DAY READS DONE (D169 · LOOP 10.91 · loop-v268)
+
+**What was wrong (E90).** This Week's total was every planned day of the week (`weekOverview().planned`), so a week the
+program spent partly paused read short of what was owed. For example, Monday trained and the program paused from Tuesday
+read "1 of 3, 33%", though nothing was owed on Wednesday or Friday. D44's adherence, the Log calendar, the Weekly Review
+("program paused 2 days") and the Program review ("1 of 1 planned session done") already left a paused day out. The
+Program page's week count (`deriveWeekView().planned`, also the week sheet's and the My plan row's) had the same total.
+
+**One definition, every reader.**
+- **Owed (the total).** A planned training day, in the week's own plan (the program's dated plan, or the weekly plan
+  where no program covers the date), that is either still ahead or already due and measured by D44. A day inside a pause
+  (D90 spans) is not owed: its cell reads Paused. Today is not owed either while the program is paused, which is what D44
+  and the Log calendar ("program paused") already said. A day from before LOOP had the athlete's schedule (D27, "Not
+  tracked") is not owed.
+- **Completed program sessions (the count).** D44's pairing, unchanged: a planned day trained, or its session trained on
+  another day of the same week (D43's shift).
+- **Paused (said beside the count).** "2 sessions paused" under the bar, and in the bar's spoken value. When every
+  planned day of the week was paused, the head reads "Nothing due" rather than a percentage.
+- **Extra.** A workout no planned day claims, as before. That includes a workout trained on a paused day: the day reads
+  done and the workout is extra, as D43 and D44 count it. Beside extras the count reads "3 of 3 program workouts" (or
+  "planned workouts" with no running program); with no extras it is unchanged.
+- **Missed.** A planned day that passed, owed and untrained, whose session was not trained elsewhere in the week.
+
+Days ahead during a pause that is still open stay owed until they arrive, because D90's open span runs to today. If the
+pause continues, each one becomes paused on its day; if the athlete resumes, it is owed. Today's card keeps offering the
+weekly plan's session on a paused day, as D90's fallback always has. A pause recorded before D90 (no `pauses`) is read
+exactly as before, as §112 requires: its dates are not invented.
+
+**A session trained another day of its week.** D44 now records on a planned day whose slot it paired with a workout on
+another date of the week which date that was (`doneOn`). That is one added pass after the matching; no count, state or
+pairing changes. This Week draws that day as done another day (a ring in the done colour with its tick, "Done another
+day", "Trained Sunday"), spoken "Friday, Legs, trained Sunday instead". The Weekly Review strip and key say the same. The
+Log keeps the day's own missed mark, because it is the record of that date, and says "missed, trained Sunday instead" on
+the cell and "Legs was planned — trained Sunday instead." on the day line. Early sessions read the same way ("trained
+Thursday instead"). The count is unchanged, so nothing is counted twice.
+
+**Also.** A week with nothing planned says what was logged again ("No workouts planned · 2 logged"). 10.90 lost that line
+when its count became the planned workouts done.
+
+**Unchanged.** D43 and D44 pairing and counts, the pause model, history, XP, Session Score, records, progression, the week
+writer and Undo, programs' lifecycle, backups, Today's card, the dock and set selection.
+
+**Contract 293**: the file (A), paused days (W), a session trained another day (L), program workouts beside extras (X),
+release (K).

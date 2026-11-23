@@ -11819,6 +11819,19 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
 /* D168 — the line under This Week's bar: a session moved this week, and workouts no planned day claims (thisWeekNoteHtml). */
 .wk2-note{ margin: 6px 0 0; font-size: var(--fs-micro); line-height: 1.35; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 /* ==== D168 THIS WEEK NOTE END ==== */
+/* ==== D169 WEEK TRUTH BEGIN ==== */
+/* D169 — a planned day whose session was trained another day of its week: the done colour as a ring with its tick,
+   between done (filled) and missed (struck). This Week, the Program page's strip and the Weekly Review draw it alike. */
+.wk2 .wk2-shifted .wk-mark{ border-color: var(--c-progress); }
+.wk2 .wk2-shifted .wk-mark::after{
+  content: ''; position: absolute; left: 3.2px; top: 1.2px; width: 2.6px; height: 5.4px;
+  border: solid var(--c-progress); border-width: 0 1.6px 1.6px 0; transform: rotate(45deg);
+}
+.wk2 .wk2-shifted .wk-dc{ color: var(--text-dim); }
+.wk2-snap.wk2-shifted .wk2-st{ color: var(--c-progress); }
+.pj-d-shifted .pj-dm{ border-color: var(--c-progress); }
+.wr-dot-shifted{ border: 1.5px solid var(--c-progress); background: none; }
+/* ==== D169 WEEK TRUTH END ==== */
 </style>
 </head>
 <body>
@@ -22406,6 +22419,26 @@ const LOOP_UPDATES = [
       'A set you opened for editing now closes when you move to another exercise, so coming back shows the set you are on'
     ],
     changes: []
+  },
+  {
+    id: 'v10-91',
+    version: 'LOOP 10.91',
+    title: 'Weeks That Add Up',
+    date: '2026-11-23',
+    swVersion: 'loop-v268',
+    summary: 'This Week leaves paused days out of its total, and a session you trained on another day no longer shows as missed.',
+    newFeatures: [],
+    improvements: [
+      'A planned session you trained on another day that week now shows as done that day in This Week and the Weekly Review, and the Log says when you trained it',
+      'When you also did extra workouts, This Week’s count says “program workouts”, for example “3 of 3 program workouts · 1 extra workout”'
+    ],
+    bugFixes: [
+      'This Week and the Program page no longer count days your program was paused, so a paused week can read “1 of 1” instead of “1 of 3”, with “2 sessions paused” under the bar',
+      'Today counts as paused while your program is paused, as the Log already showed',
+      'This Week no longer counts a day from before you started tracking',
+      'A week with no planned workouts shows how many you logged again'
+    ],
+    changes: []
   }
 ];
 
@@ -30255,6 +30288,18 @@ function computeConsistencyData(){
      Program adherence keeps the stricter rule, where the program genuinely
      prescribes the session. */
   assignWorkoutsToPlannedSlots(planSlots, inWindow, slotWeekOf, { requireCategory: false });
+  /* D169 — when a planned day's session was trained on another day of its week (the shift pass above), the day says
+     which: `doneOn`. Nothing here changes a count or a day's own state — a day that passed without training is still
+     MISSED as a day; this only lets the week say that its session was done. */
+  const dateOfWorkout = {};
+  inWindow.forEach(l => { if(l.id != null) dateOfWorkout[String(l.id)] = l.date; });
+  planSlots.forEach(sl => {
+    if(!sl.workoutId) return;
+    const on = dateOfWorkout[String(sl.workoutId)];
+    if(!on || on === sl.date) return;
+    const day = ((weeks[sl.week] || {}).days || []).find(d => d.date === sl.date);
+    if(day) day.doneOn = on;
+  });
   const fulfilledByWeek = {};
   planSlots.forEach(sl => { if(sl.workoutId)
     fulfilledByWeek[sl.week] = (fulfilledByWeek[sl.week] || 0) + 1; });
@@ -35955,6 +36000,12 @@ function thisWeekDayStatus(d, isToday, active){
   if(d.state === 'unknown') return 'unknown';   // D159
   if(d.state === 'done' || d.state === 'done-today') return 'completed';
   if(d.state === 'missed') return 'missed';
+  /* D169 (E90) — today inside a pause owes nothing either: D44 leaves it out and the Log calendar says "program paused" */
+  if(isToday && d.state === 'today' && d.cat !== 'rest'){
+    let pausedToday = false;
+    try{ pausedToday = !!(d.date && planDayIsSuspended(d.date)); }catch(e){ pausedToday = false; }
+    if(pausedToday) return 'paused';
+  }
   if(d.state === 'today' || d.state === 'upcoming') return d.cat === 'rest' ? 'rest' : 'planned';
   /* A day already over that was planned but never due: D44 leaves a suspended day out (D90), and so does this. */
   if(d.cat !== 'rest'){
@@ -35972,7 +36023,21 @@ function thisWeekCatText(cat){
   return s.charAt(0) + s.slice(1).toLowerCase();
 }
 
-const THIS_WEEK_STATUS_WORD = { completed: 'Completed', missed: 'Missed', planned: 'Planned', rest: 'Rest', active: 'In progress', paused: 'Paused', unknown: 'Not tracked' };
+const THIS_WEEK_STATUS_WORD = { completed: 'Completed', missed: 'Missed', planned: 'Planned', rest: 'Rest', active: 'In progress', paused: 'Paused', unknown: 'Not tracked', shifted: 'Done another day' };
+
+/* D169 — the weekday of a civil date ("Sunday"), and the day a planned date's session was trained when that was another
+   day of its week (D44's own pairing, computeConsistencyData's `doneOn`), or null. */
+function weekdayNameOf(dateStr){
+  const d = new Date(String(dateStr) + 'T00:00:00');
+  return isNaN(d) ? '' : DAY_LABEL_FULL[JS_DAY_TO_KEY[d.getDay()]];
+}
+function planDayDoneOn(dateStr){
+  try{
+    const weeks = computeConsistencyData().weeks || [];
+    for(const w of weeks) for(const d of (w.days || [])) if(d.date === dateStr) return d.doneOn || null;
+  }catch(e){}
+  return null;
+}
 
 /* D168 — the sessions this week's own changes moved (D159/D167, this week only), each named by the day it moved to and the
    day it came from: the week as the program wrote it against the week as it now runs. A swap of two sessions names both;
@@ -36028,13 +36093,36 @@ function deriveThisWeek(){
      Moving a session (D159/D167) changes which day it is planned for, never whether it is done. */
   let cw = null;
   try{ const cons = computeConsistencyData(); cw = cons.weeks[cons.weeks.length - 1] || null; }catch(e){ cw = null; }
-  const planned = wk.planned;
+  /* D169 — a planned day that passed without training, whose session D44 paired with another day of the week (D43's
+     shift: trained a day or two late, or early), says that its session was done and when. Its date, its Log mark and
+     every count stay as they were. */
+  days.forEach((d, i) => {
+    const cd = cw && cw.days ? cw.days[i] : null;
+    if(d.status === 'missed' && cd && cd.date === d.date && cd.doneOn){ d.status = 'shifted'; d.doneOn = cd.doneOn; }
+  });
+  /* D169 (E90) — the total is the planned days owed: the days still ahead, and the days already due that D44 measures.
+     A day inside a pause (D90) and a day from before LOOP had the athlete's schedule (D27) owed nothing, as D44, the
+     Log calendar and the Weekly Review already say, so they are not in it; a pause is said beside the count instead.
+     A paused day trained anyway is still a paused day: its workout is extra, as D43 and D44 count it. */
+  const OWED = { planned: true, completed: true, missed: true, active: true, shifted: true };
+  const inPause = (d, i) => {
+    if(wk.days[i].cat === 'rest' || !d.date || d.date > T) return false;
+    if(d.status === 'paused') return true;
+    if(d.status !== 'completed' && d.status !== 'active') return false;
+    try{ return !!planDayIsSuspended(d.date); }catch(e){ return false; }
+  };
+  const planned = days.filter((d, i) => wk.days[i].cat !== 'rest' && OWED[d.status] && !inPause(d, i)).length;
+  const paused = days.filter((d, i) => inPause(d, i)).length;
   const completed = cw ? Math.min(cw.fulfilled || 0, planned) : Math.min(wk.done, planned);
   const extra = cw ? Math.max(0, (cw.workouts || 0) - (cw.fulfilled || 0)) : 0;
+  const logged = cw ? (cw.workouts || 0) : wk.done;
   const filled = completed;
   const moved = thisWeekMoves(T);
   moved.forEach(m => { const d = days.find(x => x.key === m.key); if(d) d.movedFrom = m.from; });
-  const progress = { completed, planned, filled, percent: planned ? Math.round(100 * filled / planned) : null, extra, moved };
+  let program = false;
+  try{ program = hasActiveProgram(); }catch(e){ program = false; }
+  const progress = { completed, planned, filled, percent: planned ? Math.round(100 * filled / planned) : null, extra, moved,
+    paused, logged, program };
 
   const td = days[todayIdx];
   let today;
@@ -36097,10 +36185,11 @@ function deriveThisWeek(){
       if(time) facts.push(time);
       facts.push(sets + ' set' + (sets === 1 ? '' : 's'));
       if(entries.length > 1) facts.push('+' + (entries.length - 1) + ' more');
-    } else if(sd.status === 'planned' || sd.status === 'missed'){
+    } else if(sd.status === 'planned' || sd.status === 'missed' || sd.status === 'shifted'){
       const tpl = dayTemplateFor(sd.category, sd.date);
       title = tpl ? tpl.name : CAT_LABEL[sd.category];
-      if(sd.status === 'missed') facts.push('Nothing logged');
+      if(sd.status === 'shifted') facts.push('Trained ' + weekdayNameOf(sd.doneOn));   // D169
+      else if(sd.status === 'missed') facts.push('Nothing logged');
       else if(tpl){
         /* The card's own preview of it: the same exercises and estimate the day's card and Start use. */
         const shown = applyTimeModeToTemplate(tpl);
@@ -36130,6 +36219,7 @@ function thisWeekDayName(d){
   else if(d.status === 'missed') parts.push('missed');
   else if(d.status === 'active') parts.push('in progress');
   else if(d.status === 'paused') parts.push('paused');
+  else if(d.status === 'shifted' && d.doneOn) parts.push('trained ' + weekdayNameOf(d.doneOn) + ' instead');   // D169
   if(d.movedFrom && DAY_LABEL_FULL[d.movedFrom]) parts.push('moved from ' + DAY_LABEL_FULL[d.movedFrom]);   // D168
   return parts.join(', ');
 }
@@ -36141,6 +36231,7 @@ function thisWeekNoteHtml(p){
   const mv = (p && p.moved) || [];
   if(mv.length > 2) bits.push(mv.length + ' sessions moved this week');
   else mv.forEach(m => bits.push(m.name + ' moved to ' + DAY_LABEL_FULL[m.key]));
+  if(p && p.paused) bits.push(p.paused + ' session' + (p.paused === 1 ? '' : 's') + ' paused');   // D169 (E90)
   if(p && p.extra) bits.push(p.extra + ' extra workout' + (p.extra === 1 ? '' : 's'));
   return bits.length ? `<p class="wk2-note">${escapeHtml(bits.join(' · '))}</p>` : '';
 }
@@ -36161,19 +36252,24 @@ function renderWeekCard(){
   _wkDrewActive = activeDraftIsCurrent();
 
   /* 1 — progress. The percentage leads, the count explains it, and one segment per planned workout draws it. */
+  /* D169 — the count names its workouts as the program's (or the plan's) only when extra workouts sit beside it, so it
+     never reads as every workout of the week; otherwise it is as it was. */
+  const countText = `${p.completed} of ${p.planned} ${p.extra ? (p.program ? 'program ' : 'planned ') : ''}workout${p.planned === 1 ? '' : 's'}`;
   const head = p.planned
     ? `<div class="wk2-sum">
         <span class="wk2-pct"><b>${p.percent}%</b><span class="wk2-pct-k">complete</span></span>
-        <span class="wk2-count">${p.completed} of ${p.planned} workout${p.planned === 1 ? '' : 's'}</span>
+        <span class="wk2-count">${countText}</span>
       </div>
       <div class="wk2-rail" role="progressbar" aria-label="This week" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p.percent}"
-           aria-valuetext="${p.percent}% complete, ${p.completed} of ${p.planned} workout${p.planned === 1 ? '' : 's'}${p.extra ? ', ' + p.extra + ' extra' : ''}">${
+           aria-valuetext="${p.percent}% complete, ${countText}${p.extra ? ', ' + p.extra + ' extra' : ''}${p.paused ? ', ' + p.paused + ' paused' : ''}">${
         Array.from({ length: p.planned }, (_, i) => `<span class="wk2-seg${i < p.filled ? ' on' : ''}"></span>`).join('')
       }</div>${thisWeekNoteHtml(p)}`
+    /* D169 — nothing owed: a week whose sessions were all paused says so; a week with nothing planned still says what
+       was logged (10.90 lost that line: its count became the planned workouts done, which is 0 with nothing planned) */
     : `<div class="wk2-sum">
-        <span class="wk2-pct wk2-pct-none">No workouts planned</span>
-        ${p.completed ? `<span class="wk2-count">${p.completed} logged</span>` : ''}
-      </div>`;
+        <span class="wk2-pct wk2-pct-none">${p.paused ? 'Nothing due' : 'No workouts planned'}</span>
+        ${p.logged ? `<span class="wk2-count">${p.logged} logged</span>` : ''}
+      </div>${thisWeekNoteHtml(Object.assign({}, p, { extra: 0 }))}`;
 
   /* 2 — the seven days. Today is the letter's mark; selection is the cell's. Neither borrows the other's. */
   const cells = m.days.map(d => `
@@ -36710,7 +36806,8 @@ function deriveWeekView(p, monday, fulfilment){
   return { program: p, monday, sunday, calWeek, progWeek, weeks: parseInt(p.durationWeeks, 10) || null, state,
     name: w.name || null, note: w.note || null, ops: w.ops || [], dismissed: w.dismissed || [],
     phase, phaseType: ptype, multiPhase: (p.blocks || []).length > 1 || !!(phase && phase.phaseType !== 'custom'),
-    days, planned: sessions.length + days.filter(d => !d.workout && d.status === 'done').length,
+    /* D169 (E90) — a session inside a pause was never owed (D90): drawn as paused, not counted as planned */
+    days, planned: sessions.filter(d => d.status !== 'paused').length + days.filter(d => !d.workout && d.status === 'done').length,
     done: days.filter(d => d.status === 'done').length, missed: days.filter(d => d.status === 'missed').length,
     minutes: mins, tally, deload,
     editable: state !== 'past' && !!weekEditProgram() && weekEditProgram().id === p.id };
@@ -40462,7 +40559,9 @@ function renderHistoryCalendar(){
     } else {
       cls += ' cal-missed';
       mark = `<span class="cal-mark cal-mark-missed"></span>`;
-      stateWord = 'missed';
+      /* D169 — the day keeps its own record (missed); its session trained another day of the week is said beside it */
+      const doneOn = planDayDoneOn(dateStr);
+      stateWord = doneOn ? 'missed, trained ' + weekdayNameOf(doneOn) + ' instead' : 'missed';
     }
     if(isToday) cls += ' cal-today';
     if(dateStr === historySelectedDate) cls += ' cal-selected';
@@ -40591,7 +40690,10 @@ function renderSelectedDay(){
     /* D99.3 - nothing was owed, so nothing is "missed" or "not logged". */
     line = 'Program paused — nothing was due.';
   } else if(scheduledCat && scheduledCat !== 'rest' && !beforeHistory && !isFuture){
-    line = `${CAT_LABEL[scheduledCat]} was planned — nothing logged.`;
+    /* D169 — its session trained another day of the week (D44's pairing) is said; the day itself still logged nothing */
+    const doneOn = planDayDoneOn(dateStr);
+    line = doneOn ? `${CAT_LABEL[scheduledCat]} was planned — trained ${weekdayNameOf(doneOn)} instead.`
+      : `${CAT_LABEL[scheduledCat]} was planned — nothing logged.`;
   } else if(scheduledCat && scheduledCat !== 'rest'){
     line = `${CAT_LABEL[scheduledCat]} is planned.`;
   } else {
@@ -48214,6 +48316,7 @@ function weeklyReviewDay(dateStr, entries, consDay, trackingStart){
   }
   let state = 'rest', word = 'rest day';
   if(!trackingStart || dateStr < trackingStart){ state = 'unknown'; word = 'before tracking began'; }
+  else if(consDay && consDay.state === 'missed' && consDay.doneOn){ state = 'shifted'; word = 'planned, trained ' + weekdayNameOf(consDay.doneOn) + ' instead'; }   // D169
   else if(consDay && consDay.state === 'missed'){ state = 'missed'; word = 'planned, missed'; }
   else if(consDay && consDay.planned && planDayIsSuspended(dateStr)){ state = 'paused'; word = 'program paused'; }
   return { date: dateStr, state, count: 0, ids: [], spoken: name + ': ' + word };
@@ -48412,6 +48515,7 @@ function weeklyReviewStripHtml(timeline, compact){
     if(d.state === 'done' || d.state === 'pr'){
       mark = '<span class="wr-dot wr-dot-done"></span>' + (d.state === 'pr' ? '<span class="wr-dot-pr"></span>' : '');
     } else if(d.state === 'missed') mark = '<span class="wr-dot wr-dot-missed"></span>';
+    else if(d.state === 'shifted') mark = '<span class="wr-dot wr-dot-shifted"></span>';   // D169
     else if(d.state === 'unknown') mark = '<span class="wr-dot wr-dot-unknown"></span>';
     else mark = '<span class="wr-dash' + (d.state === 'paused' ? ' wr-dash-paused' : '') + '"></span>';
     const count = d.count > 1 ? '<span class="wr-count">' + d.count + '</span>' : '';
@@ -48440,6 +48544,7 @@ function weeklyReviewLegendHtml(timeline){
   if(has('done') || has('pr')) keys.push(['<span class="wr-dot wr-dot-done"></span>', 'trained']);
   if(has('pr')) keys.push(['<span class="wr-dot wr-dot-done wr-legend-pr"></span>', 'record']);
   if(has('missed')) keys.push(['<span class="wr-dot wr-dot-missed"></span>', 'missed']);
+  if(has('shifted')) keys.push(['<span class="wr-dot wr-dot-shifted"></span>', 'trained another day']);   // D169
   if(has('paused')) keys.push(['<span class="wr-dash wr-dash-paused"></span>', 'paused']);
   if(has('rest')) keys.push(['<span class="wr-dash"></span>', 'rest']);
   if(has('unknown')) keys.push(['<span class="wr-dot wr-dot-unknown"></span>', 'not tracked']);
