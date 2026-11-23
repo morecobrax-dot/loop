@@ -11815,6 +11815,10 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
   .wsv-day.wk-settling, .wsv-day.wk-yielding{ transition: none; }
 }
 /* ==== D167 WEEK MOVES END ==== */
+/* ==== D168 THIS WEEK NOTE BEGIN ==== */
+/* D168 — the line under This Week's bar: a session moved this week, and workouts no planned day claims (thisWeekNoteHtml). */
+.wk2-note{ margin: 6px 0 0; font-size: var(--fs-micro); line-height: 1.35; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+/* ==== D168 THIS WEEK NOTE END ==== */
 </style>
 </head>
 <body>
@@ -22382,6 +22386,24 @@ const LOOP_UPDATES = [
       'Previous and Skip now stay in place while you swipe through a workout',
       'The small charts in Worth Knowing no longer print their numbers on top of each other',
       'Choosing training days while your program is paused now changes that program, and it stays paused, instead of starting a new one'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-90',
+    version: 'LOOP 10.90',
+    title: 'Truer Weeks',
+    date: '2026-11-23',
+    swVersion: 'loop-v267',
+    summary: 'This Week counts the planned workouts you have done, and says which sessions moved and which workouts were extra.',
+    newFeatures: [],
+    improvements: [
+      'This Week lists any session moved this week and any extra workout under its bar, for example “Legs A moved to Sunday · 1 extra workout”'
+    ],
+    bugFixes: [
+      'This Week now counts your planned workouts done (such as 2 of 3), so an extra workout no longer fills in for a missed one, and a week never reads “4 of 3”',
+      'Previous and Skip now follow a rotated screen even if LOOP went to the background mid-touch, the clock changed, or the screen redrew under your finger',
+      'A set you opened for editing now closes when you move to another exercise, so coming back shows the set you are on'
     ],
     changes: []
   }
@@ -35952,6 +35974,30 @@ function thisWeekCatText(cat){
 
 const THIS_WEEK_STATUS_WORD = { completed: 'Completed', missed: 'Missed', planned: 'Planned', rest: 'Rest', active: 'In progress', paused: 'Paused', unknown: 'Not tracked' };
 
+/* D168 — the sessions this week's own changes moved (D159/D167, this week only), each named by the day it moved to and the
+   day it came from: the week as the program wrote it against the week as it now runs. A swap of two sessions names both;
+   two days holding the same session name neither. Nothing here counts or completes anything. */
+function thisWeekMoves(today){
+  const out = [];
+  let p = null;
+  try{ p = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ p = null; }
+  if(!p) return out;
+  try{
+    const monday = civilMonday(today);
+    const ops = (weekPlanOf(p, monday) || {}).ops || [];
+    if(!ops.some(o => o && o.t === 'swap')) return out;
+    const was = programTimelineWeek(p, monday), now = applyWeekOps(was, ops);
+    const id = e => (e && e.type === 'workout') ? weekEntryIdentity(e) : null;
+    PROGRAM_DAY_KEYS.forEach(k => {
+      const a = id(now[k]);
+      if(!a || a === id(was[k])) return;
+      const from = PROGRAM_DAY_KEYS.find(j => j !== k && id(was[j]) === a && id(now[j]) !== a) || null;
+      out.push({ key: k, from, name: weekSessionName(p, weekDateOf(monday, k), k) || CAT_LABEL[now[k].category] || 'Workout' });
+    });
+  }catch(e){ return []; }
+  return out;
+}
+
 function deriveThisWeek(){
   const wk = weekOverview();
   const tKey = todayKey(), T = localDateStr();
@@ -35974,12 +36020,21 @@ function deriveThisWeek(){
       isToday, isSelected: d.key === selKey };
   });
 
-  /* The week's progress is the count and total This Week has always shown: weekOverview()'s trained days of the week
-     against its planned training days. The percentage is the share of the bar that count fills, so a week trained
-     past its plan reads 100%, as the full bar always did. */
-  const planned = wk.planned, completed = wk.done;
-  const filled = Math.min(completed, planned);
-  const progress = { completed, planned, filled, percent: planned ? Math.round(100 * filled / planned) : null };
+  /* D168 (E72) — the week's progress is its planned workouts DONE against its planned training days. Done is D44's own
+     pairing (computeConsistencyData), the one the Log calendar, the Weekly Review and adherence read: a planned day
+     trained, or its session trained another day of the same week (D43's shift). It used to be the days trained, so an
+     extra workout on a rest day stood in for a missed session (a Saturday Pull made a missed Friday Legs read 100%) and a
+     week trained past its plan read "4 of 3". A workout no planned day claims is EXTRA: said beside the count, never in it.
+     Moving a session (D159/D167) changes which day it is planned for, never whether it is done. */
+  let cw = null;
+  try{ const cons = computeConsistencyData(); cw = cons.weeks[cons.weeks.length - 1] || null; }catch(e){ cw = null; }
+  const planned = wk.planned;
+  const completed = cw ? Math.min(cw.fulfilled || 0, planned) : Math.min(wk.done, planned);
+  const extra = cw ? Math.max(0, (cw.workouts || 0) - (cw.fulfilled || 0)) : 0;
+  const filled = completed;
+  const moved = thisWeekMoves(T);
+  moved.forEach(m => { const d = days.find(x => x.key === m.key); if(d) d.movedFrom = m.from; });
+  const progress = { completed, planned, filled, percent: planned ? Math.round(100 * filled / planned) : null, extra, moved };
 
   const td = days[todayIdx];
   let today;
@@ -36075,7 +36130,19 @@ function thisWeekDayName(d){
   else if(d.status === 'missed') parts.push('missed');
   else if(d.status === 'active') parts.push('in progress');
   else if(d.status === 'paused') parts.push('paused');
+  if(d.movedFrom && DAY_LABEL_FULL[d.movedFrom]) parts.push('moved from ' + DAY_LABEL_FULL[d.movedFrom]);   // D168
   return parts.join(', ');
+}
+
+/* D168 — one quiet line under the bar, only when there is something the count does not say: a session moved this week, and
+   workouts no planned day claims. */
+function thisWeekNoteHtml(p){
+  const bits = [];
+  const mv = (p && p.moved) || [];
+  if(mv.length > 2) bits.push(mv.length + ' sessions moved this week');
+  else mv.forEach(m => bits.push(m.name + ' moved to ' + DAY_LABEL_FULL[m.key]));
+  if(p && p.extra) bits.push(p.extra + ' extra workout' + (p.extra === 1 ? '' : 's'));
+  return bits.length ? `<p class="wk2-note">${escapeHtml(bits.join(' · '))}</p>` : '';
 }
 
 /* Whether the week was last drawn with a workout in progress — renderResumeBanner resolves the draft after the week is
@@ -36100,9 +36167,9 @@ function renderWeekCard(){
         <span class="wk2-count">${p.completed} of ${p.planned} workout${p.planned === 1 ? '' : 's'}</span>
       </div>
       <div class="wk2-rail" role="progressbar" aria-label="This week" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p.percent}"
-           aria-valuetext="${p.percent}% complete, ${p.completed} of ${p.planned} workout${p.planned === 1 ? '' : 's'}">${
+           aria-valuetext="${p.percent}% complete, ${p.completed} of ${p.planned} workout${p.planned === 1 ? '' : 's'}${p.extra ? ', ' + p.extra + ' extra' : ''}">${
         Array.from({ length: p.planned }, (_, i) => `<span class="wk2-seg${i < p.filled ? ' on' : ''}"></span>`).join('')
-      }</div>`
+      }</div>${thisWeekNoteHtml(p)}`
     : `<div class="wk2-sum">
         <span class="wk2-pct wk2-pct-none">No workouts planned</span>
         ${p.completed ? `<span class="wk2-count">${p.completed} logged</span>` : ''}
@@ -65206,6 +65273,7 @@ function renderWorkoutStep(opts){
 
   rows.forEach((row, idx) => row.classList.toggle('ws-current', idx === i));
   try{ syncWorkoutRestChip(); }catch(e){}
+  rows.forEach((row, idx) => { if(idx !== i) setFocusLeave(row); });   // D168
   if(prepCard){
     const onEntry = (i === STEP_WARMUP) && prepCard.dataset.available === '1';
     prepCard.classList.toggle('ws-current', onEntry);
@@ -65561,13 +65629,40 @@ let _workoutTouches = 0, _workoutTouchEndAt = -Infinity, _workoutSettleTimer = n
    is made once, a moment after the last one lifts. */
 function workoutTouchSeen(e){
   _workoutTouches = e && e.touches ? e.touches.length : 0;
+  if(e && e.type === 'touchstart') workoutTouchWatch(e.target);   // D168
   if(_workoutTouches) return;
-  _workoutTouchEndAt = Date.now();
+  _workoutTouchEndAt = workoutClock();
   if(_workoutSyncWanted){ clearTimeout(_workoutSettleTimer); _workoutSettleTimer = setTimeout(syncWorkoutShell, WORKOUT_GESTURE.settleMs); }
 }
 function workoutGestureHolds(){
-  return _workoutTouches > 0 || (Date.now() - _workoutTouchEndAt) < WORKOUT_GESTURE.settleMs;
+  return _workoutTouches > 0 || (workoutClock() - _workoutTouchEndAt) < WORKOUT_GESTURE.settleMs;
 }
+/* D168 — THE HOLD ALWAYS ENDS. Three ways D167's hold could outlive the finger, each found by the D168 audit and
+   reproduced in the headless rig (the dock left where a rotated screen no longer reaches):
+   · the settle was timed by the wall clock, so a clock set back just after a lift held it for as long as the clock went
+     back — it is timed by the page's own monotonic clock (performance.now);
+   · a touch that begins on something redrawn under the finger ends on that detached element, where the document never
+     hears it — its end is heard on the element itself;
+   · a touch still down when the app goes to the background may never end at all — no finger is carried across it. */
+function workoutClock(){
+  try{ if(typeof performance !== 'undefined' && performance && typeof performance.now === 'function') return performance.now(); }catch(e){}
+  return Date.now();
+}
+const _workoutTouchWatched = typeof WeakSet === 'function' ? new WeakSet() : null;
+function workoutTouchWatch(t){
+  if(!_workoutTouchWatched || !t || typeof t.addEventListener !== 'function' || _workoutTouchWatched.has(t)) return;
+  _workoutTouchWatched.add(t);
+  /* the document hears a connected element's end first (capture); only a detached element's end is passed on from here */
+  const end = ev => { if(t.isConnected === false) workoutTouchSeen(ev); };
+  try{ t.addEventListener('touchend', end, { passive: true }); t.addEventListener('touchcancel', end, { passive: true }); }catch(e){}
+}
+function workoutTouchesLost(){ _workoutTouches = 0; }
+try{
+  if(typeof document !== 'undefined' && document.addEventListener){
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') workoutTouchesLost(); });
+    if(typeof window !== 'undefined' && window.addEventListener) window.addEventListener('pagehide', workoutTouchesLost);
+  }
+}catch(e){}
 /* The one place the held height is set: the overlay's own height while the workout is open, nothing once it closes. */
 function syncWorkoutHeight(){
   const ov = document.getElementById('logOverlay');
@@ -65583,7 +65678,7 @@ function syncWorkoutShell(){
   clearTimeout(_workoutSettleTimer); _workoutSettleTimer = null;
   if(workoutGestureHolds()){
     _workoutSyncWanted = true;
-    if(!_workoutTouches) _workoutSettleTimer = setTimeout(syncWorkoutShell, Math.max(50, WORKOUT_GESTURE.settleMs - (Date.now() - _workoutTouchEndAt)));
+    if(!_workoutTouches) _workoutSettleTimer = setTimeout(syncWorkoutShell, Math.max(50, WORKOUT_GESTURE.settleMs - (workoutClock() - _workoutTouchEndAt)));
     return null;
   }
   _workoutSyncWanted = false;
@@ -67140,6 +67235,13 @@ function setFocusAfterTick(row){
   if(row.classList.contains('set-focus') && row.classList.contains('completed')) row.classList.remove('set-focus');
   const chosen = setRowsOf(row.parentElement).find(r => r.classList.contains('set-focus'));
   if(chosen) focusSetRow(chosen);
+}
+/* D168 — a set chosen to edit is a view of the exercise on screen. Leaving the exercise hands its editor back to the set you
+   are on, so coming back to it never finds a set open that the coach, the rest timer and Next do not follow. */
+function setFocusLeave(exRow){
+  let list = null;
+  try{ list = exRow && exRow.querySelector ? exRow.querySelector('.sets-list') : null; }catch(e){ list = null; }
+  setRowsOf(list).forEach(r => { if(r.classList.contains('set-focus')) r.classList.remove('set-focus'); });
 }
 /* The tapped row keeps its place on screen while the editor closes above it and opens on it; then, only if the open
    editor runs under the rest card or the dock, it is brought into view (revealSetRow, which never scrolls past its top). */

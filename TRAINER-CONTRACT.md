@@ -21249,3 +21249,34 @@ the last, held inside the picture. The row's spoken label still carries every va
 
 **Contract 291**: the file (A), the dock (D), any set (S), moving a session (W), E86 (E), one Program page (P), Worth
 Knowing (K), release (K).
+
+## §213 — SCHEDULING TRUTH: THIS WEEK COUNTS PLANNED WORKOUTS DONE; THE DOCK'S HOLD ALWAYS ENDS (D168 · LOOP 10.90 · loop-v267)
+
+**What the D167 screenshot showed.** Monday's Push and Wednesday's Pull trained, Friday's Legs missed, an extra Pull on
+Saturday, read on the Sunday: This Week said "100% complete, 3 of 3 workouts", before and after Friday's Legs moved to
+Sunday. The move completed nothing (D43's Sunday slot stayed open). The count did: This Week counted days trained (E72), so
+the Saturday extra stood in for the missed Legs, and a week trained past its plan read "4 of 3". Every other reader of the
+week — D44's adherence, the Log calendar, the Weekly Review (2 of 3 fulfilled), the Program review ("2 of 3 planned
+sessions done, 1 missed") — already said 2 of 3.
+
+**This Week's count.** `deriveThisWeek` counts the week's planned workouts DONE, as D44 pairs them
+(`computeConsistencyData`, unchanged): a planned day trained, or its session trained another day of the same week (D43's
+shift). The total is unchanged (the week's planned training days). A workout no planned day claims is extra: said beside
+the count ("1 extra workout") and in the bar's spoken value, never counted, so the count never passes its plan. A session
+moved this week (D159/D167) is said by its new day ("Legs A moved to Sunday", `thisWeekMoves`), and spoken on its day as
+"moved from Friday". Moving a session changes which day it is planned for, never whether it is done. The cells, D44, D43,
+the Weekly Review, the Program review and the Log calendar are unchanged: a planned day trained under another label still
+counts as the day done (D44's days rule), and a session made up later in the week leaves its own day marked missed as the
+Log calendar does, while the count includes it.
+
+**The dock's hold always ends.** D167's rule stands (no viewport reading while a finger is down or for 700 ms after; one
+reading after; none deferred without a touch). Three ways it could outlast the finger and leave the dock where a rotated
+screen no longer reaches are closed: the settle is timed by the page's monotonic clock (`workoutClock`, not the wall
+clock); a touch end on an element redrawn under the finger is heard on that element (`workoutTouchWatch`); and going to the
+background lets go of every touch (`workoutTouchesLost` on hidden / pagehide). Readings were already live (measured when
+made), so a deferred reading cannot overwrite a newer state.
+
+**A chosen set stays with its exercise.** Leaving an exercise hands its chosen set back to the set you are on
+(`setFocusLeave` from `renderWorkoutStep`); the choice stays a view.
+
+**Contract 292**: the file (A), This Week (W), the dock (D), the chosen set (S), release (K).

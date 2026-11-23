@@ -2567,7 +2567,7 @@ Contract 270 (14b) and the D146 study (63 generated weeks; the only differences 
 until it is completed, or the weekly plan. The fix lies in the program's readers (D143/D144's, protected in this phase),
 not in This Week. Owner's decision.
 
-## E72 — This Week's count counts trained days, not planned workouts done · P4 · PROVEN · OPEN
+## E72 — This Week's count counts trained days, not planned workouts done · P4 · PROVEN · **CLOSED in D168 (LOOP 10.90)**
 
 Found by D146's audit of the "1 of 4" metric. Unchanged since D11 (weekOverview).
 
@@ -2586,6 +2586,13 @@ D44's consistency counts something else: planned sessions fulfilled, matched by 
 **What D146 does.** It shows the same count and total. The percentage is the share of the bar the count fills, as 10.68's
 bar did, so a week trained past its plan reads 100%. The brief asked that no new completion formula be invented and that
 D44 not be recalibrated. Changing what This Week counts is a policy decision for the owner.
+
+**D168.** Closed at the owner's direction in the D168 brief (show completed program sessions; a moved session must not
+read as completed). This Week's count is now the week's planned workouts done as D44 pairs them — the reading the Log
+calendar, the Weekly Review and adherence already gave — against the same total. A workout no planned day claims is said
+beside the count as extra and never counted, so the week never reads past its plan. Two workouts on one day count once
+toward the plan; the second is extra. The third point above (a planned day inside a pause stays in the total) is
+unchanged and carried as E90 (Contract 292 W).
 
 ## E73 — While a program is paused, the missed-yesterday banner names a paused day as skipped · P3 · PROVEN · OPEN
 
@@ -2897,6 +2904,30 @@ finished one, and Resume could not be reached there.
 
 **D167.** The current program, running or paused, comes first; only with none is the last finished program shown
 (Contract 291 P5).
+
+## E90 — While a program is paused, This Week's total still includes the paused days · P4 · PROVEN · OPEN
+
+Carried from E72's third point when D168 closed the rest of E72. A planned day the athlete paused stays in This Week's
+total (`weekOverview().planned`) though nothing is owed on it (D90): D44 and the Log calendar leave it out, and the day's
+cell already reads paused. The count itself (D44's pairing) is right. Not changed in D168, which kept the total as it was.
+
+## E91 — D167's hold on the viewport could outlast the finger · P3 · PROVEN · **CLOSED in D168 (LOOP 10.90)**
+
+Found by D168's audit of D167's gesture rule. Each of three cases left `--ws-shell-h` and the bottom mode frozen, so after a
+rotation the dock sat below the screen until the next touch (headless rig D8, D8b and D9, all failing on 10.89):
+- the settle was timed with `Date.now()`, so the wall clock set back after a lift held the reading for as long as it went back;
+- a touch that began on an element redrawn under the finger ended on the detached element, which the document's listener
+  never hears;
+- a touch still down when the app went to the background may never end.
+
+**D168.** The settle runs on `performance.now()`, a detached element's end is heard on the element itself, and hidden /
+pagehide let go of every touch (Contract 292 D).
+
+## E92 — A set chosen to edit stayed chosen after leaving its exercise · P4 · PROVEN · **CLOSED in D168 (LOOP 10.90)**
+
+Found by D168's audit of D167's set selection. Choosing set 3, stepping to the next exercise and back found set 3 still
+open in the editor, with the set you are on folded, though the coach, the rest timer and Next follow the set you are on.
+**D168.** Leaving an exercise hands its choice back (`setFocusLeave`; Contract 292 S, rig S1).
 
 ## Not findings — checked and clean
 
