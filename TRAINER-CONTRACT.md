@@ -21212,3 +21212,40 @@ edge to edge, and its ring's top line had been painted under the violet. The ban
 **Contract 290**: the file (A), Time Mode across the day boundary (T), past weeks and phases through pause, resume,
 pause-in-progress, deload, completion, backup and restore, a pre-D90 pause and the November clock change (P), the focus
 rule (F), release (K).
+
+## §212 — A STEADY WORKOUT DOCK, ANY SET, ANY SESSION STILL TO DO, ONE PROGRAM PAGE (D167 · LOOP 10.89 · loop-v266)
+
+**The workout dock.** The owner's recording (8.6 s, every frame measured) showed the title and the sets still while
+Previous / Skip dropped 42 px during a held swipe, rose past their place on release and snapped back 26 px. On the installed
+iPhone the page is one status bar short of the glass (D142B); for the length of a touch iOS hands the page the whole screen.
+The workout's sheet took its height from the overlay, so its last row rode that edge, and D142B's bottom mode, read on every
+resize, switched off and on with it. Now the sheet's height is the overlay's own `clientHeight` read at rest
+(`syncWorkoutHeight`, `--ws-shell-h`, 100% before the first reading), and the viewport is not read while a finger is down or
+for 700 ms after the last one lifts (`syncWorkoutShell`, `workoutTouchSeen`): one reading is made after it settles. A change
+with no touch (rotation, a resized window) is read at once. D142B's facts and class rule are unchanged.
+
+**Any set.** A tap on a set row, or a move into its weight or reps, opens that set in D156's editor (`focusSetRow`, class
+`.set-focus`). The set you are on — the first not done — keeps its action ring and stays what the coach, the rest timer and
+Next follow; the choice is a view, never stored or read by them. Ticking the open set done, or choosing the set you are on,
+hands the editor back. The number (set type), the tick and RIR keep their jobs; the tapped row stays under the finger.
+
+**Moving a session.** A missed session of this week (a day over, a session not trained) may move to a free day from today
+on, this week only (`weekMissedBlocker`, `weekMoveBlocker`), through D159's one writer (`weekSwapDays` → `weekCommit`, which
+now checks a move as a move): one swap op, the D43 pairing proven unchanged, Undo from a snapshot, never "every week".
+Sessions still ahead follow D159/D160 unchanged. A hold or a drop that cannot be made says why. The week sheet's rows take
+This Week's hold-drag (`attachWeekSheetGestures`, `weekDropTarget` reading a column along y); Move stays as the way without a
+drag. This Week and the sheet say a session can be held.
+
+**One Program page.** Today's program card opens the Program home (Overview), as the program button at the top does; Full
+plan and "Change every week…" open its My plan; Start a program, Train's Choose a plan and a deleted program lead into it.
+The page shows the current program, paused or not, before a finished one (`pgxSubject`). Program details remains the
+current program's settings sheet (pause, phases, complete, delete), opened from My plan.
+
+**Training days (E86).** `applyTrainingSetup` changes the current program — running or paused — through `updateProgram`;
+a paused program stays paused. A program is created only when there is none. The sheet says which before Use this week.
+
+**Worth Knowing.** A trace draws every value label only when every pair of neighbours has room; otherwise the first and
+the last, held inside the picture. The row's spoken label still carries every value.
+
+**Contract 291**: the file (A), the dock (D), any set (S), moving a session (W), E86 (E), one Program page (P), Worth
+Knowing (K), release (K).

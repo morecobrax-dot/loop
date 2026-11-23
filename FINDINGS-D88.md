@@ -2844,7 +2844,7 @@ Friday would.
 
 **D160.** Either session may move (the later first); the words and the preview name the one that moves (Contract 284 H4).
 
-## E86 — Choosing training days with a paused program creates and activates a new program · P2 · PROVEN · OPEN
+## E86 — Choosing training days with a paused program creates and activates a new program · P2 · PROVEN · **CLOSED in D167 (LOOP 10.89)**
 
 Found by D164's premortem on 10.85, confirmed in code. `applyTrainingSetup` keeps a program in step with the weekly plan:
 with an active program it revises that program's every week (`updateProgram(schedule)`); with none it creates one. A
@@ -2855,6 +2855,14 @@ creates a new 8-week program, and `createProgram` makes every new program the cu
 **D164.** The Program page no longer offers "Change training days" while a program is current (Contract 288 D8). The path
 remains through Ready-made plans › choosing a plan (`choosePlan` → `openTrainingSetup`). Not changed: the fix (ask first,
 or revise the paused program) is a decision about the Programs flow, left to the owner.
+
+**D167.** Closed. `applyTrainingSetup` now changes the current program — running or paused (`trainingSetupCurrentProgram`:
+the program at `activeProgramId`, never a completed one) — through `updateProgram`, the writer a running program already
+used: a dated revision from this week once it has begun, so past weeks and logged workouts keep what they were, and a
+paused program stays paused with its pause dates unchanged. A program is created only when there is no current one. The
+training-days sheet says which before Use this week ("These days change <name>, your current program, from this week on.
+It stays paused until you resume it."). 10.88's behaviour is reproduced and fails in Contract 291 E1; E2–E9 hold the fix,
+a running program's identical result, the no-program case and backup/restore.
 
 ## E87 — Time Mode outlived its day when LOOP stayed open past midnight · P3 · PROVEN · **CLOSED in D166 (LOOP 10.88)**
 
@@ -2879,6 +2887,16 @@ phase was read. Logged workouts were never changed (they keep the phase they wer
 pause read exactly as before (Contract 290 P). **Limitation:** pauses from before D90 began recording when they happened
 are banked days with no dates; for those programs a past date keeps 10.87's reading — when the pause happened cannot be
 known, so nothing is invented and nothing is migrated.
+
+## E89 — A paused program's page showed an older finished program instead · P3 · PROVEN · **CLOSED in D167 (LOOP 10.89)**
+
+Found by D167's audit of the program entry points. The Program home's subject (`pgxSubject`, and `renderMyTraining`) gave
+way to the last finished program whenever no program was running — a paused one included. So with the current program
+paused and an older program finished behind it, Today's card named the paused program but the Program page showed the
+finished one, and Resume could not be reached there.
+
+**D167.** The current program, running or paused, comes first; only with none is the last finished program shown
+(Contract 291 P5).
 
 ## Not findings — checked and clean
 

@@ -11727,6 +11727,94 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
    relative, so this moves nothing. The band itself is D165's, unchanged. */
 .fd :focus-visible, .obj-card :focus-visible, .pac :focus-visible, .pgx-hero :focus-visible{ position: relative; z-index: 3; }
 /* ==== D166 BAND FOCUS END ==== */
+/* ==== D167 STEADY WORKOUT BEGIN ==== */
+/* D167 — the workout's sheet keeps the height its overlay had at rest (syncWorkoutHeight), so a viewport iOS grows only
+   while a finger is down no longer carries the dock with it. Before the first reading it is the overlay, as in D138. */
+#logOverlay .sheet.sheet-page{ bottom: auto; height: var(--ws-shell-h, 100%); }
+/* ==== D167 STEADY WORKOUT END ==== */
+/* ==== D167 CHOSEN SET BEGIN ==== */
+/* D167 — the set chosen to edit (.set-focus, focusSetRow) takes the large editor D156 draws for the set you are on; the set
+   you are on keeps its action ring (D132) and goes back to one line until the choice is handed back. */
+#logOverlay.stepper-on .ws-current .set-row.set-focus{
+  grid-template-columns: 36px minmax(0, 1fr) 44px;
+  grid-template-areas: "idx meta check" "ctl ctl ctl" "more more more";
+  row-gap: 8px; margin: 6px -12px; padding: 10px 12px 12px; border-bottom-color: transparent;
+  background: linear-gradient(160deg, rgba(76,194,255,0.08), rgba(46,107,255,0.03)), var(--surface-1);
+  border-radius: var(--r-card); box-shadow: inset 0 0 0 1px rgba(76,194,255,0.22);
+}
+#logOverlay.stepper-on .ws-current .set-row.set-focus .set-meta-btn{ justify-self: start; visibility: visible; }
+#logOverlay.stepper-on .ws-current .set-row.set-focus .set-row-controls{
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; animation: setOpen var(--dur-feedback) var(--ease-out) both;
+}
+#logOverlay.stepper-on .ws-current .set-row.set-focus .stepper{
+  position: relative; display: flex; align-items: center; height: 56px; gap: 0;
+  background: var(--surface-inset); border: 1px solid rgba(76,194,255,0.40); border-radius: var(--r-control);
+}
+#logOverlay.stepper-on .ws-current .set-row.set-focus .stepper button{
+  display: flex; align-items: center; justify-content: center; flex: 0 0 46px; height: 54px; width: 46px;
+}
+#logOverlay.stepper-on .ws-current .set-row.set-focus .stepper input{
+  flex: 1 1 auto; width: 100%; min-width: 0; height: 54px; padding: 0 0 13px; text-align: center; font-size: 20px;
+  font-weight: 700; color: var(--text);
+}
+#logOverlay.stepper-on .ws-current .set-row.set-focus .stepper::after{
+  position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%); font-size: 11px; pointer-events: none;
+}
+#logOverlay.stepper-on .ws-current .sets-list:has(> .set-row.set-focus) > .set-row:nth-child(1 of .set-row:not(.completed)):not(.set-focus){
+  grid-template-columns: 36px minmax(0, 1fr) auto 44px;
+  grid-template-areas: "idx ctl meta check" "more more more more";
+  row-gap: 0; margin: 0; padding: 4px 0; border-bottom-color: var(--hairline);
+  background: none; border-radius: 0; box-shadow: none;
+}
+#logOverlay.stepper-on .ws-current .sets-list:has(> .set-row.set-focus) > .set-row:nth-child(1 of .set-row:not(.completed)):not(.set-focus) .set-meta-btn{ justify-self: end; visibility: hidden; }
+#logOverlay.stepper-on .ws-current .sets-list:has(> .set-row.set-focus) > .set-row:nth-child(1 of .set-row:not(.completed)):not(.set-focus) .set-row-controls{
+  display: flex; align-items: center; gap: 14px; animation: none;
+}
+#logOverlay.stepper-on .ws-current .sets-list:has(> .set-row.set-focus) > .set-row:nth-child(1 of .set-row:not(.completed)):not(.set-focus) .stepper{
+  position: static; display: inline-flex; align-items: baseline; flex: 0 0 auto; width: auto; height: 44px; gap: 4px;
+  background: transparent; border-color: transparent; border-radius: 10px;
+}
+#logOverlay.stepper-on .ws-current .sets-list:has(> .set-row.set-focus) > .set-row:nth-child(1 of .set-row:not(.completed)):not(.set-focus) .stepper button{ display: none; }
+#logOverlay.stepper-on .ws-current .sets-list:has(> .set-row.set-focus) > .set-row:nth-child(1 of .set-row:not(.completed)):not(.set-focus) .stepper input{
+  flex: 0 1 auto; width: 3.9ch; min-width: 0; height: 44px; padding: 0; text-align: right; font-size: 17px;
+}
+#logOverlay.stepper-on .ws-current .sets-list:has(> .set-row.set-focus) > .set-row:nth-child(1 of .set-row:not(.completed)):not(.set-focus) .stepper:has(.set-reps-in) input{ width: 2.4ch; }
+#logOverlay.stepper-on .ws-current .sets-list:has(> .set-row.set-focus) > .set-row:nth-child(1 of .set-row:not(.completed)):not(.set-focus) .stepper::after{
+  position: static; transform: none; font-size: 12px;
+}
+@media (max-width: 359px){
+  #logOverlay.stepper-on .ws-current .set-row.set-focus .stepper button{ flex-basis: 44px; width: 44px; }
+  #logOverlay.stepper-on .ws-current .sets-list:has(> .set-row.set-focus) > .set-row:nth-child(1 of .set-row:not(.completed)):not(.set-focus) .set-row-controls{ gap: 8px; }
+}
+@media (max-height: 740px){
+  #logOverlay.stepper-on .ws-current .set-row.set-focus{ row-gap: 6px; padding-top: 6px; padding-bottom: 8px; }
+}
+/* ==== D167 CHOSEN SET END ==== */
+/* ==== D167 WEEK MOVES BEGIN ==== */
+/* D167 — the week sheet's rows take This Week's hold-and-drag: the same lift, slot, targets and settle, drawn for a row. */
+.wsv-days{ position: relative; }
+.wsv-days .wsv-day-row{ -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+.wsv-days.wk-drag-mode{ overflow: visible; touch-action: none; }
+.wsv-days.wk-drag-mode, .wsv-days.wk-drag-mode *{ -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.wsv-day.wk-dragging{
+  z-index: 3; position: relative; background: var(--surface-2); border-radius: var(--r-control);
+  box-shadow: var(--shadow-lg), inset 0 0 0 1px var(--hairline-strong); scale: 1.02; will-change: translate;
+  transition: scale 140ms var(--ease), box-shadow 140ms var(--ease);
+}
+.wsv-day.wk-drop-ok{ outline: 1px dashed var(--text-faint); outline-offset: -3px; }
+.wsv-day.wk-drop-over{ outline: 2px dashed var(--accent); outline-offset: -3px; background: var(--accent-soft); }
+.wsv-day.wk-drop-no{ opacity: 0.38; }
+.wsv-day.wk-settling{
+  z-index: 3; position: relative;
+  transition: translate 200ms cubic-bezier(0.2, 0.9, 0.3, 1), scale 200ms cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 200ms var(--ease);
+}
+.wsv-day.wk-yielding{ z-index: 2; position: relative; transition: translate 200ms cubic-bezier(0.2, 0.9, 0.3, 1); }
+.wsv-days .wk-placeholder{ border-radius: 0; }
+@media (prefers-reduced-motion: reduce){
+  .wsv-day.wk-dragging{ scale: none; transition: none; }
+  .wsv-day.wk-settling, .wsv-day.wk-yielding{ transition: none; }
+}
+/* ==== D167 WEEK MOVES END ==== */
 </style>
 </head>
 <body>
@@ -22270,6 +22358,30 @@ const LOOP_UPDATES = [
       'Time Mode now ends at midnight, so a new day starts from your full planned workout. A workout you already started keeps its sets',
       'A past program week keeps its week number and phase when you pause the program later',
       'The keyboard focus ring on Today’s program card is no longer hidden under its colour band'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-89',
+    version: 'LOOP 10.89',
+    title: 'Steadier Workouts, One Program Page',
+    date: '2026-11-22',
+    swVersion: 'loop-v266',
+    summary: 'The workout buttons hold their place while you swipe, any set opens with a tap, and your program has one page.',
+    newFeatures: [
+      'Tap any set during a workout to open it for editing. The set you are on keeps its ring, so you can still see what comes next',
+      'A session you missed earlier this week can be held and moved to a free day from today on, for this week only, with Undo',
+      'In the week editor, hold a session and drag it to another day, this week only. Move still does the same without dragging'
+    ],
+    improvements: [
+      'Your program card on Today now opens the same Program page as the program button at the top, and Full plan opens its My plan tab',
+      'This Week now reminds you that you can hold a session to move it',
+      'When a session can’t be moved, LOOP now tells you why'
+    ],
+    bugFixes: [
+      'Previous and Skip now stay in place while you swipe through a workout',
+      'The small charts in Worth Knowing no longer print their numbers on top of each other',
+      'Choosing training days while your program is paused now changes that program, and it stays paused, instead of starting a new one'
     ],
     changes: []
   }
@@ -34297,7 +34409,8 @@ function weekDragReducedMotion(){
    neither the pressed scale nor the lift can skew them; the strip is the
    cells' offsetParent. */
 function measureWeekSlots(strip){
-  return [...strip.querySelectorAll('.wk-day')].map(c => ({
+  /* D167 — the strip's own cells: This Week's days, or the week sheet's rows (the same gesture in the week editor) */
+  return weekCellsOf(strip).map(c => ({
     key: c.dataset.key, cell: c, x: c.offsetLeft, y: c.offsetTop, w: c.offsetWidth, h: c.offsetHeight
   }));
 }
@@ -34316,7 +34429,9 @@ function weekDropTarget(slots, stripRect, cx, cy, currentKey){
   const bottom = stripRect.top + Math.max(...slots.map(s => s.y + s.h));
   if(cy < top - WEEK_DRAG.bandY * h || cy > bottom + WEEK_DRAG.bandY * h) return null;
   if(cx < left - WEEK_DRAG.bandX * w || cx > right + WEEK_DRAG.bandX * w) return null;
-  const dist = s => Math.abs(cx - (stripRect.left + s.x + s.w / 2));
+  /* D167 — a row of days is read along x (This Week), a column of days along y (the week sheet) */
+  const column = slots.length > 1 && slots.every(s => Math.abs(s.x - slots[0].x) < 1);
+  const dist = s => column ? Math.abs(cy - (stripRect.top + s.y + s.h / 2)) : Math.abs(cx - (stripRect.left + s.x + s.w / 2));
   let best = slots[0];
   slots.forEach(s => { if(dist(s) < dist(best)) best = s; });
   const current = currentKey ? slots.find(s => s.key === currentKey) : null;
@@ -34333,7 +34448,16 @@ function beginWeekDrag(){
   const cell = d.cell, strip = d.strip;
   if(!cell.isConnected || !strip.isConnected || !cell.getClientRects().length){ cleanupWeekDrag(); return; }
   /* D159 — on a running program only a session still ahead lifts; the hold on anything else is a tap */
-  if(!weekCellMovable(cell.dataset.key)){ cleanupWeekDrag(); return; }
+  if(!weekCellMovable(cell.dataset.key)){
+    /* D167 — a session that cannot move says why (a rest day has nothing to move, and the hold stays a tap) */
+    const sheet = weekStripIsSheet(strip), key = cell.dataset.key, holds = !!cell.dataset.fam;
+    cleanupWeekDrag();
+    if(holds){
+      _wkClickGuardUntil = Date.now() + 1500;   // the press that was refused is not also a tap (which would redraw the week over the reason)
+      weekSayRefused(sheet, key, null);
+    }
+    return;
+  }
   d.slots = measureWeekSlots(strip);
   d.home = d.slots.find(s => s.cell === cell);
   if(!d.home){ cleanupWeekDrag(); return; }
@@ -34396,6 +34520,7 @@ function endWeekDrag(toKey){
   try{ if(typeof getComputedStyle === 'function') void getComputedStyle(cell).translate; }catch(e){}
   d.phase = 'settling';
   d.toKey = (toKey && toKey !== d.originKey && d.slots.some(s => s.key === toKey) && weekCellMovable(toKey, true)) ? toKey : null;
+  d.refused = (!d.toKey && toKey && toKey !== d.originKey) ? toKey : null;   // D167
   _wkClickGuardUntil = Date.now() + WEEK_DRAG.clickGuardMs;
   if(d.raf && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(d.raf);
   d.raf = 0;
@@ -34424,8 +34549,12 @@ function endWeekDrag(toKey){
 function finishWeekDrag(){
   const d = _wkDrag;
   if(!d || d.phase !== 'settling') return;
-  const from = d.originKey, to = d.toKey;
+  const from = d.originKey, to = d.toKey, refused = d.refused || null, sheet = weekStripIsSheet(d.strip);
   cleanupWeekDrag();
+  /* D167 — the week sheet's rows move through its own Move (weekSheetMoveTo: its notice, its Undo); a drop on a day that
+     cannot take the session says why instead of only going home */
+  if(sheet && to){ weekSheetDrop(from, to); return; }
+  if(!to && refused){ weekSayRefused(sheet, from, refused); return; }
   if(to) commitWeekMove(from, to);
 }
 
@@ -34445,7 +34574,7 @@ function cleanupWeekDrag(){
   if(d.placeholder && d.placeholder.parentElement) d.placeholder.remove();
   if(d.strip){
     d.strip.classList.remove('wk-drag-mode');
-    [...d.strip.querySelectorAll('.wk-day')].forEach(c => {
+    weekCellsOf(d.strip).forEach(c => {
       c.classList.remove('wk-dragging', 'wk-settling', 'wk-yielding', 'wk-drop-ok', 'wk-drop-over', 'wk-drop-no');
       c.style.translate = '';
       c.style.transformOrigin = '';
@@ -34557,11 +34686,11 @@ function weekPointerDown(ev){
   if(_wkDrag && _wkDrag.phase === 'settling') finishWeekDrag();
   if(_wkDrag) cleanupWeekDrag();
   if(!ev.isPrimary || (ev.pointerType === 'mouse' && ev.button !== 0)) return;
-  let cell = ev.target && ev.target.closest ? ev.target.closest('.wk-day') : null;
+  let cell = ev.target && ev.target.closest ? (ev.target.closest('.wk-day') || ev.target.closest('.wsv-day')) : null;
   /* Landing may have redrawn the week under this very touch. */
   if(cell && !cell.isConnected && typeof document.elementFromPoint === 'function'){
     const hit = document.elementFromPoint(ev.clientX, ev.clientY);
-    cell = hit && hit.closest ? hit.closest('.wk-day') : null;
+    cell = hit && hit.closest ? (hit.closest('.wk-day') || hit.closest('.wsv-day')) : null;
   }
   const strip = cell ? cell.parentElement : null;
   if(!cell || !strip) return;
@@ -35479,9 +35608,22 @@ function wkTraceSvg(levels, labels, falling){
   let out = '<svg class="wn-trace' + (falling ? ' wn-trace-down' : '') + '" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" aria-hidden="true" focusable="false">'
     + '<line class="wn-t-ref" x1="' + X0 + '" x2="' + X1 + '" y1="' + y(0) + '" y2="' + y(0) + '"/>';
   levels.forEach((v, i) => { if(i) out += '<line class="wn-t-seg' + (levels[i] < levels[i - 1] ? ' wn-t-fall' : '') + '" x1="' + f(x(i - 1)) + '" y1="' + f(y(levels[i - 1])) + '" x2="' + f(x(i)) + '" y2="' + f(y(v)) + '"/>'; });
+  /* D167 — the owner's screenshot: "12@3 12@32@12@2", four labels run together. The nodes are 26 px apart and a label at
+     the 11 px floor that carries the RIR ("12@3") is wider than that, so neighbours collided. Every label is drawn only
+     when every pair of neighbours has room between them; otherwise only the first and the last are drawn, held inside
+     the picture (the first from its node rightward, the last leftward). The row's own words — its spoken label — still
+     carry every workout's numbers, and the picture is hidden from assistive tech as before. */
+  const LBL = s => String(s).length * 6.6 + (/@/.test(String(s)) ? 3.4 : 0);
+  const gap = levels.length > 1 ? (X1 - X0) / (levels.length - 1) : 0;
+  const every = !!labels && labels.every((s, i) => !i || (LBL(labels[i - 1]) + LBL(s)) / 2 + 4 <= gap);
+  const ends = i => i === 0 || i === levels.length - 1;
   levels.forEach((v, i) => {
     out += '<circle class="wn-t-n' + (i ? '' : ' wn-t-first') + '" cx="' + f(x(i)) + '" cy="' + f(y(v)) + '" r="3.2" data-level="' + v + '"/>';
-    if(labels) out += '<text class="wn-t-l" x="' + f(x(i)) + '" y="' + f(y(v) - 7) + '" text-anchor="middle">' + escapeHtml(labels[i]) + '</text>';
+    if(labels && (every || ends(i))){
+      const anchor = every ? 'middle' : (i === 0 ? 'start' : 'end');
+      const lx = every ? x(i) : (i === 0 ? x(i) - 3.2 : x(i) + 3.2);
+      out += '<text class="wn-t-l" x="' + f(lx) + '" y="' + f(y(v) - 7) + '" text-anchor="' + anchor + '">' + escapeHtml(labels[i]) + '</text>';
+    }
   });
   return out + '</svg>';
 }
@@ -35997,8 +36139,8 @@ function renderWeekCard(){
       /* D159 — on a running program, the week can be rearranged without a drag: Edit week opens it with a Move on every
          session still ahead */
       + (weekEditProgram()
-        ? '<span class="wk2-links"><button type="button" class="wk2-plan wk2-edit" onclick="openWeekSheet(null,{schedule:true})">Edit week</button><button type="button" class="wk2-plan" onclick="openTraining(\'plan\')">Full plan</button></span>'
-        : '<button type="button" class="wk2-plan" onclick="openTraining(\'plan\')">Full plan</button>');
+        ? '<span class="wk2-links"><button type="button" class="wk2-plan wk2-edit" onclick="openWeekSheet(null,{schedule:true})">Edit week</button><button type="button" class="wk2-plan" onclick="openTraining(\'myplan\')">Full plan</button></span>'
+        : '<button type="button" class="wk2-plan" onclick="openTraining(\'myplan\')">Full plan</button>');
   }
 
   el.innerHTML = `
@@ -36007,6 +36149,7 @@ function renderWeekCard(){
       ${head}
       <div class="wk-days" role="group" aria-label="Days this week">${cells}</div>
       <div class="wk2-ctx">${ctx}</div>
+      ${weekMoveHintHtml()}
     </div>
     <div id="weekUndo" class="wk-undo-host"></div>`;
   /* Re-attached after every render; the guard keeps it to one listener set. */
@@ -36256,7 +36399,9 @@ async function weekCommit(monday, change, opts){
   const o = opts || {};
   const p = o.meta ? (getActiveProgram() || null) : weekEditProgram();
   if(!p) return { ok:false, reason:'program' };
-  if(o.dates){ const b = weekChangeBlocker(p, o.dates); if(b) return { ok:false, reason:b }; }
+  /* D167 — a move is checked as a move (weekMoveBlocker: a missed session may leave a day that is over); other changes as before */
+  if(o.move){ const b = weekMoveBlocker(p, monday, o.move[0], o.move[1]); if(b) return { ok:false, reason:b }; }
+  else if(o.dates){ const b = weekChangeBlocker(p, o.dates); if(b) return { ok:false, reason:b }; }
   if(!o.meta){
     const trial = JSON.parse(JSON.stringify(p));
     trial.weekPlans = trial.weekPlans || {};
@@ -36286,7 +36431,7 @@ async function weekSwapDays(monday, a, b){
     const last = ops[ops.length - 1];
     if(last && last.t === 'swap' && ((last.a === a && last.b === b) || (last.a === b && last.b === a))) ops.pop();
     else ops.push({ t:'swap', a, b });
-  }, { dates: [weekDateOf(monday, a), weekDateOf(monday, b)] });
+  }, { dates: [weekDateOf(monday, a), weekDateOf(monday, b)], move: [a, b] });   // D167 — a is the day the session leaves
 }
 /* One session's exercises, this week only. */
 async function weekSetSession(monday, day, exercises){
@@ -36348,10 +36493,15 @@ async function weekDismiss(monday, id){
 /* Whether a day of this week can be picked up, or receive a session, as a change to this week. A running program
    only: the weekly plan keeps its every-day behaviour. */
 function weekCellMovable(key, asTarget){
+  /* D167 — the week sheet's rows follow the sheet's own week; a missed session of this week lifts, and while it is held
+     only the free days from today on take it (weekMoveBlocker) */
+  if(_wkDrag && weekStripIsSheet(_wkDrag.strip)) return weekSheetCellMovable(key, asTarget);
+  const from = asTarget && _wkDrag ? _wkDrag.originKey : null;
+  if(from && weekMissedLift(from)) return !weekMoveBlocker(weekEditProgram(), civilMonday(localDateStr()), from, key);
   /* D160 — by scope (weekScopeOf): nothing lifts or lands where nothing may move; where only every week could change,
      the drag is allowed and the drop asks first */
   const s = weekScopeOf(key);
-  if(s.mode === 'none') return false;
+  if(s.mode === 'none') return !asTarget && weekMissedLift(key);
   if(s.mode === 'offer' || asTarget) return true;
   const p = weekEditProgram();
   const date = weekDateOf(civilMonday(localDateStr()), key);
@@ -36369,6 +36519,7 @@ function weekSessionName(p, date, key){
 }
 /* The drop: this week only on a running program; the weekly plan otherwise, said plainly. */
 async function commitWeekMoveScoped(fromKey, toKey){
+  if(weekMissedLift(fromKey)) return commitWeekMissedMove(fromKey, toKey);   // D167
   const a = weekScopeOf(fromKey), b = weekScopeOf(toKey);
   /* D160 — a drop changes this week only when both days can; otherwise it writes nothing and says why, offering the
      recurring change as an explicit choice where one exists */
@@ -36409,10 +36560,10 @@ function showWeekToast(t){
     const F = DAY_LABEL_FULL[t.from], T = DAY_LABEL_FULL[t.to];
     if(t.scope === 'week'){
       text = t.other ? `${escapeHtml(t.moving || 'Workout')} ⇄ ${escapeHtml(t.other)}` : `${escapeHtml(t.moving || 'Workout')} → ${escapeHtml(T)}`;
-      sub = t.other ? `${escapeHtml(F)} and ${escapeHtml(T)} swapped, this week only` : `This week only`;
+      sub = t.other ? `${escapeHtml(F)} and ${escapeHtml(T)} swapped, this week only` : (t.missed ? `Missed ${escapeHtml(F)}, moved for this week only` : `This week only`);
       const clash = weekClusterAfterMove(t.monday);
       if(clash) sub += `<span class="wk-toast-warn">${escapeHtml(clash)}</span>`;
-      actions = `<button type="button" class="wk-undo-btn wk-undo-alt" onclick="weekMoveEveryWeek()">Every week</button>`;
+      actions = t.missed ? '' : `<button type="button" class="wk-undo-btn wk-undo-alt" onclick="weekMoveEveryWeek()">Every week</button>`;
     } else {
       text = `${escapeHtml(F)} → ${escapeHtml(T)}`;
       sub = 'Every week';
@@ -36476,7 +36627,8 @@ function deriveWeekView(p, monday, fulfilment){
     const logged = slot && slot.workoutId ? (workoutLog || []).find(l => String(l.id) === String(slot.workoutId)) : null;
     return { key, date, entry: e, workout, template: workout ? pd.template : null, category: workout ? e.category : 'rest',
       week: pd ? pd.week : null, phase: pd ? pd.phase : null, status: workout || logged ? weekStatusOfDay(p, date, key, f) : 'rest',
-      logged, edited: !!e.weekEdit, movable: workout && !weekChangeBlocker(p, [date]) };
+      logged, edited: !!e.weekEdit, movable: workout && !weekChangeBlocker(p, [date]),
+      catchUp: workout && date < today && !weekMissedBlocker(p, monday, key) };   // D167
   });
   const progWeek = (days.find(d => d.week) || {}).week || calWeek;
   const phase = weekPhaseFor(p, progWeek);
@@ -36822,7 +36974,7 @@ function renderWeekSheet(how, focusId){
     const moving = st.moving === d.key;
     const moveHtml = moving ? `<div class="wsv-moveto" role="group" aria-label="Move ${escapeAttr(name)} to">
         ${v.days.filter(x => x.key !== d.key).map(x => {
-          const ok = !weekChangeBlocker(p, [x.date]) && x.status !== 'done';
+          const ok = d.catchUp ? !weekMoveBlocker(p, st.monday, d.key, x.key) : (!weekChangeBlocker(p, [x.date]) && x.status !== 'done');
           const holds = x.template ? thisWeekShortName(x.template.name) : 'Rest';
           return `<button type="button" class="wsv-day-opt${ok ? '' : ' off'}" data-fid="to-${x.key}" ${ok ? `onclick="weekSheetMoveTo('${x.key}')"` : 'disabled'}
             aria-label="${escapeAttr(DAY_LABEL_FULL[x.key] + (x.template ? ', swap with ' + holds : ', empty'))}">
@@ -36837,12 +36989,12 @@ function renderWeekSheet(how, focusId){
           <span class="wsv-name"><span class="wsv-n1" title="${escapeAttr(name)}">${escapeHtml(d.template || d.logged ? thisWeekShortName(name) : name)}${d.edited ? '<span class="wsv-tag">Customized</span>' : ''}</span>
             ${d.status === 'rest' ? '' : `<span class="wsv-st"><span class="wk-mark" aria-hidden="true"></span>${WEEK_DAY_WORD[d.status] || ''}</span>`}</span>
         </button>
-        ${v.editable && d.movable ? `<button type="button" class="wsv-move" data-fid="move-${d.key}" onclick="weekSheetMove('${d.key}')" aria-expanded="${moving ? 'true' : 'false'}" aria-label="Move ${escapeAttr(name)} to another day">Move</button>` : ''}
+        ${v.editable && (d.movable || d.catchUp) ? `<button type="button" class="wsv-move" data-fid="move-${d.key}" onclick="weekSheetMove('${d.key}')" aria-expanded="${moving ? 'true' : 'false'}" aria-label="Move ${escapeAttr(name)} to another day">Move</button>` : ''}
       </div>
       ${moveHtml}
     </div>`;
   }).join('');
-  const schedule = `<div class="sec-head" id="wsvSchedule">Schedule${v.editable ? '<span class="sec-hint">this week only</span>' : ''}</div><div class="wsv-days">${rows}</div>`;
+  const schedule = `<div class="sec-head" id="wsvSchedule">Schedule${v.editable ? '<span class="sec-hint">hold to move · this week only</span>' : ''}</div><div class="wsv-days">${rows}</div>`;
 
   /* the suggestions: one that can be applied stays in view under the schedule; the rest are coaching notes */
   const sug = deriveWeekSuggestions(v);
@@ -36957,12 +37109,14 @@ function renderWeekSheet(how, focusId){
       nextHtml = `<div class="wsv-next"><span class="wsv-k">Next week</span>${phaseChange ? `<b>${escapeHtml(nv.phase.name)} begins</b>` : ''}<span>${first ? escapeHtml(thisWeekShortName(first.template.name)) + ' on ' + escapeHtml(DAY_LABEL_FULL[first.key]) + ' · ' : ''}${nv.days.filter(d => d.workout).length} sessions</span></div>`;
     }
   }
+  try{ if(_wkDrag && weekStripIsSheet(_wkDrag.strip)) cancelWeekDrag({ immediate: true }); }catch(e){}   // D167 — the list a hold holds is redrawn
   body.innerHTML = `<div class="wsv${how === 'step' ? ' wsv-step-in' : ''}">${overview}${schedule}${actHtml}<div class="wsv-secs">${sections}</div>${nextHtml}</div>`;
+  try{ attachWeekSheetGestures(); }catch(e){}   // D167
   if(focusId){ const b = document.getElementById(focusId); if(b && b.focus){ try{ b.focus({ preventScroll: true }); }catch(e){} } }
 }
 /* "Change every week" is the program's own editor, where recurring changes have always lived. */
 function openProgramSessionEditorFromWeek(){
-  try{ openTraining('program'); }catch(e){}
+  try{ openTraining('myplan'); }catch(e){}   // D167 — the program's sessions, on My plan
 }
 
 /* ---------- one session, this week ---------- */
@@ -37162,6 +37316,150 @@ const WEEK_OFFER_WORDS = {
 };
 /* the words for a drop where nothing may move because the program is over */
 WEEK_BLOCK_WORDS.ended = 'Your program’s weeks are over, so nothing here moves.';
+
+/* =========================================================
+   MOVING A SESSION, ANY SESSION STILL TO DO  (Phase D167)
+   ---------------------------------------------------------
+   The owner's annotated week was a Sunday: every session in it was already behind them, and holding one did nothing at
+   all — a day that is over could not move, and the strip said nothing. Two things change, through D159's one writer
+   (weekSwapDays → weekCommit: a swap op on this week only, the D43 pairing proven unchanged, Undo from a snapshot):
+     · a MISSED session of this week — a day already over that held a session nobody trained — can be moved to a FREE day
+       from today on, this week only. Only to a free day: swapping would put another session into a day that is over,
+       which would only make a new missed day. Not to a day already over, not onto a session already trained or a workout
+       under way, never "every week", and a trained session or anything outside the program never moves;
+     · a hold or a drop that cannot be made says why, instead of the card silently going home.
+   And the same hold-and-drag works in the week sheet (the program's week editor) on its rows, with its Move button kept as
+   the way to do it without a drag (keyboard, switch access). The program's own weeks, its later weeks, its sessions and
+   everything logged are unchanged by any of it.
+   ========================================================= */
+WEEK_BLOCK_WORDS.occupied = 'A missed session moves to a free day, so nothing new lands on a day that is already over.';
+WEEK_BLOCK_WORDS.open = 'A workout you started is still open. Save or discard it first.';
+/* The session on a day of THIS week already over that was not trained, and may still move; or why not. */
+function weekMissedBlocker(p, monday, key){
+  if(!p) return 'program';
+  const today = localDateStr();
+  const date = weekDateOf(monday, key);
+  if(!date || date >= today || monday !== civilMonday(today)) return 'past';
+  let end = null;
+  try{ end = programEndDate(p); }catch(e){ end = null; }
+  if(date < String(p.startDate) || (end && date > end)) return 'outside';
+  try{ if(dateIsSuspended(p, date, today)) return 'outside'; }catch(e){}
+  const e = programPlanOn(p, date)[key];
+  if(!e || e.type !== 'workout') return 'past';
+  const f = deriveProgramPlanFulfillment(p, workoutLog || []);
+  if(f.slots.some(s => s.workoutId && s.date === date)) return 'done';
+  /* a workout opened and not yet saved may belong to this day (a draft keeps its program date): nothing missed moves under it */
+  if(hasActiveDraftNow) return 'open';
+  return null;
+}
+/* Whether the session on `fromKey` can go to `toKey` in the week of `monday`, as a change to that week only; or why not.
+   A session still ahead follows D159/D160's rule unchanged; a missed one goes only to a free day from today on. */
+function weekMoveBlocker(p, monday, fromKey, toKey){
+  if(!p) return 'program';
+  const a = weekDateOf(monday, fromKey), b = weekDateOf(monday, toKey);
+  if(!a || !b || a === b) return 'past';
+  if(a >= localDateStr()) return weekChangeBlocker(p, [a, b]);
+  if(weekMissedBlocker(p, monday, fromKey)) return 'past';   // anything else on a day that is over: 10.88's answer
+
+  const t = weekChangeBlocker(p, [b]);
+  if(t) return t;
+  const e = programPlanOn(p, b)[toKey];
+  return e && e.type === 'workout' ? 'occupied' : null;
+}
+function weekMissedLift(key){
+  let p = null;
+  try{ p = weekEditProgram(); }catch(e){ p = null; }
+  return !!p && !weekMissedBlocker(p, civilMonday(localDateStr()), key);
+}
+/* A strip's cells: This Week's days, or the week sheet's rows. */
+function weekCellsOf(strip){
+  return strip && strip.querySelectorAll ? [...strip.querySelectorAll(weekStripIsSheet(strip) ? '.wsv-day' : '.wk-day')] : [];
+}
+function weekStripIsSheet(strip){ return !!(strip && strip.classList && strip.classList.contains('wsv-days')); }
+/* The week sheet's rows, for the drag: the sheet's own week, on the program being trained, a week not yet over. */
+function weekSheetCellMovable(key, asTarget){
+  const st = weekSheetState;
+  if(!st) return false;
+  const p = getProgram(st.programId);
+  let run = null;
+  try{ run = weekEditProgram(); }catch(e){ run = null; }
+  if(!p || !run || run.id !== p.id || civilAddDays(st.monday, 6) < localDateStr()) return false;
+  if(asTarget){
+    const from = _wkDrag ? _wkDrag.originKey : null;
+    return !!from && !weekMoveBlocker(p, st.monday, from, key);
+  }
+  const date = weekDateOf(st.monday, key);
+  const e = programPlanOn(p, date)[key];
+  if(!e || e.type !== 'workout') return false;
+  return date < localDateStr() ? !weekMissedBlocker(p, st.monday, key) : !weekChangeBlocker(p, [date]);
+}
+/* A row dropped on another day: the sheet's own Move, so its notice and its Undo are the ones the athlete gets. */
+function weekSheetDrop(fromKey, toKey){
+  const st = weekSheetState;
+  if(!st) return;
+  st.moving = fromKey;
+  return weekSheetMoveTo(toKey);
+}
+/* Why a session cannot be picked up, or cannot land where it was dropped — in the words the rest of the week uses. */
+function weekRefusalWords(sheet, fromKey, toKey){
+  const st = weekSheetState;
+  const today = localDateStr();
+  const monday = sheet && st ? st.monday : civilMonday(today);
+  let p = null;
+  try{ p = sheet && st ? getProgram(st.programId) : weekEditProgram(); }catch(e){ p = null; }
+  if(!p){
+    if(sheet) return WEEK_BLOCK_WORDS.program;
+    const s = weekScopeOf(toKey || fromKey);
+    return s.mode === 'none' ? (WEEK_BLOCK_WORDS[s.reason] || null) : null;
+  }
+  let r = null;
+  if(toKey) r = weekMoveBlocker(p, monday, fromKey, toKey);
+  else {
+    const date = weekDateOf(monday, fromKey);
+    r = date && date < today ? weekMissedBlocker(p, monday, fromKey) : weekChangeBlocker(p, [date]);
+    if(!r && sheet && civilAddDays(monday, 6) < today) r = 'past';
+  }
+  return r ? (WEEK_BLOCK_WORDS[r] || null) : null;
+}
+function weekSayRefused(sheet, fromKey, toKey){
+  const words = weekRefusalWords(sheet, fromKey, toKey);
+  if(!words) return;
+  if(sheet) weekSheetNotice({ text: words }); else showWeekToast({ message: words });
+}
+/* The drop on This Week (and the Program page's strip) of a missed session: the same writer, the same Undo; never
+   "every week" — a missed session is moved within its own week. */
+async function commitWeekMissedMove(fromKey, toKey){
+  const p = weekEditProgram();
+  const monday = civilMonday(localDateStr());
+  const moving = p ? weekSessionName(p, weekDateOf(monday, fromKey), fromKey) : null;
+  const before = snapshotWeekForUndo();
+  const r = await weekSwapDays(monday, fromKey, toKey);
+  renderAll();
+  if(!r.ok){ showWeekToast({ message: WEEK_BLOCK_WORDS[r.reason] || WEEK_BLOCK_WORDS.save }); return; }
+  showWeekToast({ snapshot: before, from: fromKey, to: toKey, scope: 'week', missed: true, moving, other: null, monday });
+}
+/* The week sheet's rows take the same hold-and-drag as This Week (weekPointerDown and the rest, unchanged); a press on the
+   open session's details or on the Move picker is not a hold. One listener set per drawn list. */
+function attachWeekSheetGestures(){
+  let list = null;
+  try{ list = document.querySelector('#weekSheetBody .wsv-days'); }catch(e){ list = null; }
+  if(!list || !list.addEventListener || list.dataset.gestures === 'on') return;
+  list.dataset.gestures = 'on';
+  list.addEventListener('pointerdown', ev => { const t = ev.target; if(t && t.closest && t.closest('.wsv-day-row')) weekPointerDown(ev); });
+  list.addEventListener('click', ev => { if(Date.now() < _wkClickGuardUntil){ _wkClickGuardUntil = 0; ev.preventDefault(); ev.stopPropagation(); } }, true);
+  list.addEventListener('touchmove', ev => { if(_wkDrag && _wkDrag.phase === 'active' && ev.cancelable) ev.preventDefault(); }, { passive: false });
+  list.addEventListener('lostpointercapture', ev => { if(_wkDrag && _wkDrag.phase === 'active' && ev.pointerId === _wkDrag.pointerId && ev.target === list) cancelWeekDrag(); });
+  list.addEventListener('dragstart', ev => ev.preventDefault());
+  list.addEventListener('selectstart', ev => { if(_wkDrag) ev.preventDefault(); });
+  list.addEventListener('contextmenu', ev => { if(_wkDrag) ev.preventDefault(); });
+  try{ attachWeekDragGuards(); }catch(e){}
+}
+/* This Week's one line about it, while a program is being trained. */
+function weekMoveHintHtml(){
+  let p = null;
+  try{ p = weekEditProgram(); }catch(e){ p = null; }
+  return p ? '<p class="wk-hint wk2-hint">Hold a session to move it to another day, this week only.</p>' : '';
+}
 function weekScopeOf(key){
   const today = localDateStr();
   const monday = civilMonday(today);
@@ -38423,14 +38721,19 @@ function pgxHide(el, on){ if(el) el.hidden = !!on; }
 /* The program this page is about: the current one being trained, paused or not yet begun (D150's journey), else the
    program just finished. None means the start screen. */
 function pgxSubject(){
+  /* D167 — the current program first: a paused one is still the program Today's card shows and opens here. Before, any
+     program not running (a paused one included) gave way to the last finished program, so a paused program with an
+     older finished one behind it opened a different program's page. */
   let journey = null, finished = null;
-  try{
-    if(!getRunningProgram()){
-      const last = getLastFinishedProgram();
-      if(last) finished = last;
-    }
-  }catch(e){ finished = null; }
-  if(!finished){ try{ journey = programJourneyModel(getActiveProgram()); }catch(e){ journey = null; } }
+  try{ journey = programJourneyModel(getActiveProgram()); }catch(e){ journey = null; }
+  if(!journey){
+    try{
+      if(!getRunningProgram()){
+        const last = getLastFinishedProgram();
+        if(last) finished = last;
+      }
+    }catch(e){ finished = null; }
+  }
   return { journey, finished };
 }
 function pgxHasProgram(){ const s = pgxSubject(); return !!(s.journey || s.finished); }
@@ -39772,7 +40075,7 @@ function trainEmptyStateHtml(){
   if(!plan || !planData){
     return `<div class="tl-empty tl-empty-stack">
       <p class="tl-empty-text"><strong>Your workout library</strong> Choosing a plan fills this in with workouts for your training days.</p>
-      <button class="empty-cta" type="button" onclick="openPlansManager()">Choose a plan</button>
+      <button class="empty-cta" type="button" onclick="openTraining('plan')">Choose a plan</button>
     </div>`;
   }
   const cat = activeTrainCategory;
@@ -46887,7 +47190,7 @@ function progProgramCardHtml(){
       aria-label="${escapeAttr(rp.name + ', week ' + prog.week + ' of ' + prog.totalWeeks
         + (fulfil && fulfil.planningKnown && fulfil.planned
             ? ', ' + fulfil.fulfilled + ' of ' + fulfil.planned + ' planned sessions trained' : '')
-        + '. Open My Training.')}">
+        + '. Opens your program.')}">
       <span class="po-card-top">
         <span class="po-card-t">${escapeHtml(rp.name)}</span>
         <span class="po-go" aria-hidden="true">${chevronRightSvg()}</span>
@@ -59506,7 +59809,7 @@ function programContextHtml(){
         </button>`;
     }
     return `
-      <button class="tw-program tw-program-empty" onclick="openPrograms()">
+      <button class="tw-program tw-program-empty" onclick="openTraining('program')">
         <span class="tw-program-name">Start a program</span>
         <span class="tw-program-meta">${saved.length} saved · or build a new one ›</span>
       </button>`;
@@ -59679,9 +59982,9 @@ function trainingFoundationHtml(f){
   const count = f.week ? `<span class="fd-count">Week <b>${f.week}</b> of ${f.totalWeeks}</span>` : '';
   const spoken = ['Training foundation', f.name, f.week ? 'week ' + f.week + ' of ' + f.totalWeeks : '',
     st && st.phase ? cyclePhaseLabel(st.phase) + ', ' + foundationPosition(st) : '',
-    shape, 'Opens details'].filter(Boolean).join('. ') + '.';
+    shape, 'Opens your program'].filter(Boolean).join('. ') + '.';
   return `<section class="fd fd-program" aria-label="Training foundation">
-      <button type="button" class="fd-main" onclick="openFoundation()" aria-label="${escapeAttr(spoken)}">
+      <button type="button" class="fd-main" onclick="openTraining('program')" aria-label="${escapeAttr(spoken)}">
         ${top(count)}
         <span class="fd-name">${escapeHtml(f.name)}</span>
         <span class="fd-shape">${escapeHtml([f.goal, f.days.length + ' day' + (f.days.length === 1 ? '' : 's') + ' a week'].filter(Boolean).join(' · '))}</span>
@@ -60483,6 +60786,8 @@ function openTraining(tab){
   if(tab === 'plan' && pgxHasProgram()){ trainingTab = 'program'; programTab = 'overview'; }
   else if(tab === 'results'){ trainingTab = 'program'; programTab = 'results'; }
   else if(tab === 'program'){ trainingTab = 'program'; programTab = 'overview'; }
+  /* D167 — 'myplan' (Full plan, Change every week…) is the program's My plan tab; with no program, the ready-made plans */
+  else if(tab === 'myplan'){ if(pgxHasProgram()){ trainingTab = 'program'; programTab = 'plan'; } else trainingTab = 'plan'; }
   else if(tab === 'plan') trainingTab = 'plan';
   renderTraining();
   try{ const sc = document.querySelector('#myTrainingOverlay .sheet-scroll'); if(sc) sc.scrollTop = 0; }catch(e){}
@@ -60612,7 +60917,7 @@ function renderTrainingProgramTab(){
        reads as running, and not the accent of a live program. */
     const ended = c.current && c.status === 'Ended';
     return `
-      <button type="button" class="tr-prog${c.current ? (ended ? ' tr-prog-ended' : ' tr-prog-on') : ''}" onclick="openProgramDetail('${onclickArg(c.id)}')">
+      <button type="button" class="tr-prog${c.current ? (ended ? ' tr-prog-ended' : ' tr-prog-on') : ''}" onclick="${c.current ? `openTraining('program')` : `openProgramDetail('${onclickArg(c.id)}')`}">
         <span class="tr-prog-main">
           <span class="tr-prog-top">
             <span class="tr-prog-n">${escapeHtml(c.name)}</span>
@@ -60808,18 +61113,18 @@ function renderMyTraining(){
   t.expl = expl;
   /* D38 — when nothing is running, the page shows what was just finished
      and the way on, instead of reading as an empty or broken screen. */
+  /* D150 — a program being trained, paused, or not yet begun is its journey (programJourneyModel); D164 draws it as the
+     Program home's identity, phase, next workout and week. D167 — that current program comes first (pgxSubject); only
+     with none does the page show what was just finished. With neither, the start screen. */
+  let journey = null;
+  try{ journey = programJourneyModel(getActiveProgram()); }catch(e){ journey = null; }
   let finishedSum = null, finishedId = null;
   try{
-    if(!getRunningProgram()){
+    if(!journey && !getRunningProgram()){
       const last = getLastFinishedProgram();
       if(last){ finishedId = last.id; finishedSum = deriveProgramCompletion(last, localDateStr()); }
     }
   }catch(e){}
-
-  /* D150 — a program being trained, paused, or not yet begun is its journey (programJourneyModel); D164 draws it as the
-     Program home's identity, phase, next workout and week. With none and nothing finished, the start screen. */
-  let journey = null;
-  if(!finishedSum){ try{ journey = programJourneyModel(getActiveProgram()); }catch(e){ journey = null; } }
   _pgxMode = (journey || finishedSum) ? 'program' : 'start';
 
   const dayRows = t.days.map(d => {
@@ -61306,8 +61611,25 @@ function renderTrainingSetup(){
       </div>`).join('')}</div>`
       : `<div class="mt-note">Pick at least one day and your week appears here.</div>`}
   `;
+  /* D167 — E86: what Use this week changes, said before it is pressed */
+  try{ el.insertAdjacentHTML('beforeend', trainingSetupScopeHtml()); }catch(e){}
   const apply = document.getElementById('trainingSetupApply');
   if(apply) apply.disabled = !n;
+}
+/* The program a training-days choice changes: the current one, running or paused, never a completed one. */
+function trainingSetupCurrentProgram(){
+  let p = null;
+  try{ p = getActiveProgram(); }catch(e){ p = null; }
+  return p && p.status !== 'completed' ? p : null;
+}
+function trainingSetupScopeHtml(){
+  const p = trainingSetupCurrentProgram();
+  const name = p ? escapeHtml(p.name || 'your program') : '';
+  const words = !p ? 'LOOP follows these days as your program from today. Workouts you have logged stay as they are.'
+    : p.status === 'paused'
+      ? 'These days change <b>' + name + '</b>, your current program, from this week on. It stays paused until you resume it. Workouts you have logged stay as they are.'
+      : 'These days change <b>' + name + '</b>, your current program, from this week on. Workouts you have logged stay as they are.';
+  return '<div class="mt-note ts-scope" id="trainingSetupScope">' + words + '</div>';
 }
 
 /* Writes the schedule, and nothing else. Historical training is never touched —
@@ -61326,9 +61648,17 @@ async function applyTrainingSetup(){
      created silently: "program" is an internal layer, not a second thing to
      learn. An existing program is updated rather than replaced, so its phases
      and start date survive. */
+  /* D167 — E86. A paused program is still the athlete's current program (getActiveProgram; Today's card, the Program page,
+     day edits and Edit program all treat it so), but this asked hasActiveProgram, which is only true while it runs: with
+     the current program paused, choosing training days created a new 8-week program and made IT current, leaving the
+     paused one behind. Now the current program — running or paused — is the one these days change, through the same
+     writer as before (updateProgram: a dated revision from this week once it has begun, so past weeks and logged workouts
+     keep what they were), and a paused program stays paused. A new program is created only when there is no current one
+     (none, or the last was completed). The sheet says which, before Use this week (trainingSetupScopeHtml). */
   try{
-    if(hasActiveProgram()){
-      await updateProgram(getActiveProgram().id, { schedule: week });
+    const current = trainingSetupCurrentProgram();
+    if(current){
+      await updateProgram(current.id, { schedule: week });
     } else {
       const plan = DEFAULT_PLANS[setupDraft.planId];
       await createProgram({
@@ -61454,7 +61784,7 @@ async function doDeleteProgram(){
   if(!confirm('Delete this program? Your workout history is not affected.')) return;
   await deleteProgram(detailProgramId);
   closeProgramDetail();
-  openPrograms();
+  openTraining('program');   // D167 — the Program home, not the old Programs list
 }
 /* =========================================================
    EXERCISE NOTES — PERSONAL TRAINING MEMORY  (Phase D6)
@@ -65210,16 +65540,62 @@ function syncWorkoutBottomMode(){
   return on;
 }
 (function installWorkoutBottomMode(){
-  const sync = () => { try{ syncWorkoutBottomMode(); }catch(e){} };
+  const sync = () => { try{ syncWorkoutShell(); }catch(e){} };   // D167 — never while a finger is down (syncWorkoutShell)
   ['resize', 'orientationchange', 'pageshow'].forEach(t => window.addEventListener(t, sync));
   ['focusin', 'focusout', 'visibilitychange'].forEach(t => document.addEventListener(t, sync));
   try{ if(window.visualViewport) window.visualViewport.addEventListener('resize', sync); }catch(e){}
+  try{ ['touchstart', 'touchend', 'touchcancel'].forEach(t => document.addEventListener(t, workoutTouchSeen, { capture: true, passive: true })); }catch(e){}
 })();
+/* D167 — THE WORKOUT KEEPS ITS HEIGHT WHILE A FINGER IS DOWN.
+   The owner's recording (8.6 s, every frame measured): while a swipe was held, the title and the sets did not move a
+   pixel but Previous / Skip dropped 42 px, and on release they rose past their place and snapped back 26 px. On the
+   installed iPhone the page is one status bar short of the glass (D142B); while a finger is down iOS hands the page the
+   whole screen and takes it back after the finger lifts. The workout's sheet took its height from the overlay, so its
+   last row — the dock — rode that edge down and up, and the bottom mode (read on every resize) switched off and on
+   with it. So the sheet's height is the one the overlay had at rest, and the viewport is read again only once no finger
+   has been down for a moment: a viewport that changes only for the length of a touch is never read at all. A change
+   with no touch — rotation, a resized window, the keyboard on a browser that resizes for it — is read at once, as before. */
+const WORKOUT_GESTURE = { settleMs: 700 };
+let _workoutTouches = 0, _workoutTouchEndAt = -Infinity, _workoutSettleTimer = null, _workoutSyncWanted = false;
+/* Fingers are followed passively: how many are down, and when the last one lifted. A reading asked for while one was down
+   is made once, a moment after the last one lifts. */
+function workoutTouchSeen(e){
+  _workoutTouches = e && e.touches ? e.touches.length : 0;
+  if(_workoutTouches) return;
+  _workoutTouchEndAt = Date.now();
+  if(_workoutSyncWanted){ clearTimeout(_workoutSettleTimer); _workoutSettleTimer = setTimeout(syncWorkoutShell, WORKOUT_GESTURE.settleMs); }
+}
+function workoutGestureHolds(){
+  return _workoutTouches > 0 || (Date.now() - _workoutTouchEndAt) < WORKOUT_GESTURE.settleMs;
+}
+/* The one place the held height is set: the overlay's own height while the workout is open, nothing once it closes. */
+function syncWorkoutHeight(){
+  const ov = document.getElementById('logOverlay');
+  if(!ov) return null;
+  if(!ov.classList.contains('open')){ ov.style.removeProperty('--ws-shell-h'); return null; }
+  const h = ov.clientHeight;
+  if(h > 0) ov.style.setProperty('--ws-shell-h', h + 'px');
+  return h > 0 ? h : null;
+}
+/* The viewport read for the workout (D142B's bottom mode and the held height) — or, while a finger is down or has only just
+   lifted, kept for one reading after it settles. */
+function syncWorkoutShell(){
+  clearTimeout(_workoutSettleTimer); _workoutSettleTimer = null;
+  if(workoutGestureHolds()){
+    _workoutSyncWanted = true;
+    if(!_workoutTouches) _workoutSettleTimer = setTimeout(syncWorkoutShell, Math.max(50, WORKOUT_GESTURE.settleMs - (Date.now() - _workoutTouchEndAt)));
+    return null;
+  }
+  _workoutSyncWanted = false;
+  syncWorkoutBottomMode();
+  return syncWorkoutHeight();
+}
 
 function openLogSheet(){
   document.getElementById('logOverlay').classList.add('open');
   document.body.classList.add('page-locked');
   try{ syncWorkoutBottomMode(); }catch(e){}   // D142B — the bottom mode is read as the workout opens
+  try{ syncWorkoutHeight(); }catch(e){}       // D167 — and the height it keeps while a finger is down
   renderLogTopbarTitle();
   // Give the workout its own history entry so the iPhone back gesture returns
   // to the previous LOOP screen instead of leaving the app.
@@ -65252,6 +65628,7 @@ function closeLogSheet(){
   try{ clearPrepTimer(); resetPrepCardForNewWorkout(); }catch(e){}
   document.getElementById('logOverlay').classList.remove('open');
   try{ syncWorkoutBottomMode(); }catch(e){}   // D142B — and cleared as it closes
+  try{ syncWorkoutHeight(); }catch(e){}       // D167 — the held height goes with it
   document.body.classList.remove('page-locked');
   renderResumeBanner();
   // Clearing the flag first means the resulting popstate is a no-op rather
@@ -66736,6 +67113,72 @@ function toggleSetComplete(btn){
    clear of the card (or of the dock, with no rest running) — only when it is
    actually hidden, only as far as needed, never past its own top, and without
    animation for reduced motion. Nothing is written; this is only a scroll. */
+/* D167 — ANY SET CAN BE THE ONE YOU ARE EDITING.
+   The set you are on is still the first one not done: it keeps its action ring, and it is what the rest timer, the coach
+   and Next follow. Tapping any other set — or moving into one of its fields — opens THAT set in the large editor instead.
+   The choice is a view: one class on the row (.set-focus), never stored, never read by the coach, the rest timer, the
+   draft or completion, and gone when the rows are drawn again. Ticking the open set done, or choosing the set you are on,
+   gives the editor back to the set you are on. The number (set type), the tick and RIR keep their own jobs, and the row
+   tapped stays under the finger while the editor moves to it. */
+function setRowsOf(list){
+  return list && list.children ? Array.prototype.filter.call(list.children, r => r.classList && r.classList.contains('set-row')) : [];
+}
+function focusSetRow(row){
+  if(!row || !row.classList || !row.classList.contains('set-row') || !row.parentElement) return false;
+  const rows = setRowsOf(row.parentElement);
+  const onNow = rows.find(r => !r.classList.contains('completed')) || null;
+  let changed = false;
+  rows.forEach(r => {
+    const on = r === row && row !== onNow;
+    if(r.classList.contains('set-focus') !== on){ r.classList.toggle('set-focus', on); changed = true; }
+  });
+  return changed;
+}
+/* After a tick: a set just done hands the editor back; a choice that is now the set you are on is no choice at all. */
+function setFocusAfterTick(row){
+  if(!row || !row.parentElement) return;
+  if(row.classList.contains('set-focus') && row.classList.contains('completed')) row.classList.remove('set-focus');
+  const chosen = setRowsOf(row.parentElement).find(r => r.classList.contains('set-focus'));
+  if(chosen) focusSetRow(chosen);
+}
+/* The tapped row keeps its place on screen while the editor closes above it and opens on it; then, only if the open
+   editor runs under the rest card or the dock, it is brought into view (revealSetRow, which never scrolls past its top). */
+function openSetRow(row){
+  if(!row || !row.closest) return false;
+  const scroll = row.closest('.sheet-scroll');
+  const before = row.getBoundingClientRect().top;
+  if(!focusSetRow(row)) return false;
+  if(scroll){
+    const shift = row.getBoundingClientRect().top - before;
+    if(Math.abs(shift) > 0.5) scroll.scrollTop += shift;
+  }
+  try{ revealNextSetAfterLayout(row); }catch(e){}
+  return true;
+}
+if(typeof document !== 'undefined' && document.addEventListener){
+  /* a press on a set's free space opens it and raises no keyboard: the browser is not let move focus into a field the press
+     was not on (a press on the weight or the reps still edits it, and every button keeps its own press) */
+  document.addEventListener('mousedown', e => {
+    const t = e.target;
+    if(!t || !t.closest || !t.closest('#logOverlay.stepper-on .ws-current .set-row')) return;
+    if(t.closest('input, button, select, textarea, .set-row-more')) return;
+    e.preventDefault();
+  });
+  document.addEventListener('click', e => {
+    const t = e.target;
+    if(!t || !t.closest) return;
+    const row = t.closest('#logOverlay.stepper-on .ws-current .set-row');
+    if(!row) return;
+    if(t.closest('.set-complete-btn')){ setFocusAfterTick(row); return; }
+    if(t.closest('.set-idx, .set-meta-btn, .set-row-more, .stepper button')) return;
+    openSetRow(row);
+  });
+  document.addEventListener('focusin', e => {
+    const t = e.target;
+    if(!t || !t.matches || !t.matches('#logOverlay.stepper-on .ws-current .set-row .set-weight-in, #logOverlay.stepper-on .ws-current .set-row .set-reps-in')) return;
+    openSetRow(t.closest('.set-row'));
+  });
+}
 function revealNextSetAfterLayout(next){
   const run = () => { try{ revealSetRow(next); }catch(e){} };
   if(typeof requestAnimationFrame === 'function') requestAnimationFrame(run); else run();
