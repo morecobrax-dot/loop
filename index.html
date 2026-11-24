@@ -11853,6 +11853,18 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
 .stepper-on .ws-current[data-measure="time"] .stepper:has(.set-reps-in)::after{ content: 'sec'; content: 'sec' / ''; }
 .stepper-on .ws-current[data-measure="distance"] .stepper:has(.set-reps-in)::after{ content: 'm'; content: 'm' / ''; }
 /* ==== D172 MEASURES END ==== */
+/* ==== D173 COUNT UNIT BEGIN ==== */
+/* D173 — Seconds | Metres beside Sets, only on a carry whose prescription states no unit: LOOP's segmented control,
+   compact, each half a 44px target. [hidden] must win over .seg's display. */
+.ex-sets-bar .ex-measure{ margin: 0 0 0 auto; padding: 0; gap: 2px; flex: none; }
+.ex-sets-bar .ex-measure[hidden]{ display: none; }
+.ex-sets-bar .ex-measure .seg-btn{ flex: none; min-height: 44px; min-width: 44px; padding: 0 12px; }
+.ex-sets-bar .ex-measure .seg-btn:disabled{ opacity: 0.45; cursor: default; }
+.ex-sets-bar .ex-measure .seg-btn:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+.ex-sets-bar:has(.ex-measure:not([hidden])){ flex-wrap: wrap; row-gap: var(--space-1); }
+.ex-measure-note{ margin: var(--space-1) 0 0; font-size: 12px; line-height: 1.4; color: var(--text-dim); }
+.ex-measure-note[hidden]{ display: none; }
+/* ==== D173 COUNT UNIT END ==== */
 </style>
 </head>
 <body>
@@ -22528,6 +22540,28 @@ const LOOP_UPDATES = [
       'Carries logged before LOOP recorded seconds or metres are shown as you entered them, with no unit added'
     ],
     changes: []
+  },
+  {
+    id: 'v10-95',
+    version: 'LOOP 10.95',
+    title: 'Like for Like',
+    date: '2026-11-24',
+    swVersion: 'loop-v272',
+    summary: 'Coaching compares seconds with seconds and metres with metres, a carry can be logged in metres in any workout, and every exercise you log is listed in Progress.',
+    newFeatures: [
+      'A Farmer’s Carry added without a prescribed unit can be counted in Seconds or Metres — choose beside Sets'
+    ],
+    improvements: [
+      'Progress → Strength → All exercises now lists holds, carries and bodyweight exercises too, each with its best in its own unit',
+      'From this version, a longer hold is recorded as a Time PR and a farther carry as a Distance PR'
+    ],
+    bugFixes: [
+      'Coaching no longer compares a carry’s metres with seconds, or with counts logged before LOOP recorded a unit — it keeps your last load and says why',
+      'A weighted hold is no longer measured against a rep range in Ready to progress and other suggestions',
+      'This Week and Program Review no longer compare a lift across different units',
+      'Holds and carries logged from now on no longer earn an estimated one-rep max record or a volume record. Records and XP you have already earned are unchanged'
+    ],
+    changes: []
   }
 ];
 
@@ -28265,7 +28299,7 @@ function isDeloadWorkout(entry){
   return !!entry && entry.phase === 'deload';
 }
 
-function exerciseSessionHistory(exerciseName, limit){
+function exerciseSessionHistory(exerciseName, limit, measure){
   const key = exerciseName.trim().toLowerCase();
   const sessions = [];
   const deloaded = [];                 // D85 — kept only as a last resort, below
@@ -28274,7 +28308,9 @@ function exerciseSessionHistory(exerciseName, limit){
        as one session. D49 reads loaded work only, as it always has: a ticked row
        was never its evidence, and it no longer hides a loaded row logged after
        it; a second loaded row is the same session's work, not invisible. */
-    const rows = (workoutExerciseRows(l, key) || []).filter(r => !r.bodyweight);
+    /* D173 (E111) — asked for one unit, only the rows counted in it: 40 s is not 40 m, and a count whose unit was never
+       recorded is no evidence for either. Asked for none, every loaded row, exactly as before. */
+    const rows = (workoutExerciseRows(l, key) || []).filter(r => !r.bodyweight && (!measure || measureOfEntry(r) === measure));
     const ex = rows.length === 1 ? rows[0] : null;
     const sets = ex ? ex.sets : [].concat(...rows.map(r => r.sets));
     if(rows.length){
@@ -28464,9 +28500,16 @@ function grindingBelowRange(range, last, prev){
 
 function buildProgressionRecommendation(exerciseName, templateReps, templateRecommended){
   const range = parseRepRange(templateReps);
-  const sessions = exerciseSessionHistory(exerciseName, 5);
+  /* D173 (E111) — the evidence is the rows counted in the target's unit. A lift whose history is all in that unit
+     (every lift counted in reps) is read exactly as before; one that is not is read in it alone, and when it has
+     nothing in that unit, or the target has no unit for a lift counted in seconds or metres, it keeps its last load and
+     the prescription, and no target is derived. */
+  const scope = progressionMeasureScope(exerciseName, templateReps);
+  const sessions = exerciseSessionHistory(exerciseName, 5, scope.filter);
 
   if(sessions.length === 0){
+    const elsewhere = scope.filter ? exerciseSessionHistory(exerciseName, 1) : [];
+    if(elsewhere.length) return measureIncomparableAnswer(exerciseName, templateReps, elsewhere[0].weight, scope);
     const startWeight = (templateRecommended && templateRecommended !== '—' && templateRecommended !== 'Bodyweight')
       ? firstNumber(templateRecommended) : null;
     return {
@@ -28478,11 +28521,12 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
   }
 
   const last = sessions[0];
+  if(!scope.rangeInUnit) return measureIncomparableAnswer(exerciseName, templateReps, last.weight, scope);   // D173 (E111)
   const w = last.weight;
   const prPeak = computePRs().find(p => p.name.trim().toLowerCase() === exerciseName.trim().toLowerCase() && !p.isBW);
 
   // Tier 1: repeated plateau (reuses the same detection used on workout cards, for consistency)
-  const plateau = detectPlateau(exerciseName);
+  const plateau = detectPlateau(exerciseName, scope.filter);   // D173 — the same unit
   /* D137 (E50) — FLAT IS NOT FALLING. A plateau whose last three workouts each fell short of the one before is a decline,
      and it is named as one. It still holds the load: the trend describes the evidence, and moving the load is D49's. The
      one exception is D47's own case: a decline that has also ground two sessions under the range with nothing in
@@ -28980,14 +29024,14 @@ function bodyweightProgressionFor(exerciseName, dateStr){
 function progressionRecommendationFor(exerciseName, templateReps, templateRecommended, dateStr){
   /* D152 (E76) — an assisted lift is asked neither D119 nor D49: its reps were done with help the log may not carry. */
   /* D161 — a caller may name the session's date: only the planned-lighter-week question reads it */
-  return assistedProgressionAnswer(exerciseName) || bodyweightProgressionFor(exerciseName, dateStr) || timedLiftAnswer(exerciseName)
+  return assistedProgressionAnswer(exerciseName) || bodyweightProgressionFor(exerciseName, dateStr) || timedLiftAnswer(exerciseName, templateReps)
     || progressionFor(exerciseName, templateReps, templateRecommended, dateStr);
 }
 /* D171 — a LOADED timed lift (a Farmer's Carry, a weighted hold): its count is time, so D49's next-session answer, worded
    for reps ("match your previous 40 reps"), is not given for it. It says what a bodyweight hold already says (D119):
    timed, and LOOP's rep targets are for lifts counted in reps. Only this answer — Exercise Detail's Next session and
    Today's guide — reads it: the load a workout starts at (D49 itself) is untouched. */
-function timedLiftAnswer(exerciseName){
+function timedLiftAnswer(exerciseName, templateReps){
   const raw = String(exerciseName == null ? '' : exerciseName);
   if(!loggedExerciseKey(raw)) return null;
   let id = null;
@@ -28995,7 +29039,13 @@ function timedLiftAnswer(exerciseName){
   if(!substitutionIsHold(id, raw)) return null;
   const carry = substitutionPatternFor(id, raw) === 'carry';
   return { mode: 'timed', tag: 'unsupported', reason: 'hold', reps: null, weight: null, headline: null,
-    why: raw.trim() + (carry ? ' is timed' : ' is a timed hold') + ', and LOOP’s rep targets are for lifts counted in reps.' };
+    why: raw.trim() + (carry ? carryCountedWords(raw, templateReps) : ' is a timed hold') + ', and LOOP’s rep targets are for lifts counted in reps.' };
+}
+/* D173 — a carry is timed or counted in metres: its prescription's unit, else its history's; neither known, both said. */
+function carryCountedWords(name, templateReps){
+  let m = prescriptionMeasure(templateReps);
+  if(!m){ try{ m = liftMeasureOf(name); }catch(e){ m = MEASURE_UNKNOWN; } }
+  return m === MEASURE_DISTANCE ? ' is counted in metres' : m === MEASURE_TIME ? ' is timed' : ' is counted in seconds or metres';
 }
 
 /* =========================================================
@@ -29568,22 +29618,38 @@ function measureHeadWord(measure){ return measure === MEASURE_TIME ? 'SEC' : mea
 function syncRowMeasure(row){
   if(!row || !row.querySelector) return;
   const nameIn = row.querySelector('.ex-name-in');
-  const m = measureForPrescription(nameIn ? nameIn.value : '', row.dataset.targetReps || '');
+  const name = nameIn ? nameIn.value : '';
+  const m = rowMeasureOf(name, row.dataset.targetReps || '', row.dataset.measureChoice || '');   // D173 — the athlete's choice for a carry with no stated unit
   row.dataset.measure = m;
+  /* D173 — Seconds | Metres, only where the exercise can be either and its prescription does not say */
+  const pick = row.querySelector('.ex-measure');
+  if(pick){
+    const offer = !prescriptionMeasure(row.dataset.targetReps || '') && !!measureChoicesOf(name);
+    pick.hidden = !offer;
+    const done = !!row.querySelector('.set-row.completed');
+    pick.querySelectorAll('.ex-measure-opt').forEach(b => {
+      const on = b.dataset.measure === m;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.disabled = done && !on;
+    });
+    const note = row.querySelector('.ex-measure-note');
+    if(note && !offer){ note.hidden = true; note.textContent = ''; }
+  }
   const word = measureFieldWord(m);
   row.querySelectorAll('.set-reps-in').forEach(i => i.setAttribute('aria-label', word));
   const heads = row.querySelectorAll('.sets-head .unit-label');
   if(heads.length >= 2) heads[1].textContent = measureHeadWord(m);
 }
-/* D172 (E108) — D49's sentences count reps. For a row counted in seconds or metres they are said in its unit; when the
-   lift's history does not record one unit (a carry logged before D172), its numbers are said as they were typed. Only the
-   words change: the load, the tag, the target and every decision are D49's. */
+/* D172 (E108) — D49's sentences count reps. For a row counted in seconds or metres they are said in its unit.
+   D173 (E111) — D49 now reads only the rows counted in its target's unit (progressionMeasureScope), so every number in
+   its answer is in that unit, and is said in it. Its answer for a lift with nothing comparable (reason 'measure') is
+   already worded, and is left as it is. Only the words change: the load, the tag, the target and every decision are D49's. */
 function measureWordsOf(rec, exerciseName, templateReps){
-  if(!rec || typeof rec !== 'object' || rec.mode === 'timed' || rec.mode === 'assistance') return rec;
+  if(!rec || typeof rec !== 'object' || rec.mode === 'timed' || rec.mode === 'assistance' || rec.reason === 'measure') return rec;
   const m = measureForPrescription(exerciseName, templateReps);
   if(m === MEASURE_REPS) return rec;
-  let said = MEASURE_UNKNOWN;
-  try{ said = liftMeasureOf(exerciseName) === m ? m : MEASURE_UNKNOWN; }catch(e){ said = MEASURE_UNKNOWN; }
+  const said = m;
   const u = measureUnitShort(said);
   const say = t => typeof t !== 'string' ? t : t
     .replace(/(\d\s*(?:s|sec|m))\s+reps\b/g, '$1')
@@ -29593,6 +29659,206 @@ function measureWordsOf(rec, exerciseName, templateReps){
     .replace(/\breps\b/g, said === MEASURE_TIME ? 'seconds' : said === MEASURE_DISTANCE ? 'metres' : 'count');
   const why = say(rec.why), headline = say(rec.headline);
   return why === rec.why && headline === rec.headline ? rec : Object.assign({}, rec, { why, headline });
+}
+
+/* =========================================================
+   COMPARABLE COUNTS  (Phase D173 - D88 finding E111)
+   ---------------------------------------------------------
+   D172 said what a count is. D49, the plateau test and the week and program reviews still compared a lift's counts
+   across its whole history, so the owner's Farmer's Carry, prescribed 40m, was told "You hit 40 last session — ready
+   for a small increase" from a count logged when the logger said reps, and a Weighted Plank's 60 seconds was read
+   against the "8-12" a lift outside the plan falls back to.
+
+   A count is compared only with a count in the same unit: 40 s with 50 s, 30 m with 40 m — never 40 s with 40 m, and
+   never a count whose unit was not recorded (UNKNOWN is compared with nothing, not even another UNKNOWN). A load is a
+   load whatever the count was, so the weight a lift was last trained at stays a fact LOOP can keep. Nothing is
+   converted, combined into a score, or rewritten. A lift whose history is all in one unit (every lift counted in reps,
+   a plank, a weighted plank prescribed in seconds) is read exactly as it was.
+   ========================================================= */
+/* The unit one workout counted a lift in: one measure across its rows, UNKNOWN when they disagree, null when absent. */
+function workoutLiftMeasure(entry, key){
+  const rows = workoutExerciseRows(entry, key);
+  if(!rows || !rows.length) return null;
+  const ms = rows.map(measureOfEntry);
+  return ms.every(x => x === ms[0]) ? ms[0] : MEASURE_UNKNOWN;
+}
+/* The unit of the newest workout that logged the lift (on or before a date, when one is named). */
+function newestLiftMeasure(name, onOrBefore){
+  const key = loggedExerciseKey(String(name == null ? '' : name));
+  const log = sortedLog();
+  for(let i = 0; i < log.length; i++){
+    if(onOrBefore && log[i].date > onOrBefore) continue;
+    const m = workoutLiftMeasure(log[i], key);
+    if(m) return m;
+  }
+  return MEASURE_UNKNOWN;
+}
+/* The unit a lift-change reader compares in: null when the lift's history is all one unit (read as it always was),
+   else the unit of its newest workout on or before the date — which may be UNKNOWN, and is then compared with nothing. */
+function liftComparableUnit(name, onOrBefore){
+  let lm = MEASURE_REPS;
+  try{ lm = liftMeasureOf(name); }catch(e){ lm = MEASURE_REPS; }
+  if(lm !== MEASURE_UNKNOWN) return null;
+  return newestLiftMeasure(name, onOrBefore);
+}
+/* What D49 may read for a target: the target's unit (measureForPrescription); filter null when the lift's history is
+   all in it (D49 exactly as before), else that unit; rangeInUnit false when a lift counted in seconds or metres is
+   handed a rep range with no unit ("8-12", the fallback), which no count of it can be measured against; no range at all
+   measures nothing, and D49 answers as before. */
+function progressionMeasureScope(exerciseName, templateReps){
+  const measure = measureForPrescription(exerciseName, templateReps);
+  let lift = measure;
+  try{ lift = liftMeasureOf(exerciseName); }catch(e){ lift = measure; }
+  return { measure, filter: lift === measure ? null : measure,
+    rangeInUnit: measure === MEASURE_REPS || prescriptionMeasure(templateReps) === measure || !parseRepRange(templateReps) };
+}
+/* D49's answer when nothing comparable exists: the load last trained (a fact in any unit) is kept, the prescription is
+   restated, and no target is derived. Shaped as D49's own "insufficient evidence" answer, so every reader handles it. */
+function measureIncomparableAnswer(exerciseName, templateReps, weight, scope){
+  const name = String(exerciseName == null ? '' : exerciseName).trim();
+  const unit = scope.measure === MEASURE_TIME ? 'seconds' : scope.measure === MEASURE_DISTANCE ? 'metres' : 'reps';
+  const w = performedLoad(weight);
+  const keep = w !== null && w > 0 ? w : null;
+  const target = String(templateReps == null ? '' : templateReps).trim();
+  const why = !scope.rangeInUnit
+    ? `${name} is counted in ${unit}, so this target can’t be measured against it` + (keep ? ` — keep ${keep} lb.` : '.')
+    : `Your earlier ${name} sessions weren’t logged in ${unit}, so there’s nothing to compare yet` + (keep ? ` — keep ${keep} lb${target ? ' for ' + target : ''}.` : '.');
+  return { weight: keep, headline: keep ? `${keep} lb × ${target}` : target, why, tag: 'insufficient', reason: 'measure' };
+}
+/* A count in its unit for a review line: "60 s", "40 m"; reps and an unknown unit print the number as they always did. */
+function measureCountShort(n, measure){
+  const u = measureUnitShort(measure);
+  return u ? n + ' ' + u : String(n);
+}
+
+/* =========================================================
+   A CARRY'S UNIT, CHOSEN  (Phase D173 - D88 finding E106)
+   ---------------------------------------------------------
+   A prescription that states its unit decides it ("40m", "30–40s"). A carry added with no prescription could be
+   either, and the athlete says which: Seconds or Metres, beside Sets. Nothing else gets the choice — a lift counted in
+   reps, and a hold (only seconds), show nothing. The choice is the row's until a set of it is done; changing it clears
+   counts already typed (never converted: 40 s is not 40 m) and says so. A row saved with it records `measure` as D172
+   does, so history, the summary, the editor, a reload and a backup read it back.
+   ========================================================= */
+function measureChoicesOf(name){
+  const raw = String(name == null ? '' : name);
+  if(!raw.trim()) return null;
+  let id = null;
+  try{ id = resolveExerciseId(raw); }catch(e){ id = null; }
+  let carry = false;
+  try{ carry = substitutionPatternFor(id, raw) === 'carry'; }catch(e){ carry = false; }
+  return carry ? [MEASURE_TIME, MEASURE_DISTANCE] : null;
+}
+/* A live row's measure: its prescription's unit, else the athlete's choice where the exercise offers one, else its kind. */
+function rowMeasureOf(name, targetReps, choice){
+  const stated = prescriptionMeasure(targetReps);
+  if(stated) return stated;
+  const choices = measureChoicesOf(name);
+  if(choices && choices.indexOf(choice) !== -1) return choice;
+  return exerciseMeasureDefault(name);
+}
+function measureChoiceHtml(){
+  return `<div class="seg ex-measure" role="group" aria-label="Count in" hidden>` +
+    `<button type="button" class="seg-btn ex-measure-opt" data-measure="time" aria-pressed="false" onclick="chooseRowMeasure(this)">Seconds</button>` +
+    `<button type="button" class="seg-btn ex-measure-opt" data-measure="distance" aria-pressed="false" onclick="chooseRowMeasure(this)">Metres</button></div>`;
+}
+function chooseRowMeasure(btn){
+  const row = btn && btn.closest ? btn.closest('.ex-log-row') : null;
+  if(!row) return;
+  const want = btn.dataset.measure;
+  if(want !== MEASURE_TIME && want !== MEASURE_DISTANCE) return;
+  const note = row.querySelector('.ex-measure-note');
+  const word = want === MEASURE_TIME ? 'seconds' : 'metres';
+  if(row.dataset.measure === want){ return; }
+  /* a set already done was logged in the unit it was done in */
+  if(row.querySelector('.set-row.completed')){
+    if(note){ note.hidden = false; note.textContent = 'Sets already done keep the unit they were logged in.'; }
+    return;
+  }
+  row.dataset.measureChoice = want;
+  let cleared = 0;
+  row.querySelectorAll('.set-row .set-reps-in').forEach(i => {
+    if(String(i.value || '').trim() !== ''){ i.value = ''; delete i.dataset.userSet; cleared++; }
+  });
+  syncRowMeasure(row);
+  if(note){
+    note.hidden = false;
+    note.textContent = cleared
+      ? `Counting in ${word}. ${cleared === 1 ? 'The count you had typed was' : 'The counts you had typed were'} cleared — enter ${word}.`
+      : `Counting in ${word}.`;
+  }
+  try{ scheduleDraftSave(); }catch(e){}
+}
+
+/* =========================================================
+   RECORDS IN A ROW'S OWN UNIT, FROM A STATED BOUNDARY  (Phase D173 - D88 finding E110)
+   ---------------------------------------------------------
+   The PR engine and the XP walk read every count as reps: a longer hold was a "Rep PR", and seconds or metres fed an
+   estimated 1RM record and a pounds × count "volume" record. Lifetime XP is recomputed from the whole log, so changing
+   those rules for every row would rewrite levels, milestones and records already earned.
+
+   The rule is versioned on the row. A row SAVED FROM 10.95 ON that is counted in seconds or metres records
+   `recordRule: 2` beside its `measure` (forward-only and additive, like D47's rx and D172's measure). Under rule 2:
+     · a heavier load is a weight record, as always — a load is a load;
+     · more seconds or metres at a load is a time or distance record at that load, measured only against earlier
+       counts in the SAME unit (a count whose unit was not recorded is no baseline), and pays what a rep record at a
+       load always paid; a hold's longest time pays what its longest rep count paid;
+     · no estimated-1RM record and no pounds × count volume record, and it moves neither best.
+   A row without the stamp — every row logged before 10.95, a 10.94 row included, and every row counted in reps — is
+   read by the rules it was rewarded under, byte for byte, so lifetime XP, level, milestones, records and the PR
+   history of every existing log are what they were. Earlier rows in a known unit are the baseline rule-2 rows are
+   measured against; rule-2 rows never move the bests rule-1 rows are judged by. No XP amount is new.
+   ========================================================= */
+const RECORD_RULE_MEASURED = 2;
+/* The unit a lift's performance in one workout is rewarded in under rule 2, or null (the rules it always had). */
+function performanceRecordMeasure(rows){
+  if(!rows || !rows.length || !rows.every(r => r && r.recordRule === RECORD_RULE_MEASURED)) return null;
+  const m = measureOfEntry(rows[0]);
+  return (m === MEASURE_TIME || m === MEASURE_DISTANCE) && rows.every(r => measureOfEntry(r) === m) ? m : null;
+}
+/* An earlier performance in a known unit of seconds or metres: the baseline later rule-2 counts are measured against. */
+function feedMeasuredBests(by, rows, sets, isBW){
+  if(!rows || !rows.length) return;
+  const m = measureOfEntry(rows[0]);
+  if((m !== MEASURE_TIME && m !== MEASURE_DISTANCE) || !rows.every(r => measureOfEntry(r) === m)) return;
+  const b = by[m] || (by[m] = { best: 0, at: Object.create(null) });
+  if(isBW){ const top = bodyweightPerformanceOf(sets) || 0; if(top > b.best) b.best = top; return; }
+  (sets || []).forEach(set => {
+    const perf = loadedPRPerformance(set);
+    if(!perf || !isPerformanceSet(set)) return;
+    if(!b.at[perf.load] || perf.reps > b.at[perf.load]) b.at[perf.load] = perf.reps;
+  });
+}
+/* Rule 2's records for one performance. state.bestWeight is the lift's heaviest load (shared with rule 1: a load is a
+   load); by holds the per-unit bests. Hits keep the engine's types, so XP amounts, set badges and every reader are
+   unchanged; `measure` says the count was seconds or metres. */
+function measuredRecordHits(by, state, measure, sets, isBW){
+  const b = by[measure] || (by[measure] = { best: 0, at: Object.create(null) });
+  const hits = [];
+  if(isBW){
+    const top = bodyweightPerformanceOf(sets) || 0;
+    if(top > b.best){ hits.push({ type: 'reps', prev: b.best, next: top, measure }); b.best = top; }
+    return hits;
+  }
+  let top = 0;
+  const at = {};
+  (sets || []).forEach(set => {
+    const perf = loadedPRPerformance(set);
+    if(!perf || !isPerformanceSet(set)) return;
+    if(perf.load > top) top = perf.load;
+    if(!at[perf.load] || perf.reps > at[perf.load]) at[perf.load] = perf.reps;
+  });
+  if(top > state.bestWeight && top > 0){ hits.push({ type: 'weight', prev: state.bestWeight, next: top }); state.bestWeight = top; }
+  Object.keys(at).forEach(k => {
+    const w = parseFloat(k), r = at[k], prev = b.at[w] || 0;
+    if(r > prev){ if(prev > 0) hits.push({ type: 'reps_at_weight', weight: w, prev, next: r, measure }); b.at[w] = r; }
+  });
+  return hits;
+}
+/* A record's name: a longer or farther count is a Time or Distance PR; everything else keeps the engine's label. */
+function prRecordLabel(type, measure){
+  if(measure && type !== 'weight') return measure === MEASURE_TIME ? 'Time PR' : measure === MEASURE_DISTANCE ? 'Distance PR' : PR_TYPE_LABEL[type];
+  return PR_TYPE_LABEL[type];
 }
 
 function compute1RMTrend(exerciseName){
@@ -29685,10 +29951,15 @@ function compareProgressionEvidence(b, a){
 }
 
 /* Plateau detection: weight hasn't increased across last 4 logged sessions */
-function detectPlateau(exerciseName){
+function detectPlateau(exerciseName, measure){
   /* D152 (E76) — a heavier assisted set is an easier one: no plateau or decline is judged from help. */
   if(exerciseLoadMeaning(exerciseName)) return null;
   const key = exerciseName.trim().toLowerCase();
+  /* D173 (E111) — workouts in one unit. D49 names its target's; asked with none (a workout's plateau flag), a lift whose
+     history is all one unit is read as it always was, and one that is not is read in its newest workout's unit — and
+     not at all when that unit was never recorded. */
+  const unit = measure || liftComparableUnit(exerciseName);
+  if(unit === MEASURE_UNKNOWN) return null;
   const occurrences = [];
   sortedLog().slice().reverse().forEach(l => {
     /* D123 (E44) - a programmed deload was prescribed to be easy, so it is not a plateau observation, exactly as
@@ -29696,6 +29967,7 @@ function detectPlateau(exerciseName){
        window below is the last four ORDINARY workouts and an older one fills the slot. The workout, its records,
        volume and score are untouched. */
     if(isDeloadWorkout(l)) return;
+    if(unit && workoutLiftMeasure(l, key) !== unit) return;   // D173 (E111)
     /* D96C-3 — one occurrence per WORKOUT, from every loaded row of the lift in it. D122 (E42) - its heaviest
        PERFORMED working set, read exactly as D49's own evidence reads it. D126 (E47) - and the most performed reps AT
        that load. D137 - the same sets, now read whole (workoutProgressionEvidence): the top set first, as before. */
@@ -37142,15 +37414,27 @@ function weekLiftChanges(p, monday){
   }));
   const out = [];
   names.forEach(n => {
+    /* D173 (E111) — a lift whose history is not all one unit is compared in this week's newest unit, and not at all
+       when that unit was never recorded; one that is all one unit is read as it always was */
+    let unit = null;
+    try{ unit = liftComparableUnit(n, sunday); }catch(e){ unit = null; }
+    const shown = unit || (() => { try{ return liftMeasureOf(n); }catch(e){ return MEASURE_REPS; } })();
+    const tag = o => (shown === MEASURE_TIME || shown === MEASURE_DISTANCE || shown === MEASURE_UNKNOWN) ? Object.assign(o, { measure: shown }) : o;
     let h = [];
-    try{ h = exerciseSessionHistory(n, 8); }catch(e){ h = []; }
+    try{ h = exerciseSessionHistory(n, 8, unit && unit !== MEASURE_UNKNOWN ? unit : undefined); }catch(e){ h = []; }
     const i = h.findIndex(s => s.date >= monday && s.date <= sunday);
     if(i === -1) return;
     const now = h[i], prev = h.slice(i + 1).find(s => s.date < monday);
-    if(!prev){ out.push({ name: n, kind: 'first', now }); return; }
+    if(unit === MEASURE_UNKNOWN){ out.push(tag({ name: n, kind: 'uncompared', now })); return; }
+    if(!prev){
+      let before = false;
+      if(unit){ try{ before = exerciseSessionHistory(n, 8).some(s => s.date < monday); }catch(e){ before = false; } }
+      out.push(tag(before ? { name: n, kind: 'first', now, unitFirst: true } : { name: n, kind: 'first', now }));
+      return;
+    }
     const kind = now.weight > prev.weight || (now.weight === prev.weight && now.topReps > prev.topReps) ? 'up'
       : (now.weight === prev.weight && now.topReps === prev.topReps) ? 'same' : 'down';
-    out.push({ name: n, kind, now, prev });
+    out.push(tag({ name: n, kind, now, prev }));
   });
   return out;
 }
@@ -38477,10 +38761,15 @@ function weekLiftReview(p, monday){
     if(x && x.name && !x.bodyweight && names.indexOf(x.name) === -1) names.push(x.name);
   }));
   const base = weekLiftChanges(p, monday);
-  const WORD = { up: 'better', same: 'similar', down: 'lower', first: 'first' };
+  const WORD = { up: 'better', same: 'similar', down: 'lower', first: 'first', uncompared: 'uncompared' };   // D173
   return names.map(n => {
     const b = base.find(x => x.name === n);
-    if(b) return { name: n, kind: WORD[b.kind] || 'similar', now: b.now, prev: b.prev || null };
+    if(b){
+      const r = { name: n, kind: WORD[b.kind] || 'similar', now: b.now, prev: b.prev || null };
+      if(b.measure) r.measure = b.measure;   // D173 — the unit its counts are in
+      if(b.unitFirst) r.unitFirst = true;
+      return r;
+    }
     const lighter = logs.some(l => isDeloadWorkout(l) && (workoutExerciseRows(l, loggedExerciseKey(n)) || []).length);
     return lighter ? { name: n, kind: 'lighter', now: null, prev: null } : null;
   }).filter(Boolean);
@@ -38495,12 +38784,14 @@ function weekReviewNarrative(r){
   return bits.join(' · ');
 }
 function weekLiftRowHtml(l){
-  const nw = l.now ? fmtLoad(l.now.weight) + ' × ' + l.now.topReps : '';
-  const pv = l.prev ? fmtLoad(l.prev.weight) + ' × ' + l.prev.topReps : '';
-  const text = l.kind === 'first' ? nw + ' · first time'
+  /* D173 — counts in their unit ("60 lb × 40 m"); reps and an unknown unit print the number as before */
+  const nw = l.now ? fmtLoad(l.now.weight) + ' × ' + measureCountShort(l.now.topReps, l.measure) : '';
+  const pv = l.prev ? fmtLoad(l.prev.weight) + ' × ' + measureCountShort(l.prev.topReps, l.measure) : '';
+  const text = l.kind === 'first' ? nw + (l.unitFirst ? ' · first time in ' + (l.measure === MEASURE_TIME ? 'seconds' : 'metres') : ' · first time')
     : l.kind === 'lighter' ? 'planned lighter week · not compared'
+    : l.kind === 'uncompared' ? nw + ' · unit not recorded · not compared'
     : nw + (l.kind === 'better' ? ' · up from ' : l.kind === 'similar' ? ' · same as ' : ' · lower than ') + pv;
-  const word = { better: 'Better', similar: 'Similar', lower: 'Lower', first: 'First time', lighter: 'Lighter week' }[l.kind] || '';
+  const word = { better: 'Better', similar: 'Similar', lower: 'Lower', first: 'First time', lighter: 'Lighter week', uncompared: 'Not compared' }[l.kind] || '';
   return `<div class="wsv-sug-r wsv-lift-${escapeAttr(l.kind)}"><b>${escapeHtml(l.name)}</b><span><i class="wsv-lift-k">${escapeHtml(word)}</i>${escapeHtml(text)}</span></div>`;
 }
 /* "Week 8" for a one-week phase, "Weeks 3–5" otherwise; "W8" / "W3–5" short. */
@@ -38802,7 +39093,7 @@ function weekVersusText(p, monday){
    ========================================================= */
 const REVIEW = { top: 2, minLogged: 2 };
 const REVIEW_WORD = { better: 'Better', similar: 'Similar', lower: 'Lower', first: 'First time', lighter: 'Lighter week',
-  improving: 'Trending up', steady: 'Steady', declining: 'Trending down', insufficient: 'Not enough sessions' };
+  improving: 'Trending up', steady: 'Steady', declining: 'Trending down', insufficient: 'Not enough sessions', uncompared: 'Not compared' };
 const reviewState = { period: null, lifts: false, more: false };
 
 /* The program the review is about: the current one (running, paused or set to start), else the one just finished. */
@@ -38905,10 +39196,17 @@ function reviewLifts(p, period, s, withTrainer){
       let h = [];
       try{ h = exerciseSessionHistory(n, 60).filter(x => dates0[x.date] && x.phase !== 'deload'); }catch(e){ h = []; }
       if(!h.length) return null;
+      /* D173 (E111) — first and last in one unit: the period's newest, when the lift's history is not all one unit */
+      let unit = null;
+      try{ unit = liftComparableUnit(n, h[0].date); }catch(e){ unit = null; }
+      const shown = unit || (() => { try{ return liftMeasureOf(n); }catch(e){ return MEASURE_REPS; } })();
+      const tag = o => (shown === MEASURE_TIME || shown === MEASURE_DISTANCE || shown === MEASURE_UNKNOWN) ? Object.assign(o, { measure: shown }) : o;
+      if(unit === MEASURE_UNKNOWN) return tag({ name: n, kind: 'uncompared', sessions: h.length, first: h[0], last: h[0] });
+      if(unit){ try{ h = exerciseSessionHistory(n, 60, unit).filter(x => dates0[x.date] && x.phase !== 'deload'); }catch(e){ h = []; } if(!h.length) return null; }
       const last = h[0], first = h[h.length - 1];
       const kind = h.length < 2 ? 'first' : (last.weight > first.weight || (last.weight === first.weight && last.topReps > first.topReps)) ? 'better'
         : (last.weight === first.weight && last.topReps === first.topReps) ? 'similar' : 'lower';
-      return { name: n, kind, sessions: h.length, first, last };
+      return tag({ name: n, kind, sessions: h.length, first, last });
     }).filter(Boolean);
   }
   const dates = {};
@@ -38922,7 +39220,7 @@ function reviewLifts(p, period, s, withTrainer){
   });
   return rows;
 }
-const REVIEW_LIFT_ORDER = { better: 0, improving: 0, first: 1, similar: 2, steady: 2, lower: 3, declining: 3, lighter: 4, insufficient: 5 };
+const REVIEW_LIFT_ORDER = { better: 0, improving: 0, first: 1, similar: 2, steady: 2, lower: 3, declining: 3, lighter: 4, insufficient: 5, uncompared: 5 };
 const REVIEW_UP = { better: true, improving: true };
 /* The review of one period: facts, lifts, and the one sentence worth reading first. */
 function deriveProgramReview(p, periodId, todayStr){
@@ -39039,9 +39337,10 @@ function deriveProgramSuggestions(p, todayStr){
 
 /* ---------- presentation ---------- */
 function reviewLiftRowHtml(l){
-  const t = x => x ? fmtLoad(x.weight) + ' × ' + x.topReps : '';
+  const t = x => x ? fmtLoad(x.weight) + ' × ' + measureCountShort(x.topReps, l.measure) : '';   // D173 — in its unit
   const perfText = () => { const d = l.numeric ? perfDeltaText({ numeric: true, direction: l.kind, pct: l.pct }) : null; return (d ? d + ' · ' : '') + l.sessions + ' session' + (l.sessions === 1 ? '' : 's'); };
   const text = l.first === undefined && l.last === undefined ? perfText()
+    : l.kind === 'uncompared' ? t(l.last) + ' · unit not recorded · not compared'
     : l.kind === 'first' ? t(l.last) + ' · one session in this period'
     : l.kind === 'lighter' ? 'planned lighter week · not compared'
     : t(l.first) + ' → ' + t(l.last);
@@ -41700,6 +41999,7 @@ function saveWorkoutEdits(btn){
     const kept = { name, effort, bodyweight, sets };
     if(ex.rx && typeof ex.rx === 'object') kept.rx = JSON.parse(JSON.stringify(ex.rx));
     if(ex.measure === MEASURE_TIME || ex.measure === MEASURE_DISTANCE) kept.measure = ex.measure;   // D172 — the unit it was logged in
+    if(kept.measure && ex.recordRule === RECORD_RULE_MEASURED) kept.recordRule = ex.recordRule;   // D173 — and the rule it was rewarded under; never added by an edit
     exercises.push(withPlan(kept));
   });
 
@@ -42360,7 +42660,7 @@ function computeExercisePREvents(exerciseName){
      sets count, and what counts as a record, are untouched below. */
   workoutLog.forEach(l => {
     const perf = workoutExercisePerformance(l, key);
-    if(perf) sessions.push({ date: l.date, id: l.id, sets: perf.sets });
+    if(perf) sessions.push({ date: l.date, id: l.id, sets: perf.sets, rows: perf.rows });   // D173 — rows, for the record rule
   });
   if(!sessions.length) return [];
   sessions.sort((a,b) => new Date(a.date) - new Date(b.date));
@@ -42377,10 +42677,21 @@ function computeExercisePREvents(exerciseName){
   let bestWeight = 0, bestReps = 0, best1RM = 0, bestVolume = 0;
   const bestRepsAtWeight = {};
   const events = [];
+  const measuredBy = Object.create(null);   // D173 (E110) — per-unit bests for rule-2 rows
 
   sessions.forEach(s => {
     const hits = [];
-    if(isBW){
+    /* D173 (E110) — a row saved from 10.95 on in seconds or metres (recordRule 2) is read by rule 2; every other row by
+       the rules below, unchanged, and a known-unit one is also rule 2's baseline */
+    const rm = performanceRecordMeasure(s.rows);
+    if(rm){
+      const st = { bestWeight };
+      measuredRecordHits(measuredBy, st, rm, s.sets, isBW).forEach(h => hits.push(h));
+      bestWeight = st.bestWeight;
+    } else feedMeasuredBests(measuredBy, s.rows, s.sets, isBW);
+    if(rm){
+      /* rule 2: no estimated 1RM, no pounds × count volume */
+    } else if(isBW){
       /* D96C-1 - a bodyweight performance is finite POSITIVE reps, said once,
          through the same D96A boundary the loaded side reads. D120 (E40) - and
          only from a set that is a performance: a typed warm-up is preparation. */
@@ -42530,6 +42841,7 @@ function formatPREventHeadline(ev){
      typed, no 1RM or volume. The PR engine and its XP are unchanged. */
   let m = MEASURE_REPS;
   try{ m = liftMeasureOf(ev.exerciseName); }catch(e){ m = MEASURE_REPS; }
+  if(h && h.measure) m = h.measure;   // D173 — a rule-2 record names the unit it was set in
   if(m !== MEASURE_REPS && h){
     if(h.type === '1rm' || h.type === 'volume'){
       /* the session's other record for the lift, when it set one in the lift's own terms (a heavier load, a longer count) */
@@ -43805,8 +44117,11 @@ function sessionPRSets(entry){
 /* Short, honest label per type — the same words the PR history uses. */
 const PR_SET_LABEL = { weight:'PR', reps:'PR', '1rm':'PR', reps_at_weight:'PR' };
 function prSetLabel(type){ return PR_SET_LABEL[type] || 'PR'; }
-function prSetTitle(type){
+function prSetTitle(type, measure){
   if(type === 'weight') return 'Heaviest set yet';
+  /* D173 — a count of seconds or metres is a longer or farther record, never "reps" */
+  if(measure === MEASURE_TIME && (type === 'reps' || type === 'reps_at_weight')) return type === 'reps' ? 'Longest yet' : 'Longest at this weight';
+  if(measure === MEASURE_DISTANCE && (type === 'reps' || type === 'reps_at_weight')) return type === 'reps' ? 'Farthest yet' : 'Farthest at this weight';
   if(type === 'reps') return 'Most reps yet';
   if(type === '1rm') return 'Best estimated one-rep max';
   if(type === 'reps_at_weight') return 'Most reps at this weight';
@@ -43970,7 +44285,16 @@ function computeXPTimeline(){
         const t = prTrackers[key];
 
         const hits = [];
-        if(isBW){
+        /* D173 (E110) — the record engine's rule 2, read from the same rows: a row saved from 10.95 on in seconds or
+           metres pays for a heavier load or a longer/farther count at a load, never for an estimated 1RM or volume;
+           every other row pays exactly as it always has */
+        const rm = performanceRecordMeasure(lift.rows);
+        if(!t.measuredBy) t.measuredBy = Object.create(null);
+        if(rm) measuredRecordHits(t.measuredBy, t, rm, lift.sets, isBW).forEach(h => hits.push(h.type));
+        else feedMeasuredBests(t.measuredBy, lift.rows, lift.sets, isBW);
+        if(rm){
+          /* rule 2's hits are above */
+        } else if(isBW){
           /* D120 (E40) - the record walk's own rule, so a warm-up that sets no record earns no PR XP. */
           const sessionMaxReps = bodyweightPerformanceOf(lift.sets) || 0;
           if(sessionMaxReps > t.bestReps){ hits.push('reps'); t.bestReps = sessionMaxReps; }
@@ -44006,7 +44330,7 @@ function computeXPTimeline(){
           hits.sort((a,b) => PR_PRIORITY.indexOf(a) - PR_PRIORITY.indexOf(b));
           const headlineType = hits[0];
           const xp = calculatePRXP(headlineType);
-          if(xp > 0){ breakdown.push({ label:`${PR_TYPE_LABEL[headlineType]} — ${lift.name}`, xp }); entryXP += xp; }
+          if(xp > 0){ breakdown.push({ label:`${prRecordLabel(headlineType, rm)} — ${lift.name}`, xp }); entryXP += xp; }   // D173 — Time/Distance PR under rule 2
           prCount++;
         }
       });
@@ -44418,6 +44742,9 @@ function objectiveDailyCandidates(ev){
     const reps = tex.reps || '';
     const range = parseRepRange(reps);
     if(!range) return;                        // a timed or unparseable target is not a load target
+    /* D173 (E111) — nor is one counted in seconds or metres: its offers ("for at least 40 reps") would name the count as
+       reps, and compare it across units */
+    if(measureForPrescription(name, reps) !== MEASURE_REPS) return;
     const hist = exerciseSessionHistory(name, 5);
     if(!hist.length) return;                  // no evidence, no objective
     const lastAge = daysBetweenDates(hist[0].date, ev.today);
@@ -45528,6 +45855,8 @@ function computeProgressionBuckets(){
    progress through its own rep range. Real and checkable: hit the top of the
    range with reps in reserve and the engine promotes you. */
 function repProgressToward(name){
+  /* D173 (E111) — progress through a rep range is for a lift counted in reps: a 60-second hold is not 100% of "8-12" */
+  if(measureForPrescription(name, repRangeForExercise(name)) !== MEASURE_REPS) return null;
   const range = parseRepRange(repRangeForExercise(name));
   const sessions = exerciseSessionHistory(name, 1);
   if(!range || !sessions.length || range.max === range.min) return null;
@@ -47102,9 +47431,9 @@ function setChipHtml(set, isBodyweight, prType, measure){
   /* The record badge is a word and a border, not only a colour — the set has
      to be findable by someone who cannot separate green from grey. */
   const pr = prType
-    ? `<span class="set-chip-pr" title="${escapeAttr(prSetTitle(prType))}">${escapeHtml(prSetLabel(prType))}</span>` : '';
+    ? `<span class="set-chip-pr" title="${escapeAttr(prSetTitle(prType, measure))}">${escapeHtml(prSetLabel(prType))}</span>` : '';
   return `<span class="set-chip${t && t !== SET_TYPES.WORKING ? ' set-chip-' + t : ''}${prType ? ' set-chip-record' : ''}"` +
-    `${prType ? ' aria-label="' + escapeAttr(prSetTitle(prType)) + '"' : ''}>` +
+    `${prType ? ' aria-label="' + escapeAttr(prSetTitle(prType, measure)) + '"' : ''}>` +
     `${escapeHtml(set.weight||'—')}${isBodyweight?'':' lb'} × ${escapeHtml(set.reps||'—')}${unitShort && set.reps ? ' ' + unitShort : ''}` +
     `${set.rir?' · RIR '+escapeHtml(String(set.rir)):''}${badge}${pr}</span>`;
 }
@@ -48352,15 +48681,80 @@ function renderProgStrength(){
     + mostTrainedHtml(5);
 
   const trends = computeExerciseTrends();
+  /* D173 (E112) — every lift with logged history is listed. One with a strength trend keeps its row; one without (a
+     hold, a carry, a bodyweight lift, a lift logged once) follows it with its own facts — its best in its own unit, or
+     only its load when the unit was never recorded — and no percentage or chart. */
+  const plain = allExercisesPlainRows(trends);
   document.getElementById('progExercises').innerHTML = `
     <div class="sec-head">All exercises<span class="sec-hint">tap for detail</span></div>
-    ${trends.length ? `<div class="rank-list">${trends.map(t => `
+    ${trends.length || plain.length ? `<div class="rank-list">${trends.map(t => `
       <div class="rank-row" role="button" tabindex="0" onclick="openExDetail('${onclickArg(t.name)}')" onkeydown="rankRowKey(event)">
         <div class="rank-name">${escapeHtml(t.name)}<span class="rank-sub">${t.sessions} sessions</span></div>
         ${progTrendSparkHtml(t)}
         <div class="rank-val trend-${t.dir}">${trendIconSvg(trendDirOf(t.dir))} ${t.pct>=0?'+':''}${Math.round(t.pct)}%</div>
-      </div>`).join('')}</div>`
+      </div>`).join('')}${plain.map(allExercisesPlainRowHtml).join('')}</div>`
     : `<div class="mini-empty">Log an exercise at least twice and its progression will appear here.</div>`}`;
+}
+/* D173 (E112) — the lifts All exercises lists without a strength trend, most sessions first. */
+function allExercisesPlainRows(trends){
+  const have = Object.create(null);
+  (trends || []).forEach(t => { have[loggedExerciseKey(t.name)] = true; });
+  const out = [];
+  getAllLoggedExerciseNames().forEach(name => {
+    const k = loggedExerciseKey(name);
+    if(!k || have[k]) return;
+    have[k] = true;
+    const f = allExerciseFactOf(name);
+    if(f) out.push(f);
+  });
+  return out.sort((a, b) => b.sessions - a.sessions || a.name.localeCompare(b.name));
+}
+/* One lift's facts, from its performance sets: the sessions it was logged in, and its best in its own unit — the
+   heaviest load and the most of its count at it, or the most of its count when it is bodyweight. A lift whose unit is
+   not one known unit is read in its newest known unit (rows in another are set aside); with none known, only its
+   heaviest load, a fact in any unit, and no count. */
+function allExerciseFactOf(name){
+  const key = loggedExerciseKey(String(name == null ? '' : name));
+  if(!key) return null;
+  let lm = MEASURE_REPS;
+  try{ lm = liftMeasureOf(name); }catch(e){ lm = MEASURE_REPS; }
+  let unit = lm;
+  if(lm === MEASURE_UNKNOWN){
+    unit = MEASURE_UNKNOWN;
+    const log = sortedLog();
+    for(let i = 0; i < log.length; i++){ const m = workoutLiftMeasure(log[i], key); if(m && m !== MEASURE_UNKNOWN){ unit = m; break; } }
+  }
+  let sessions = 0, bwBest = 0, top = 0, topCount = 0, anyLoad = 0;
+  sortedLog().forEach(l => {
+    const rows = workoutExerciseRows(l, key);
+    if(!rows || !rows.length) return;
+    sessions++;
+    rows.forEach(ex => {
+      const counted = unit !== MEASURE_UNKNOWN && measureOfEntry(ex) === unit;
+      (ex.sets || []).forEach(s => {
+        if(!isPerformanceSet(s)) return;
+        const r = performedReps(s.reps), w = performedLoad(s.weight);
+        if(w !== null && w > anyLoad) anyLoad = w;
+        if(!counted || r === null) return;
+        if(ex.bodyweight || !(w > 0)){ if(r > bwBest) bwBest = r; return; }
+        if(w > top || (w === top && r > topCount)){ top = w; topCount = r; }
+      });
+    });
+  });
+  if(!sessions) return null;
+  const count = n => unit === MEASURE_REPS ? n + (n === 1 ? ' rep' : ' reps') : measureCountShort(n, unit);
+  const value = top > 0 ? fmtLoad(top) + ' × ' + count(topCount) : bwBest > 0 ? count(bwBest) : anyLoad > 0 ? fmtLoad(anyLoad) : '';
+  const kind = lm === MEASURE_TIME ? 'timed' : lm === MEASURE_DISTANCE ? 'metres'
+    : lm === MEASURE_UNKNOWN ? (unit === MEASURE_UNKNOWN ? 'unit not recorded' : 'some sessions in no recorded unit') : '';
+  return { name, sessions, value, kind };
+}
+function allExercisesPlainRowHtml(f){
+  const sub = f.sessions + (f.sessions === 1 ? ' session' : ' sessions') + (f.kind ? ' · ' + f.kind : '');
+  return `
+      <div class="rank-row rank-row-plain" role="button" tabindex="0" onclick="openExDetail('${onclickArg(f.name)}')" onkeydown="rankRowKey(event)">
+        <div class="rank-name">${escapeHtml(f.name)}<span class="rank-sub">${escapeHtml(sub)}</span></div>
+        <div class="rank-val">${escapeHtml(f.value)}</div>
+      </div>`;
 }
 
 function renderProgVolume(){
@@ -64982,6 +65376,7 @@ function captureActiveDraft(){
     };
     /* D125 — the working-set plan the row was seeded with, never re-derived. */
     if(row.dataset.rxPlan) meta.rxPlan = row.dataset.rxPlan;
+    if(row.dataset.measureChoice) meta.measureChoice = row.dataset.measureChoice;   // D173 — a carry's chosen unit
     /* D131A (E57) — and the working load LOOP prescribed it, if it prescribed one,
        recorded the same way: the session's own answer, so a resumed row gets back
        what it had instead of whatever progressionFor would say today. Written for
@@ -65389,7 +65784,7 @@ function programCompletionWord(sum, status){
 function baselineXPLabel(label, events){
   try{
     const isBase = (events || []).some(ev => prIsBaseline(ev) && ev.headline && PR_TYPE_LABEL[ev.headline.type]
-      && label === PR_TYPE_LABEL[ev.headline.type] + ' — ' + ev.exerciseName);
+      && label === prRecordLabel(ev.headline.type, ev.headline.measure) + ' — ' + ev.exerciseName);   // D173
     if(isBase) return 'First-time baseline — ' + label.slice(label.indexOf(' — ') + 3);
   }catch(e){}
   return label;
@@ -66545,7 +66940,8 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
   if(!name) row.classList.add('ex-naming');
   if(meta.targetSets) row.dataset.targetSets = meta.targetSets;
   if(meta.targetReps) row.dataset.targetReps = meta.targetReps;
-  row.dataset.measure = measureForPrescription(name || '', meta.targetReps || '');   // D172
+  if(meta.measureChoice === MEASURE_TIME || meta.measureChoice === MEASURE_DISTANCE) row.dataset.measureChoice = meta.measureChoice;   // D173 — a carry's chosen unit survives a resume
+  row.dataset.measure = rowMeasureOf(name || '', meta.targetReps || '', row.dataset.measureChoice || '');   // D172; D173 — the choice
   if(meta.recommended) row.dataset.recommended = meta.recommended;
   /* Phase B — the exercise this slot was written with, so a swap can be
      recorded as a swap. Only a row the plan prescribed has one; slotKey ties
@@ -66620,8 +67016,10 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
     </div>
     <div class="ex-sets-bar">
       <span class="ex-sets-k">Sets</span>
+      ${measureChoiceHtml()}
       <label class="bw-toggle" title="Bodyweight exercise"><input type="checkbox" class="ex-bw-in" ${bodyweight?'checked':''} onchange="toggleBW(this)"> Bodyweight</label>
     </div>
+    <p class="ex-measure-note" aria-live="polite" hidden></p>
     <div class="sets-head" aria-hidden="true"><span class="unit-label">LB</span><span class="unit-label">${measureHeadWord(row.dataset.measure)}</span></div>
     <div class="sets-list"></div>
     <div class="ex-log-foot">
@@ -66646,6 +67044,7 @@ function addLogExerciseRow(name, effort, bodyweight, sets, restSec, rec, meta){
     </div>
   `;
   wrap.appendChild(row);
+  try{ syncRowMeasure(row); }catch(e){}   // D173 — the Seconds | Metres choice, where the exercise offers one
   refreshExContext(row);
   try{ onWorkoutRowAdded(); }catch(e){}
   const setsList = row.querySelector('.sets-list');
@@ -68553,7 +68952,10 @@ function saveLog(btn){
     if(rx) ex.rx = rx;
     /* D172 — the unit the count was logged in, when it is not reps: forward-only and additive; absent reads as reps */
     syncRowMeasure(row);
-    if(row.dataset.measure === MEASURE_TIME || row.dataset.measure === MEASURE_DISTANCE) ex.measure = row.dataset.measure;
+    if(row.dataset.measure === MEASURE_TIME || row.dataset.measure === MEASURE_DISTANCE){
+      ex.measure = row.dataset.measure;
+      ex.recordRule = RECORD_RULE_MEASURED;   // D173 (E110) — its records are judged in its own unit (rule 2)
+    }
     /* Phase B — a swap is recorded beside what was performed, never instead
        of it. `name` stays the exercise that did the work and owns its sets,
        PRs and progression; `planned` says what the plan had written in its

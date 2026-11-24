@@ -21550,3 +21550,97 @@ Scores, order and hard rejections are 10.93's.
   unit choice. Carries logged before D172 keep an unknown unit.
 
 Contract 296 holds it.
+
+## §218 — LIKE FOR LIKE: A COUNT IS COMPARED ONLY IN ITS UNIT; RECORDS IN A ROW'S OWN UNIT FROM 10.95; A CARRY COUNTED IN SECONDS OR METRES (D173 · LOOP 10.95 · loop-v272)
+
+**What was wrong.** D172 said what a count is (reps, seconds, metres, or UNKNOWN for history that cannot prove its unit).
+Five readers still compared a lift's counts across its whole history:
+- D49. The owner's Farmer's Carry, prescribed "40m", was told "You hit 40 last session — ready for a small increase" (65 lb).
+  The 40 was logged when the field said reps, so its unit is unknown (E111).
+- D49's plateau test. The same carry, logged in seconds and in metres, was "stalled for 4 sessions".
+- D49 for a Weighted Plank handed the "8-12" fallback that every lift outside the plan gets. Its 60 seconds counted as the
+  top of a rep range: "increase to 30 lb". This answer reached Ready to progress, Worth Knowing and the weekly review.
+- This Week and Program Review compared the carry's 60 × 40 (no unit) with 55 × 40 (no unit) and called it "better".
+- Objectives offered "Take Farmer's Carry to 65 lb … for at least 40 reps", and repProgressToward put 60 s at "100%" of 8–12.
+
+The PR engine and XP also read every count as reps (E110):
+- A longer hold was a "Rep PR".
+- A lighter but farther carry earned an "Est. 1RM PR".
+- Pounds × seconds earned "Volume PR".
+
+A carry added by hand could only be counted in seconds (E106), and All exercises listed only lifts with an estimate (E112).
+
+**One rule: like for like.**
+- A count is compared only with a count in the same unit: 40 s with 50 s, 30 m with 40 m.
+- It is never compared across units, and a count whose unit was never recorded (UNKNOWN) is compared with nothing.
+- A load is a load in any unit, so the weight a lift was last trained at stays a fact LOOP may keep.
+- Nothing is converted, combined into a score or rewritten.
+
+**D49 (`progressionMeasureScope`).** The target's unit is `measureForPrescription`.
+- **History all in that unit.** Every lift counted in reps, and a plank or weighted plank at its own seconds, is read exactly
+  as before (Contract 297 M3–M5: 10.94's answers byte for byte, across every tier).
+- **History not all in that unit.** D49 reads that unit alone: `exerciseSessionHistory(name, 5, unit)` and
+  `detectPlateau(name, unit)`.
+- **Nothing in that unit, or a target with no unit for a lift counted in seconds or metres.**
+  `measureIncomparableAnswer` keeps the last load and restates the prescription:
+  - It derives no target.
+  - Its tag is `'insufficient'` with `reason: 'measure'`, so every reader already handles it.
+  - The owner's carry now starts at 60 lb: "Your earlier Farmer's Carry sessions weren't logged in metres, so there's nothing
+    to compare yet — keep 60 lb for 40m."
+
+The plateau flag, This Week (`weekLiftChanges`) and Program Review read a lift whose history is not all one unit in its newest
+workout's unit (`liftComparableUnit`). When that unit is UNKNOWN they say "unit not recorded · not compared". Their counts carry
+their unit ("25 lb × 60 s"). Objectives and repProgressToward are for lifts counted in reps. Exercise Detail's next session says
+a carry is "counted in metres" when its prescription or history says so.
+
+**Records in a row's own unit, from a stated boundary (E110).** Lifetime XP is recomputed from the whole log, so a new rule for
+every row would rewrite levels, milestones and records already earned. The rule is versioned on the row instead:
+- **Which rows are rule 2.** A row saved from 10.95 on, counted in seconds or metres, stores `recordRule: 2` beside its
+  `measure`. This is forward-only and additive. An edit keeps it and never adds it.
+- **What rule 2 does.** Under rule 2 (`measuredRecordHits`):
+  - A heavier load is a weight record (15 XP).
+  - More seconds or metres at a load is a record at that load (10 XP, as a rep record at a load always paid), measured only
+    against earlier counts in the same unit.
+  - A hold's longest time is a record (10 XP).
+  - There is no estimated-1RM record and no volume record.
+- **How it is named.** The hit keeps the engine's type plus a `measure`. The label says Time PR or Distance PR
+  (`prRecordLabel`); a set badge says "Longest at this weight" or "Farthest yet".
+- **Which rows are rule 1.** Every other row is read by the rules it was rewarded under, byte for byte. That covers every row
+  logged before 10.95, the rows 10.94 stored with a measure, and every row counted in reps.
+- **Baselines.** Earlier rows in a known unit are rule 2's baseline. Rule-2 rows never move the bests rule-1 rows are judged by.
+- **XP amounts.** No XP amount is new: PR_XP is 10.94's.
+
+On Contract 297's histories:
+- Lifetime XP, every workout's breakdown, the PR count, every record event and the level are 10.94's for four histories with
+  no rule-2 row:
+  - the owner's history;
+  - the owner's history with 10.94's measured rows;
+  - a rule history saved by 10.94;
+  - a history counted only in reps.
+- With rule-2 rows:
+  - The 45 lb × 60 m carry earns no Est. 1RM PR: 738 → 728 XP, one record fewer.
+  - The 50 m carry is measured against 45 m, never against 47 s.
+  - Holds are Time PRs.
+
+**A carry's unit, chosen (E106).** A prescription that states a unit decides it. A carry with no stated unit offers
+Seconds | Metres beside Sets (`measureChoicesOf`, `chooseRowMeasure`):
+- It is a labelled group of two 44px buttons with pressed state.
+- Changing the unit clears counts already typed and says so; it never converts.
+- A row with a set done keeps its unit.
+- The choice survives leaving and resuming (`meta.measureChoice`).
+- The row is saved with `measure` and `recordRule: 2`.
+
+Every other exercise shows nothing new.
+
+**All exercises (E112).** Every lift with logged history is listed. A lift with a strength trend keeps its row. Any other lift
+follows with its own facts and no percentage or chart:
+- a hold or carry: its best in its unit;
+- a bodyweight lift: its best reps;
+- a lift logged once: its best set;
+- a lift with no recorded unit: only its load.
+
+**Unchanged.** What is shared with Friends (E113 stays open: a unit needs a migration of loop_profile_records_valid's exact key
+set). Session Score, PR modes, capability, D49's working-set plan, D119, the estimate, Next time, the start rule, backup and
+Swap are also unchanged.
+
+Contract 297 holds it.
