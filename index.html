@@ -11832,6 +11832,16 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
 .pj-d-shifted .pj-dm{ border-color: var(--c-progress); }
 .wr-dot-shifted{ border: 1.5px solid var(--c-progress); background: none; }
 /* ==== D169 WEEK TRUTH END ==== */
+/* ==== D170 PAUSE CLARITY BEGIN ==== */
+/* D170 — the Log calendar draws a planned day whose session was trained another day of its week as This Week and the
+   Weekly Review do (D169): the done colour as a ring, between completed (filled) and missed (struck). The key says so,
+   and with its fourth item it wraps onto a second line on the narrowest phones rather than running off the card. */
+.cal-mark-shifted, .cal-lg-shifted{ border: 1.5px solid var(--c-progress); background: none; }
+.cal-shifted .cal-daynum{ color: var(--text-dim); }
+.cal-cell.cal-selected .cal-mark-shifted{ border-color: #06121F; }
+.cal-legend{ flex-wrap: wrap; row-gap: 6px; }
+.cal-legend span{ white-space: nowrap; }
+/* ==== D170 PAUSE CLARITY END ==== */
 </style>
 </head>
 <body>
@@ -12098,6 +12108,7 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
           <span role="listitem"><i class="cal-lg-done" aria-hidden="true"></i>Completed</span>
           <span role="listitem"><i class="cal-lg-planned" aria-hidden="true"></i>Planned</span>
           <span role="listitem"><i class="cal-lg-missed" aria-hidden="true"></i>Missed</span>
+          <span role="listitem"><i class="cal-lg-shifted" aria-hidden="true"></i>Another day</span>
         </div>
       </div>
 
@@ -22437,6 +22448,27 @@ const LOOP_UPDATES = [
       'Today counts as paused while your program is paused, as the Log already showed',
       'This Week no longer counts a day from before you started tracking',
       'A week with no planned workouts shows how many you logged again'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-92',
+    version: 'LOOP 10.92',
+    title: 'Clear While Paused',
+    date: '2026-11-24',
+    swVersion: 'loop-v269',
+    summary: 'While your program is paused, Today and This Week say so, and nothing reads as due until you resume.',
+    newFeatures: [],
+    improvements: [
+      'While your program is paused, Today says nothing is due and which week it will pick up at when you resume. Train anyway is still there',
+      'This Week, the week view and the Program page show the rest of a paused week as paused, and Up next no longer names a session',
+      'In a partly paused week, This Week counts the sessions that were due, for example “1 of 1 due · 2 of 3 sessions paused”',
+      'A planned day you trained on another day now offers View workout and Train again instead of Start. The Log marks it as done another day and links to that workout'
+    ],
+    bugFixes: [
+      'The “got skipped yesterday” prompt no longer appears for a day your program was paused, or for a session you trained on another day',
+      'The Train tab shows your paused program instead of inviting you to follow one',
+      'A program paused before LOOP recorded pause dates, and still paused, no longer counts its paused days as missed'
     ],
     changes: []
   }
@@ -34314,6 +34346,9 @@ function checkMissedWorkout(){
     }
   }catch(e){}
   if(!scheduledCat || scheduledCat === 'rest') return null;
+  /* D170 — a day inside a pause was never owed (D90, as D44 and the Log read it), and a session trained another day of its
+     week (D44's pairing, D169) was not skipped: neither is offered as a session to log. */
+  try{ if(planDayIsSuspended(yDateStr) || planDayDoneOn(yDateStr)) return null; }catch(e){}
   if(dismissedMissedDates.includes(yDateStr)) return null;
   const hasLog = workoutLog.some(l => l.date === yDateStr);
   if(hasLog) return null;
@@ -34949,6 +34984,50 @@ function renderOtherDayCard(el){
     return;
   }
 
+  /* D170 — a day whose planned session was trained another day of its week (D44's pairing, D169): it is done, and the
+     card opens that workout. Training again stays possible, as a new workout from the picker — never by starting this
+     day's session as though it were still owed. The day's own date and the workout's own date are both left as they are. */
+  const todayStr = localDateStr();
+  let doneOn = null;
+  if(cat !== 'rest' && dateStr < todayStr){ try{ doneOn = planDayDoneOn(dateStr); }catch(e){ doneOn = null; } }
+  if(doneOn){
+    const byList = workoutsOnDate(doneOn);
+    const by = byList.find(w => w.category === cat) || byList[0] || null;
+    const wid = workoutIdentity(by, cat);
+    el.innerHTML = `
+      <div class="tw tw-${cat} tw-other tw-shifted tw-wi wi-c-${wid.colorId}">
+        ${nav}
+        <div class="tw-title has-wi">${workoutIconHtml(wid, 'md')}<span>${CAT_LABEL[cat]}</span></div>
+        <div class="tw-meta">Done another day · trained ${escapeHtml(weekdayNameOf(doneOn))}</div>
+        ${fromNextWeek}
+        ${by ? `<button class="tw-cta tw-cta-ghost" onclick="openDayDetail('${onclickArg(by.id)}')">View workout</button>` : ''}
+        <div class="tw-actions">
+          <button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? twActionLabel('Hide workouts', 'Hide') : twActionLabel('Train again', 'Again')}</button>
+          ${changeDay}
+        </div>
+        ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat)}</div>` : ''}
+      </div>`;
+    return;
+  }
+  /* D170 — a planned day inside the pause, gone by, or still ahead this week while the program is paused: nothing is due
+     on it, so it does not offer its session as one to start. */
+  let pausedDay = false;
+  if(cat !== 'rest'){
+    try{ pausedDay = dateStr <= todayStr ? planDayIsSuspended(dateStr) : planDayPausedAhead(dateStr); }catch(e){ pausedDay = false; }
+  }
+  if(pausedDay){
+    el.innerHTML = `
+      <div class="tw tw-rest tw-other tw-paused">
+        ${nav}
+        <div class="tw-title">Program paused</div>
+        <div class="tw-meta">${escapeHtml(CAT_LABEL[cat])} ${dateStr < todayStr ? 'was' : 'is'} planned for ${escapeHtml(DAY_LABEL_FULL[key])}. Nothing is due while your program is paused.</div>
+        <button class="tw-change tw-override" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
+        ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(null)}</div>` : ''}
+        <div class="tw-actions">${changeDay}</div>
+      </div>`;
+    return;
+  }
+
   if(cat === 'rest'){
     el.innerHTML = `
       <div class="tw tw-rest tw-other">
@@ -35115,6 +35194,29 @@ function renderTodayWorkout(){
         <div class="tw-meta">Completed today · ${doneToday.exercises.length} exercise${doneToday.exercises.length===1?'':'s'} · ${sessionVolume(doneToday).toLocaleString()} lb</div>
         <button class="tw-cta tw-cta-done" onclick="openWorkoutSummary('${doneToday.id}')">Workout summary</button>
         <button class="tw-change" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train again'}</button>
+        ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat === 'rest' ? null : cat)}</div>` : ''}
+      </div>`;
+    return;
+  }
+
+  /* D170 — while the program is paused, today is neither a training day nor an ordinary rest day: nothing is due, the
+     program waits at its week until the athlete resumes it, and training anyway stays one tap away. The weekly plan's day
+     (D90's fallback) is not offered as today's workout, and no next session is named, because a paused program does not
+     resume by itself. */
+  let pausedNow = null;
+  try{ const ap = getActiveProgram(); pausedNow = openPauseOf(ap) ? ap : null; }catch(e){ pausedNow = null; }
+  if(pausedNow){
+    let wkNo = null;
+    try{ wkNo = getCurrentProgramWeek(pausedNow); }catch(e){ wkNo = null; }
+    const weeks = parseInt(pausedNow.durationWeeks, 10) || 0;
+    const at = wkNo && weeks ? ' at Week ' + wkNo + ' of ' + weeks : '';
+    el.innerHTML = `
+      <div class="tw tw-rest tw-paused">
+        <div class="tw-label">Today</div>
+        <div class="tw-title">Program paused</div>
+        <div class="tw-meta">Nothing is due. ${escapeHtml(pausedNow.name || 'Your program')} waits${escapeHtml(at)} until you resume it, and training is optional.</div>
+        <button class="tw-cta tw-cta-ghost" onclick="openTraining('program')">View program</button>
+        <button class="tw-change tw-override" onclick="toggleTodayPicker()">${todayPickerOpen ? 'Hide workouts' : 'Train anyway'}</button>
         ${todayPickerOpen ? `<div class="tw-picker">${pickerGridHtml(cat === 'rest' ? null : cat)}</div>` : ''}
       </div>`;
     return;
@@ -36006,6 +36108,12 @@ function thisWeekDayStatus(d, isToday, active){
     try{ pausedToday = !!(d.date && planDayIsSuspended(d.date)); }catch(e){ pausedToday = false; }
     if(pausedToday) return 'paused';
   }
+  /* D170 — a day still ahead while the program is paused is not due unless the athlete resumes first */
+  if(d.state === 'upcoming' && d.cat !== 'rest'){
+    let ahead = false;
+    try{ ahead = !!(d.date && planDayPausedAhead(d.date)); }catch(e){ ahead = false; }
+    if(ahead) return 'paused';
+  }
   if(d.state === 'today' || d.state === 'upcoming') return d.cat === 'rest' ? 'rest' : 'planned';
   /* A day already over that was planned but never due: D44 leaves a suspended day out (D90), and so does this. */
   if(d.cat !== 'rest'){
@@ -36106,8 +36214,9 @@ function deriveThisWeek(){
      A paused day trained anyway is still a paused day: its workout is extra, as D43 and D44 count it. */
   const OWED = { planned: true, completed: true, missed: true, active: true, shifted: true };
   const inPause = (d, i) => {
-    if(wk.days[i].cat === 'rest' || !d.date || d.date > T) return false;
-    if(d.status === 'paused') return true;
+    if(wk.days[i].cat === 'rest' || !d.date) return false;
+    if(d.status === 'paused') return true;      // D170 — a day still ahead of an open pause too
+    if(d.date > T) return false;
     if(d.status !== 'completed' && d.status !== 'active') return false;
     try{ return !!planDayIsSuspended(d.date); }catch(e){ return false; }
   };
@@ -36157,7 +36266,12 @@ function deriveThisWeek(){
     return { key, date, category: cat, title: (tpl && tpl.name) || name || CAT_LABEL[cat],
       when: ahead === 1 ? 'Tomorrow' : (todayIdx + ahead > 6 ? 'Next ' + DAY_LABEL_FULL[key] : DAY_LABEL_FULL[key]) };
   };
-  try{
+  /* D170 — while the program is paused nothing comes next until the athlete resumes it: the week names no session the
+     pause has taken, and never the weekly plan's session in its place (D90's fallback). */
+  let pausedNow = false;
+  try{ pausedNow = !!openPauseOf(getActiveProgram()); }catch(e){ pausedNow = false; }
+  if(pausedNow) upNext = { paused: true };
+  else try{
     const ahead = days.find(x => x.date > T && x.status === 'planned');
     if(ahead) upNext = named(ahead.key, ahead.date, ahead.category, null);
     else {
@@ -36200,7 +36314,7 @@ function deriveThisWeek(){
       }
     } else if(sd.status === 'paused'){
       title = 'Program paused';
-      facts.push('Nothing was due');
+      facts.push(sd.date > T ? 'Nothing is due' : 'Nothing was due');   // D170 — a day still ahead
     } else {
       title = 'No workout scheduled';
     }
@@ -36231,7 +36345,8 @@ function thisWeekNoteHtml(p){
   const mv = (p && p.moved) || [];
   if(mv.length > 2) bits.push(mv.length + ' sessions moved this week');
   else mv.forEach(m => bits.push(m.name + ' moved to ' + DAY_LABEL_FULL[m.key]));
-  if(p && p.paused) bits.push(p.paused + ' session' + (p.paused === 1 ? '' : 's') + ' paused');   // D169 (E90)
+  /* D169 (E90); D170 — beside a count of the sessions due, out of the week's sessions */
+  if(p && p.paused) bits.push(p.planned ? p.paused + ' of ' + (p.planned + p.paused) + ' sessions paused' : p.paused + ' session' + (p.paused === 1 ? '' : 's') + ' paused');
   if(p && p.extra) bits.push(p.extra + ' extra workout' + (p.extra === 1 ? '' : 's'));
   return bits.length ? `<p class="wk2-note">${escapeHtml(bits.join(' · '))}</p>` : '';
 }
@@ -36254,14 +36369,18 @@ function renderWeekCard(){
   /* 1 — progress. The percentage leads, the count explains it, and one segment per planned workout draws it. */
   /* D169 — the count names its workouts as the program's (or the plan's) only when extra workouts sit beside it, so it
      never reads as every workout of the week; otherwise it is as it was. */
-  const countText = `${p.completed} of ${p.planned} ${p.extra ? (p.program ? 'program ' : 'planned ') : ''}workout${p.planned === 1 ? '' : 's'}`;
+  /* D170 — with sessions paused this week the count says it is of the sessions DUE, so a week partly paused never reads as
+     its whole schedule done; the note under the bar says how many of the week's sessions the pause took. The percentage
+     is unchanged (done of due). */
+  const countText = p.paused ? `${p.completed} of ${p.planned} due`
+    : `${p.completed} of ${p.planned} ${p.extra ? (p.program ? 'program ' : 'planned ') : ''}workout${p.planned === 1 ? '' : 's'}`;
   const head = p.planned
     ? `<div class="wk2-sum">
         <span class="wk2-pct"><b>${p.percent}%</b><span class="wk2-pct-k">complete</span></span>
         <span class="wk2-count">${countText}</span>
       </div>
       <div class="wk2-rail" role="progressbar" aria-label="This week" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${p.percent}"
-           aria-valuetext="${p.percent}% complete, ${countText}${p.extra ? ', ' + p.extra + ' extra' : ''}${p.paused ? ', ' + p.paused + ' paused' : ''}">${
+           aria-valuetext="${p.percent}% complete, ${countText}${p.extra ? ', ' + p.extra + ' extra' : ''}${p.paused ? ', ' + p.paused + ' of ' + (p.planned + p.paused) + ' paused' : ''}">${
         Array.from({ length: p.planned }, (_, i) => `<span class="wk2-seg${i < p.filled ? ' on' : ''}"></span>`).join('')
       }</div>${thisWeekNoteHtml(p)}`
     /* D169 — nothing owed: a week whose sessions were all paused says so; a week with nothing planned still says what
@@ -36298,7 +36417,8 @@ function renderWeekCard(){
     /* D158 — Today's own card, just above, already says what today is: the week says what comes after it, and where
        the whole plan lives. */
     const n = m.upNext;
-    ctx = (n ? col('Up next', thisWeekShortName(n.title), n.when, 'wk2-next') : col('Up next', 'Nothing scheduled', '', 'wk2-next wk2-none'))
+    ctx = (n && n.paused ? col('Up next', 'Program paused', 'Nothing due', 'wk2-next wk2-paused')   // D170
+      : n ? col('Up next', thisWeekShortName(n.title), n.when, 'wk2-next') : col('Up next', 'Nothing scheduled', '', 'wk2-next wk2-none'))
       /* D159 — on a running program, the week can be rearranged without a drag: Edit week opens it with a Move on every
          session still ahead */
       + (weekEditProgram()
@@ -36766,6 +36886,7 @@ function weekStatusOfDay(p, date, key, f){
   if(!workout) return 'rest';
   if(date < String(p.startDate)) return 'rest';
   try{ if(dateIsSuspended(p, date, today)) return 'paused'; }catch(e){}
+  try{ if(planDayPausedAhead(date, p)) return 'paused'; }catch(e){}   // D170
   if(date < today) return 'missed';
   if(date === today) return 'today';
   return 'planned';
@@ -36809,6 +36930,7 @@ function deriveWeekView(p, monday, fulfilment){
     /* D169 (E90) — a session inside a pause was never owed (D90): drawn as paused, not counted as planned */
     days, planned: sessions.filter(d => d.status !== 'paused').length + days.filter(d => !d.workout && d.status === 'done').length,
     done: days.filter(d => d.status === 'done').length, missed: days.filter(d => d.status === 'missed').length,
+    paused: days.filter(d => d.status === 'paused').length,   // D170
     minutes: mins, tally, deload,
     editable: state !== 'past' && !!weekEditProgram() && weekEditProgram().id === p.id };
 }
@@ -37126,7 +37248,7 @@ function renderWeekSheet(how, focusId){
       </div>
       ${focus}
       ${v.deload ? `<div class="wsv-flag">A planned lighter week: fewer sets and a little more in reserve, by your program's rule.</div>` : ''}
-      <div class="wsv-glance"><span><b>${v.done}</b> of ${v.planned} done</span>${mins ? `<span><b>${escapeHtml(mins)}</b> planned</span>` : ''}${v.missed ? `<span class="wsv-g-miss"><b>${v.missed}</b> missed</span>` : ''}</div>
+      <div class="wsv-glance">${!v.planned && v.paused ? '<span>Paused · nothing due</span>' : `<span><b>${v.done}</b> of ${v.planned} done</span>`}${v.planned && v.paused ? `<span>${v.paused} paused</span>` : ''}${mins ? `<span><b>${escapeHtml(mins)}</b> planned</span>` : ''}${v.missed ? `<span class="wsv-g-miss"><b>${v.missed}</b> missed</span>` : ''}</div>
       ${v.note ? `<div class="wsv-note">${escapeHtml(v.note)}</div>` : ''}
       ${v.ops.length ? `<div class="wsv-custom">This week has its own changes. Changes to every week still apply to the other weeks; this week keeps its own.</div>` : ''}
       ${locked && v.state !== 'past' ? `<div class="wsv-locked">${escapeHtml(locked)}</div>` : ''}
@@ -39156,7 +39278,7 @@ function pgxWeekHtml(m){
         <h3 id="pgxWeekH">This week <span>${escapeHtml((m.week ? "Week " + m.week + " · " : "") + range)}</span></h3>
         <button type="button" class="pgx-edit" onclick="openWeekSheet(null,{schedule:true})">Edit schedule</button>
       </div>
-      <p class="pgx-week-sum">${wv && wv.planned ? `<b${wv.done ? '' : ' class="is-zero"'}>${wv.done}</b> of ${wv.planned} done${wv.missed ? ' · ' + wv.missed + ' missed' : ''}` : 'No sessions planned this week'}</p>
+      <p class="pgx-week-sum">${wv && wv.planned ? `<b${wv.done ? '' : ' class="is-zero"'}>${wv.done}</b> of ${wv.planned} done${wv.missed ? ' · ' + wv.missed + ' missed' : ''}${wv.paused ? ' · ' + wv.paused + ' paused' : ''}` : (wv && wv.paused ? 'Paused · nothing due' : 'No sessions planned this week')}</p>
       <div class="wk2 pgx-wk2"><div class="wk-days" id="pgxWeekDays" role="group" aria-label="Days this week">${cells}</div></div>
       ${canMove ? '<p class="pgx-hint">Hold a session to move it to another day, this week only.</p>' : ''}
       <div id="pgxWeekUndo" class="wk-undo-host"></div>
@@ -40557,11 +40679,20 @@ function renderHistoryCalendar(){
       cls += ' cal-rest cal-paused';
       stateWord = 'program paused';
     } else {
-      cls += ' cal-missed';
-      mark = `<span class="cal-mark cal-mark-missed"></span>`;
-      /* D169 — the day keeps its own record (missed); its session trained another day of the week is said beside it */
+      /* D169 — a planned day whose session was trained another day of its week says when.
+         D170 — and is drawn as This Week and the Weekly Review draw it: the done colour as a ring, not the missed mark, in
+         the Weekly Review's words. Nothing is logged on the day and nothing is moved; only its mark and words say where
+         its session went. */
       const doneOn = planDayDoneOn(dateStr);
-      stateWord = doneOn ? 'missed, trained ' + weekdayNameOf(doneOn) + ' instead' : 'missed';
+      if(doneOn){
+        cls += ' cal-shifted';
+        mark = `<span class="cal-mark cal-mark-shifted"></span>`;
+        stateWord = 'planned, trained ' + weekdayNameOf(doneOn) + ' instead';
+      } else {
+        cls += ' cal-missed';
+        mark = `<span class="cal-mark cal-mark-missed"></span>`;
+        stateWord = 'missed';
+      }
     }
     if(isToday) cls += ' cal-today';
     if(dateStr === historySelectedDate) cls += ' cal-selected';
@@ -40685,7 +40816,7 @@ function renderSelectedDay(){
      "is planned", not "was planned - nothing logged". */
   const isFuture = dateStr >= localDateStr();
 
-  let line;
+  let line, shiftedBy = null;
   if(scheduledCat && scheduledCat !== 'rest' && !beforeHistory && dateStr <= localDateStr() && planDayIsSuspended(dateStr)){
     /* D99.3 - nothing was owed, so nothing is "missed" or "not logged". */
     line = 'Program paused — nothing was due.';
@@ -40694,6 +40825,7 @@ function renderSelectedDay(){
     const doneOn = planDayDoneOn(dateStr);
     line = doneOn ? `${CAT_LABEL[scheduledCat]} was planned — trained ${weekdayNameOf(doneOn)} instead.`
       : `${CAT_LABEL[scheduledCat]} was planned — nothing logged.`;
+    if(doneOn){ const on = workoutsOnDate(doneOn); shiftedBy = on.find(w => w.category === scheduledCat) || on[0] || null; }   // D170
   } else if(scheduledCat && scheduledCat !== 'rest'){
     line = `${CAT_LABEL[scheduledCat]} is planned.`;
   } else {
@@ -40703,7 +40835,10 @@ function renderSelectedDay(){
   el.innerHTML = `
     <div class="sd-card sd-card-empty">
       <div class="sd-head"><span class="sd-date">${escapeHtml(nice)}</span></div>
-      <div class="sd-meta">${escapeHtml(line)}</div>
+      <div class="sd-meta">${escapeHtml(line)}</div>${shiftedBy ? `
+      <div class="tw-actions sd-actions">
+        <button type="button" class="tw-change" onclick="openDayDetail('${onclickArg(shiftedBy.id)}')">${twActionLabel('View ' + weekdayNameOf(shiftedBy.date) + '’s workout', 'View')}</button>
+      </div>` : ''}
     </div>`;
 }
 
@@ -51604,9 +51739,22 @@ function pauseSpansOf(program){
 /* Is this civil date inside a pause? `to` is EXCLUSIVE: the day the athlete
    resumed is a training day again. An open span (to === null) runs to today —
    a pause that has not ended yet suspends everything from its start. */
+/* D170 (E96) — the pause a program is in NOW, as a span: D90's open span, or — for a program paused before D90 recorded
+   spans and still paused — the start it stored the day it was paused (pausedOnDate). That start is a stored fact, not a
+   reconstruction. Nothing is written; the slot grid (pauseSpansOf), the end date and the banked days are untouched; and
+   a pause that ended before D90 keeps §112's reading, because its dates are unknown. Null when the program is not paused. */
+function openPauseOf(program){
+  if(!program || program.status !== 'paused') return null;
+  const open = pauseSpansOf(program).find(s => s.to === null);
+  if(open) return open;
+  return isBlockDate(program.pausedOnDate) ? { from: program.pausedOnDate, to: null } : null;
+}
 function dateIsSuspended(program, dateStr, todayStr){
   if(!dateStr) return false;
   const spans = pauseSpansOf(program);
+  /* D170 (E96) — a pause still open from before D90 is judged from its stored start, exactly as a D90 open span is */
+  const open = openPauseOf(program);
+  if(open && !spans.some(s => s.to === null)) spans.push(open);
   if(!spans.length) return false;
   const today = todayStr || localDateStr();
   for(const s of spans){
@@ -51702,6 +51850,21 @@ function planTargetOn(dateStr, windows){
    the program that is active now, as D99.3 always did. */
 function planDayIsSuspended(dateStr){
   try{ return !!planTargetOn(dateStr).suspended; }catch(e){ return false; }
+}
+
+/* D170 — a day still ahead THIS WEEK while the program is paused. An open pause suspends everything from its start until
+   it is closed (D90); the engines judge only days that have arrived (dateIsSuspended runs an open span to today), so a
+   paused program's remaining days this week read as due — "0 of 2", "Up next: Pull A tomorrow" — as though it would
+   resume by itself. Nothing is due on them unless the athlete resumes first, and the screens that say what is due (This
+   Week, Today's day cards, the week sheet and the Program page's week) ask this for them. Weeks after this one are the
+   program's plan, which waits: they read as before. Nothing here is stored, scheduled or counted by an engine. */
+function planDayPausedAhead(dateStr, program){
+  let p = program;
+  if(p === undefined){ try{ p = getActiveProgram(); }catch(e){ p = null; } }
+  const open = openPauseOf(p);
+  if(!open || !dateStr) return false;
+  const today = localDateStr();
+  return dateStr > today && dateStr >= open.from && dateStr <= civilAddDays(civilMonday(today), 6);
 }
 
 /* Whole days spent paused, from the spans rather than from the banked total.
@@ -64990,7 +65153,9 @@ function summaryComparison(entry){
    whose weeks are over, or the invitation to follow one. */
 function trainProgramRowHtml(){
   let p = null, running = null;
-  try{ p = hasActiveProgram() ? getActiveProgram() : null; }catch(e){ p = null; }
+  /* D170 — the program the athlete has, running, paused or past its weeks. It read the active program only while it was
+     running, so the paused branch below could never be reached: a paused program's Train row invited "Follow a program". */
+  try{ const ap = getActiveProgram(); p = (ap && (ap.status === 'active' || ap.status === 'paused')) ? ap : null; }catch(e){ p = null; }
   try{ running = getRunningProgram(); }catch(e){ running = null; }
   let k = 'Programs', title = 'Follow a program', go = 'Explore';
   if(running){

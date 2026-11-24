@@ -21325,3 +21325,67 @@ writer and Undo, programs' lifecycle, backups, Today's card, the dock and set se
 
 **Contract 293**: the file (A), paused days (W), a session trained another day (L), program workouts beside extras (X),
 release (K).
+
+## §215 — CLEAR WHILE PAUSED: A PAUSED PROGRAM SAYS SO; DUE VS PAUSED; A SESSION TRAINED ANOTHER DAY OPENS ITS WORKOUT (D170 · LOOP 10.92 · loop-v269)
+
+**What was wrong.** While a program was paused, `hasActiveProgram()` is false, so Today fell back to the weekly plan
+(D90). On a weekly-plan rest day Today read "Rest Day" and named the next session ("Next · Wednesday · Pull A"). On a
+weekly-plan training day it read "Today's Workout" with Start, while This Week (D169) marked today Paused. This Week
+still owed the days ahead of an open pause ("0 of 2 workouts", "Up next: Pull A, Tomorrow"), because D90's open span runs
+only to today. The week sheet and the Program page read "0 of 2 done". Read together, they said the program would resume
+by itself on its next training day. Separately:
+- the missed-session prompt (`checkMissedWorkout`) asked about a day inside the pause ("Looks like Push got skipped
+  yesterday");
+- the Train tab's program row read the active program only while it was running, so its paused branch was unreachable
+  and a paused program's row read "Follow a program".
+
+**A paused program, on every screen that says what is due.**
+- **Today.** "Program paused". "Nothing is due. <Program> waits at Week N of M until you resume it, and training is
+  optional." Then *View program* (where Resume lives) and *Train anyway* (the picker, unchanged). No next session is
+  named, and the weekly plan's day is not offered as today's workout. Week N is `getCurrentProgramWeek`, frozen at the
+  pause (D166), the same number the Program page and the Training Foundation show.
+- **The days still ahead this week** (`planDayPausedAhead`). Read Paused on This Week, Today's day cards, the week sheet
+  and the Program page's week, and are not owed. Up next reads "Program paused · Nothing due".
+- **What the engines still judge.** Only days that have arrived (`dateIsSuspended`, unchanged in meaning). If the athlete
+  resumes, the remaining days are owed again at once.
+- **Later weeks.** They are the program's plan, which waits, and read as before.
+- **Another day's card.** A paused day says it was (or is) planned and that nothing is due, and offers *Train anyway*
+  rather than Start.
+- **The missed-session prompt.** Skips a day inside a pause, and a session trained another day of its week (D44's
+  `doneOn`).
+- **The Train tab.** Names the paused program.
+
+**Done vs due vs paused.** When some of the week's sessions were paused, the count is of the sessions due ("1 of 1
+due"). The note says how many of the week's sessions the pause took ("2 of 3 sessions paused"), and the bar's spoken
+value says both. The percentage is unchanged (done of due). A week paused throughout still reads "Nothing due · 3
+sessions paused". A week with nothing paused reads exactly as 10.91.
+
+**A session trained another day.**
+- **The planned day's card on Today** (D169 pairing) no longer offers its session to start as though still owed. It
+  reads "Done another day · trained Sunday", with *View workout* (the workout that fulfilled it, `openDayDetail`) and
+  *Train again* (the picker: a new, independent workout; nothing is prevented).
+- **The Log calendar** draws the day with its own mark: the done colour as a ring (`cal-shifted`), as This Week and the
+  Weekly Review do, and in the Weekly Review's words ("planned, trained Sunday instead"). The key adds "Another day" and wraps onto a second line on the narrowest phones.
+- **The Log's day line** adds a button to that workout.
+- **Nothing is changed.** No date, no workout and no count moves. D43's pairing, D44 and the requirement fulfilled once
+  are untouched.
+
+**E96 — a pause still open from before D90.** Before D90 a pause stored only `pausedOnDate` (and, on resume, a banked
+day count). A program paused then and still paused carries the start of the pause it is in now: a stored fact, not a
+reconstruction. `openPauseOf` gives the pause a program is in now: D90's open span, or `[pausedOnDate, open)` when no span
+is open. `dateIsSuspended` judges dates by it, so such a program reads exactly as a D90 pause opened the same day, on This
+Week, D44, the Log, the week view and Today.
+- **Nothing is written.** `pauseSpansOf`, the slot grid, `programEndDate`, `getCurrentProgramWeek` and the banked days
+  are untouched, so the end date and the week are 10.91's.
+- **Pauses whose dates are unknown keep §112's reading.** That covers a pause that ended before D90, and a legacy pause
+  once it is resumed (resume nulls `pausedOnDate` and records no span, as it always has). Their dates are unknown and are
+  not invented or spread across the calendar.
+
+**Protected.** D43 pairing, D44, slots and fulfilment, the pause record and its end date, programs' lifecycle, week
+overrides and Undo, history and timestamps, XP, Session Score, PRs, progression and the coach, Friends, exercise art,
+storage keys and backup are 10.91's. The only markup change is one item in the Log calendar's key. The stylesheet change
+is one delimited block (D170 PAUSE CLARITY) after D169's.
+
+**Verification.** Contract 294 (47 checks) compares every case against 10.91 itself (`render1091`): paused (rest day
+and plan day), partly paused, paused throughout, resumed, a workout during the pause, a session trained late, a genuinely
+missed day, a legacy pause open and resumed, a pause ended before D90, an ended program, and no program.

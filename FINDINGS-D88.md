@@ -2960,7 +2960,7 @@ A regression of D168. A week with no planned days read "No workouts planned · 2
 the planned workouts done, which is 0 with nothing planned, so the logged count disappeared. **D169.** The head says the
 week's workouts logged (D44's own count) again (Contract 293 W17).
 
-## E96 — A program still paused from before D90 reads its paused days as missed · P4 · PROVEN · OPEN
+## E96 — A program still paused from before D90 reads its paused days as missed · P4 · PROVEN · **CLOSED in D170 (LOOP 10.92)**
 
 Found by D169's case 9. A program paused before D90 began recording spans, and still paused today, carries its start
 (`pausedOnDate`) but no `pauses`. §112 asserts that a program without `pauses` is "not treated as ever having been paused",
@@ -2968,6 +2968,60 @@ so the planned days since that start read missed on every surface (This Week, D4
 they did in 10.90. The open pause's start is a stored fact, not a guess, so a span `[pausedOnDate, today)` could be read
 while it stays paused. On resume it could be recorded. Doing so changes the D90 slot grid for that program and reverses an
 asserted contract boundary, so it is left for the owner. Not changed in D169 (Contract 293 W13 holds the boundary).
+
+**D170.** The owner's brief asked for a narrow fix if the current pause could be read reliably without reconstruction. It
+can: `pausedOnDate` is the stored start of the pause the program is in now. `openPauseOf` returns D90's open span, or
+`[pausedOnDate, open)` when no span is open, and `dateIsSuspended` judges dates by it. Such a program now reads exactly as
+a D90 pause opened the same day: This Week, D44, the Log, the week view and Today. Nothing is written. `pauseSpansOf`, the
+slot grid, the end date, the program week and the banked days are 10.91's. Pauses whose dates were never stored keep
+§112's reading and are not invented: a pause that ended before D90, and a legacy pause once it is resumed (resume nulls
+`pausedOnDate`, as it always has) (Contract 294 E).
+
+## E97 — While a program was paused, Today offered the weekly plan's day and named a next session · P3 · PROVEN · **CLOSED in D170 (LOOP 10.92)**
+
+Found by D170's probe of 10.91 in a real browser. A paused program is not `hasActiveProgram()`, so Today fell back to the
+weekly plan (D90). On a plan rest day it read "Rest Day · Next · Wednesday · Pull A"; on a plan training day it read
+"Today's Workout" with Start. Meanwhile This Week (D169) marked today Paused and still owed the days ahead ("0 of 2", "Up
+next: Pull A, Tomorrow"), and the week sheet and the Program page read "0 of 2 done". Together they said the program would
+resume by itself. **D170.** Today says "Program paused", that nothing is due, the week it waits at, and that training is
+optional (Train anyway kept). The days still ahead this week read Paused on This Week, the week sheet and the Program page,
+and Up next names nothing. Later weeks are the program's plan and read as before (Contract 294 P).
+
+## E98 — The missed-session prompt asked about a paused day, and about a session trained another day · P4 · PROVEN · **CLOSED in D170 (LOOP 10.92)**
+
+`checkMissedWorkout` read the weekly plan while a program was paused and never asked D90 or D44. "Looks like Push got
+skipped yesterday" appeared for a day inside the pause. It also appeared for Friday's Legs trained on Saturday, which D44
+pairs with Friday. **D170.** It skips both (`planDayIsSuspended`, `planDayDoneOn`). With no program, a missed day is asked
+about as before (Contract 294 P10, P15, S9).
+
+## E99 — The Train tab invited "Follow a program" while one was paused · P4 · PROVEN · **CLOSED in D170 (LOOP 10.92)**
+
+`trainProgramRowHtml` read the active program only while it was running, so its own "Program paused" branch could never
+be reached. **D170.** It reads the active program running or paused (Contract 294 P11).
+
+## E100 — A planned day trained another day offered its session to Start as though still owed · P4 · PROVEN · **CLOSED in D170 (LOOP 10.92)**
+
+D169 drew Friday's Legs trained on Sunday as "Done another day" on This Week. Friday's own card on Today still read "Legs
+· Start Workout" for 16 October, and the Log calendar still drew the day with the missed mark. **D170.** The card reads
+"Done another day · trained Sunday", with View workout (Sunday's workout) and Train again (the picker: a new, independent
+workout). The Log draws the day with the done colour as a ring and its own key item, in the Weekly Review's words, and the
+day line opens Sunday's workout. No date, workout or count changes (Contract 294 S).
+
+## E101 — While paused, the week sheet's week number is the calendar week, not the week the program waits at · P5 · OBSERVED · OPEN
+
+Paused on Saturday 10 October (week 3), read the next Tuesday: Today, the Program page and the Training Foundation say
+"Week 3 of 8" (the progress week, frozen at the pause, D166). The week sheet's head says "This week · Week 4 of 8" (the
+calendar week of the dated grid, D89). Both are correct by their own definitions (D89: calendar week vs progress week), but
+read side by side during a pause they disagree. Choosing which week a paused program's sheet names is a product decision,
+so it is recorded and not changed in D170.
+
+## E102 — While paused, Today's Objectives can still ask for this week's remaining session · P5 · OBSERVED · OPEN
+
+Seen in D170's before/after captures. A program paused since Saturday 10 October, read the next Tuesday: Today and This
+Week say "Program paused · Nothing due", while the Objectives card still offers "Complete your remaining Legs work this
+week — 1 Legs session remains in this week's plan" (+40 XP). Weekly objectives are generated from the weekly plan and
+carry XP rewards with a one-way completion latch (D99), so changing what they offer during a pause touches the XP system.
+It is recorded for the owner, not changed in D170.
 
 ## Not findings — checked and clean
 
