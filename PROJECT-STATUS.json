@@ -3,11 +3,11 @@
   "appId": "loop",
   "version": "10.94",
   "phase": null,
-  "status": "release_ready",
+  "status": "stable",
   "needsQa": false,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "LOOP 10.94 release (loop-v271): automated gates passed; deploying to GitHub Pages, then confirming the live app.",
+  "nextAction": "LOOP 10.94 is live (loop-v271, released 2026-11-24). Next: the owner chooses the next development phase.",
   "blocker": null,
-  "updatedAt": "2026-11-24T13:11:45Z"
+  "updatedAt": "2026-11-24T14:26:15Z"
 }
