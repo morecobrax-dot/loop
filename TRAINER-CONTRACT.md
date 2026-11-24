@@ -21467,3 +21467,86 @@ D125, programs, their lifecycle and week overrides, Friends, exercise art and cu
 the file): the five identities, alias stability, plan references and prescriptions, equipment, roles, search and filters,
 Swap, history, records, e1RM, the next-session answer, the carry's units, the paused week sheet, paused objectives and
 backup.
+
+## §217 — MEASUREMENTS: A COUNT IS REPS, SECONDS OR METRES; NO STRENGTH ESTIMATE FROM A TIMED OR DISTANCE ROW (D172 · LOOP 10.94 · loop-v271)
+
+**What was wrong.** A logged set is a load and a count, and LOOP read the count as reps everywhere. The owner's Farmer's
+Carry (50 × 47 on 5 Oct, then 55 × 40 and 60 × 40 prescribed "40m") showed this on Exercise Detail:
+- "Long-term strength +9% Improving, Estimated 1RM 128 → 140 lb", from compute1RMTrend running Epley over seconds and metres.
+- A weighted plank showed +19% the same way.
+- A plank's best was "45 reps".
+- The live card labelled a 40 m carry's count "Reps".
+- Next time and D49's coaching said "You hit 40 reps".
+
+**One measurement model.** A row's count is reps, seconds or metres (`MEASURE_REPS`, `MEASURE_TIME`, `MEASURE_DISTANCE`), or
+UNKNOWN for history that cannot prove its unit.
+
+| Function | Answers |
+|---|---|
+| `prescriptionMeasure(reps)` | The unit a prescription states: "30–40s", "45 sec" → time; "40m", "20 m" → distance; "8–12", "8/leg", "to failure" → none |
+| `exerciseMeasureDefault(name)` | The exercise's own kind: a registry `timed` hold or carry → time; everything else → reps |
+| `measureForPrescription(name, reps)` | A row being logged: the prescription's unit, else the exercise's kind |
+| `measureOfEntry(ex)` | A logged row (see below) |
+| `liftMeasureOf(name)` | A lift's one measure across its rows, or UNKNOWN when they differ |
+
+`measureOfEntry(ex)` reads, in order:
+1. A row logged from D172 on: its stored `measure` (`'time'` or `'distance'`). A row counted in reps stores none.
+2. A row logged before D172 with a prescription in seconds: time.
+3. A hold that is not a carry, with no unit stated: time. A hold can only be timed.
+4. A carry prescribed in metres or with no prescription, or a lift counted in reps prescribed in a unit: UNKNOWN. Shown as
+   typed and compared with nothing.
+
+**Forward-only.** The field is additive, like D47's `rx`: absent means reps, as every row has always been read.
+- Nothing stored is rewritten or converted between seconds, metres and reps.
+- Backup and restore carry the field as they carry any row field.
+- An old backup restores unchanged.
+- The editor keeps it.
+
+**No strength estimate from a row not counted in reps.** compute1RMTrend skips such rows. So a timed or distance lift gets no
+estimated 1RM, no "Improving", no Progress row and no capability trend. capabilityTrend, which readers branch on, is unchanged.
+
+Exercise Detail says why:
+- A timed or distance lift: "X is timed, so LOOP doesn't estimate a one-rep max for it. Its records compare time at the same
+  load."
+- A lift with unknown history: "Some sessions of X were logged before LOOP recorded whether the count was time or distance…"
+- A bodyweight hold charts its longest hold in seconds, workout by workout.
+
+The gate is the measurement, not the registry's `supports1RM`. Kettlebell Swing is counted in reps and keeps its trend.
+`supports1RM` would also have removed curls and lunges, which keep theirs.
+
+**Units everywhere a count is shown:**
+- The live card: the count field's aria-label (Seconds / Metres / Reps), the column head (SEC / M / REPS) and "sec" or "m"
+  beside the stepper (CSS layer D172 MEASURES, alternative text empty).
+- Last time.
+- The day's detail and the history list.
+- Exercise Detail's best ever, personal bests and each workout.
+- Record headlines: "Time PR 25 lb × 60 s", or "Record" with the count as typed when the unit is unknown. An estimated-1RM or
+  volume headline gives way to the session's own record, or none.
+- Progress's personal-best timeline: a plank's "60 s, +15 s".
+- A Friends record: a hold in seconds, a carry as the number alone; what is shared is unchanged.
+
+**D49's words (E108 closed).** progressionFor returns D49's answer with its sentences said in the row's unit (`measureWordsOf`):
+- "You hit 60 s last session" for a weighted plank.
+- The number as typed for a lift whose history holds no one unit.
+
+Load, tag, target and every decision are unchanged. A lift counted in reps gets the same object. Next time gives no line to a
+lift whose unit is unknown.
+
+**Tonnage.** sessionVolume skips a row whose stored measure is time or distance: pounds × seconds is not volume. Rows logged
+before D172 count exactly as in 10.93, so no past week's volume moves.
+
+**Swap's words.** Swap says "Same movement pattern" (it was "Same movement", which read as the same exercise). A stand-in with no
+primary muscle in common says where the work goes ("Moves the work to glutes" for Hip Thrust in place of a Trap Bar Deadlift).
+Scores, order and hard rejections are 10.93's.
+
+**Unchanged, and recorded.**
+- XP, records, the PR engine, Session Score, Rank, D49's decisions, capability (except its legacy trend fields), mastery and
+  the working-set plan are unchanged.
+- The PR engine's reading of timed rows is E110.
+- D49 comparing counts across units is E111.
+- Progress's All exercises list is E112.
+- Friends records without a unit are E113.
+- E106 stays open, narrowed: distance is supported where a prescription states it. A carry added freely logs seconds, with no
+  unit choice. Carries logged before D172 keep an unknown unit.
+
+Contract 296 holds it.

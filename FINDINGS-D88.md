@@ -3077,6 +3077,21 @@ whatever number is entered is stored as entered and is never converted. Displays
 The prescriptions are kept as written. Adding distance to strength sets is a new measurement model, so it is left for the
 owner. The two other options are prescribing those carries in seconds, or recording a carry's distance.
 
+**D172 (LOOP 10.94) narrows this; it stays open.** A carry prescribed in metres (five built-in rows, and the sled push and
+pull's "20m") is now logged in metres:
+- **On the card.** The live card labels the count Metres (the field's aria-label, the column head "M", "m" beside the
+  stepper).
+- **In storage.** The saved row records `measure: 'distance'`, with the count stored exactly as typed. A row prescribed in
+  seconds records `'time'`.
+- **Everywhere else.** Last time, the day's detail, the history list and Exercise Detail show "m" or "s".
+
+Still not supported:
+- A carry added outside a prescription logs in seconds (the registry's `timed`), and the card offers no unit choice.
+- Carries logged before D172 with a metres prescription, or none, have no recorded unit. They read as unknown: the number as
+  typed, with no unit and no estimate, never converted or rewritten.
+- A loaded carry or hold gets no progression chart, only its records at the same load.
+- D49 still compares counts across units (E111). The PR engine and its XP still read them as reps (E110).
+
 ## E107 — "Single-Leg Deadlift" and "Single-Leg RDL" are two identities for one drawing · P5 · OBSERVED · OPEN
 
 The home plans prescribe "Single-Leg Deadlift" as bodyweight work (3 rows); the athletic plans prescribe "Single-Leg RDL"
@@ -3084,17 +3099,83 @@ loaded. The art draws both with one drawing, and the picker lists both. D171 reg
 deadlift" its alias would merge the two in Mastery and Swap and change the home rows' derived equipment, so it is left for the
 owner.
 
-## E108 — D49's own load lines still word a timed lift's count as reps · P5 · OBSERVED · OPEN
+## E108 — D49's own load lines still word a timed lift's count as reps · P5 · OBSERVED · **CLOSED in D172 (LOOP 10.94)**
 
 When D49 raises or lowers the load of a loaded timed lift, the workout card's coaching line uses the words it uses for every lift,
 which count reps. The numbers are compared correctly; only the unit word is a lift's. D171 corrected the next-session
 answer (E105) and left D49's own text, which every lift shares.
+
+**D172.** D49's sentences reach the live card, Today and Train's guide, Next time and every other reader through progressionFor.
+measureWordsOf now says them in the row's unit:
+- A weighted plank: "You hit 60 s last session", "work inside 30–45 s", "Less time than last time".
+- A lift whose history holds no one unit (a carry logged before D172): the number as typed, "You hit 40 last session".
+- A stray "reps" after a unit is dropped from the no-history headline ("40m reps" becomes "40m").
+
+Load, tag, target and every decision are D49's (Contract 296 E4, W1–W6). A lift counted in reps gets the same answer object
+as before. Next time gives no line to a lift whose unit is unknown. That D49 compares counts across units is recorded as E111.
 
 ## E109 — While paused, the Program roadmap numbers weeks by the calendar · P5 · OBSERVED · OPEN
 
 My plan lists the dated grid's weeks: "Week 5 · This week · Paused · nothing due", with weeks 9–10 added because D90 runs the
 grid on while paused. The week sheet now names the week the program waits at (E101). The roadmap is the calendar of the plan
 and was kept as it is, as the brief asked.
+
+## E110 — The PR engine and its XP read a timed or distance count as reps · P3 · PROVEN · OPEN
+
+Found in D172. The PR event engine (computeAllPREvents) treats a set as a load and a rep count. On Contract 296's log, the
+19 Oct session gives:
+- Farmer's Carry: weight 55 → 60, `1rm` 128 → 140, `volume` 4600 → 4680.
+- Weighted Plank: reps_at_weight 45 → 60, `1rm` 63 → 75, `volume` 2125 → 2875.
+- Plank: reps 45 → 60.
+
+XP awards one record per lift per workout, by its top hit (PR_PRIORITY: weight, reps_at_weight, 1rm, volume, reps; PR_XP
+15 / 10 / 10 / 5 / 10). On that log the timed lifts earned 90 of 697 XP: "Weight PR — Farmer's Carry" 15 × 3, "Weight PR —
+Weighted Plank" 15, "Rep PR — Weighted Plank" 10 and "Rep PR — Plank" 10 × 2.
+- **Valid:** a heavier load is a weight record.
+- **Valid, wrong word:** a longer hold at the same load is a real record, but it is labelled "Rep PR".
+- **Not valid:** an estimated 1RM or pounds × seconds is not a record for a timed or distance row. Such a hit earns XP when
+  it is the session's only hit for the lift: "Est. 1RM PR" 10, "Volume PR" 5. None did on that log.
+
+**What D172 changed:** display only. A record headline (formatPREventHeadline) never shows an estimated-1RM or volume record
+for such a lift. It shows the session's own record in the lift's unit ("Time PR 25 lb × 60 s"), or none. XP amounts, XP
+labels, Level and Rank are unchanged (Contract 296 V3, V4), as the brief required.
+
+**Safe resolution, for the owner:** XP is recomputed from the whole log, so any change to the engine also rewrites past XP.
+1. A forward-only rule: from a stated release date, a row whose measure is not reps earns no `1rm` or `volume` hit, and its
+   reps_at_weight / reps hits are labelled "Time PR" or "Distance PR".
+2. Rows before that date keep today's result.
+3. Removing points already shown would need the owner's decision.
+
+## E111 — D49 compares a lift's counts across sessions whatever their unit · P4 · PROVEN · OPEN
+
+Found in D172. D49 reads a lift's last five sessions as counts and compares them, and nothing tells it which counts were
+seconds and which were metres. The owner's carry shows the problem:
+- 5 Oct: 50 × 47, prescribed 30–40s, so seconds.
+- 12 and 19 Oct: 55 × 40 and 60 × 40, prescribed 40m, so their unit is unknown.
+
+Today D49 answers "65 lb", having compared 40 with the 40m range. Add rows logged from D172 on (metres, then seconds) and it
+answers "Performance has stalled", comparing 47, 40, 35 m and 30 s.
+
+D172 changed only the words: they now carry no unit for such a lift ("You hit 40 last session"). Next time gives the carry no
+line. The load and the decision are D49's.
+
+**Safe resolution, for the owner:** a change to D49 itself. A lift's evidence would be only rows of the prescription's measure,
+excluding rows whose unit is unknown.
+
+## E112 — Progress → All exercises lists only lifts with an estimated-strength line · P5 · OBSERVED · OPEN
+
+The list is drawn from compute1RMTrend. 10.93 already left out bodyweight lifts such as a Plank, and listed the carry at
+"+9%" and the weighted plank at "+19%". 10.94 gives those two no estimate, so they leave the list too. They still open from
+Mastery, a workout's rows and the records.
+
+**Possible resolution:** a row for a timed or distance lift showing its best hold or carry, with no percentage.
+
+## E113 — A Friends record carries no unit · P5 · OBSERVED · OPEN
+
+A shared record is one of three kinds: weight, reps_at_weight or reps. None of them has a unit. 10.94 shows a hold's count in
+seconds and a carry's as the number alone, by the rule for a row with no recorded unit (socialRecordValue, display only). What
+is shared, and what an older app shows for it, is unchanged. Adding a unit to the shared record is a schema change, which is
+out of scope.
 
 ## Not findings — checked and clean
 
