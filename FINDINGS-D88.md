@@ -3007,7 +3007,7 @@ D169 drew Friday's Legs trained on Sunday as "Done another day" on This Week. Fr
 workout). The Log draws the day with the done colour as a ring and its own key item, in the Weekly Review's words, and the
 day line opens Sunday's workout. No date, workout or count changes (Contract 294 S).
 
-## E101 — While paused, the week sheet's week number is the calendar week, not the week the program waits at · P5 · OBSERVED · OPEN
+## E101 — While paused, the week sheet's week number is the calendar week, not the week the program waits at · P5 · OBSERVED · **CLOSED in D171 (LOOP 10.93)**
 
 Paused on Saturday 10 October (week 3), read the next Tuesday: Today, the Program page and the Training Foundation say
 "Week 3 of 8" (the progress week, frozen at the pause, D166). The week sheet's head says "This week · Week 4 of 8" (the
@@ -3015,13 +3015,86 @@ calendar week of the dated grid, D89). Both are correct by their own definitions
 read side by side during a pause they disagree. Choosing which week a paused program's sheet names is a product decision,
 so it is recorded and not changed in D170.
 
-## E102 — While paused, Today's Objectives can still ask for this week's remaining session · P5 · OBSERVED · OPEN
+**D171.** From the pause's week on, while the program is paused, the week sheet's head says "Paused at Week 3 of 8" and
+"Viewing Oct 19–25". It names the week the progress waits at (getCurrentProgramWeek, frozen at the pause, D166), which is
+also the week whose phase and sessions the sheet shows. Weeks before the pause, and every week of a running program, read as
+before. No week number is recalculated (Contract 295 P). The roadmap's calendar numbering is recorded as E109.
+
+## E102 — While paused, Today's Objectives can still ask for this week's remaining session · P5 · OBSERVED · **CLOSED in D171 (LOOP 10.93)**
 
 Seen in D170's before/after captures. A program paused since Saturday 10 October, read the next Tuesday: Today and This
 Week say "Program paused · Nothing due", while the Objectives card still offers "Complete your remaining Legs work this
 week — 1 Legs session remains in this week's plan" (+40 XP). Weekly objectives are generated from the weekly plan and
 carry XP rewards with a one-way completion latch (D99), so changing what they offer during a pause touches the XP system.
 It is recorded for the owner, not changed in D170.
+
+**D171.** While the program is paused, an unfinished objective says "Optional while your program is paused." on Today and in
+the Profile. Its title is quieter, and its target, progress and XP are unchanged: it still counts if the athlete trains. No
+objective is generated, withdrawn, completed or re-rewarded by the pause, and earned objectives and their XP are untouched
+(Contract 295 O).
+
+## E103 — Five movements LOOP's own plans prescribe and its art draws were not in the exercise registry · P3 · PROVEN · **CLOSED in D171 (LOOP 10.93)**
+
+Raised by D170's catalog audit and confirmed against the source in D171. Farmer's Carry (6 plan rows), Kettlebell Swing (3),
+Trap Bar Deadlift (2), Single-Leg RDL (2) and Pallof Press (1) each had a drawing and three cues keyed under an id, but no
+CANONICAL_EXERCISES entry. They resolved as `unmapped:` names, with muscles, pattern and equipment guessed from words:
+- Farmer's Carry had no primary muscle and no equipment, so no muscle or equipment filter could find it.
+- Pallof Press was read as a barbell compound (its name contains "press").
+- Swap offered none of them and never offered them for anything.
+
+**D171.** All five are registered under their drawings' ids, with equipment requirements and the plan prescriptions
+untouched. Their muscles are the ones LOOP already derived; the trap bar adds quads as secondary, and Farmer's Carry gains abs
+(bracing) as its primary, with back as secondary. Back as its primary was tried first and dropped: it drew the full-body day's
+suggestions toward back work and lost their chest pressing. No alias or id is shared with another lift, so no history, record
+or progression is merged. Every derived change was classified before release (Contract 295):
+- Swap lists for 17 existing lifts (the five added where they belong).
+- Three of 42 "Build for me" sessions:
+  - Athletic, lower body, 60 minutes: Romanian Deadlift replaces Trap Bar Deadlift, because Single-Leg RDL now has its
+    real equipment.
+  - The strength and athletic core sessions add Farmer's Carry, as those plans' own core days prescribe it.
+- The picker's suggestions: after two rows on a Pull day, the Trap Bar Deadlift leads, as LOOP's own Pull days prescribe it.
+  A Core day lists Farmer's Carry.
+- Time Mode: unchanged. Generated programs: unchanged. Warm-ups: unchanged.
+
+## E104 — A Pallof Press was given an estimated one-rep max · P4 · PROVEN · **CLOSED in D171 (LOOP 10.93)**
+
+`classifyExerciseType` read "press" in the name as a barbell compound, so e1RM capability and comparisons treated a core
+exercise as a strength lift. **D171.** "pallof" reads as cable work, which has no e1RM (Contract 295).
+
+## E105 — A loaded timed lift's next-session answer counted its time as reps · P4 · PROVEN · **CLOSED in D171 (LOOP 10.93)**
+
+Exercise Detail's Next session for a Farmer's Carry logged at 60 lb for 40 seconds said "Keep 60 lb and match your previous 40
+reps". Only bodyweight holds were answered as timed (D119). **D171.** A loaded timed lift (a carry, a weighted hold) gets the
+same answer a bodyweight hold gets: timed, with no rep target. D49's load, which a workout starts at, is unchanged
+(Contract 295).
+
+## E106 — Five Farmer's Carry prescriptions are in metres, and LOOP records no distance for a lift · P3 · PROVEN · OPEN
+
+Of the six built-in Farmer's Carry rows, one prescribes time ("30–40s", Pull B) and five prescribe distance ("30–40m",
+"40m"). A strength set records a load and a count. D171 registers the carry as timed, as LOOP's name reading always treated
+it. So the count is time, and a carry done for time logs correctly. A carry done for distance has no field to hold metres:
+whatever number is entered is stored as entered and is never converted. Displays show it as a bare count ("60 lb × 40").
+The prescriptions are kept as written. Adding distance to strength sets is a new measurement model, so it is left for the
+owner. The two other options are prescribing those carries in seconds, or recording a carry's distance.
+
+## E107 — "Single-Leg Deadlift" and "Single-Leg RDL" are two identities for one drawing · P5 · OBSERVED · OPEN
+
+The home plans prescribe "Single-Leg Deadlift" as bodyweight work (3 rows); the athletic plans prescribe "Single-Leg RDL"
+loaded. The art draws both with one drawing, and the picker lists both. D171 registers only Single-Leg RDL. Making "single-leg
+deadlift" its alias would merge the two in Mastery and Swap and change the home rows' derived equipment, so it is left for the
+owner.
+
+## E108 — D49's own load lines still word a timed lift's count as reps · P5 · OBSERVED · OPEN
+
+When D49 raises or lowers the load of a loaded timed lift, the workout card's coaching line uses the words it uses for every lift,
+which count reps. The numbers are compared correctly; only the unit word is a lift's. D171 corrected the next-session
+answer (E105) and left D49's own text, which every lift shares.
+
+## E109 — While paused, the Program roadmap numbers weeks by the calendar · P5 · OBSERVED · OPEN
+
+My plan lists the dated grid's weeks: "Week 5 · This week · Paused · nothing due", with weeks 9–10 added because D90 runs the
+grid on while paused. The week sheet now names the week the program waits at (E101). The roadmap is the calendar of the plan
+and was kept as it is, as the brief asked.
 
 ## Not findings — checked and clean
 

@@ -21389,3 +21389,81 @@ is one delimited block (D170 PAUSE CLARITY) after D169's.
 **Verification.** Contract 294 (47 checks) compares every case against 10.91 itself (`render1091`): paused (rest day
 and plan day), partly paused, paused throughout, resumed, a workout during the pause, a session trained late, a genuinely
 missed day, a legacy pause open and resumed, a pause ended before D90, an ended program, and no program.
+
+## §216 — CATALOG INTEGRITY: FIVE PLANNED AND DRAWN MOVEMENTS REGISTERED; A PAUSED PROGRAM'S WEEK AND OBJECTIVES (D171 · LOOP 10.93 · loop-v270)
+
+**What was wrong (E103).** Five movements were prescribed in LOOP's own plans and drawn in its art, with three cues each, but
+had no registry entry: Farmer's Carry (6 rows), Kettlebell Swing (3), Trap Bar Deadlift (2), Single-Leg RDL (2) and Pallof
+Press (1). They resolved as `unmapped:` names, with muscles, pattern and equipment guessed from their words:
+- Farmer's Carry had no primary muscle and no equipment, so the picker's filters could not find it.
+- Single-Leg RDL and Pallof Press had no equipment.
+- Swap offered none of them, and never offered them as a substitute.
+- "press" made the Pallof Press a barbell compound with an e1RM (E104).
+
+**The five identities.** Each id is its drawing's key, so the art and cues map unchanged. Muscles are the ones LOOP already
+derived; the trap bar adds quads as secondary, and the carry gains abs (bracing) as its primary, with back as secondary. Back
+as its primary was tried first and dropped: it drew the full-body day's suggestions toward back work and lost their chest
+pressing.
+
+| Exercise | Id | Equipment | Primary | Pattern | Logged as |
+|---|---|---|---|---|---|
+| Farmer's Carry | `farmers_carry` | Dumbbell (dumbbells, kettlebells or a trap bar) | abs | carry | load × time (timed) |
+| Kettlebell Swing | `kb_swing` | Kettlebell | glutes | hinge | load × reps |
+| Trap Bar Deadlift | `trap_bar_deadlift` | Barbell (the new Trap Bar gym item) | back, hamstrings | hinge | load × reps |
+| Single-Leg RDL | `single_leg_rdl` | Dumbbell (dumbbells or kettlebells) | hamstrings | hinge | load × reps, sets as rows ("/leg") |
+| Pallof Press | `pallof_press` | Cable (or a band) | abs, anti-rotation | core | load × reps, sets as rows ("/side") |
+
+- **Never lead a session.** The carry and the swing are in `NEVER_PRIMARY_IDS`: a carry is a finisher, and a swing is a
+  ballistic hinge, not a main strength lift. The trap bar and the one-leg RDL are compound lifts.
+- **A carry is its own pattern.** Swap's related patterns give it none, so it is never traded for another pattern's work.
+- **Anti-rotation is never traded with a trunk that moves.** Swap hard-rejects a crunch, a twist or a leg raise for a Pallof
+  Press, and the Pallof Press for any of them. No pair of the core movements LOOP already had is affected.
+- **A Trap Bar Deadlift is never a Deadlift.** No alias or id is shared, so histories, records and progression stay apart.
+  Each is the other's nearest swap.
+- **Unilateral work stays as it is.** A one-leg lift is logged one row per set, its prescription saying "/leg" (or
+  "/side"), and is never counted twice.
+- **The Trap Bar gym item.** A profile set up before it never answered for it, so it reads unknown, never "no".
+- **"Single-Leg Deadlift" stays separate.** The home plans' bodyweight "Single-Leg Deadlift" keeps its own unmapped
+  identity (E107).
+
+**Farmer's Carry is timed.** Its count is time, as LOOP's name reading always filed it, with the load in the load field.
+- **The seconds prescription.** Of the six built-in rows, the one prescribed in seconds ("30–40s") logs exactly.
+- **The metres prescriptions.** Five are prescribed in metres. LOOP has no distance field for a strength set, so a carry
+  done for distance cannot be recorded as distance (E106, open). Those prescriptions are kept as written, and whatever count
+  is entered is stored as entered: never converted between seconds and metres.
+
+**A loaded timed lift's answer (E105).** A loaded timed lift (a carry, a weighted hold) now gets the timed answer, as a
+bodyweight hold already did. This is the next-session answer read by Exercise Detail and Today's guide (D119). D49's own
+answer, which sets the load a workout starts at, is unchanged. Its rep-worded coaching line is recorded as E108.
+
+**Derived changes, classified before release.** A snapshot of everything the registry feeds was compared between 10.92 and
+10.93:
+- **Changed.**
+  - Swap's lists for 17 existing lifts: the trap bar and the one-leg RDL among the hinges, the swing among the glute
+    hinges, the Pallof Press among anti-movement core work.
+  - Three of 42 "Build for me" sessions. In the athletic lower-body 60-minute session, Romanian Deadlift replaces Trap Bar
+    Deadlift, because Single-Leg RDL now has its real equipment. The strength and athletic core sessions add Farmer's
+    Carry, as those plans' own core days prescribe it.
+  - The picker's suggestions: after two rows on a Pull day the Trap Bar Deadlift leads, as LOOP's own Pull days prescribe
+    it. A Core day lists Farmer's Carry.
+- **Unchanged.** Time Mode's 624 compressions, the generator's 112 programs and the seven warm-up preparations.
+
+**A paused program's week (E101).** While a program is paused, its progress waits at the week it paused in (D166). Every week
+from the pause on shows that week's phase and sessions. So the week sheet's head no longer gives the calendar slot's number
+("This week · Week 5 of 8" beside Overview's "Week 3 of 8"). It reads "Paused at Week 3 of 8 · Viewing Oct 19–25". Weeks
+before the pause, and a running program's, read as before. No week number is recalculated. The roadmap's calendar numbering
+is recorded as E109.
+
+**Objectives while paused (E102).** Every objective is read from the plan's sessions. While the program is paused, an
+unfinished one says "Optional while your program is paused." on Today and in the Profile, with its title quieter. It still
+counts if the athlete trains, for the XP it was frozen with. Nothing is generated, withdrawn, completed or rewarded
+differently. Earned objectives and their XP are untouched, and a completed objective reads complete.
+
+**Protected.** History, saved sets and measurements, D43/D44, Session Score, XP and levels, records and baselines, D49 and
+D125, programs, their lifecycle and week overrides, Friends, exercise art and cues, storage keys and schemas, and backup are
+10.92's. No markup changes. The stylesheet adds one rule in a delimited block after D170's.
+
+**Verification.** Contract 295 checks each change against 10.92 itself (render1092 and 10.92's own registry, read back from
+the file): the five identities, alias stability, plan references and prescriptions, equipment, roles, search and filters,
+Swap, history, records, e1RM, the next-session answer, the carry's units, the paused week sheet, paused objectives and
+backup.

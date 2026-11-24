@@ -11842,6 +11842,11 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
 .cal-legend{ flex-wrap: wrap; row-gap: 6px; }
 .cal-legend span{ white-space: nowrap; }
 /* ==== D170 PAUSE CLARITY END ==== */
+/* ==== D171 PAUSED OBJECTIVES BEGIN ==== */
+/* D171 (E102) — an unfinished objective while the program is paused reads as optional: its title in the quiet text colour,
+   as a stale one already is (D163). Its progress and reward are drawn as before. */
+.obj-row-hold .obj-t{ color: var(--text-dim); }
+/* ==== D171 PAUSED OBJECTIVES END ==== */
 </style>
 </head>
 <body>
@@ -22471,6 +22476,27 @@ const LOOP_UPDATES = [
       'A program paused before LOOP recorded pause dates, and still paused, no longer counts its paused days as missed'
     ],
     changes: []
+  },
+  {
+    id: 'v10-93',
+    version: 'LOOP 10.93',
+    title: 'Five Exercises, Fully Listed',
+    date: '2026-11-24',
+    swVersion: 'loop-v270',
+    summary: 'Five exercises from LOOP’s plans now carry their equipment, muscles and movement, and a paused program reads more clearly.',
+    newFeatures: [],
+    improvements: [
+      'Farmer’s Carry, Kettlebell Swing, Trap Bar Deadlift, Single-Leg RDL and Pallof Press now show their equipment, muscles and movement, so search, filters and Swap can find them',
+      'Search also finds them by other names, such as hex bar deadlift and farmers walk',
+      'Your gym equipment now includes a trap bar. Until you mark it, LOOP treats it as unknown',
+      'While your program is paused, the week view shows the week it is paused at and the dates you are viewing',
+      'While your program is paused, unfinished objectives say they are optional'
+    ],
+    bugFixes: [
+      'Pallof Press no longer gets a one-rep max estimate, and Swap no longer suggests crunches or twists in its place',
+      'Exercise Detail no longer counts the time of a Farmer’s Carry or a weighted hold as reps in its next-session suggestion'
+    ],
+    changes: []
   }
 ];
 
@@ -26480,7 +26506,7 @@ const BUILD_REASON_TEXT = {
   LIGHTER: 'One set fewer: {m} is still recovering',
   USER_PICK: 'Your pick'
 };
-const BUILD_PATTERN_WORD = { horizontal_push: 'press', vertical_push: 'overhead press', horizontal_pull: 'row', vertical_pull: 'pulldown', squat: 'squat', hinge: 'hinge', lunge: 'lunge', isolation: 'isolation', core: 'core' };
+const BUILD_PATTERN_WORD = { horizontal_push: 'press', vertical_push: 'overhead press', horizontal_pull: 'row', vertical_pull: 'pulldown', squat: 'squat', hinge: 'hinge', lunge: 'lunge', isolation: 'isolation', core: 'core', carry: 'carry' };
 const BUILD_MUSCLE_WORD = { chest: 'chest', shoulders: 'shoulders', back: 'back', biceps: 'biceps', triceps: 'triceps', abs: 'core', quads: 'quads', hamstrings: 'hamstrings', glutes: 'glutes', calves: 'calves' };
 
 /* ---- LOOP's own duration model, unrounded ----
@@ -28877,7 +28903,8 @@ function bodyweightProgressionFor(exerciseName, dateStr){
   let id = null;
   try{ id = resolveExerciseId(raw); }catch(e){ id = null; }
   const none = (tag, why, extra) => Object.assign({ mode: 'bodyweight', tag, reps: null, weight: null, headline: null, why }, extra || {});
-  if(substitutionIsHold(id, raw)) return none('unsupported', lift + ' is a timed hold, and LOOP’s rep targets are for lifts counted in reps.', { reason: 'hold' });
+  /* D171 — a loaded carry is timed too, but it is not a hold */
+  if(substitutionIsHold(id, raw)) return none('unsupported', lift + (substitutionPatternFor(id, raw) === 'carry' ? ' is timed' : ' is a timed hold') + ', and LOOP’s rep targets are for lifts counted in reps.', { reason: 'hold' });
   const sessions = bodyweightSessionHistory(raw, BODYWEIGHT_PROGRESSION.window);
   if(sessions === null) return null;
   if(!sessions.length) return none('new', 'LOOP sets a rep target once a working set of ' + lift + ' has been logged with its reps.');
@@ -28910,7 +28937,22 @@ function bodyweightProgressionFor(exerciseName, dateStr){
 function progressionRecommendationFor(exerciseName, templateReps, templateRecommended, dateStr){
   /* D152 (E76) — an assisted lift is asked neither D119 nor D49: its reps were done with help the log may not carry. */
   /* D161 — a caller may name the session's date: only the planned-lighter-week question reads it */
-  return assistedProgressionAnswer(exerciseName) || bodyweightProgressionFor(exerciseName, dateStr) || progressionFor(exerciseName, templateReps, templateRecommended, dateStr);
+  return assistedProgressionAnswer(exerciseName) || bodyweightProgressionFor(exerciseName, dateStr) || timedLiftAnswer(exerciseName)
+    || progressionFor(exerciseName, templateReps, templateRecommended, dateStr);
+}
+/* D171 — a LOADED timed lift (a Farmer's Carry, a weighted hold): its count is time, so D49's next-session answer, worded
+   for reps ("match your previous 40 reps"), is not given for it. It says what a bodyweight hold already says (D119):
+   timed, and LOOP's rep targets are for lifts counted in reps. Only this answer — Exercise Detail's Next session and
+   Today's guide — reads it: the load a workout starts at (D49 itself) is untouched. */
+function timedLiftAnswer(exerciseName){
+  const raw = String(exerciseName == null ? '' : exerciseName);
+  if(!loggedExerciseKey(raw)) return null;
+  let id = null;
+  try{ id = resolveExerciseId(raw); }catch(e){ id = null; }
+  if(!substitutionIsHold(id, raw)) return null;
+  const carry = substitutionPatternFor(id, raw) === 'carry';
+  return { mode: 'timed', tag: 'unsupported', reason: 'hold', reps: null, weight: null, headline: null,
+    why: raw.trim() + (carry ? ' is timed' : ' is a timed hold') + ', and LOOP’s rep targets are for lifts counted in reps.' };
 }
 
 /* =========================================================
@@ -37231,6 +37273,15 @@ function renderWeekSheet(how, focusId){
   const firstMon = programWeekMonday(p);
   let lastMon = null; try{ lastMon = civilMonday(programEndDate(p)); }catch(e){}
   const stateWord = v.state === 'current' ? 'This week' : v.state === 'past' ? 'Finished' : 'Upcoming';
+  /* D171 (E101) — while the program is paused its progress waits at the week it paused in (D166), and that is the week
+     the content of every week from the pause on belongs to (the sheet's phase and sessions). The calendar slot's number
+     said otherwise ("Week 5 of 8" beside Overview's "Week 3 of 8"), so from the pause's week on the head names the week
+     it waits at and the dates being viewed. Nothing is recalculated: the number is getCurrentProgramWeek's. */
+  let heldAt = null;
+  try{
+    const open = openPauseOf(p);
+    if(open && st.monday >= civilMonday(open.from)) heldAt = getCurrentProgramWeek(p) || null;
+  }catch(e){ heldAt = null; }
   const mins = v.minutes ? '~' + (v.minutes >= 60 ? Math.floor(v.minutes / 60) + ' h' + (v.minutes % 60 ? ' ' + (v.minutes % 60) + ' min' : '') : v.minutes + ' min') : null;
 
   /* 1 — at a glance: the week, its phase, how far through it is, and what it asks; why it cannot change, if it cannot */
@@ -37243,7 +37294,7 @@ function renderWeekSheet(how, focusId){
     <div class="wsv-head">
       <div class="wsv-nav">
         <button type="button" class="wsv-step" data-fid="prev" onclick="weekSheetStep(-1)" aria-label="Previous week" ${st.monday <= firstMon ? 'disabled' : ''}>‹</button>
-        <div class="wsv-when"><span class="wsv-k">${escapeHtml(stateWord)} · Week ${v.calWeek}${v.weeks ? ' of ' + v.weeks : ''}</span><span class="wsv-dates">${escapeHtml(weekRangeText(v.monday))}</span></div>
+        <div class="wsv-when"><span class="wsv-k">${escapeHtml(heldAt ? 'Paused at Week ' + heldAt + (v.weeks ? ' of ' + v.weeks : '') : stateWord + ' · Week ' + v.calWeek + (v.weeks ? ' of ' + v.weeks : ''))}</span><span class="wsv-dates">${escapeHtml((heldAt ? 'Viewing ' : '') + weekRangeText(v.monday))}</span></div>
         <button type="button" class="wsv-step" data-fid="next" onclick="weekSheetStep(1)" aria-label="Next week" ${lastMon && st.monday >= lastMon ? 'disabled' : ''}>›</button>
       </div>
       ${focus}
@@ -44618,6 +44669,12 @@ function objectiveDoneText(inst, today){
   return today ? 'Logged today' : 'Logged';
 }
 
+/* D171 (E102) — an unfinished objective while the active program is paused (openPauseOf): optional, not required. */
+const OBJECTIVE_HOLD_TEXT = 'Optional while your program is paused.';
+function objectiveOnHold(inst){
+  if(!inst || inst.completedAt) return false;
+  try{ return !!openPauseOf(getActiveProgram()); }catch(e){ return false; }
+}
 function objectiveRowHtml(inst){
   const p = inst.progress || objectiveProgress(inst);
   const done = !!inst.completedAt;
@@ -44627,12 +44684,16 @@ function objectiveRowHtml(inst){
     ? '<span class="obj-bar' + (p.target <= 10 ? ' obj-seg' : '') + '" aria-hidden="true" style="--obj-n:' + p.target + '"><span style="width:' + Math.round(p.ratio * 100) + '%"></span></span>'
     : '';
   const line = done ? 'Complete' : escapeHtml(p.detail || '');
+  /* D171 (E102) — while the program is paused, nothing is due (D170): an unfinished objective — every one is read from
+     the plan's sessions — still counts if the athlete trains, for the XP it was frozen with, but it is said as optional,
+     never as the week's or the day's requirement. Its target, progress and reward are untouched. */
+  const hold = !done && objectiveOnHold(inst);
   return '' +
-    '<div class="obj-row' + (done ? ' obj-row-done' : '') + (just ? ' obj-row-new' : '') + (!done && inst.stale ? ' obj-row-stale' : '') + '"' + (inst.objectiveType === 'week_category' && inst.target ? ' data-fam="' + trainFamilyOf(inst.target.category) + '"' : '') + '>' +
+    '<div class="obj-row' + (done ? ' obj-row-done' : '') + (just ? ' obj-row-new' : '') + (!done && inst.stale ? ' obj-row-stale' : '') + (hold ? ' obj-row-hold' : '') + '"' + (inst.objectiveType === 'week_category' && inst.target ? ' data-fam="' + trainFamilyOf(inst.target.category) + '"' : '') + '>' +
       '<span class="obj-mark" aria-hidden="true">' + (done ? checkIconSvg(13) : ringIconSvg(13)) + '</span>' +
       '<span class="obj-body">' +
         '<span class="obj-t">' + escapeHtml(inst.title) + '</span>' +
-        '<span class="obj-w">' + escapeHtml(done ? objectiveDoneText(inst, true) : inst.stale ? 'Set before today’s plan changed. Your workout follows your current plan.' : inst.reason) + '</span>' +
+        '<span class="obj-w">' + escapeHtml(done ? objectiveDoneText(inst, true) : hold ? OBJECTIVE_HOLD_TEXT : inst.stale ? 'Set before today’s plan changed. Your workout follows your current plan.' : inst.reason) + '</span>' +
         bar +
         '<span class="obj-p">' + line + '</span>' +
       '</span>' +
@@ -44773,7 +44834,7 @@ function renderProfileAchievements(){
   const rows = [];
   if(live.length){
     rows.push('<div class="xp-history-date-label">ACTIVE</div>');
-    live.forEach(i => rows.push(achievementRowHtml(false, i.title, i.reason, i.rewardXP,
+    live.forEach(i => rows.push(achievementRowHtml(false, i.title, objectiveOnHold(i) ? OBJECTIVE_HOLD_TEXT : i.reason, i.rewardXP,   // D171 (E102)
       (i.progress && i.progress.detail) || '')));
   }
   if(past.length){
@@ -46231,7 +46292,8 @@ function classifyExerciseType(name, isBodyweight){
   const n = (name || '').toLowerCase();
   if(isBodyweight) return 'bodyweight';
   if(/plank|hold|carry|farmer|dead hang|isometric/.test(n)) return 'timed';
-  if(/cable|pushdown|pulldown|pull-down|crossover|face pull/.test(n)) return 'cable';
+  /* D171 — "press" filed the Pallof Press as a barbell compound, so an estimated 1RM was worked out for a core exercise */
+  if(/cable|pushdown|pulldown|pull-down|crossover|face pull|pallof/.test(n)) return 'cable';
   if(/machine|smith|pec deck|leg press|leg extension|leg curl|hack squat/.test(n)) return 'machine';
   if(/curl|raise|fly|flye|extension|kickback|shrug|calf/.test(n)) return 'isolation';
   if(/dumbbell|\bdb\b|goblet/.test(n)) return 'compound_dumbbell';
@@ -46642,6 +46704,14 @@ const CANONICAL_EXERCISES = [
   { id:'leg_curl',              displayName:'Leg Curl',               aliases:['leg curl','leg curls','lying leg curl','lying hamstring curl','prone leg curl','hamstring curl','leg curl machine','lying leg curl machine'], pattern:'hinge', equipment:'Machine', primary:['hamstrings'], secondary:[], supports1RM:false },
   { id:'leg_curl_seated',       displayName:'Seated Leg Curl',        aliases:['seated leg curl','seated leg curls','seated hamstring curl','machine seated leg curl'], pattern:'hinge', equipment:'Machine', primary:['hamstrings'], secondary:[], supports1RM:false },
   { id:'hip_thrust',            displayName:'Hip Thrust',             aliases:['hip thrust','barbell hip thrust'], pattern:'hinge', equipment:'Barbell', primary:['glutes'], secondary:['hamstrings'], supports1RM:true },
+  /* D171 — prescribed by LOOP's own plans and drawn since D64's art, never registered: they resolved as `unmapped:` names
+     with muscles, pattern and equipment guessed from words. Each id is its drawing's key. The muscles are the ones LOOP
+     already gave them (the trap bar adds the quads it is known for); none shares an id or an alias with another lift, so
+     no history, record or progression is merged — a Trap Bar Deadlift is never a Deadlift. A one-leg lift is logged as
+     every lift is: one row per set, its prescription saying "/leg". */
+  { id:'trap_bar_deadlift',     displayName:'Trap Bar Deadlift',      aliases:['trap bar deadlift','trap-bar deadlift','trap bar deadlifts','hex bar deadlift','hex-bar deadlift','hex bar deadlifts'], pattern:'hinge', equipment:'Barbell', primary:['back','hamstrings'], secondary:['glutes','quads'], supports1RM:true },
+  { id:'single_leg_rdl',        displayName:'Single-Leg RDL',         aliases:['single-leg rdl','single leg rdl','single-leg rdls','single-leg romanian deadlift','single leg romanian deadlift','one-leg rdl','one leg rdl','dumbbell single-leg rdl','db single-leg rdl'], pattern:'hinge', equipment:'Dumbbell', primary:['hamstrings'], secondary:['glutes','back'], supports1RM:false },
+  { id:'kb_swing',              displayName:'Kettlebell Swing',       aliases:['kettlebell swing','kettlebell swings','kb swing','kb swings','russian kettlebell swing','two-hand kettlebell swing'], pattern:'hinge', equipment:'Kettlebell', primary:['glutes'], secondary:['hamstrings'], supports1RM:false },
   /* D159 — drawn and prescribed by a plan since D64's art, never registered: a hinge for the glutes. */
   { id:'cable_pull_through',    displayName:'Cable Pull-Through',     aliases:['cable pull-through','cable pull through','pull-through','pull through','rope pull-through','glute pull-through'], pattern:'hinge', equipment:'Cable', primary:['glutes'], secondary:['hamstrings'], supports1RM:false },
   { id:'hip_thrust_machine',    displayName:'Hip Thrust Machine',     aliases:['hip thrust machine','machine hip thrust','glute drive','glute drive machine','plate-loaded hip thrust'], pattern:'hinge', equipment:'Machine', primary:['glutes'], secondary:['hamstrings'], supports1RM:true },
@@ -46703,7 +46773,13 @@ const CANONICAL_EXERCISES = [
   { id:'hanging_leg_raise',       displayName:'Hanging Leg Raise',      aliases:['hanging leg raise','hanging leg raises','hanging straight leg raise'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'leg_raise' },
   { id:'hanging_knee_raise',      displayName:'Hanging Knee Raise',     aliases:['hanging knee raise','hanging knee raises','hanging knee tuck'], pattern:'core', equipment:'Bodyweight', primary:['abs'], secondary:[], supports1RM:false, bodyweight:true, motion:'leg_raise' },
   { id:'cable_crunch',          displayName:'Cable Crunch',           aliases:['cable crunch','kneeling cable crunch'], pattern:'core', equipment:'Cable', primary:['abs'], secondary:[], supports1RM:false, motion:'flexion' },
-  { id:'crunch_machine',        displayName:'Ab Crunch Machine',      aliases:['ab crunch machine','machine crunch','crunch machine','abdominal crunch machine','machine ab crunch'], pattern:'core', equipment:'Machine', primary:['abs'], secondary:[], supports1RM:false, motion:'flexion' }
+  { id:'crunch_machine',        displayName:'Ab Crunch Machine',      aliases:['ab crunch machine','machine crunch','crunch machine','abdominal crunch machine','machine ab crunch'], pattern:'core', equipment:'Machine', primary:['abs'], secondary:[], supports1RM:false, motion:'flexion' },
+  /* D171 — both prescribed and drawn, never registered. The Pallof Press resists rotation: its own motion, so Swap never
+     offers it for a crunch, a twist or a hold. Farmer's Carry is a loaded carry — its own pattern, as LOOP's name reading
+     always filed it — and is TIMED: its seconds go where a hold's do (the set's count), its load where every load goes.
+     LOOP records no distance for a lift, so a carry prescribed in metres keeps its prescription and is not converted. */
+  { id:'pallof_press',          displayName:'Pallof Press',           aliases:['pallof press','pallof presses','cable pallof press','band pallof press','half-kneeling pallof press','anti-rotation press'], pattern:'core', equipment:'Cable', primary:['abs'], secondary:[], supports1RM:false, motion:'anti_rotation' },
+  { id:'farmers_carry',         displayName:"Farmer's Carry",     aliases:['farmer\'s carry','farmers carry','farmer carry','farmer\'s walk','farmers walk','farmer walk','dumbbell farmer\'s carry','farmer\'s carries'], pattern:'carry', equipment:'Dumbbell', primary:['abs'], secondary:['back'], supports1RM:false, timed:true }
 ];
 
 /* Alias index built once. Any alias colliding across two entries is a data
@@ -50137,6 +50213,7 @@ function exDetailNextHtml(d){
   const rec = d.rec, last = d.last;
   const tile = (cls, k, v, unit, r, extra) => '<div class="exd-ln-col ' + cls + '"><span class="exd-ln-k">' + k + '</span>'
     + '<span class="exd-ln-v">' + v + '<small> ' + unit + '</small></span><span class="exd-ln-r">' + r + '</span>' + (extra || '') + '</div>';
+  if(rec && rec.mode === 'timed') return head + '<p class="exd-empty">' + escapeHtml(rec.why) + '</p>';   // D171
   if(rec && rec.mode === 'bodyweight'){
     if(rec.reps == null) return head + '<p class="exd-empty">' + escapeHtml(rec.why) + '</p>';
     const more = rec.delta > 0 ? '+' + repsWord(rec.delta) : 'Match';
@@ -53356,7 +53433,8 @@ const NEVER_PRIMARY_IDS = [
   'calf_raise_seated', 'calf_raise_leg_press',
   /* D64 */ 'bench_dip', 'wall_sit', 'glute_bridge', 'single_leg_glute_bridge',
   /* D159 */ 'cable_pull_through',
-  /* D160 */ 'cable_external_rotation'
+  /* D160 */ 'cable_external_rotation',
+  /* D171 */ 'farmers_carry', 'kb_swing'
 ];
 
 /* ---------- ROLE ----------
@@ -56255,7 +56333,7 @@ const XS_COUNTERPART = {
 };
 const XS_MOTION_LABEL = {
   flexion: 'trunk flexion', leg_raise: 'leg raises',
-  anti_extension: 'anti-extension work', rotation: 'rotation'
+  anti_extension: 'anti-extension work', rotation: 'rotation', anti_rotation: 'anti-rotation work'
 };
 
 /* Everything static about a movement, resolved once. The registry is a list,
@@ -62504,7 +62582,8 @@ const SUBSTITUTION_CONFIG = {
     lunge:           ['squat'],
     hinge:           [],
     isolation:       [],
-    core:            []
+    core:            [],
+    carry:           []   // D171 — a loaded carry has no honest stand-in among other patterns
   }
 };
 
@@ -62623,6 +62702,12 @@ function substitutionHardReject(originalId, candidate, context){
     const related = SUBSTITUTION_CONFIG.relatedPatterns[origPattern];
     if(!related || related.indexOf(candPattern) === -1) return 'pattern_mismatch';
   }
+  /* D171 — anti-rotation work (the Pallof Press) is never traded with a trunk that moves — a crunch, a twist, a leg raise —
+     in either direction: resisting rotation and producing flexion train the abs for opposite jobs. Narrow on purpose:
+     no pair of the core movements LOOP already had is affected, since none of them resists rotation. */
+  const MOVING_TRUNK = { flexion: 1, rotation: 1, leg_raise: 1 };
+  const origCanon = getCanonicalExercise(originalId), origMotion = origCanon ? origCanon.motion || null : null, candMotion = candidate.motion || null;
+  if((origMotion === 'anti_rotation' && MOVING_TRUNK[candMotion]) || (candMotion === 'anti_rotation' && MOVING_TRUNK[origMotion])) return 'motion_mismatch';
 
   /* A substitute that trains NONE of the original's primary muscles is not a
      substitute. This matters most for 'isolation', which is a catch-all
@@ -63040,6 +63125,9 @@ const GYM_EQUIPMENT = [
   // ---- FREE WEIGHTS ----
   { id:'barbell',              displayName:'Barbell',              category:'free_weights', coarse:'Barbell' },
   { id:'ez_curl_bar',          displayName:'EZ Curl Bar',          category:'free_weights', coarse:'Barbell' },
+  /* D171 — the Trap Bar Deadlift's own bar. A profile set up before it never answered for it, so it reads unknown, never
+     "no" (getEquipmentStatus): nothing an athlete already had is taken away. */
+  { id:'trap_bar',             displayName:'Trap Bar',             category:'free_weights', coarse:'Barbell' },
   { id:'plates',               displayName:'Weight Plates',        category:'free_weights', coarse:'Barbell' },
   { id:'dumbbells',            displayName:'Dumbbells',            category:'free_weights', coarse:'Dumbbells' },
   { id:'adjustable_dumbbells', displayName:'Adjustable Dumbbells', category:'free_weights', coarse:'Dumbbells' },
@@ -63205,6 +63293,9 @@ const EXERCISE_EQUIPMENT = {
   // hinge
   deadlift_conventional:  ['barbell'],
   deadlift_romanian:      ['barbell'],
+  trap_bar_deadlift:      ['trap_bar'],                          /* D171 */
+  single_leg_rdl:         [['dumbbells','kettlebells']],         /* D171 */
+  kb_swing:               ['kettlebells'],                       /* D171 */
   good_morning:           ['barbell', ANY_RACK],
   hip_thrust:             [['barbell','hip_thrust_machine'], ANY_BENCH],
   hip_thrust_machine:     ['hip_thrust_machine'],
@@ -63252,6 +63343,8 @@ const EXERCISE_EQUIPMENT = {
   hanging_leg_raise:      [['pullup_bar']],
   hanging_knee_raise:     [['pullup_bar']],
   cable_crunch:           [ANY_CABLE],
+  pallof_press:           [ANY_CABLE.concat(['bands'])],         /* D171 — a cable or a band */
+  farmers_carry:          [['dumbbells','kettlebells','trap_bar']],   /* D171 */
   crunch_machine:         ['ab_crunch_machine']
 };
 
