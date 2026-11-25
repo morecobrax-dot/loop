@@ -3,11 +3,11 @@
   "appId": "loop",
   "version": "10.96",
   "phase": null,
-  "status": "release_ready",
+  "status": "stable",
   "needsQa": false,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "LOOP 10.96 release (loop-v273): automated gates passed; deploying to GitHub Pages, then confirming the live app.",
+  "nextAction": "LOOP 10.96 is live (loop-v273, released 2026-11-25). Next: D175, the visual redesign of Today and Train.",
   "blocker": null,
-  "updatedAt": "2026-11-25T21:15:42Z"
+  "updatedAt": "2026-11-25T23:17:28Z"
 }
