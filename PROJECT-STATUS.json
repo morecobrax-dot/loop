@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.95",
+  "version": "10.96",
   "phase": null,
-  "status": "stable",
+  "status": "release_ready",
   "needsQa": false,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "LOOP 10.95 is live (loop-v272, released 2026-11-24). Next: the owner chooses the next development phase.",
+  "nextAction": "LOOP 10.96 release (loop-v273): automated gates passed; deploying to GitHub Pages, then confirming the live app.",
   "blocker": null,
-  "updatedAt": "2026-11-24T21:08:05Z"
+  "updatedAt": "2026-11-25T21:15:42Z"
 }

@@ -11865,6 +11865,11 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
 .ex-measure-note{ margin: var(--space-1) 0 0; font-size: 12px; line-height: 1.4; color: var(--text-dim); }
 .ex-measure-note[hidden]{ display: none; }
 /* ==== D173 COUNT UNIT END ==== */
+/* ==== D174 MEASURED STEPS BEGIN ==== */
+/* D174 — last time's counts with no recorded unit: said beneath the value, quietly, and in the open detail */
+.ex-brief .exc-summary .exc-unit{ display: block; margin-top: 2px; font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: 0; color: var(--text-dim); white-space: normal; }
+.last-time-unit{ display: block; margin-top: 6px; font-size: 12px; line-height: 1.4; color: var(--text-dim); }
+/* ==== D174 MEASURED STEPS END ==== */
 </style>
 </head>
 <body>
@@ -22562,6 +22567,27 @@ const LOOP_UPDATES = [
       'Holds and carries logged from now on no longer earn an estimated one-rep max record or a volume record. Records and XP you have already earned are unchanged'
     ],
     changes: []
+  },
+  {
+    id: 'v10-96',
+    version: 'LOOP 10.96',
+    title: 'Prescribed Targets',
+    date: '2026-11-25',
+    swVersion: 'loop-v273',
+    summary: 'Holds, carries and sled work now aim for the time or distance your program wrote, and the coach no longer lightens a set that came in a little short.',
+    newFeatures: [],
+    improvements: [
+      'Timed and distance exercises are coached toward your program’s prescription, never “one more second” or “one more metre”',
+      'The LOOP Coach shows a carry’s target in metres or seconds instead of reps',
+      'Last time says “unit not recorded” when a count was logged before LOOP recorded seconds or metres'
+    ],
+    bugFixes: [
+      'The coach no longer takes weight off a carry or hold because a set came in a little short with no effort logged',
+      'A carry you count in metres without a prescription is now coached in metres',
+      'Bodyweight exercises counted in seconds, such as Mountain Climbers, no longer get rep targets',
+      'Records, PRs and XP are unchanged'
+    ],
+    changes: []
   }
 ];
 
@@ -28615,8 +28641,11 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
   }
 
   // Tier 3: fewer reps than the previous session at the same weight — performance dipped
+  /* D174 (E114) — "two short" is a REP tolerance: 2 s of a hold or 2 m of a carry is not two reps. A lift counted in
+     seconds or metres is not told it dipped by this rule; it is held at the same load and given its prescription below. */
   const prev = sessions[1];
-  if(prev && prev.weight === w && last.topReps < prev.topReps - 1){
+  const counted = scope.measure === MEASURE_REPS;
+  if(counted && prev && prev.weight === w && last.topReps < prev.topReps - 1){
     return {
       weight: w,
       headline: `${w} lb × ${templateReps}`,
@@ -28633,6 +28662,14 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
      arithmetic rather than by evidence. Personalising the target now requires
      the prescription to have actually been performed. */
   if(range && last.topReps < range.max && ev.complete){
+    /* D174 (E114) — "one more" is a rep. A count in seconds or metres has no such step, so its target is the one the
+       program wrote: the load is held, the last count is said in its unit, and nothing is derived from it. */
+    if(!counted) return {
+      weight: w,
+      headline: `${w} lb × ${templateReps}`,
+      why: `You reached ${measureCountShort(last.topReps, scope.measure)} last session — keep ${w} lb and work toward ${measureTargetText(range, scope.measure, last.topReps)}.`,
+      tag: 'build'
+    };
     const nextGoal = Math.min(range.max, last.topReps + 1);
     return {
       weight: w,
@@ -28654,7 +28691,7 @@ function buildProgressionRecommendation(exerciseName, templateReps, templateReco
     return {
       weight: w,
       headline: `${w} lb × ${templateReps}`,
-      why: `${shortfall} — keep ${w} lb and work inside ${range.min}–${range.max} reps.`,
+      why: `${shortfall} — keep ${w} lb and work ${counted ? `inside ${range.min}–${range.max} reps` : 'toward ' + measureRangeText(range, scope.measure)}.`,   // D174 — in its unit
       tag: 'insufficient'
     };
   }
@@ -28881,6 +28918,9 @@ function deriveWorkingSetPlan(exerciseName, templateReps, setCount, rec, opts){
   let id = null;
   try{ id = resolveExerciseId(exerciseName); }catch(e){ id = null; }
   if(substitutionIsHold(id, exerciseName)) return fallback;
+  /* D174 (E114) — so does any count a prescription states in seconds or metres (a sled's 20m): the program's numbers,
+     never a count copied from history or one more added to it. */
+  if(prescriptionMeasure(templateReps)) return fallback;
 
   const key = loggedExerciseKey(exerciseName);
   const log = sortedLog();
@@ -28992,6 +29032,11 @@ function bodyweightProgressionFor(exerciseName, dateStr){
   const none = (tag, why, extra) => Object.assign({ mode: 'bodyweight', tag, reps: null, weight: null, headline: null, why }, extra || {});
   /* D171 — a loaded carry is timed too, but it is not a hold */
   if(substitutionIsHold(id, raw)) return none('unsupported', lift + (substitutionPatternFor(id, raw) === 'carry' ? ' is timed' : ' is a timed hold') + ', and LOOP’s rep targets are for lifts counted in reps.', { reason: 'hold' });
+  /* D174 (E114) — D119's targets are reps ("aim for 27"). A bodyweight lift counted in seconds or metres (Mountain
+     Climbers prescribed 30s) is answered as a hold is: its count is not a rep, and one more second is not one more rep. */
+  let counted = MEASURE_REPS;
+  try{ counted = liftMeasureOf(raw); }catch(e){ counted = MEASURE_REPS; }
+  if(counted !== MEASURE_REPS) return none('unsupported', lift + (counted === MEASURE_TIME ? ' is timed' : counted === MEASURE_DISTANCE ? ' is counted in metres' : ' isn’t always counted in reps') + ', and LOOP’s rep targets are for lifts counted in reps.', { reason: 'measure' });
   const sessions = bodyweightSessionHistory(raw, BODYWEIGHT_PROGRESSION.window);
   if(sessions === null) return null;
   if(!sessions.length) return none('new', 'LOOP sets a rep target once a working set of ' + lift + ' has been logged with its reps.');
@@ -29139,6 +29184,14 @@ function deriveNextSetCoach(input){
     return out;
   }
 
+  /* D174 (E114) — the unit the prescription counts in. A count in seconds or metres is said in it, and a shortfall in it
+     is never read as reps: 38 m of 40 m is not "two reps short", so with no effort logged the load is held. Reps: as before. */
+  let measure = MEASURE_REPS;
+  try{ measure = o.measure || measureForPrescription(name, rx.reps); }catch(e){ measure = MEASURE_REPS; }
+  const counted = measure === MEASURE_REPS;
+  if(!counted) out.measure = measure;
+  const said = counted ? `${range.min}–${range.max} reps` : measureRangeText(range, measure);
+
   const lastLoad = performed.length ? performed[performed.length - 1].weight : null;
   const base = (lastLoad > 0) ? lastLoad : rxLoad;
   out.load = base;
@@ -29149,8 +29202,8 @@ function deriveNextSetCoach(input){
   if(!performed.length){
     out.action = 'prescribed';
     out.reason = targetRir != null
-      ? `Today’s target is ${range.min}–${range.max} reps at about ${fmtRir(targetRir)} in reserve.`
-      : `Today’s target is ${range.min}–${range.max} reps.`;
+      ? `Today’s target is ${said} at about ${fmtRir(targetRir)} in reserve.`
+      : `Today’s target is ${said}.`;
     return out;
   }
 
@@ -29182,13 +29235,13 @@ function deriveNextSetCoach(input){
      or missing the prescription by enough that reps alone say so. */
   const hard = range && last.reps < range.min && (rirKnown
     ? last.rir <= SET_COACH.hardRir
-    : last.reps <= range.min - SET_COACH.hardMissWithoutRir);
+    : counted && last.reps <= range.min - SET_COACH.hardMissWithoutRir);   // D174 — a rep tolerance, never seconds or metres
 
   if(easy && !settled && !o.deload){
     const next = base + inc;
     if(inc > 0 && withinBounds(next)){
       out.action = 'increase'; out.load = next; out.changed = true;
-      out.reason = `That set was ${fmtRir(last.rir)} in reserve against a target of ${fmtRir(targetRir)}. Add ${fmtLoad(inc)} and stay in ${range.min}–${range.max}.`;
+      out.reason = `That set was ${fmtRir(last.rir)} in reserve against a target of ${fmtRir(targetRir)}. Add ${fmtLoad(inc)} and ${counted ? `stay in ${range.min}–${range.max}` : 'keep to ' + said}.`;
       return out;
     }
   }
@@ -29198,7 +29251,7 @@ function deriveNextSetCoach(input){
     if(inc > 0 && next > 0 && withinBounds(next)){
       out.action = 'reduce'; out.load = next; out.changed = true;
       out.reason = rirKnown
-        ? `${last.reps} reps with nothing left in reserve, under a target of ${range.min}. Take ${fmtLoad(inc)} off and rebuild the range.`
+        ? `${counted ? last.reps + ' reps' : measureCountShort(last.reps, measure)} with nothing left in reserve, under a target of ${counted ? range.min : measureCountShort(range.min, measure)}. Take ${fmtLoad(inc)} off and rebuild the range.`
         : `${last.reps} reps against a target of ${range.min}–${range.max}. Take ${fmtLoad(inc)} off for the next set.`;
       return out;
     }
@@ -29212,9 +29265,10 @@ function deriveNextSetCoach(input){
   } else if(settled){
     out.reason = `Load already adjusted this exercise. Hold ${fmtLoad(base)} for the rest of the sets.`;
   } else if(!rirKnown){
-    out.reason = `No effort logged for that set, so the challenge cannot be judged. Stay inside ${range.min}–${range.max}.`;
+    out.reason = `No effort logged for that set, so the challenge cannot be judged. ${counted ? `Stay inside ${range.min}–${range.max}` : 'Keep to ' + said}.`;
   } else if(last.reps < range.min){
-    out.reason = `Reps came in under ${range.min}. Hold the load and rebuild the range.`;
+    out.reason = counted ? `Reps came in under ${range.min}. Hold the load and rebuild the range.`
+      : `Came in under ${measureCountShort(range.min, measure)}. Hold the load and work back up to it.`;   // D174
   } else {
     out.reason = `Challenge is on target. Hold ${fmtLoad(base)}.`;
   }
@@ -29241,6 +29295,8 @@ function liveSetEvidence(exRow){
   if(!exRow) return out;
   const nameEl = exRow.querySelector('.ex-name-in');
   out.exerciseName = nameEl ? nameEl.value.trim() : '';
+  /* D174 — the row's own unit (a carry's chosen one included), for the coach's words and its tolerance */
+  if(exRow.dataset && (exRow.dataset.measure === MEASURE_TIME || exRow.dataset.measure === MEASURE_DISTANCE)) out.measure = exRow.dataset.measure;
   const bw = exRow.querySelector('.ex-bw-in');
   out.bodyweight = !!(bw && bw.checked);
   /* The same prescription the workout was opened with, and the same reader
@@ -29280,7 +29336,7 @@ function liveSetEvidence(exRow){
 function setCoachHtml(coach, targetSets){
   if(!coach) return '';
   const load = coach.load != null ? fmtLoad(coach.load) : null;
-  const reps = coach.range ? coach.range.min + '\u2013' + coach.range.max + ' reps' : null;
+  const reps = coach.range ? (coach.measure ? measureRangeText(coach.range, coach.measure) : coach.range.min + '\u2013' + coach.range.max + ' reps') : null;   // D174 — in its unit
   const rir  = coach.targetRir != null ? fmtRir(coach.targetRir) + ' in reserve' : null;
   const bits = [reps, rir].filter(Boolean).join(' \u00b7 ');
   return '<button type="button" class="coach coach-' + coach.action + '"' +
@@ -29304,12 +29360,12 @@ function setCoachHtml(coach, targetSets){
 function coachDetailHtml(coach){
   const rows = [];
   if(coach.range){
-    rows.push(['Target', coach.range.min + '\u2013' + coach.range.max + ' reps' +
+    rows.push(['Target', (coach.measure ? measureRangeText(coach.range, coach.measure) : coach.range.min + '\u2013' + coach.range.max + ' reps') +   // D174
       (coach.targetRir != null ? ' at ' + fmtRir(coach.targetRir) + ' in reserve' : '')]);
   }
   if(coach.last){
     rows.push(['Last set', (coach.last.weight != null ? fmtLoad(coach.last.weight) + ' \u00d7 ' : '') +
-      coach.last.reps + ' reps' +
+      (coach.measure ? measureCountShort(coach.last.reps, coach.measure) : coach.last.reps + ' reps') +   // D174
       (coach.last.rir != null ? ' at ' + fmtRir(coach.last.rir) + ' in reserve' : ', effort not logged')]);
   }
   const WORD = { increase:'Increase one step', reduce:'Reduce one step',
@@ -29435,7 +29491,9 @@ function lastTimeHtml(exerciseName){
     return `<span class="last-time-chip${warm ? ' last-time-chip-warmup' : ''}">${escapeHtml(String(w))}${prev.bodyweight?'':' lb'} × ${escapeHtml(String(s.reps||'—'))}${u && s.reps ? ' ' + u : ''}` +
       `${warm ? '<span class="set-chip-badge stb-warmup">' + escapeHtml(setTypeShortLabel(SET_TYPES.WARMUP)) + '</span>' : ''}</span>`;
   }).join('');
-  return `<div class="last-time-block"><span class="last-time-label">Last time</span><div class="last-time-chips">${chips}</div></div>`;
+  /* D174 — a count whose unit was never recorded says so, briefly: 60 lb × 40 could have been seconds or metres */
+  const unknown = prev.measure === MEASURE_UNKNOWN ? '<span class="last-time-unit">Unit not recorded — LOOP doesn’t compare these counts.</span>' : '';
+  return `<div class="last-time-block"><span class="last-time-label">Last time</span><div class="last-time-chips">${chips}</div>${unknown}</div>`;
 }
 function rirToEffort(rir){
   const r = parseFloat(rir);
@@ -29647,7 +29705,7 @@ function syncRowMeasure(row){
    already worded, and is left as it is. Only the words change: the load, the tag, the target and every decision are D49's. */
 function measureWordsOf(rec, exerciseName, templateReps){
   if(!rec || typeof rec !== 'object' || rec.mode === 'timed' || rec.mode === 'assistance' || rec.reason === 'measure') return rec;
-  const m = measureForPrescription(exerciseName, templateReps);
+  const m = liftTargetMeasure(exerciseName, templateReps);   // D174 — the unit D49 read
   if(m === MEASURE_REPS) return rec;
   const said = m;
   const u = measureUnitShort(said);
@@ -29706,7 +29764,7 @@ function liftComparableUnit(name, onOrBefore){
    handed a rep range with no unit ("8-12", the fallback), which no count of it can be measured against; no range at all
    measures nothing, and D49 answers as before. */
 function progressionMeasureScope(exerciseName, templateReps){
-  const measure = measureForPrescription(exerciseName, templateReps);
+  const measure = liftTargetMeasure(exerciseName, templateReps);   // D174 — a carry with no stated unit: the one it was counted in
   let lift = measure;
   try{ lift = liftMeasureOf(exerciseName); }catch(e){ lift = measure; }
   return { measure, filter: lift === measure ? null : measure,
@@ -29729,6 +29787,41 @@ function measureIncomparableAnswer(exerciseName, templateReps, weight, scope){
 function measureCountShort(n, measure){
   const u = measureUnitShort(measure);
   return u ? n + ' ' + u : String(n);
+}
+
+/* =========================================================
+   STEPS IN SECONDS AND METRES  (Phase D174 - D88 finding E114)
+   ---------------------------------------------------------
+   D49's "+1" is a rep: from 6 of 6–8 the next target is 7. Read in seconds or metres it became "aim for 36 m" for a
+   carry the program prescribes at 40 m, and "aim for 33 s" inside 30–40 s — a step no program wrote and no rule
+   justifies. The same rep arithmetic sat in D49's "two short" dip, D125's "one more" on the working-set plan, D119's
+   bodyweight targets, and the live coach's "two under with no effort logged", which took 5 lb off a carry for 38 m of 40.
+
+   A count in seconds or metres is now given no step of its own. Its target is the prescription the program wrote, said
+   in its unit; its load is held exactly where D49 holds it; a load still moves only on the evidence it always needed —
+   the top of the prescription with reserve recorded (up), or two sessions under it with nothing in reserve (down).
+   Nothing is converted or scored. Every lift counted in reps is answered exactly as before.
+   ========================================================= */
+/* the prescription in its unit: "40 m", "30–40 s" */
+function measureRangeText(range, measure){
+  const u = measureUnitShort(measure);
+  return (range.min === range.max ? String(range.max) : range.min + '–' + range.max) + (u ? ' ' + u : '');
+}
+/* what to work toward: the top of the prescription once inside it, the prescription itself below it */
+function measureTargetText(range, measure, count){
+  return count != null && count >= range.min ? measureCountShort(range.max, measure) : measureRangeText(range, measure);
+}
+/* the unit a target is counted in: the prescription's, else — for a carry, which could be either — the one its history
+   is all counted in, else the exercise's kind. The same order as a live row's (stated, then chosen, then default). */
+function liftTargetMeasure(name, templateReps){
+  const stated = prescriptionMeasure(templateReps);
+  if(stated) return stated;
+  if(measureChoicesOf(name)){
+    let lm = null;
+    try{ lm = liftMeasureOf(name); }catch(e){ lm = null; }
+    if(lm === MEASURE_TIME || lm === MEASURE_DISTANCE) return lm;
+  }
+  return exerciseMeasureDefault(name);
 }
 
 /* =========================================================
@@ -67073,7 +67166,9 @@ function refreshExContext(row){
      what last time is summed up by. */
   const lastChip = row.querySelector('.last-time-chip:not(.last-time-chip-warmup)');
   if(lastChip) parts.push(lastChip.textContent.trim());
-  out.textContent = parts.join('  ·  ');
+  /* D174 — and when last time's counts carry no unit, the summary says so beneath the value */
+  if(lastChip && row.querySelector('.last-time-unit')) out.innerHTML = escapeHtml(parts.join('  ·  ')) + '<span class="exc-unit"> unit not recorded</span>';
+  else out.textContent = parts.join('  ·  ');
   wrap.classList.toggle('is-empty', parts.length === 0);
 }
 function toggleExContext(btn){

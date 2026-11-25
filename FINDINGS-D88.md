@@ -3228,13 +3228,39 @@ out of scope.
 The display reads a unit from the exercise only where that is unambiguous (a hold is seconds); a carry's record shows its
 number alone. What is shared is 10.94's (Contract 297 F1). No migration was applied.
 
-## E114 — D49's one-more step is a rep step, applied to seconds and metres · P5 · OBSERVED · OPEN
+## E114 — D49's one-more step is a rep step, applied to seconds and metres · P5 · **CLOSED in D174 (LOOP 10.96)**
 
 Found in D173. D49's "build" tier aims for one more than last time (`last.topReps + 1`, capped at the range's top). For a lift
 counted in seconds or metres, D173 now reads only counts in that unit, so the comparison is sound. The step is still D49's rep
 step: a carry of 35 m prescribed "40m" is told "aim for 36 m at 50 lb", and a hold is told one more second. D49's decisions
 within a unit were kept as they were, as the brief required (keep repetition-based D49 decisions; give no unsupported
 progression). A step in the unit (5 s, 5 m, or straight to the prescription's top) is a coaching decision for the owner.
+
+**Closed in D174 (LOOP 10.96)** with the restrained answer the D174 brief asked for: keep the prescribed target. A count in seconds or metres
+now takes no rep step anywhere LOOP took one:
+- D49's "one more" and "two short";
+- D125's "one more" on the working-set plan;
+- D119's bodyweight targets;
+- the live coach's "two under with no effort logged". That rule took 5 lb off a 40 m carry after 38 m.
+
+Its target is the prescription, in its unit, at the load D49 holds: "You reached 35 m last session — keep 50 lb and work
+toward 40 m." Loads still move only on recorded evidence (the top with reserve, or grinding under it). Reps are 10.95's to the
+byte (Contract 298 P1–P3, C7). See TRAINER-CONTRACT §219.
+
+## E115 — The coach's effort words are reps for holds and carries · P5 · OBSERVED · OPEN
+
+Found in D174. The coach's target line and reasons say the prescribed effort in reps: "40 m · 1.5 reps in reserve" for a
+carry, "4 reps in reserve" for a hold. The set row's own field is labelled "RIR". The effort scale is the program's
+(`effortToRir`), and the coach reads it only as effort, never as a count. D174 therefore moved no decision on it, and its
+words are unchanged. Wording effort for a timed or distance set (for example "about 1–2 more in the tank") is a product-copy
+decision for the visual redesign.
+
+## E116 — A finished set's values run under "Add RIR" on a 320px phone · P4 · OBSERVED · OPEN
+
+Found in D174, present since 10.49 (D132's one-line set row): at 320px the completed set's weight and count steppers (about
+134px together) are wider than the row's value column (about 113px), so the count's unit ("reps", "m", "sec") runs under
+the "Add RIR" control. It happens for every lift, reps included, and not from 360px up. The set row and the dock are
+protected in D174, so it is left for the active-workout pass of the visual redesign (D175).
 
 ## Not findings — checked and clean
 

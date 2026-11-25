@@ -21644,3 +21644,57 @@ set). Session Score, PR modes, capability, D49's working-set plan, D119, the est
 Swap are also unchanged.
 
 Contract 297 holds it.
+
+## §219 — PRESCRIBED TARGETS: A COUNT IN SECONDS OR METRES TAKES NO REP STEP (D174 · LOOP 10.96 · loop-v273)
+
+**What was wrong (E114).** D173 compared a count only with counts in its unit. The steps LOOP takes from a count were still a
+rep's, in five places:
+- D49's build tier aims for one more than last time (`last.topReps + 1`). A carry prescribed "40m" was told "aim for 36 m"
+  after 35 m; a carry prescribed "30–40s", "aim for 33 s"; a weighted plank, one more second.
+- D49's dip tier ("fewer than last time by more than one") read 40 s after 45 s as a dip. Two seconds of a hold are not two
+  reps.
+- D125's working-set plan copied a sled's metres from history and added one: 17 m and 15 m for a sled prescribed "20m".
+- D119 told a bodyweight lift counted in seconds (Mountain Climbers, prescribed "20–30s") "aim for 25" — reps.
+- The live coach (D50B) reads a set "two under the range with no effort logged" as a missed prescription. A carry of 38 m
+  against "40m" lost 5 lb for every set still to do ("38 reps against a target of 40–40").
+
+None of these steps is written by a program, and no rule in LOOP justifies one second or one metre as a unit of progress.
+
+**The rule.** A count in seconds or metres takes no step of its own. Its target is the prescription the program wrote,
+said in its unit. The load is held exactly where D49 holds it. A load still moves only on the evidence it always needed:
+- up, at the top of the prescription with reserve recorded (D49 tier 2; the coach's "easy");
+- down, two sessions under it with nothing in reserve (D47), or one set grinding under it (the coach's "hard" on recorded
+  effort).
+Nothing is converted, scored or rewritten.
+
+**Where it applies.**
+- **D49.** Below the top of the prescription: "You reached 35 m last session — keep 50 lb and work toward 40 m." Below its
+  bottom, the whole prescription ("work toward 30–40 s"). The dip tier is for reps. The insufficient-evidence tier says the
+  prescription in its unit ("work toward 40 m", not "40–40 m").
+- **The unit D49 reads** (`liftTargetMeasure`). The prescription's, else, for a carry (which could be either), the unit its
+  history is all counted in, else the exercise's kind. This is the live row's order: stated, chosen, default. A carry added by
+  hand and counted in metres is coached in metres ("Keep 50 lb and match your previous 35 m"). 10.95 said its earlier
+  sessions "weren't logged in seconds".
+- **D125.** A count the prescription states in seconds or metres keeps the program's numbers, as a hold always did.
+- **D119.** A bodyweight lift counted in anything but reps gets the answer a hold gets: "Mountain Climbers is timed, and
+  LOOP's rep targets are for lifts counted in reps" (reason `'measure'`).
+- **The live coach.** The coach's unit is the row's (`dataset.measure`, a carry's chosen unit included), else the
+  prescription's. The no-effort shortfall is a rep tolerance, so a timed or distance set short of the prescription with no
+  effort logged holds the load. The coach's words, card and detail say the target and the last set in the unit ("40 m",
+  "50 lb × 38 m").
+
+**Last time.** Counts whose unit was never recorded keep their numbers as logged. The detail says "Unit not recorded —
+LOOP doesn't compare these counts." The summary beside "Last time" says "unit not recorded" beneath the value.
+
+**Unchanged.**
+- Every lift counted in reps. D49, the one question, D125's plan, the start, Ready to progress and the coach are 10.95's to the
+  byte across a reps-only history: 7 lifts × 8 prescriptions, and a 96-case coach matrix (Contract 298 P1–P3, C7).
+- Records and XP. The rule-2 boundary, the save and edit paths, Session Score, Next time and Friends sharing.
+- Every amount, step and threshold: PR_XP, SET_COACH, PROGRESSION_EVIDENCE, WORKING_SET_PLAN, BODYWEIGHT_PROGRESSION.
+- No storage key, no markup, no migration.
+
+**Held.**
+- E113: a record's unit in Friends needs migration 0007.
+- E115: the coach's effort words ("1.5 reps in reserve") are said in reps for every lift.
+- E116: at 320px a finished set's count unit runs under "Add RIR". This has been true since 10.49 and affects every lift. It
+  is left for the active-workout pass of the visual redesign.
