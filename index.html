@@ -12140,6 +12140,225 @@ header{ padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom:
   #view-today.active > #todayWorkout{ column-span: none; }
 }
 /* ==== D175 TODAY AND TRAIN END ==== */
+/* ==== D176 PROGRESS AND LOG BEGIN ==== */
+/* D176 — PREMIUM REDESIGN, PART 2: PROGRESS AND LOG, in D175's language: a quiet ground and one lit stage.
+   · Progress has one lit surface, the last completed week (Weekly Review): its three counts read large, records in the
+     progress green. Strength keeps its Personal Best Timeline as its one picture. Every other block is D175's quiet panel
+     (--d175-panel): one fill, one hairline, one radius, no shadow, labels in sentence case.
+   · Log: the calendar is the page's instrument. The selected day is a ring, not a floodlit square; today is its number in
+     the accent; missed keeps its slashed ring in grey (D175); a paused day has a mark of its own (two bars) and the key
+     names only the marks the month holds. The selected day's answer carries its category as a stripe.
+   · Recent and By exercise are lists in one panel; a record is a word, not a chip. By exercise opens on every logged lift
+     (with a filter) and draws a lift's workouts with Exercise Detail's own rows.
+   · Tablet and desktop: Overview is a grid under the week; Strength, Volume and Log go to two columns.
+   Presentation only: no engine is read differently, and nothing here decides a state. Reduce Motion stills every
+   movement below (the global rule). */
+:root{ --d176-rule: rgba(148,170,205,0.08); }
+
+/* ---------- page heads: the title a size below Today's workout, the switch quiet ---------- */
+#progressTitle{ font-size: 26px; margin: 2px 0 12px; }
+#view-history .log-hdr{ align-items: center; margin-bottom: 12px; }
+#view-history .log-title{ font-size: 26px; }
+#progSeg, #logSeg{ background: var(--d175-panel); border-color: var(--d175-panel-edge); box-shadow: none; border-radius: 14px; }
+#progSeg .seg-btn.active, #logSeg .seg-btn.active{ border-radius: 11px; }
+
+/* ---------- one quiet panel ---------- */
+#progPerf .prh, #progPerf .pac, #progPerf .po-card.wr-entry-wait, #ppanel-strength .pd-card, #ppanel-volume .vw-grid, #ppanel-volume .mv-card,
+#ppanel-muscles .mst-card, #progExercises .rank-list, #view-history .lc-card, #view-history .cal-card, #historyRecent .rw-list,
+#exHistoryList .ex-history-rows, #exHistoryList .ex-dir{
+  background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); border-radius: var(--d175-r); box-shadow: none;
+}
+#ppanel-volume .vw-grid{ gap: 0; overflow: hidden; }
+#ppanel-volume .vw-cell{ background: none; }
+#ppanel-volume .vw-cell:nth-child(odd){ box-shadow: inset -1px 0 0 var(--d176-rule); }
+#ppanel-volume .vw-cell:nth-child(-n+2){ box-shadow: inset 0 -1px 0 var(--d176-rule); }
+#ppanel-volume .vw-cell:first-child{ box-shadow: inset -1px -1px 0 var(--d176-rule); }
+
+/* labels say what they are in sentence case, at a size that reads */
+#progPerf .po-k, #progPerf .prh-span, #progPerf .prh-axis, #progPerf .pac-d, #ppanel-strength .pbt-eyebrow, #ppanel-strength .snap-label, #ppanel-volume .vw-k, #ppanel-volume .mas-sum-k,
+#ppanel-muscles .mst-title, #ppanel-muscles .mst-list-head, #ppanel-muscles .mas-sum-k, #view-history .lc-title, #view-history .sd-date, #historyRecent .rw-month{
+  text-transform: none; letter-spacing: 0; font-family: var(--font-ui), 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+}
+#progPerf .prh-axis, #progPerf .pac-d{ font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+#ppanel-muscles .mst-title{ font-size: 15px; font-weight: 700; }
+
+/* ---------- Overview: the last completed week is the lit surface ---------- */
+#progPerf .wr-entry.wr-lit{
+  display: flex; flex-direction: column; align-items: stretch; gap: 14px; width: 100%; padding: 16px 18px 14px; text-align: left;
+  border-radius: var(--d175-r); border: 1px solid rgba(76,194,255,0.22); box-shadow: none;
+  background: radial-gradient(120% 90% at 100% 0%, rgba(76,194,255,0.15) 0%, rgba(76,194,255,0.04) 45%, rgba(76,194,255,0) 70%), linear-gradient(180deg, #141D2C 0%, #0F1623 100%);
+  transition: transform var(--dur-press) var(--ease-out);
+}
+#progPerf .wr-lit .po-card-top{ display: flex; align-items: baseline; gap: 10px; }
+#progPerf .wr-lit .po-k{ color: var(--text); font-size: 15px; font-weight: 700; }
+#progPerf .wr-lit .wr-entry-week{ flex: 1; margin: 0; font-family: var(--font-ui), 'Inter', sans-serif; font-size: 13px; font-weight: 500; color: var(--text-dim); }
+#progPerf .wr-lit .po-go{ align-self: center; color: var(--text-dim); }
+#progPerf .wr-stats{ display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+#progPerf .wr-stat{ display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+#progPerf .wr-stat b{ font-family: 'Space Grotesk', sans-serif; font-size: 32px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--text); }
+#progPerf .wr-stat i{ font-style: normal; font-size: 12.5px; color: var(--text-dim); }
+#progPerf .wr-stat-rec b{ color: var(--c-progress); }
+#progPerf .wr-lit .wr-entry-line{ margin: -4px 0 0; font-size: 13px; line-height: 1.4; color: var(--text-dim); }
+#progPerf .wr-lit .wr-strip-compact{ width: 100%; max-width: none; display: flex; justify-content: space-between; padding-top: 12px; border-top: 1px solid var(--d176-rule); }
+#progPerf .wr-entry.wr-lit:active{ transform: scale(0.985); }
+
+/* Training rhythm and Achievements: the panel's head in one line, the numbers in the UI face */
+#progPerf .prh, #progPerf .pac{ padding: 16px 18px 14px; margin-top: var(--d175-gap); }
+#progPerf .prh-span{ color: var(--text-dim); font-weight: 500; }
+#progPerf .pac-row{ transition: transform var(--dur-press) var(--ease-out); }
+#progPerf .pac-row:active, #progPerf .prh-stat:active{ transform: scale(0.98); }
+
+/* before any history: one panel saying what will appear, and when */
+#progPerf .d176-empty{ padding: 20px 18px 18px; background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); border-radius: var(--d175-r); box-shadow: none; }
+#progPerf .d176-empty .pd-hero-head{ font-size: 20px; }
+#progPerf .d176-empty .pd-hero-line{ margin-top: 6px; font-size: 14px; color: var(--text-dim); }
+#progPerf .d176-empty-list{ list-style: none; margin: 16px 0 0; padding: 0; }
+#progPerf .d176-empty-list li{ display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid var(--d176-rule); font-size: 13.5px; }
+#progPerf .d176-empty-list b{ font-weight: 600; color: var(--text); }
+#progPerf .d176-empty-list span{ color: var(--text-dim); text-align: right; }
+#progPerf .d176-empty-go{ width: 100%; min-height: 44px; margin-top: 14px; }
+
+/* ---------- Strength: the timeline leads; every lift one row of one list ---------- */
+#progExercises .rank-list{ padding: 2px 16px; }
+#progExercises .rank-row:last-child, #ppanel-strength .pd-card .pd-pr-row:last-child{ border-bottom: 0; }
+#ppanel-strength .rank-row, #progExercises .rank-row{ transition: transform var(--dur-press) var(--ease-out); }
+#ppanel-strength .rank-row:active{ transform: scale(0.985); }
+
+#ppanel-strength .pd-card .pd-more{ min-height: 44px; justify-content: flex-start; padding: 0; background: none; border: 0; box-shadow: none; color: var(--accent); }
+
+/* ---------- Volume: a lower number is a fact, not an alarm (D25's neutral deltas, now drawn neutral) ---------- */
+#ppanel-volume .vw-d-down{ color: var(--text-dim); }
+
+/* ---------- Log: the consistency strip, quieter and shorter ---------- */
+#view-history .lc-card{ padding: 12px 16px; margin-top: var(--d175-gap); }
+#view-history .lc-bars{ height: 30px; }
+#view-history .lc-col.on .lc-fill{ background: var(--c-progress); opacity: 0.6; }
+#view-history .lc-col.now .lc-fill{ background: var(--accent); opacity: 0.85; }
+#view-history .lc-foot{ margin-top: 6px; font-size: 13px; }
+
+/* the calendar: month name leading, the way back to this month beside it, the arrows to the right */
+#view-history .cal-card{ padding: 10px 12px 14px; margin-top: var(--d175-gap); }
+#view-history .cal-nav{ margin-top: 0; gap: 4px; }
+#view-history .cal-nav-label{ order: -1; flex: 1; padding-left: 6px; text-align: left; font-size: 18px; }
+#view-history .cal-this-month{ min-height: 44px; padding: 0 10px; border: 0; background: none; color: var(--accent); font-family: var(--font-ui), 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; }
+#view-history .cal-nav-btn{ width: 44px; height: 44px; border-radius: 50%; background: none; border-color: var(--d175-panel-edge); }
+/* a selected day is a ring, today is its number in the accent: both can be seen at once, neither floods the month */
+#view-history .cal-cell{ transition: transform var(--dur-press) var(--ease-out), background-color var(--dur-feedback) var(--ease-out); }
+#view-history .cal-cell.cal-today{ background: rgba(148,170,205,0.035); box-shadow: none; }
+#view-history .cal-cell.cal-today .cal-daynum{ color: var(--accent); font-weight: 700; }
+#view-history .cal-cell.cal-selected{ background: var(--accent-soft); border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+#view-history .cal-cell.cal-selected .cal-daynum{ color: var(--text); font-weight: 700; }
+#view-history .cal-cell.cal-selected .cal-mark-done{ background: var(--c-progress); }
+#view-history .cal-cell:active{ transform: scale(0.94); }
+/* missed: the slashed ring keeps its shape, in grey */
+#view-history .cal-mark-missed, #view-history .cal-lg-missed{ border-color: var(--text-faint); }
+#view-history .cal-mark-missed::after, #view-history .cal-lg-missed::after{ background: var(--text-faint); }
+/* paused: nothing was due — two short bars, where a mark would be */
+#view-history .cal-cell.cal-paused::after, #view-history .cal-cell.cal-due-today:not(:has(.cal-mark))::after, #view-history .cal-lg-paused{
+  content: ''; display: block; width: 7px; height: 7px; box-sizing: border-box; border-radius: 0; background: none;
+  border-left: 2px solid var(--text-faint); border-right: 2px solid var(--text-faint);
+}
+#view-history .cal-legend{ gap: 6px 14px; font-size: 12px; }
+#view-history .cal-legend [hidden]{ display: none; }
+
+/* the chosen day: its answer in the quiet panel, its category as a stripe, its two ways in as text */
+#historySelectedDay .sd-card{ --sd-c: var(--d175-panel-edge); margin-top: var(--d175-gap); padding: 14px 16px 6px 18px; background: var(--d175-panel);
+  border: 1px solid var(--d175-panel-edge); border-radius: 14px; box-shadow: inset 3px 0 0 var(--sd-c); }
+#historySelectedDay .sd-card-empty{ padding-bottom: 14px; }
+#historySelectedDay .sd-card:has(.cat-chip.push){ --sd-c: var(--push); }
+#historySelectedDay .sd-card:has(.cat-chip.pull){ --sd-c: var(--pull); }
+#historySelectedDay .sd-card:has(.cat-chip.legs){ --sd-c: var(--legs); }
+#historySelectedDay .sd-card:has(.cat-chip.core){ --sd-c: var(--core); }
+#historySelectedDay .sd-card:has(.cat-chip.fullbody){ --sd-c: var(--full); }
+#historySelectedDay .sd-card:has(.cat-chip.upper){ --sd-c: var(--upper); }
+#historySelectedDay .sd-card:has(.cat-chip.lower){ --sd-c: var(--lower); }
+#historySelectedDay .sd-card:has(.cat-chip.arms){ --sd-c: var(--arms); }
+#historySelectedDay .sd-date{ color: var(--text-dim); }
+#historySelectedDay .sd-multi-head{ margin-top: var(--d175-gap); }
+#historySelectedDay .sd-actions{ display: flex; gap: 20px; margin-top: 4px; padding: 0; border: 0; background: none; box-shadow: none; }
+#historySelectedDay .sd-actions .tw-change{ flex: 0 0 auto; min-height: 44px; padding: 0; border: 0; background: none; box-shadow: none; color: var(--accent); font-weight: 600; }
+
+#historySelectedDay .sd-firsts, #dayDetailPRs .dd-firsts{ margin-top: 8px; font-size: 12.5px; color: var(--text-dim); }
+#historySelectedDay .sd-prs + .sd-firsts{ margin-top: 4px; }
+
+/* ---------- Recent: one list, one panel; a record is a word ---------- */
+#historyRecent .rw-list{ padding: 0 14px; }
+#historyRecent .rw-month{ margin: 0; padding: 14px 4px 4px; color: var(--text-dim); }
+#historyRecent .rw-row{ transition: transform var(--dur-press) var(--ease-out); }
+#historyRecent .rw-row:active, #exHistoryList .rw-row:active{ transform: scale(0.985); }
+#historyRecent .rw-row:last-child{ border-bottom: 0; }
+#historyRecent .rw-pr, #exHistoryList .rw-pr{ padding: 0; background: none; font-size: 12px; color: var(--c-progress); }
+#historyRecent .rw-more, #exHistoryList .rw-more{ background: none; border-color: var(--d175-panel-edge); }
+
+/* ---------- By exercise: find a lift, then its workouts as Exercise Detail draws them ---------- */
+/* with every lift listed below, the picker steps aside; it returns as the switcher once a lift is open */
+#sv-exercise:has(#logExDir) #exHistorySelect{ display: none; }
+#exHistorySelect{ min-height: 48px; border-radius: 12px; background-color: var(--d175-panel); border-color: var(--d175-panel-edge); }
+#exHistoryList .ex-find{ display: block; margin-top: 12px; }
+#exHistoryList .ex-find input{ width: 100%; min-height: 44px; box-sizing: border-box; padding: 0 14px; border-radius: 12px; border: 1px solid var(--d175-panel-edge);
+  background: var(--d175-panel); color: var(--text); font: 16px var(--font-ui), 'Inter', sans-serif; }
+#exHistoryList .ex-find input:focus-visible{ outline: 2px solid var(--accent); outline-offset: 1px; }
+#exHistoryList .ex-dir, #exHistoryList .ex-history-rows{ margin-top: 12px; padding: 0 14px; }
+#exHistoryList .ex-dir-row[hidden]{ display: none; }
+#exHistoryList .ex-dir-row:last-child, #exHistoryList .ex-history-rows .rw-row:last-child{ border-bottom: 0; }
+#exHistoryList .ex-dir-best{ flex: 0 0 auto; margin-left: 8px; font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
+#exHistoryList .ex-dir-none{ margin: 14px 4px 0; font-size: 13.5px; color: var(--text-dim); }
+#exHistoryList .ex-history-head{ align-items: flex-end; margin-top: 16px; }
+#exHistoryList .ex-history-title{ display: flex; flex-direction: column; gap: 2px; text-transform: none; letter-spacing: -0.01em; font-size: 20px; }
+#exHistoryList .ex-history-n{ font-family: var(--font-ui), 'Inter', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 0; color: var(--text-dim); }
+
+/* ---------- motion: a month slides the way it went; a chosen day's answer and a switched view fade in once ---------- */
+@keyframes d176MonthNext{ from{ opacity: 0; transform: translateX(14px); } to{ opacity: 1; transform: none; } }
+@keyframes d176MonthPrev{ from{ opacity: 0; transform: translateX(-14px); } to{ opacity: 1; transform: none; } }
+.d176-month-next{ animation: d176MonthNext .2s var(--ease-out) both; }
+.d176-month-prev{ animation: d176MonthPrev .2s var(--ease-out) both; }
+
+/* ---------- tablet and desktop ---------- */
+@media (max-width: 379px){
+  #historyRecent .rw-list, #exHistoryList .ex-dir, #exHistoryList .ex-history-rows{ padding: 0 10px; }
+  #historyRecent .rw-row{ padding-left: 2px; padding-right: 2px; }
+  #historyRecent .rw-meta{ font-size: 12.5px; }
+}
+@media (min-width: 760px){
+  /* Overview: the week across the top; the rhythm on the left, what was earned on the right */
+  #progPerf{ display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 16px; align-items: start; }
+  #progPerf > *{ grid-column: 1 / -1; margin-top: var(--d175-gap); }
+  #progPerf > .wr-entry{ grid-row: 1; margin-top: 0; }
+  #progPerf:has(> .prh) > .prh{ grid-column: 1; grid-row: 2 / span 2; }
+  #progPerf:has(> .prh) > .po-card:not(.wr-entry), #progPerf:has(> .prh) > .pac{ grid-column: 2; grid-row: 2; }
+  #progPerf:has(> .prh):has(> .po-card:not(.wr-entry)) > .pac{ grid-row: 3; }
+  #progPerf:not(:has(> .prh)):has(> .pac) > .po-card:not(.wr-entry){ grid-column: 1; grid-row: 2; }
+  #progPerf:not(:has(> .prh)):has(> .po-card:not(.wr-entry)) > .pac{ grid-column: 2; grid-row: 2; }
+  #progPerf .wr-entry.wr-lit{ display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 320px); column-gap: 28px; row-gap: 12px; align-items: center; }
+  #progPerf .wr-lit .po-card-top, #progPerf .wr-lit .wr-entry-line{ grid-column: 1 / -1; }
+  #progPerf .wr-lit .wr-entry-line{ margin: 0; }
+  #progPerf .wr-lit .wr-stats{ grid-column: 1; grid-row: 2; }
+  #progPerf .wr-lit .wr-strip-compact{ grid-column: 2; grid-row: 2; padding-top: 0; border-top: 0; }
+  /* Strength and Volume: two columns, the long lists across both */
+  #progPBTimeline{ float: left; width: calc(50% - 8px); }
+  #progReady{ margin-left: calc(50% + 8px); }
+  #progReady > :first-child{ margin-top: 12px; }
+  #progReady::after, #progVolChart::after{ content: ''; display: block; clear: both; }
+  #progVolCompare{ float: left; width: calc(50% - 8px); }
+  #progVolChart{ margin-left: calc(50% + 8px); }
+  #progVolMuscle{ float: left; width: calc(50% - 8px); }
+  #progVolLong{ margin-left: calc(50% + 8px); }
+  #progVolLong::after{ content: ''; display: block; clear: both; }
+  /* Log: the calendar on the left; the chosen day and Recent on the right */
+  #sv-calendar > #historyConsistency, #sv-calendar > .cal-card{ float: left; clear: left; width: calc(50% - 10px); }
+  #sv-calendar > #historySelectedDay, #sv-calendar > #historyRecent{ margin-left: calc(50% + 10px); }
+  #sv-calendar > #historySelectedDay > :first-child{ margin-top: 0; }
+  #sv-calendar > #historyRecent > .sec-head:first-child{ margin-top: 18px; }
+  #sv-calendar > #historySelectedDay:empty + #historyRecent > .sec-head:first-child{ margin-top: 0; }
+  #sv-calendar::after{ content: ''; display: block; clear: both; }
+  #sv-exercise{ max-width: 600px; }
+}
+@media (min-width: 1100px){
+  #progPerf{ grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); column-gap: 24px; }
+  #sv-calendar > #historyConsistency, #sv-calendar > .cal-card{ width: calc(46% - 12px); }
+  #sv-calendar > #historySelectedDay, #sv-calendar > #historyRecent{ margin-left: calc(46% + 12px); }
+}
+/* ==== D176 PROGRESS AND LOG END ==== */
 </style>
 </head>
 <body>
@@ -22882,6 +23101,35 @@ const LOOP_UPDATES = [
       'A finished set’s count no longer runs under “Add RIR” on narrow phones, or on bodyweight sets on any phone',
       'While your program is paused, Today’s header says Paused instead of naming a training day',
       'The LOOP Coach no longer says “reps in reserve” for holds and carries',
+      'Records, PRs, XP and your training data are unchanged'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-98',
+    version: 'LOOP 10.98',
+    title: 'Progress and Log',
+    date: '2026-11-26',
+    swVersion: 'loop-v275',
+    summary: 'Progress leads with your last full week, and Log makes any workout easier to find. Both now match Today and Train.',
+    newFeatures: [
+      'By exercise lists every exercise you have logged, most recent first, with a search box, and shows each one’s workouts as Exercise Detail does',
+      'On tablets and wider screens, Progress and Log are laid out in two columns'
+    ],
+    improvements: [
+      'The weekly review leads Progress, with its workouts, working sets and records in large numbers and the lifts that set records named',
+      'Strength no longer lists your most-trained exercises twice; All exercises already shows how often you train each one',
+      'Before your first workout, Progress says what will appear and when, instead of three empty cards',
+      'The calendar is calmer: the day you pick has a ring, today’s date is highlighted, and the key shows only the marks in that month',
+      'Paused days have their own mark on the calendar, and This month brings you back from another month',
+      'The day you pick shows its workout type as a coloured edge, with Workout summary and Full workout as plain links',
+      'Recent and By exercise are single lists, and a record is marked with a word instead of a badge',
+      'A lower number on Volume is shown in a neutral colour, not an alarm colour'
+    ],
+    bugFixes: [
+      'Exercise Detail says metres or seconds, not reps, for lifts like a sled push that are counted in distance or time',
+      'For a lift whose older workouts don’t say whether they were metres or seconds, Exercise Detail now compares only workouts in the same unit',
+      'A lift logged for the first time is called a first-time baseline, not a new record, on the calendar’s selected day and in the workout view',
       'Records, PRs, XP and your training data are unchanged'
     ],
     changes: []
@@ -41326,6 +41574,7 @@ function setHistorySubView(sv){
   document.querySelectorAll('#logSeg .seg-btn').forEach(b => { const on = b.dataset.sv === sv; b.classList.toggle('active', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
   if(sv === 'calendar'){ renderLogPage(); renderHistoryCalendar(); }
   if(sv === 'exercise') renderExerciseHistorySelect();
+  revealOnce(sv === 'calendar' ? cal : ex);   // D176 — once, when the athlete switches; never on a redraw
 }
 
 /* D96C-2 — did this lift set a canonical personal record on this DAY?
@@ -41634,6 +41883,7 @@ function renderHistoryCalendar(){
 
   document.getElementById('historyCalGrid').innerHTML = cells;
   document.getElementById('historyCalLabel').textContent = MONTH_NAMES[m-1] + ' ' + y;
+  try{ calLegendSync(document.getElementById('historyCalGrid')); calThisMonthSync(); }catch(e){}   // D176 — the key and the way back to this month
   renderSelectedDay();
 }
 
@@ -41642,6 +41892,48 @@ function renderHistoryCalendar(){
 function selectHistoryDay(dateStr){
   historySelectedDate = (historySelectedDate === dateStr) ? null : dateStr;
   renderHistoryCalendar();
+  if(historySelectedDate) revealOnce(document.getElementById('historySelectedDay'));   // D176
+}
+/* D176 — a month changes with a short slide the way it went (later months from the right); a class added after the
+   draw and removed when it has played, so no redraw replays it. Reduce Motion stills it (the global rule). */
+function playOnce(el, cls){
+  if(!el || !el.classList) return;
+  el.classList.remove('d176-month-next'); el.classList.remove('d176-month-prev');
+  void el.offsetWidth;
+  el.classList.add(cls);
+  const done = () => el.classList.remove(cls);
+  el.addEventListener('animationend', done, { once: true });
+  setTimeout(done, 400);
+}
+/* D176 — the key under the calendar names the marks this month holds (a paused day's mark among them), not all of them */
+function calLegendSync(grid){
+  const legend = document.querySelector('#view-history .cal-legend');
+  if(!legend || !grid) return;
+  if(!legend.querySelector('.cal-lg-paused')){
+    const s = document.createElement('span'); s.setAttribute('role', 'listitem');
+    s.innerHTML = '<i class="cal-lg-paused" aria-hidden="true"></i>Paused';
+    legend.appendChild(s);
+  }
+  const has = { done: !!grid.querySelector('.cal-mark-done'), planned: !!grid.querySelector('.cal-mark-planned'),
+    missed: !!grid.querySelector('.cal-mark-missed'), shifted: !!grid.querySelector('.cal-mark-shifted'),
+    paused: !!grid.querySelector('.cal-paused') || Array.prototype.some.call(grid.querySelectorAll('.cal-due-today'), c => !c.querySelector('.cal-mark')) };
+  let any = false;
+  legend.querySelectorAll('i').forEach(i => { const k = (/cal-lg-(\w+)/.exec(i.className) || [])[1]; const on = !!has[k]; if(i.parentNode) i.parentNode.hidden = !on; if(on) any = true; });
+  legend.hidden = !any;
+}
+/* D176 — away from this month, one tap back to it */
+function calThisMonthSync(){
+  const nav = document.querySelector('#view-history .cal-nav');
+  if(!nav) return;
+  let b = document.getElementById('calThisMonth');
+  if(!b){
+    b = document.createElement('button'); b.type = 'button'; b.id = 'calThisMonth'; b.className = 'cal-this-month'; b.textContent = 'This month';
+    b.onclick = () => { const was = historyCalMonth; historyCalMonth = null; renderHistoryCalendar(); const now = historyCalMonth;
+      playOnce(document.getElementById('historyCalGrid'), now > was ? 'd176-month-next' : 'd176-month-prev'); };
+    nav.appendChild(b);
+  }
+  const d = new Date();
+  b.hidden = historyCalMonth === d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
 }
 
 /* D107 (E30) — the DATE groups a day's sessions; each session's own id stays
@@ -41656,8 +41948,11 @@ function sdCardHtml(entry, nice, showDate){
   const exCount = (entry.exercises || []).length;
   const setCount = (entry.exercises || []).reduce((n, ex) => n + (ex.sets || []).length, 0);
   const time = workoutTimeShort(entry);
-  let prs = [];
-  try{ prs = getSessionPRs(entry); }catch(e){}
+  /* D176 — D157 made a lift's first session a baseline, not a record; Recent and the Weekly Review count it so, and this
+     card still said "2 new records" for a workout whose two lifts were logged for the first time. */
+  const prs = [];
+  let firsts = 0;
+  try{ prEventsForEntryOrdered(entry).forEach(ev => { if(prIsBaseline(ev)) firsts++; else prs.push(ev.exerciseName); }); }catch(e){}
   const meta = [
     exCount + ' exercise' + (exCount === 1 ? '' : 's'),
     setCount + ' set' + (setCount === 1 ? '' : 's'),
@@ -41671,7 +41966,7 @@ function sdCardHtml(entry, nice, showDate){
       </div>
       <div class="sd-title has-wi">${workoutIdentityHtml(entry, entry.category, 'sm')}<span>${escapeHtml(entry.title)}</span></div>
       <div class="sd-meta">${escapeHtml(meta)}</div>
-      ${prs.length ? `<div class="sd-prs">${prs.length} new record${prs.length === 1 ? '' : 's'}</div>` : ''}
+      ${prs.length ? `<div class="sd-prs">${prs.length} new record${prs.length === 1 ? '' : 's'}</div>` : ''}${firsts ? `<div class="sd-firsts">${firsts} first-time baseline${firsts === 1 ? '' : 's'}</div>` : ''}
       <div class="tw-actions sd-actions">
         <button type="button" class="tw-change" onclick="openWorkoutSummary('${onclickArg(entry.id)}')">${twActionLabel('Workout summary', 'Summary')}</button>
         <button type="button" class="tw-change" onclick="openDayDetail('${onclickArg(entry.id)}')">${twActionLabel('Full workout', 'Full')}</button>
@@ -41905,6 +42200,7 @@ function shiftHistoryMonth(delta){
   if(m > 12){ m = 1; y++; }
   historyCalMonth = y + '-' + String(m).padStart(2,'0');
   renderHistoryCalendar();
+  playOnce(document.getElementById('historyCalGrid'), delta > 0 ? 'd176-month-next' : 'd176-month-prev');   // D176
 }
 
 /* D107 (E30) — opened by the workout's own id, exactly as its Summary
@@ -41913,7 +42209,9 @@ function shiftHistoryMonth(delta){
 function openDayDetail(entryId){
   const entry = workoutLog.find(l => l.id === entryId);
   if(!entry) return;
-  const prNames = getSessionPRs(entry);
+  /* D176 — records only in the callout; a lift logged for the first time is a baseline (D157), named beneath it */
+  const prNames = [], firstNames = [];
+  try{ prEventsForEntryOrdered(entry).forEach(ev => (prIsBaseline(ev) ? firstNames : prNames).push(ev.exerciseName)); }catch(e){}
   const time = workoutTimeShort(entry);
   const dt = new Date(entry.date + 'T00:00:00');
 
@@ -41930,6 +42228,7 @@ function openDayDetail(entryId){
     ? `<div class="pr-callout" style="margin-top:12px;"><span class="pr-callout-icon">PR</span><div class="pr-callout-body"><div class="pr-callout-title">${prNames.length} new record${prNames.length>1?'s':''}</div><div class="pr-callout-sub">${prNames.map(escapeHtml).join(', ')}${
         sessionPR.sessionOnly.indexOf('volume') !== -1 ? ' · most total volume in a session' : ''}</div></div></div>`
     : '';
+  if(firstNames.length) prsEl.innerHTML += `<div class="dd-firsts">First time logged: ${firstNames.map(escapeHtml).join(', ')}</div>`;   // D176
 
   /* One pass over history for the whole session, not one per rendered row. */
   const prSets = sessionPRSets(entry);
@@ -42759,7 +43058,9 @@ function renderExerciseHistoryList(){
   const name = document.getElementById('exHistorySelect').value;
   const wrap = document.getElementById('exHistoryList');
   if(!name){
-    wrap.innerHTML = `<div class="empty"><div class="mark">○</div><h3>Pick an exercise</h3><div>See every session you've logged for it, most recent first.</div></div>`;
+    /* D176 — with no lift chosen, every logged lift, most recently trained first, each one tap from its workouts; a
+       filter narrows the list as it is typed. A lift is listed once, under the name it was logged as (D96B). */
+    wrap.innerHTML = logExerciseDirectoryHtml();
     return;
   }
   const sessions = getExerciseFullHistory(name);
@@ -42767,14 +43068,51 @@ function renderExerciseHistoryList(){
     wrap.innerHTML = `<div class="empty"><div class="mark">○</div><h3>No sessions yet</h3><div>Log ${escapeHtml(name)} to start its record.</div></div>`;
     return;
   }
-  wrap.innerHTML = `<div class="ex-history-head"><div class="ex-history-title">${escapeHtml(name)}</div><button type="button" class="exd-link ex-history-open" onclick="openExDetail('${onclickArg(name)}')">Exercise detail ${chevronRightSvg()}</button></div>` + sessions.map(s => `
-    <div class="ex-history-session">
-      <div class="ex-history-date">${formatDateShort(s.date)}</div>
-      <div class="ex-history-sets">
-        ${s.rows.map(r => r.sets.map(set => setChipHtml(set, !!r.bodyweight, undefined, measureOfEntry(r))).join('')).join('')}
-      </div>
-    </div>
-  `).join('');
+  /* D176 — the lift's workouts as Exercise Detail draws them (exDetailSessionRowHtml): one row per workout, its sets in
+     their own unit, the best set in bold, a record or a first-time baseline marked, and the row opens that workout. The
+     same sessions as before (getExerciseFullHistory's), newest first; nothing is read a second way. */
+  const key = loggedExerciseKey(name);
+  const d = { key, measure: liftMeasureOf(name) };
+  const rows = sessions.map(s => { const entry = workoutLog.find(l => l.id === s.id); return entry ? exDetailSessionRowHtml(Object.assign({}, s, { entry }), d) : ''; }).join('');
+  wrap.innerHTML = `<div class="ex-history-head"><div class="ex-history-title">${escapeHtml(name)}<span class="ex-history-n">${sessions.length} workout${sessions.length === 1 ? '' : 's'}</span></div><button type="button" class="exd-link ex-history-open" onclick="openExDetail('${onclickArg(name)}')">Exercise detail ${chevronRightSvg()}</button></div>`
+    + `<div class="exd-rows ex-history-rows">${rows}</div>`
+    + `<button type="button" class="rw-more ex-history-all" onclick="pickLogExercise('')">All exercises</button>`;
+}
+/* D176 — the lifts By exercise lists: name, workouts, when last trained, and the best in its own unit (All exercises'
+   allExerciseFactOf, so the two lists never disagree), most recently trained first. */
+function logExerciseDirectoryHtml(){
+  const names = getAllLoggedExerciseNames();
+  if(!names.length) return `<div class="empty"><div class="mark">○</div><h3>No exercises yet</h3><div>Every lift you log is listed here, with its workouts one tap away.</div></div>`;
+  const last = Object.create(null);
+  sortedLog().forEach(l => (l.exercises || []).forEach(ex => { const k = loggedExerciseKey(ex.name); if(k && !last[k]) last[k] = l.date; }));
+  const rows = names.map(n => ({ n, k: loggedExerciseKey(n), f: allExerciseFactOf(n) })).filter(r => r.f)
+    .sort((a, b) => String(last[b.k] || '').localeCompare(String(last[a.k] || '')) || a.n.localeCompare(b.n));
+  return `<label class="ex-find"><span class="sr-only">Find an exercise</span><input type="search" id="logExFind" placeholder="Find an exercise" autocomplete="off" oninput="filterLogExercises(this.value)"></label>
+    <div class="exd-rows ex-dir" id="logExDir">${rows.map(r => `
+      <button type="button" class="rw-row ex-dir-row" data-name="${escapeAttr(r.n.toLowerCase())}" onclick="pickLogExercise('${onclickArg(r.n)}')"
+        aria-label="${escapeAttr(r.n + ': ' + r.f.sessions + ' workout' + (r.f.sessions === 1 ? '' : 's') + (last[r.k] ? ', last trained ' + exdDate(last[r.k]) : '') + (r.f.value ? ', best ' + r.f.value : '') + '. Show its workouts.')}">
+        <span class="rw-body"><span class="rw-title">${escapeHtml(r.n)}</span>
+          <span class="rw-meta">${r.f.sessions} workout${r.f.sessions === 1 ? '' : 's'}${last[r.k] ? ' · ' + escapeHtml(exdDate(last[r.k])) : ''}${r.f.kind ? ' · ' + escapeHtml(r.f.kind) : ''}</span></span>
+        ${r.f.value ? `<span class="ex-dir-best">${escapeHtml(r.f.value)}</span>` : ''}
+        <span class="rw-go" aria-hidden="true">${chevronRightSvg()}</span>
+      </button>`).join('')}</div>
+    <p class="ex-dir-none" id="logExNone" hidden>No logged exercise matches.</p>`;
+}
+function filterLogExercises(q){
+  const s = String(q || '').trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('#logExDir .ex-dir-row').forEach(r => { const on = !s || (r.dataset.name || '').indexOf(s) !== -1; r.hidden = !on; if(on) shown++; });
+  const none = document.getElementById('logExNone');
+  if(none) none.hidden = shown > 0;
+}
+function pickLogExercise(name){
+  const sel = document.getElementById('exHistorySelect');
+  if(!sel) return;
+  sel.value = name;
+  renderExerciseHistoryList();
+  revealOnce(document.getElementById('exHistoryList'));   // D175's entrance, once, on the athlete's choice
+  const view = document.getElementById('sv-exercise');
+  if(view && view.getBoundingClientRect && view.getBoundingClientRect().top < 0) window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 /* ---------- COMPREHENSIVE PR ENGINE ---------- */
@@ -48685,15 +49023,19 @@ function renderProgDashboard(){
   /* Before any history, the dashboard describes what it will hold rather than
      rendering a grid of zeroes. */
   if(!workoutLog.length){
+    /* D176 — one quiet panel: nothing is measurable yet, and what each part of Progress needs before it says anything.
+       No empty charts and no zeroes (D25). */
     host.innerHTML = `
-      <div class="pd-hero pd-hero-empty">
-        <div class="pd-hero-head">Your Progress</div>
-        <div class="pd-hero-line">Log a few sessions and this becomes your strength trend, muscle development, consistency and records.</div>
-      </div>
-      <div class="pd-empty-grid">
-        <div class="pd-empty-card"><span class="pd-empty-t">Strength</span><span class="pd-empty-s">Your trend appears after a few workouts.</span></div>
-        <div class="pd-empty-card"><span class="pd-empty-t">Muscle development</span><span class="pd-empty-s">Train consistently to build your profile.</span></div>
-        <div class="pd-empty-card"><span class="pd-empty-t">Exercise mastery</span><span class="pd-empty-s">Levels grow as you repeat exercises.</span></div>
+      <div class="pd-hero pd-hero-empty d176-empty">
+        <div class="pd-hero-head">Nothing to measure yet</div>
+        <div class="pd-hero-line">Progress fills in from the workouts you log.</div>
+        <ul class="d176-empty-list">
+          <li><b>Weekly review</b><span>after your first full week</span></li>
+          <li><b>Strength trends</b><span>once a lift has two workouts</span></li>
+          <li><b>Records</b><span>when you beat your first logged best</span></li>
+          <li><b>Mastery</b><span>levels grow as you repeat exercises</span></li>
+        </ul>
+        <button type="button" class="btn-secondary d176-empty-go" onclick="switchTab('train')">Start a workout</button>
       </div>`;
     if(weeklyReviewIsOpen()) renderWeeklyReview();
     return;
@@ -49097,10 +49439,10 @@ function renderProgStrength(){
      that holds per-exercise information. It still has exactly one home; the
      Overview now answers "what have I trained" with the muscle summary,
      which reads at a glance where a ranked text list did not. */
+  /* D176 — Most trained ranked the lifts by the session count All exercises prints on every row, beneath it; it is no
+     longer drawn a second time (mostTrainedHtml stays). */
   document.getElementById('progReady').innerHTML =
-    readyHtml + progPRCardHtml()   /* D158 — Training load is read on Volume, beside the weekly chart it used to draw a second time */
-    + '<div class="sec-head">Most trained<span class="sec-hint">sessions logged</span></div>'
-    + mostTrainedHtml(5);
+    readyHtml + progPRCardHtml();   /* D158 — Training load is read on Volume, beside the weekly chart it used to draw a second time */
 
   const trends = computeExerciseTrends();
   /* D173 (E112) — every lift with logged history is listed. One with a strength trend keeps its row; one without (a
@@ -49165,8 +49507,12 @@ function allExerciseFactOf(name){
   });
   if(!sessions) return null;
   const count = n => unit === MEASURE_REPS ? n + (n === 1 ? ' rep' : ' reps') : measureCountShort(n, unit);
-  const value = top > 0 ? fmtLoad(top) + ' × ' + count(topCount) : bwBest > 0 ? count(bwBest) : anyLoad > 0 ? fmtLoad(anyLoad) : '';
-  const kind = lm === MEASURE_TIME ? 'timed' : lm === MEASURE_DISTANCE ? 'metres'
+  /* D176 (E119) — the heaviest set of an assisted lift is the one with the most help, its easiest (D152): All exercises
+     printed it as the lift's figure. An assisted lift is listed with its sessions and the word, and no figure. */
+  let assisted = null;
+  try{ assisted = exerciseLoadMeaning(name); }catch(e){ assisted = null; }
+  const value = assisted ? '' : top > 0 ? fmtLoad(top) + ' × ' + count(topCount) : bwBest > 0 ? count(bwBest) : anyLoad > 0 ? fmtLoad(anyLoad) : '';
+  const kind = assisted ? 'assisted' : lm === MEASURE_TIME ? 'timed' : lm === MEASURE_DISTANCE ? 'metres'
     : lm === MEASURE_UNKNOWN ? (unit === MEASURE_UNKNOWN ? 'unit not recorded' : 'some sessions in no recorded unit') : '';
   return { name, sessions, value, kind };
 }
@@ -49801,20 +50147,24 @@ function weeklyReviewEntryHtml(){
       <span class="wr-entry-line">Your first review arrives ${escapeHtml(when)}, after your first full week.</span>
     </div>`;
   }
+  /* D176 — the Overview's one lit surface: the last completed week's three counts, read large (the review's own numbers,
+     weeklyReviewCountLine's), the lifts its records were set on, and its days. A first session is a baseline, not a record
+     (D157), and is never named as one. Nothing here is computed that the review does not already hold. */
+  const recNames = [];
+  g.records.forEach(r => { const n = String(r.ev && r.ev.exerciseName || '').trim(); if(n && recNames.indexOf(n) === -1) recNames.push(n); });
+  const stat = (n, word, cls) => `<span class="wr-stat${cls || ''}"><b>${n}</b><i>${word}${n === 1 ? '' : 's'}</i></span>`;
+  const recLine = recNames.length ? (recNames.length === 1 ? 'Record: ' : 'Records: ') + recNames.slice(0, 3).join(', ') + (recNames.length > 3 ? ' and ' + (recNames.length - 3) + ' more' : '') : '';
   return `
-    <button type="button" class="po-card po-card-tap wr-entry" onclick="openWeeklyReview()"
-      aria-label="${escapeAttr('Weekly review, ' + g.spoken + ': ' + weeklyReviewCountLine(g) + '. Open the review.')}">
+    <button type="button" class="po-card po-card-tap wr-entry wr-lit" onclick="openWeeklyReview()"
+      aria-label="${escapeAttr('Weekly review, ' + g.spoken + ': ' + weeklyReviewCountLine(g) + (recLine ? '. ' + recLine : '') + '. Open the review.')}">
       <span class="po-card-top">
         <span class="po-k">Weekly review</span>
+        <span class="wr-entry-week">${escapeHtml(g.label)}</span>
         <span class="po-go" aria-hidden="true">${chevronRightSvg()}</span>
       </span>
-      <span class="wr-entry-row">
-        <span class="wr-entry-info">
-          <span class="wr-entry-week">${escapeHtml(g.label)}</span>
-          <span class="wr-entry-line">${escapeHtml(weeklyReviewCountLine(g))}</span>
-        </span>
-        ${weeklyReviewStripHtml(g.timeline, true)}
-      </span>
+      <span class="wr-stats" aria-hidden="true">${stat(g.workouts, 'workout')}${stat(g.workingSets, 'working set')}${stat(g.records.length, 'record', g.records.length ? ' wr-stat-rec' : '')}</span>
+      ${recLine ? `<span class="wr-entry-line" aria-hidden="true">${escapeHtml(recLine)}</span>` : ''}
+      ${weeklyReviewStripHtml(g.timeline, true)}
     </button>`;
 }
 
@@ -51003,11 +51353,17 @@ function deriveExerciseDetail(name){
 
   /* D49, asked exactly as Progress asks it. `last` is the session it judged. */
   const recReps = repRangeForExercise(raw);
+  /* D176 (E117) — D49 reads a lift whose history holds more than one unit only in its target's unit (D173,
+     progressionMeasureScope); the session shown as LAST and the workouts behind the answer are read the same way, so
+     a count in metres is never set beside one whose unit was not recorded. A lift in one unit is read as before. */
+  let scope = null;
+  try{ scope = progressionMeasureScope(raw, recReps); }catch(e){ scope = null; }
+  const unitFilter = scope && scope.filter ? scope.filter : undefined;
   let rec = null, last = null;
   if(sessions.length){
     try{ rec = progressionRecommendationFor(raw, recReps, null); }catch(e){ rec = null; }
     if(!rec || rec.mode !== 'bodyweight'){
-      try{ const h = exerciseSessionHistory(raw, 1); last = h.length ? h[0] : null; }catch(e){ last = null; }
+      try{ const h = exerciseSessionHistory(raw, 1, unitFilter); last = h.length ? h[0] : null; }catch(e){ last = null; }
     }
   }
 
@@ -51032,7 +51388,7 @@ function deriveExerciseDetail(name){
   if(rec && rec.mode === 'bodyweight'){
     try{ bwWin = (bodyweightSessionHistory(raw, 4) || []).slice().reverse(); }catch(e){ bwWin = []; }
   } else if(rec && key && !assisted){
-    evidence = exerciseEvidenceOf(sessions, key);
+    evidence = exerciseEvidenceOf(sessions, key, unitFilter);   // D176 (E117)
     if(rec.tag === 'plateau'){ try{ wk = worthKnowingLiftItem(raw, lastDate); }catch(e){ wk = null; } }
   }
 
@@ -51045,16 +51401,18 @@ function deriveExerciseDetail(name){
 
   return { name: raw, key, sessions, sessionCount: sessions.length, lastDate,
     prMode, isBW, muscles, equipment, best, rec, recReps, last, points, trend, repPoints, bests, mastery,
-    state: exerciseDetailStateOf(rec), evidence, wk, bwWin, assisted, upcoming, measure: liftMeasureOf(raw) };   // D172
+    state: exerciseDetailStateOf(rec), evidence, wk, bwWin, assisted, upcoming, measure: liftMeasureOf(raw),   // D172
+    countUnit: scope ? scope.measure : MEASURE_REPS };   // D176 (E117) — the unit D49 read: LAST, NEXT and the workouts are said in it
 }
 
 /* D151 — detectPlateau's own window, read from the sessions Exercise Detail already holds (no second scan of the log):
    the lift's last four ordinary workouts (a programmed deload is set aside, D123), oldest first, each as D137's evidence
    and each compared with the one before by D137's own comparison. The newest is the session D49 judged. */
-function exerciseEvidenceOf(sessions, key){
+function exerciseEvidenceOf(sessions, key, unit){
   const win = [];
   for(let i = 0; i < sessions.length && win.length < 4; i++){
     if(isDeloadWorkout(sessions[i].entry)) continue;
+    if(unit && workoutLiftMeasure(sessions[i].entry, key) !== unit) continue;   // D176 (E117) — detectPlateau's own rule (D173)
     const e = workoutProgressionEvidence(sessions[i].entry, key);
     if(e) win.unshift(e);
   }
@@ -51094,13 +51452,38 @@ const EXD_STEP = {
   BETTER_BACKOFF: ['Back-offs', 'the same top set and stronger back-off sets'], WORSE_BACKOFF: ['Back-offs', 'the same top set and weaker back-off sets'],
   EQUIVALENT: ['Same', 'the same as the workout before'], INCOMPARABLE: ['Different sets', 'different sets, so not compared']
 };
-function exdStepWord(v, b, a){
+function exdStepWord(v, b, a, unit){
   if(!v || !EXD_STEP[v.reason]) return null;
-  const reps = n => exdNum(n) + (n === 1 ? ' rep' : ' reps');
+  /* D176 (E117) — a count in seconds or metres steps in its unit, and its reserve is a number, not reps */
+  const m = unit && unit !== MEASURE_REPS && unit !== MEASURE_UNKNOWN ? unit : null;
+  const reps = n => m ? exdNum(n) + ' ' + measureUnitShort(m) : exdNum(n) + (n === 1 ? ' rep' : ' reps');
+  const rir = m ? ' in reserve' : ' RIR';
   const word = v.reason === 'MORE_TOP_REPS' ? '+' + reps(b.topReps - a.topReps) : v.reason === 'WORSE_TOP_REPS' ? '−' + reps(a.topReps - b.topReps)
-    : v.reason === 'BETTER_MATCHED_RIR' ? '+' + exdNum(b.topRir - a.topRir) + ' RIR' : v.reason === 'WORSE_MATCHED_RIR' ? '−' + exdNum(a.topRir - b.topRir) + ' RIR'
+    : v.reason === 'BETTER_MATCHED_RIR' ? '+' + exdNum(b.topRir - a.topRir) + rir : v.reason === 'WORSE_MATCHED_RIR' ? '−' + exdNum(a.topRir - b.topRir) + rir
     : EXD_STEP[v.reason][0];
-  return { cls: v.verdict === 'better' ? 'up' : v.verdict === 'worse' ? 'down' : 'same', word, said: EXD_STEP[v.reason][1] };
+  const said = !m ? EXD_STEP[v.reason][1] : v.reason === 'MORE_TOP_REPS' ? (m === MEASURE_TIME ? 'more time' : 'more distance') + ' at the same load'
+    : v.reason === 'WORSE_TOP_REPS' ? (m === MEASURE_TIME ? 'less time' : 'less distance') + ' at the same load' : EXD_STEP[v.reason][1];
+  return { cls: v.verdict === 'better' ? 'up' : v.verdict === 'worse' ? 'down' : 'same', word, said };
+}
+/* D176 (E117) — a count in the unit D49 read: reps exactly as before, seconds and metres in theirs */
+function exdCountTile(n, unit){ return unit && unit !== MEASURE_REPS ? measureCountText(n, unit) : String(n) + ' reps'; }
+function exdCountSaid(n, unit){
+  if(unit === MEASURE_TIME) return n + (Number(n) === 1 ? ' second' : ' seconds');
+  if(unit === MEASURE_DISTANCE) return n + (Number(n) === 1 ? ' metre' : ' metres');
+  if(unit === MEASURE_UNKNOWN) return 'a count of ' + n;
+  return repsWord(n);
+}
+const EXD_UNIT_RE = /\s*(seconds|second|secs|sec|s|metres|metre|meters|meter|m)\b/i;
+function exdRangeIn(reps, unit){
+  const r = exdRange(reps);
+  if(!unit || unit === MEASURE_REPS || unit === MEASURE_UNKNOWN) return r + ' reps';
+  return EXD_UNIT_RE.test(r) ? r.replace(EXD_UNIT_RE, ' ' + measureUnitShort(unit)) : r + ' ' + measureUnitShort(unit);
+}
+function exdRangeSaid(reps, unit){
+  const r = exdRange(reps);
+  if(!unit || unit === MEASURE_REPS || unit === MEASURE_UNKNOWN) return r + ' reps';
+  const word = unit === MEASURE_TIME ? ' seconds' : ' metres';
+  return EXD_UNIT_RE.test(r) ? r.replace(EXD_UNIT_RE, word) : r + word;
 }
 
 /* D151 — WHERE LAST SESSION SAT IN THE RANGE: D49's own test for adding, building, holding and reducing is the judged
@@ -51112,7 +51495,8 @@ function exDetailRangeHtml(d){
   const lo = r.min - 2, hi = r.max + 2;
   const x = v => ((Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * 100).toFixed(1) + '%';
   const where = reps > r.max ? 'above' : reps === r.max ? 'top' : reps < r.min ? 'under' : 'in';
-  const cap = repsWord(reps) + ' last time — ' + ({ above: 'above the', top: 'top of the', under: 'under the', in: 'inside the' })[where] + ' ' + r.min + '–' + r.max + ' range';
+  const u = d.countUnit && d.countUnit !== MEASURE_REPS ? d.countUnit : null;   // D176 (E117)
+  const cap = (u ? measureCountText(reps, u) : repsWord(reps)) + ' last time — ' + ({ above: 'above the', top: 'top of the', under: 'under the', in: 'inside the' })[where] + ' ' + r.min + '–' + r.max + (u ? ' ' + measureUnitShort(u) : '') + ' range';
   const tick = v => v === reps ? '' : '<span class="exd-rng-tick" style="left:' + x(v) + '">' + v + '</span>';
   return '<div class="exd-rng exd-rng-' + where + '"><span class="exd-rng-track" aria-hidden="true">'
     + '<span class="exd-rng-band" style="left:' + x(r.min) + ';right:calc(100% - ' + x(r.max) + ')"></span>'
@@ -51167,16 +51551,17 @@ function exDetailEvidenceHtml(d){
   const rir = new Set(), backoff = new Set();
   steps.forEach((v, i) => { if(!v) return; if(/MATCHED_RIR/.test(v.reason)){ rir.add(i); rir.add(i - 1); } if(/BACKOFF/.test(v.reason)){ backoff.add(i); backoff.add(i - 1); } });
   const rest = o => Object.keys(o.rest).sort((a, b) => b - a).map(k => exdNum(+k) + ' × ' + o.rest[k].map(s => exdNum(s.r)).join(', ')).join(' · ');
+  const cu = d.countUnit && d.countUnit !== MEASURE_REPS ? d.countUnit : null;   // D176 (E117)
   const cells = win.map((o, i) => {
-    let st = stalled ? null : exdStepWord(steps[i], o, win[i - 1]);
+    let st = stalled ? null : exdStepWord(steps[i], o, win[i - 1], d.countUnit);
     if(stalled) st = !i ? { cls: 'ref', word: 'To beat' } : compareProgressionEvidence(o, win[0]).verdict === 'worse' ? { cls: 'down', word: 'Below' } : { cls: 'same', word: 'Matched' };
-    const r = '× ' + exdNum(o.topReps) + (rir.has(i) && o.topRir !== null ? ' @' + exdNum(o.topRir) + ' RIR' : '')
+    const r = '× ' + exdNum(o.topReps) + (cu ? ' ' + measureUnitShort(cu) : '') + (rir.has(i) && o.topRir !== null ? (cu ? ' @' + exdNum(o.topRir) + ' in reserve' : ' @' + exdNum(o.topRir) + ' RIR') : '')
       + (backoff.has(i) && Object.keys(o.rest).length ? '<span class="exd-ev-b">' + escapeHtml(rest(o)) + '</span>' : '');
     return cell(i === n - 1 ? ' exd-ev-last' : '', o.date, exdNum(o.topLoad), 'lb', r, markOf(st));
   }).join('');
   const cap = !wk ? '' : stalled ? 'None of the last ' + n + ' beat the first.' : 'Each of the last two fell short of the one before, at ' + wkLb(win[n - 1].topLoad) + '.';
-  const said = 'Last ' + n + ' workouts, oldest first: ' + win.map((o, i) => exdDate(o.date) + ', ' + exdNum(o.topLoad) + ' pounds for ' + repsWord(o.topReps)
-    + (i && !stalled && steps[i] ? ', ' + exdStepWord(steps[i], o, win[i - 1]).said : '')).join('; ') + '.' + (cap ? ' ' + cap : '');
+  const said = 'Last ' + n + ' workouts, oldest first: ' + win.map((o, i) => exdDate(o.date) + ', ' + exdNum(o.topLoad) + ' pounds for ' + exdCountSaid(o.topReps, d.countUnit)
+    + (i && !stalled && steps[i] ? ', ' + exdStepWord(steps[i], o, win[i - 1], d.countUnit).said : '')).join('; ') + '.' + (cap ? ' ' + cap : '');
   return head + '<div class="exd-ev-wrap' + (wk ? ' exd-ev-' + wk.state : '') + '" role="group" aria-label="' + escapeAttr(said) + '">'
     + (wk ? '<div class="exd-trace-wrap">' + exerciseEvidenceTraceSvg(wk.evidence.levels, wk.state === 'declining') + '</div>' : '')
     + '<ol class="exd-ev" aria-hidden="true">' + cells + '</ol></div>' + (cap ? '<p class="exd-ev-cap">' + escapeHtml(cap) + '</p>' : '');
@@ -51241,23 +51626,24 @@ function exDetailNextHtml(d){
   const dir = change > 0 ? 'up' : change < 0 ? 'down' : 'same';
   /* what D49 read of the judged session: its sets against the prescription, and its reserve — unknown when none was logged, never 0 */
   const sets = last.prescribedSets ? last.workingSets + ' of ' + last.prescribedSets + ' sets' : last.workingSets + ' set' + (last.workingSets === 1 ? '' : 's');
-  const rir = last.avgRir == null ? 'RIR not logged' : '~' + Math.round(last.avgRir) + '\u00a0RIR';
+  const cu = d.countUnit && d.countUnit !== MEASURE_REPS ? d.countUnit : null;   // D176 (E117) — reps exactly as before
+  const rir = last.avgRir == null ? (cu ? 'reserve not logged' : 'RIR not logged') : '~' + Math.round(last.avgRir) + (cu ? '\u00a0in reserve' : '\u00a0RIR');
   const pips = rec.tag === 'insufficient' && last.prescribedSets
     ? '<span class="exd-pips">' + Array.from({ length: Math.min(8, last.prescribedSets) }, (_, i) => '<i' + (i < last.workingSets ? ' class="on"' : '') + '></i>').join('') + '</span>' : '';
-  const said = 'Last session, ' + exdDate(last.date) + ', ' + exdNum(last.weight) + ' pounds for ' + repsWord(last.topReps) + ', ' + sets + ', '
-    + (last.avgRir == null ? 'reps in reserve not logged' : 'about ' + Math.round(last.avgRir) + ' in reserve') + '. Next target, '
-    + exdNum(rec.weight) + ' pounds for ' + exdRange(d.recReps) + ' reps, ' + (change > 0 ? exdNum(change) + ' pounds more' : change < 0 ? exdNum(-change) + ' pounds less' : 'the same load') + '.';
+  const said = 'Last session, ' + exdDate(last.date) + ', ' + exdNum(last.weight) + ' pounds for ' + exdCountSaid(last.topReps, d.countUnit) + ', ' + sets + ', '
+    + (last.avgRir == null ? (cu ? 'reserve not logged' : 'reps in reserve not logged') : 'about ' + Math.round(last.avgRir) + ' in reserve') + '. Next target, '
+    + exdNum(rec.weight) + ' pounds for ' + exdRangeSaid(d.recReps, d.countUnit) + ', ' + (change > 0 ? exdNum(change) + ' pounds more' : change < 0 ? exdNum(-change) + ' pounds less' : 'the same load') + '.';
   return head
     + '<div class="exd-ln" aria-hidden="true">'
-    + tile('exd-ln-done', 'Last · ' + escapeHtml(exdDate(last.date)), exdNum(last.weight), 'lb', '× ' + escapeHtml(String(last.topReps)) + ' reps',
+    + tile('exd-ln-done', 'Last · ' + escapeHtml(exdDate(last.date)), exdNum(last.weight), 'lb', '× ' + escapeHtml(exdCountTile(last.topReps, d.countUnit)),
       '<span class="exd-ln-x">' + escapeHtml(sets + ' · ' + rir) + '</span>' + pips)
     + '<span class="exd-ln-arrow">' + chevronRightSvg() + '</span>'
-    + tile('exd-ln-to exd-ln-plan', d.upcoming ? 'LOOP suggests' : 'Next target', exdNum(rec.weight), 'lb', '× ' + escapeHtml(exdRange(d.recReps)) + ' reps', '<span class="exd-delta exd-delta-' + dir + '">' + delta + '</span>')
+    + tile('exd-ln-to exd-ln-plan', d.upcoming ? 'LOOP suggests' : 'Next target', exdNum(rec.weight), 'lb', '× ' + escapeHtml(exdRangeIn(d.recReps, d.countUnit)), '<span class="exd-delta exd-delta-' + dir + '">' + delta + '</span>')
     + '</div>'
     + '<p class="sr-only">' + escapeHtml(said + (d.upcoming ? ' ' + d.upcoming : '')) + '</p>'
     + (d.upcoming ? '<p class="exd-plan-note" aria-hidden="true">' + escapeHtml(d.upcoming) + '</p>' : '')
     + (/^(increase|build|hold|reduce)$/.test(rec.tag) ? exDetailRangeHtml(d) : '')
-    + '<p class="exd-why">' + escapeHtml(rec.why) + '</p>';
+    + '<p class="exd-why">' + escapeHtml(cu ? String(rec.why).replace(/(\d[\d.]*) RIR\b/g, '$1 in reserve') : rec.why) + '</p>';   // D176 (E117) — words only
 }
 
 /* The one chart: actual observations only, on a date scale, no smoothing and no

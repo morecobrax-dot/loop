@@ -21741,3 +21741,48 @@ No markup a renderer writes changed except the empty-library line and the paused
 lift counted in reps is coached exactly as in 10.96.
 
 **Held.** E113 (migration 0007); E117 — Exercise Detail still says "reps" for a timed or distance lift (its own reader).
+
+## §221 — PROGRESS AND LOG: THE WEEK AS THE STAGE, THE CALENDAR AS THE INSTRUMENT (D176 · LOOP 10.98 · loop-v275)
+
+**The problem.** Progress and Log wore four card styles (radius 10, 16 and 20, three fills), small capitals over most
+labels and mono dates. The Weekly Review — the Overview's most useful block — read as one grey line ("3 workouts · 21
+working sets · 2 records"). Strength drew Most trained beside All exercises, which prints the same session counts. A new
+athlete saw "Your Progress" under the page title "Progress" and three empty cards. Log floodlit the selected day in the
+accent, drew missed marks in alarm orange and gave a paused day no mark; By exercise was a native picker over a stack of
+cards of cyan chips ("225 lb × 6 · RIR 2" nine times a lift). Tablet and desktop stretched one phone column to 760/1080px.
+
+**The direction.** D175's language: one lit surface per screen and one quiet panel (`--d175-panel`) for everything else.
+- **Overview.** The last completed week is the lit surface: workouts, working sets and records read large (the review's own
+  counts), records in the progress green, the lifts that set them named, then its days. Training rhythm, the program and
+  Achievements (green band kept, D165) are quiet panels. Before any history: one panel saying what appears and when.
+- **Strength.** The Personal Best Timeline stays its picture; Records and All exercises are one-panel lists. Most trained is
+  no longer drawn (`mostTrainedHtml` stays): All exercises counts each lift's sessions on its row.
+- **Volume.** Same numbers; a lower count is drawn in a neutral tone (D25 called these deltas neutral; they were orange).
+- **Mastery.** Same engine; panels and labels follow the language.
+- **Log.** The month leads the calendar card, "This month" returns from elsewhere, the arrows sit right. The selected day is a
+  ring; today is its number in the accent; missed keeps its slashed ring in grey; a paused day has two bars; the key names
+  only the marks the month holds (`calLegendSync`). The chosen day's answer is a quiet panel with its category as a stripe
+  and its two ways in as text. Recent is one panel; a record is the word PR, not a chip.
+- **By exercise.** With no lift chosen, every logged lift (most recently trained first, with a filter): workouts, last date,
+  and its figure from All exercises' own reader (`allExerciseFactOf`). A chosen lift's workouts are Exercise Detail's own
+  rows (`exDetailSessionRowHtml`), each opening its workout. No second analytics system.
+- **Wide screens.** From 760px Overview is a grid under the week (rhythm left, program and achievements right); Strength,
+  Volume and Log go to two columns (Log: the calendar left, the chosen day and Recent right). From 1100px the 1080 column.
+- **Motion.** A month slides the way it went (0.2s); a chosen day's answer and a switched Log view fade in once (D175's
+  `revealOnce`); press states on rows and cells. Nothing replays on a redraw; Reduce Motion stills all of it.
+
+**E117 (closed).** Exercise Detail says a lift's numbers in the unit D49 read (`countUnit`): "120 lb × 20 m", "125 lb × 20 m",
+"120 pounds for 20 metres", "~2 in reserve". For a lift whose history holds more than one unit, the LAST session and the
+workouts behind the answer are read only in that unit (D173's rule, `progressionMeasureScope`, as `detectPlateau` already
+did): 10.97 set "100 lb × 20" (metres) beside "100 lb × 25" (no recorded unit) and called it "−5 reps".
+
+**E118 (closed).** A selected day's card and a workout's record callout counted a lift's first session as a "new record";
+D157 made it a baseline and Recent and the Weekly Review count it so. They now count records and name baselines apart.
+
+**E119 (closed).** All exercises printed an assisted lift's heaviest set — its most help, its easiest — as its figure. An
+assisted lift is listed with its sessions and the word "assisted", and no figure (D152).
+
+**Unchanged.** Every engine and every stored value: workouts and timestamps, XP and levels, records and baselines, Session
+Score, mastery and its thresholds, achievements, adherence and weekly completion, late-session matching, paused semantics,
+editing, measurements, record rules, coaching and progression, backup, Friends, storage keys, art and rank art. Rendering
+Progress or Log writes nothing. No static markup changed.

@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.97",
+  "version": "10.98",
   "phase": null,
-  "status": "stable",
+  "status": "release_ready",
   "needsQa": false,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "LOOP 10.97 is live (loop-v274, released 2026-11-25). Next: D176, the redesign of Progress and Log in the Today and Train language.",
+  "nextAction": "LOOP 10.98 release (loop-v275): automated gates passed; deploying to GitHub Pages, then confirming the live app.",
   "blocker": null,
-  "updatedAt": "2026-11-26T04:04:04Z"
+  "updatedAt": "2026-11-26T14:27:03Z"
 }

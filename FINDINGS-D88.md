@@ -3279,12 +3279,34 @@ Fix (CSS only, the D175 layer): the bodyweight field is width 0 again at every w
 wide as its value (4ch weight, 3ch count; 16 px, so editing never zooms on iOS), units 11 px (bodyweight says "BW", as Last
 time does), gaps tighter. No overlap at any of the 25 cases; every target ≥ 44 px; the set being logged is untouched.
 
-## E117 — Exercise Detail says "reps" for a timed or distance lift · P5 · OBSERVED · OPEN
+## E117 — Exercise Detail says "reps" for a timed or distance lift · P5 · **CLOSED in D176 (LOOP 10.98)**
 
 Found in D175 while closing E115. Exercise Detail's Last/Next tiles and their spoken summary (`exDetailNextHtml`'s
 `'× ' + topReps + ' reps'`, "pounds for N reps", "reps in reserve not logged") say reps for a carry or hold counted in
 seconds or metres. The numbers are right (D173/D174 compare and target only in the unit); the words are a rep's. It is a
 presentation reader of its own, outside D175's Today/Train scope, and is left for a measurement-words pass.
+
+**Closed in D176 (LOOP 10.98).** Exercise Detail reads the unit D49 read (`progressionMeasureScope`, kept as `countUnit`)
+and says every count in it: the LAST and NEXT tiles ("× 20 m"), their spoken sentence ("120 pounds for 20 metres", "about 2
+in reserve" / "reserve not logged"), the range caption, the four workouts behind the answer (cells, steps "+5 m", spoken
+"more distance at the same load") and D49's reason ("~2 in reserve"). A lift counted in reps reads exactly as in 10.97. A
+narrow defect found with it: for a lift whose history holds more than one unit, the LAST session and the evidence window were
+read across units — 10.97 set "100 lb × 20" in metres beside "100 lb × 25" with no recorded unit and called it "−5 reps". Both
+now take only workouts in that unit (`exerciseSessionHistory(…, filter)`, `exerciseEvidenceOf(…, unit)`, detectPlateau's rule).
+
+## E118 — A first session called a "new record" on Log's selected day and in the workout view · P4 · **CLOSED in D176 (LOOP 10.98)**
+
+Found in D176's capture of a day with two workouts: an evening core session whose two lifts were logged for the first time
+showed "2 new records" on the calendar's selected-day card, while Recent (D157's `sessionRecordCount`) and the Weekly Review
+counted none. `sdCardHtml` and `openDayDetail` still counted `getSessionPRs` (every PR event, baselines included). Both now
+count records only and name baselines apart ("1 first-time baseline"; "First time logged: …"). The set-level Record marks in
+the workout view are D96C-2's and were not changed.
+
+## E119 — All exercises printed an assisted lift's easiest set as its figure · P5 · **CLOSED in D176 (LOOP 10.98)**
+
+Found in D176's audit. `allExerciseFactOf` printed a lift's heaviest load × count; for an assisted lift that is the set with
+the most help (D152: LOOP singles out no "top" set for one). All exercises showed "Assisted Pull-Up — 90 lb × 8 reps". An
+assisted lift is now listed with its sessions and the word "assisted", and no figure; By exercise reads the same fact.
 
 ## Not findings — checked and clean
 
