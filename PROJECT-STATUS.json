@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.96",
+  "version": "10.97",
   "phase": null,
-  "status": "stable",
+  "status": "release_ready",
   "needsQa": false,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "LOOP 10.96 is live (loop-v273, released 2026-11-25). Next: D175, the visual redesign of Today and Train.",
+  "nextAction": "LOOP 10.97 release (loop-v274): automated gates passed; deploying to GitHub Pages, then confirming the live app.",
   "blocker": null,
-  "updatedAt": "2026-11-25T23:17:28Z"
+  "updatedAt": "2026-11-26T02:53:17Z"
 }

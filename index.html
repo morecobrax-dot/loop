@@ -11870,6 +11870,276 @@ button.pm-ph{ font: inherit; color: inherit; text-align: left; cursor: pointer; 
 .ex-brief .exc-summary .exc-unit{ display: block; margin-top: 2px; font-family: 'Inter', sans-serif; font-size: 11.5px; font-weight: 600; letter-spacing: 0; color: var(--text-dim); white-space: normal; }
 .last-time-unit{ display: block; margin-top: 6px; font-size: 12px; line-height: 1.4; color: var(--text-dim); }
 /* ==== D174 MEASURED STEPS END ==== */
+/* ==== D175 TODAY AND TRAIN BEGIN ==== */
+/* D175 — PREMIUM REDESIGN, PART 1: TODAY AND TRAIN. One direction: a quiet ground and one lit stage.
+   · The day's workout is the only lit surface on Today: the category's own colour lights it, its band stays (D165), and its
+     workout is the largest type on the screen. Everything else sits on the ground in one quiet panel style — no coloured
+     top bands, no gradients, no shadows — and says what it is in sentence case, not small capitals.
+   · One primary action per screen, then one quiet line of ways to change it; nothing competes with Start.
+   · Missed days keep their shape (D158) and lose their alarm colour; colour is the category's, the action's and XP's only.
+   · Train leads with the plan while today's session is due (data-due, renderTrainView) and with the ways to start
+     something else when it is not. The chip row runs to the screen's edges, so nothing reads as cut off inside a box.
+   · Tablet and desktop get a layout of their own: the header lines up with the content, Today and Train go to two columns.
+   Presentation only: no markup a renderer writes is changed here, and no engine is read differently. Reduce Motion stills
+   every movement below (the global rule). */
+:root{
+  --d175-panel: rgba(148,170,205,0.035);
+  --d175-panel-edge: rgba(148,170,205,0.09);
+  --d175-r: 18px;
+  --d175-gap: 14px;
+}
+
+/* ---------- the app header: one short row on every tab ---------- */
+header{ padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom: 6px; }
+.plan-chip{ padding: 4px 14px; }
+
+/* ---------- Today's header: greeting, date and day, rank — one compact row ---------- */
+#todayDateLine.today-hdr{ padding: 6px 0 0; align-items: center; gap: 12px; }
+#todayDateLine .today-greet{ font-size: 24px; line-height: 1.1; letter-spacing: -0.02em; }
+#todayDateLine .today-sub{ font-size: 13px; margin-top: 3px; color: var(--text-dim); }
+#todayDateLine .today-focus{
+  font-family: var(--font-ui); font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none;
+  color: var(--text); background: none; border: 0; padding: 0; margin: 0;
+}
+#todayDateLine .today-focus::before{ content: '·'; margin: 0 6px; color: var(--text-faint); font-weight: 400; }
+#todayDateLine .hdr-level{
+  grid-template-columns: auto auto; column-gap: 8px; row-gap: 3px; align-items: center;
+  padding: 6px 12px 7px 8px; min-height: 44px; border-radius: 999px;
+  background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); box-shadow: none;
+}
+#todayDateLine .hdr-level .rank-medal{ width: 30px; height: 30px; }
+#todayDateLine .hdr-level-n{ font-size: 17px; line-height: 1; }
+#todayDateLine .hdr-level-r{ font-size: 11px; letter-spacing: 0.04em; line-height: 1; }
+#todayDateLine .hdr-level-bar{ grid-column: 2 / -1; height: 3px; background: rgba(148,170,205,0.16); }
+
+/* ---------- the stage: today's workout ---------- */
+#todayWorkout .tw{ margin-top: 16px; border-radius: 22px; padding: 18px 18px 14px; }
+#todayWorkout .tw[data-fam]{
+  background:
+    radial-gradient(120% 90% at 100% 0%, rgba(var(--fam-rgb), 0.22) 0%, rgba(var(--fam-rgb), 0.06) 46%, rgba(var(--fam-rgb), 0) 72%),
+    linear-gradient(180deg, #141D2C 0%, #0F1623 100%);
+  box-shadow: inset 0 1px 0 var(--edge-hi), 0 22px 40px -26px rgba(0,0,0,0.9);
+}
+#todayWorkout .tw.tw-done-hero[data-fam]{
+  background: radial-gradient(120% 90% at 100% 0%, rgba(70,195,142,0.14) 0%, rgba(70,195,142,0) 65%), linear-gradient(180deg, #131C2A 0%, #0F1623 100%);
+}
+/* the head: "Today's Workout · ◈ Legs" on one line, then the workout itself, large */
+#todayWorkout .tw[data-fam], #todayWorkout .tw.tw-other{ display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; }
+#todayWorkout .tw[data-fam] > *, #todayWorkout .tw.tw-other > *{ flex: 0 0 100%; min-width: 0; }
+#todayWorkout .tw-label{
+  font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-dim);
+}
+#todayWorkout .tw[data-fam] > .tw-label{ flex: 0 0 auto; }
+#todayWorkout .tw[data-fam] > .tw-title{ flex: 1 1 auto; margin-top: 0; }
+#todayWorkout .tw[data-fam] > .tw-label + .tw-title::before{ content: '·'; margin-right: 8px; color: var(--text-faint); font-weight: 400; }
+#todayWorkout .tw[data-fam]:not(.tw-done-hero) > .tw-title{
+  font-family: var(--font-ui); font-size: 13px; font-weight: 700; letter-spacing: 0; color: var(--fam); gap: 6px;
+}
+#todayWorkout .tw[data-fam]:not(.tw-done-hero) > .tw-title .wi{ width: 18px; height: 18px; }
+#todayWorkout .tw-name{
+  font-size: 26px; line-height: 1.12; letter-spacing: -0.02em; margin-top: 10px; text-wrap: balance;
+}
+#todayWorkout .tw-muscles{ font-size: 14px; margin-top: 6px; color: var(--text); opacity: 0.86; }
+#todayWorkout .tw-name ~ .tw-meta{ font-size: 13px; margin-top: 2px; color: var(--text-dim); }
+#todayWorkout .tw > .tw-art{ width: 72px; height: 72px; right: 10px; top: 12px; opacity: 0.16; }
+
+/* one row: Start, and beside it View; then one quiet line of the ways to change the day */
+#todayWorkout .tw:has(> .tw-cta) > .tw-actions{ display: contents; }
+#todayWorkout .tw:has(> .tw-cta) > .tw-cta{ flex: 1 1 calc(100% - 120px); min-width: 0; margin-top: 16px; }
+#todayWorkout .tw:has(> .tw-cta) > .tw-actions > .tw-change:first-child{
+  flex: 0 0 112px; margin-top: 16px; min-height: 52px; border: 1px solid var(--hairline-strong); border-right: 1px solid var(--hairline-strong);
+  border-radius: var(--r-button); background: rgba(238,241,245,0.04); color: var(--text); font-size: 14px; font-weight: 600; padding: 0 8px;
+}
+#todayWorkout .tw:has(> .tw-cta) > .tw-actions > .tw-change:not(:first-child){
+  flex: 0 0 auto; min-height: 44px; margin-top: 6px; padding: 0 2px; border: 0; background: none;
+  font-size: 14px; font-weight: 600; color: var(--accent); text-align: left;
+}
+#todayWorkout .tw:has(> .tw-cta) > .tw-actions > .tw-change:not(:first-child) + .tw-change{ margin-left: 22px; }
+#todayWorkout .tw:has(> .tw-cta) .tw-action-full{ display: inline; }
+#todayWorkout .tw:has(> .tw-cta) .tw-action-compact{ display: none; }
+#todayWorkout .tw-cta{ min-height: 52px; font-size: 16px; border-radius: var(--r-button); }
+#todayWorkout .tw-cta:not(.tw-cta-ghost):not(.tw-cta-done){ box-shadow: 0 12px 26px -14px rgba(46,107,255,0.85), inset 0 1px 0 rgba(255,255,255,0.25); }
+
+/* the day's coaching: one line under a hairline, not a box inside the box */
+#todayWorkout .tw-coach{
+  margin-top: 10px; padding: 12px 2px 2px; min-height: 44px; border: 0; border-top: 1px solid var(--hairline); border-radius: 0;
+  background: none; gap: 10px;
+}
+#todayWorkout .tw-coach-k{ font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--c-progress); }
+#todayWorkout .tw-coach-v{ font-size: 14px; color: var(--text-dim); }
+#todayWorkout .tw-coach::after{ content: '›'; flex: none; font-size: 18px; line-height: 1; color: var(--text-faint); }
+
+/* rest, paused, ended: calm, never mandatory — no lit stage, the next session is a line, training anyway is a choice */
+#todayWorkout .tw.tw-rest{ background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); box-shadow: none; }
+#todayWorkout .tw.tw-rest .tw-title{ font-size: 24px; margin-top: 4px; }
+#todayWorkout .tw.tw-rest .tw-meta{ font-size: 14px; }
+#todayWorkout .tw-next{ margin-top: 12px; }
+#todayWorkout .tw-next-k{ font-size: 13px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-dim); }
+/* the rest day's card already names the next session: the week below does not say it a second time */
+#view-today:has(#todayWorkout .tw-next) #weekCard .wk2-next{ display: none; }
+#view-today:has(#todayWorkout .tw-next) #weekCard .wk2-plan{ margin-left: auto; justify-self: end; }
+#todayWorkout .tw-override{
+  width: auto; min-height: 44px; margin-top: 12px; padding: 0 18px; border-radius: 999px;
+  border: 1px solid var(--hairline-strong); background: none; color: var(--text); font-weight: 600;
+}
+#todayWorkout .tw.tw-rest{ display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; }
+#todayWorkout .tw.tw-rest > *{ flex: 0 0 100%; min-width: 0; }
+#todayWorkout .tw.tw-rest > .tw-cta-ghost, #todayWorkout .tw.tw-rest > .tw-override{ flex: 0 0 auto; width: auto; margin-top: 14px; min-height: 48px; padding: 0 20px; border-radius: 999px; font-size: 15px; }
+#todayWorkout .tw.tw-rest > .tw-picker{ flex-basis: 100%; }
+#todayWorkout .tw-cta.tw-cta-ghost{ background: rgba(238,241,245,0.05); border: 1px solid var(--hairline-strong); color: var(--text); box-shadow: none; }
+
+/* an unfinished workout outranks today's: its Resume is the primary action, today's Start steps back */
+#view-today:has(#resumeBanner .dr-card) #todayWorkout .tw-cta:not(.tw-cta-done){
+  background: rgba(238,241,245,0.05); color: var(--text); border: 1px solid var(--hairline-strong); box-shadow: none;
+}
+#resumeBanner .dr-card{ margin-top: 16px; padding: 16px; border-radius: 22px; border-color: rgba(240,168,69,0.30); background: var(--d175-panel); }
+#resumeBanner .dr-k{ font-size: 13px; letter-spacing: 0; text-transform: none; }
+#resumeBanner .dr-card .dr-go{ min-height: 48px; padding: 0 26px; background: var(--accent); color: #04121D; border-color: transparent; font-weight: 700; }
+
+/* ---------- one quiet panel for everything under the stage ---------- */
+#weekCard .wk-card, #todayObjectives .obj-card, #todayFoundation .fd, #todayInsights .wn-list, #todayMuscles .tm-card{
+  background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); border-radius: var(--d175-r); box-shadow: none;
+}
+#weekCard, #todayObjectives, #todayFoundation, #todayQuick, #todayInsights, #todayMuscles{ margin-top: var(--d175-gap); }
+/* phone order: the day, the week, the two quick things a day asks for, then what LOOP suggests, then the program */
+@media (max-width: 759px){
+  #view-today.active{ display: flex; flex-direction: column; }
+  #view-today.active > *{ order: 1; }
+  #view-today.active > #todayQuick{ order: 2; }
+  #view-today.active > #todayObjectives{ order: 3; }
+  #view-today.active > #todayFoundation{ order: 4; }
+  #view-today.active > #todayInsights, #view-today.active > #todayMuscles, #view-today.active > #todayFriends{ order: 5; }
+}
+/* the activity log and the check-in share one panel, split by a hairline */
+#todayQuick.today-quick:not(:has(.act-row, .ready-expand, .ready-summary)){ gap: 0; background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); border-radius: var(--d175-r); overflow: hidden; }
+#todayQuick.today-quick:not(:has(.act-row, .ready-expand, .ready-summary)) > div + div{ border-left: 1px solid var(--d175-panel-edge); }
+#todayQuick.today-quick:not(:has(.act-row, .ready-expand, .ready-summary)) .act-log,
+#todayQuick.today-quick:not(:has(.act-row, .ready-expand, .ready-summary)) .ready-prompt{ background: none; border: 0; border-radius: 0; box-shadow: none; min-height: 64px; }
+#weekCard .wk-card, #todayObjectives .obj-card, #todayFoundation .fd{ margin-top: 0; }
+/* the band stays where it means most — the day's workout; Objectives and the Foundation keep their colour in what they show */
+#todayObjectives .obj-card, #todayFoundation .fd{ --band-w: 0px; }
+/* headings: sentence case, one size */
+#weekCard .wk2-eyebrow, #todayObjectives .obj-title, #todayFoundation .fd-title, #todayInsights .sec-head, #todayMuscles .tm-title{
+  font-family: var(--font-display); font-size: 17px; font-weight: 700; letter-spacing: -0.01em; text-transform: none; color: var(--text);
+}
+#todayFoundation .tw-program-name, #todayFoundation .fd-phase{ letter-spacing: 0; text-transform: none; font-size: 13px; }
+#todayObjectives .obj-gl, #weekCard .wk2-k, #todayMuscles .tm-k{
+  font-family: var(--font-ui); font-size: 12px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text-faint);
+}
+/* this week: the rail and the days; a missed day keeps its mark's shape, in a quiet colour */
+#weekCard .wk2-pct b{ font-size: 24px; }
+#weekCard .wk2-pct-k{ font-size: 13px; letter-spacing: 0; text-transform: none; }
+#weekCard .wk2 .wk2-missed .wk-mark{ border-color: var(--text-faint); }
+#weekCard .wk2 .wk2-missed .wk-mark::after{ background: var(--text-faint); }
+#weekCard .wk2 .wk2-missed .wk-dc{ color: var(--text-faint); }
+#weekCard .wk-dc{ text-transform: none; letter-spacing: 0; }
+
+/* ---------- Train ---------- */
+#view-train.active{ display: flex; flex-direction: column; }
+#view-train > #trainTitle{ order: 0; }
+#view-train > #trainResume{ order: 1; }
+#view-train > .tr-sec{ order: 3; }
+#view-train > .tr-sec:has(#trainPlan){ order: 4; }
+#view-train > .tr-sec:has(#trainMine){ order: 5; }
+#view-train[data-due="today"] > .tr-sec:has(#trainPlan){ order: 2; }
+#view-train .tr-sec{ margin-top: 26px; }
+#view-train > #trainTitle + #trainResume:empty + .tr-sec, #view-train > .tr-sec:first-of-type{ margin-top: 18px; }
+#view-train .tr-label{ font-family: var(--font-display); font-size: 18px; font-weight: 700; letter-spacing: -0.01em; text-transform: none; color: var(--text); }
+/* the chip row runs edge to edge: what is off-screen is clearly off-screen, not clipped inside a box */
+#view-train .tr-chips{
+  margin: 0 -20px 12px; padding: 2px 20px 4px;   /* to the page padding’s edge (D26’s four shells alone read the side insets) */
+  gap: 8px; background: none; border: 0; border-radius: 0; box-shadow: none; scroll-padding-inline: 20px;
+}
+#view-train .tr-chips .filter-chip{
+  border: 1px solid var(--hairline-strong); border-radius: 999px; background: none; padding: 0 16px; scroll-snap-align: start;
+  transition: background-color .18s var(--ease), color .18s var(--ease), border-color .18s var(--ease), transform .12s var(--ease);
+}
+#view-train .tr-chips .filter-chip.active, #view-train .tr-chips .filter-chip.active[data-fam]{
+  background: var(--text); color: #0A0F18; border-color: var(--text); box-shadow: none;
+}
+#view-train .tr-chips .filter-chip:active{ transform: scale(0.96); }
+#view-train .tr-chips .filter-chip.active .tc-dot{ opacity: 1; }
+/* quick start: one way stands out (LOOP builds it), two quiet ways beside it, programs as a row of their own */
+#view-train .tq-btn, #view-train .tr-prog-row{ background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); box-shadow: none; }
+#view-train[data-due="today"] .tq-build{ box-shadow: none; }
+/* my workouts, empty: one quiet line */
+#view-train .tl-empty-mine{ background: none; border: 0; box-shadow: none; padding: 2px 0 0; }
+#view-train .tl-empty-mine .tl-empty-text{ margin: 0; font-size: 14px; color: var(--text-faint); }
+
+/* ---------- motion: once, on the athlete's own choice ---------- */
+@keyframes d175Reveal{ from{ opacity: 0; transform: translateY(6px); } to{ opacity: 1; transform: none; } }
+.d175-reveal{ animation: d175Reveal .22s var(--ease) both; }
+#todayWorkout .tw-cta, #todayWorkout .tw-change, #todayWorkout .tw-coach{ transition: transform .12s var(--ease), background-color .18s var(--ease), border-color .18s var(--ease); }
+#todayWorkout .tw-change:active, #todayWorkout .tw-coach:active{ transform: scale(0.97); }
+
+/* ---------- narrow phones (under 360px) ---------- */
+@media (max-width: 359px){
+  #todayDateLine .today-greet{ font-size: 21px; }
+  #todayDateLine .hdr-level{ padding: 5px 10px 6px 6px; column-gap: 6px; }
+  #todayDateLine .hdr-level .rank-medal{ width: 26px; height: 26px; }
+  #todayDateLine .hdr-level-r{ font-size: 11px; letter-spacing: 0.02em; }
+  #todayWorkout .tw{ padding: 16px 16px 12px; }
+  #todayWorkout .tw-name{ font-size: 23px; }
+  #todayWorkout .tw:has(> .tw-cta) > .tw-cta{ flex-basis: calc(100% - 92px); }
+  #todayWorkout .tw:has(> .tw-cta) > .tw-actions > .tw-change:first-child{ flex-basis: 84px; }
+  #todayWorkout .tw:has(> .tw-cta) > .tw-actions > .tw-change:first-child .tw-action-full{ display: none; }
+  #todayWorkout .tw:has(> .tw-cta) > .tw-actions > .tw-change:first-child .tw-action-compact{ display: inline; }
+}
+
+/* ---------- E116: a finished set's values and units clear of "Add RIR" ---------- */
+/* A finished set is one line: number, values with units, effort, tick (D156). Two things ran its count's unit under "Add RIR":
+   · a bodyweight set kept an empty 46px weight field before its "bodyweight" label, at every phone width — D156's own
+     "no field for bodyweight" (width 0) lost to an older 46px minimum; it wins again;
+   · under 380px the line had about 112–146px for its weight and its count, which need about 150. There each field is as
+     wide as its value (4 digits of weight, 3 of count; 16px, so editing never zooms), units a size smaller (bodyweight says
+     BW, as Last time does) and the gaps tighter.
+   Every part stays, and every 44px target. The set being logged, and finished sets from 380px up, are otherwise untouched. */
+.stepper-on .ws-current .set-row.completed .set-row-controls > .stepper:has(.set-weight-in:disabled) > input{ min-width: 0; width: 0; }
+@media (max-width: 379px){
+  .stepper-on .ws-current .set-row.completed{ column-gap: 6px; }
+  .stepper-on .ws-current .set-row.completed .set-row-controls{ gap: 8px; }
+  .stepper-on .ws-current .set-row.completed .stepper{ gap: 3px; }
+  .stepper-on .ws-current .set-row.completed .set-row-controls > .stepper > input{ min-width: 0; width: 4ch; font-size: 16px; }
+  .stepper-on .ws-current .set-row.completed .set-row-controls > .stepper:has(.set-reps-in) > input{ width: 3ch; }
+  .stepper-on .ws-current .set-row.completed .set-row-controls > .stepper:has(.set-weight-in:disabled) > input{ width: 0; }
+  .stepper-on .ws-current .set-row.completed .stepper::after{ font-size: 11px; }
+  .stepper-on .ws-current .set-row.completed .stepper:has(.set-weight-in:disabled)::after{ content: 'BW'; content: 'BW' / 'bodyweight'; }
+  .stepper-on .ws-current .set-row.completed .set-meta-btn{ padding: 0 4px; min-width: 44px; }
+  .stepper-on .ws-current .set-row.completed .set-meta-rir:not(.set)::before{ font-size: 12px; }
+}
+
+/* ---------- tablet and desktop ---------- */
+@media (min-width: 760px){
+  header .header-row{ max-width: 720px; margin-inline: auto; }
+  .view{ max-width: 760px; }
+  .tabbar{ max-width: 760px; }
+  #view-today.active{ column-count: 2; column-gap: 16px; }
+  #view-today.active > *{ break-inside: avoid; }
+  #view-today.active > #todayDateLine, #view-today.active > #storageNotice, #view-today.active > #resumeBanner,
+  #view-today.active > #missedBanner, #view-today.active > #todayWorkout{ column-span: all; }
+  #view-today.active > #todayDateLine{ margin-bottom: 16px; }
+  #view-today.active > #todayWorkout{ margin-bottom: 16px; }
+  #view-today.active > #todayWorkout > .tw{ margin-top: 0; }
+  #view-today.active > *:not(#todayDateLine):not(#todayWorkout):not(#storageNotice):not(#resumeBanner):not(#missedBanner){ margin-top: 0; margin-bottom: 16px; }
+  #view-today.active > :empty{ display: none; }
+  #view-train.active{ display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: auto auto auto auto 1fr; column-gap: 24px; row-gap: 0; align-items: start; }
+  #view-train.active > #trainTitle{ grid-column: 1 / -1; grid-row: 1; }
+  #view-train.active > #trainResume{ grid-column: 1 / -1; grid-row: 2; }
+  /* the plan down the left; the ways to start something else, then saved workouts, down the right — the last row takes the slack */
+  #view-train.active > .tr-sec:has(#trainPlan){ grid-column: 1; grid-row: 3 / span 3; }
+  #view-train.active > .tr-sec:has(#trainQuickLabel){ grid-column: 2; grid-row: 3; }
+  #view-train.active > .tr-sec:has(#trainMine){ grid-column: 2; grid-row: 4; }
+  #view-train .tr-chips{ margin-inline: 0; padding-inline: 0; }
+  #view-train.active > #trainResume:empty{ display: none; }
+}
+@media (min-width: 1100px){
+  header .header-row{ max-width: 1040px; }
+  .view{ max-width: 1080px; }
+  .tabbar{ max-width: 1080px; }
+  #view-today.active{ column-gap: 24px; }
+  #view-today.active > #todayWorkout{ column-span: none; }
+}
+/* ==== D175 TODAY AND TRAIN END ==== */
 </style>
 </head>
 <body>
@@ -22588,6 +22858,33 @@ const LOOP_UPDATES = [
       'Records, PRs and XP are unchanged'
     ],
     changes: []
+  },
+  {
+    id: 'v10-97',
+    version: 'LOOP 10.97',
+    title: 'Today and Train',
+    date: '2026-11-25',
+    swVersion: 'loop-v274',
+    summary: 'Today puts your workout first and Train leads with your plan when a session is due. Both screens are calmer and easier to read.',
+    newFeatures: [
+      'On tablets and wider screens, Today and Train are laid out in two columns'
+    ],
+    improvements: [
+      'Today’s workout is the largest thing on Today, with Start Workout and View workout side by side and Change time and Change workout on one line beneath',
+      'When a workout is unfinished, its Resume is the main button and today’s Start steps back',
+      'Train shows your plan first when today’s session is due, and the ways to start something else first when it isn’t',
+      'The plan’s workout-type chips run to the edges of the screen and bring the chosen one to the middle',
+      'Missed days in This Week keep their mark in a calm grey instead of orange',
+      'Today’s cards share one quieter style, and Log activity and Check in share one card',
+      'My workouts says “No saved workouts yet” in one line when you have none'
+    ],
+    bugFixes: [
+      'A finished set’s count no longer runs under “Add RIR” on narrow phones, or on bodyweight sets on any phone',
+      'While your program is paused, Today’s header says Paused instead of naming a training day',
+      'The LOOP Coach no longer says “reps in reserve” for holds and carries',
+      'Records, PRs, XP and your training data are unchanged'
+    ],
+    changes: []
   }
 ];
 
@@ -29202,7 +29499,7 @@ function deriveNextSetCoach(input){
   if(!performed.length){
     out.action = 'prescribed';
     out.reason = targetRir != null
-      ? `Today’s target is ${said} at about ${fmtRir(targetRir)} in reserve.`
+      ? `Today’s target is ${said} at about ${fmtReserveOf(targetRir, measure)} in reserve.`
       : `Today’s target is ${said}.`;
     return out;
   }
@@ -29241,7 +29538,7 @@ function deriveNextSetCoach(input){
     const next = base + inc;
     if(inc > 0 && withinBounds(next)){
       out.action = 'increase'; out.load = next; out.changed = true;
-      out.reason = `That set was ${fmtRir(last.rir)} in reserve against a target of ${fmtRir(targetRir)}. Add ${fmtLoad(inc)} and ${counted ? `stay in ${range.min}–${range.max}` : 'keep to ' + said}.`;
+      out.reason = `That set was ${fmtReserveOf(last.rir, measure)} in reserve against a target of ${fmtReserveOf(targetRir, measure)}. Add ${fmtLoad(inc)} and ${counted ? `stay in ${range.min}–${range.max}` : 'keep to ' + said}.`;
       return out;
     }
   }
@@ -29281,6 +29578,13 @@ function fmtRir(r){
   if(r == null || isNaN(r)) return '—';
   const n = Math.round(r * 10) / 10;
   return (n === Math.round(n) ? String(Math.round(n)) : String(n)) + ' rep' + (n === 1 ? '' : 's');
+}
+/* D175 (E115) — effort is the same reserve scale for every lift (the program's effort, effortToRir), but only a count in reps
+   has reps to keep in reserve: a hold or a carry says the number alone ("1.5 in reserve"). Wording only — what is recorded,
+   and what the coach decides from it, are unchanged. A count in reps (no measure, or reps) is fmtRir's to the byte. */
+function fmtReserveOf(r, measure){
+  const s = fmtRir(r);
+  return measure && measure !== MEASURE_REPS ? s.replace(/ reps?$/, '') : s;
 }
 function fmtLoad(n){
   if(n == null || isNaN(n)) return '—';
@@ -29337,7 +29641,7 @@ function setCoachHtml(coach, targetSets){
   if(!coach) return '';
   const load = coach.load != null ? fmtLoad(coach.load) : null;
   const reps = coach.range ? (coach.measure ? measureRangeText(coach.range, coach.measure) : coach.range.min + '\u2013' + coach.range.max + ' reps') : null;   // D174 — in its unit
-  const rir  = coach.targetRir != null ? fmtRir(coach.targetRir) + ' in reserve' : null;
+  const rir  = coach.targetRir != null ? fmtReserveOf(coach.targetRir, coach.measure) + ' in reserve' : null;   // D175 (E115)
   const bits = [reps, rir].filter(Boolean).join(' \u00b7 ');
   return '<button type="button" class="coach coach-' + coach.action + '"' +
       ' onclick="toggleCoachDetail(this)" aria-expanded="false"' +
@@ -29361,12 +29665,12 @@ function coachDetailHtml(coach){
   const rows = [];
   if(coach.range){
     rows.push(['Target', (coach.measure ? measureRangeText(coach.range, coach.measure) : coach.range.min + '\u2013' + coach.range.max + ' reps') +   // D174
-      (coach.targetRir != null ? ' at ' + fmtRir(coach.targetRir) + ' in reserve' : '')]);
+      (coach.targetRir != null ? ' at ' + fmtReserveOf(coach.targetRir, coach.measure) + ' in reserve' : '')]);   // D175 (E115)
   }
   if(coach.last){
     rows.push(['Last set', (coach.last.weight != null ? fmtLoad(coach.last.weight) + ' \u00d7 ' : '') +
       (coach.measure ? measureCountShort(coach.last.reps, coach.measure) : coach.last.reps + ' reps') +   // D174
-      (coach.last.rir != null ? ' at ' + fmtRir(coach.last.rir) + ' in reserve' : ', effort not logged')]);
+      (coach.last.rir != null ? ' at ' + fmtReserveOf(coach.last.rir, coach.measure) + ' in reserve' : ', effort not logged')]);   // D175 (E115)
   }
   const WORD = { increase:'Increase one step', reduce:'Reduce one step',
     hold:'Hold this load', prescribed:'Follow today\u2019s prescription',
@@ -34953,6 +35257,7 @@ let hasActiveDraftNow = false;
 function toggleTodayPicker(){
   todayPickerOpen = !todayPickerOpen;
   renderTodayWorkout();
+  if(todayPickerOpen) revealOnce(document.querySelector('#todayWorkout .tw-picker'));   // D175
 }
 
 /* One unified component answering "what am I doing today" — replaces the
@@ -37076,6 +37381,10 @@ function renderToday(){
       if(pd && pd.ended) programEnded = true;
     }
   }catch(e){}
+  /* D175 — while the program is paused nothing is due (D170's card says so); the header said the weekly plan's day
+     ("Legs") above it. It says Paused, as This Week does. */
+  let programPaused = false;
+  try{ const ap = getActiveProgram(); programPaused = !!(ap && openPauseOf(ap)); }catch(e){ programPaused = false; }
   /* The level sits in the header, across from the greeting — the athlete's
      standing is the first thing Home says, not something found by scrolling
      into Momentum. Same progression read as everywhere else; tapping it opens
@@ -37100,7 +37409,7 @@ function renderToday(){
   document.getElementById('todayDateLine').innerHTML = `
     <div class="today-hdr-left">
       <div class="today-greet">${getGreeting()}</div>
-      <div class="today-sub">${dateStr}${programEnded ? '' : `<span class="today-focus">${cat === 'rest' ? 'Rest' : CAT_LABEL[cat]}</span>`}</div>
+      <div class="today-sub">${dateStr}${programEnded ? '' : `<span class="today-focus">${programPaused ? 'Paused' : cat === 'rest' ? 'Rest' : CAT_LABEL[cat]}</span>`}</div>
     </div>${levelChip}`;
 
   renderResumeBanner();     // also refreshes the CTA via hasActiveDraftNow
@@ -40737,7 +41046,7 @@ function renderTrainMine(view){
   host.innerHTML = mine.length
     ? `<ul class="tl-list" role="list">${rows.map(x => trainRowHtml('saved', x.cat, x.t, view)).join('')}</ul>${toggle}`
     : `<div class="tl-empty tl-empty-mine">
-        <p class="tl-empty-text">Workouts you build and save appear here. Build workout, above, makes one you can reuse.</p>
+        <p class="tl-empty-text">No saved workouts yet.</p>
       </div>`;   /* D156 — the second Build button repeated Quick start's, a few pixels above it */
 }
 
@@ -40755,7 +41064,9 @@ function trainRevealActiveChip(){
   if(!chip || !row.getBoundingClientRect) return;
   const r = row.getBoundingClientRect(), c = chip.getBoundingClientRect();
   if(!r.width) return;
-  if(c.left < r.left || c.right > r.right) row.scrollLeft += (c.left - r.left) - 20;
+  /* D175 — the row runs to the screen's edges, which fade: a chip under a fade is not in sight either. The chosen one is
+     brought to the middle, so the chips either side of it show the row goes on. */
+  if(c.left < r.left + 36 || c.right > r.right - 36) row.scrollLeft += (c.left + c.width / 2) - (r.left + r.width / 2);
   try{ trainChipsEdges(); }catch(e){}   /* D139 — the row says whether more lies off either edge */
 }
 
@@ -40947,6 +41258,10 @@ function renderTrainView(){
   /* Resolved once per draw: every row reads the same next session, the same
      week and the same program day. */
   const view = { next: trainNextUp(), week: trainWeekDays(), todayProgram: trainTodayProgram() };
+  /* D175 — when today's session is still to train, the plan leads Train; otherwise the ways to start something else do.
+     Presentation only: the stylesheet orders the sections by it, and nothing here decides what is due (trainNextUp does). */
+  const trainView = document.getElementById('view-train');
+  if(trainView && trainView.dataset) trainView.dataset.due = (view.next && view.next.today) ? 'today' : '';   // trainNextUp names nothing while a workout is under way
   renderTrainResume();
   renderTrainProgram();   // D156
   renderTrainMine(view);
@@ -40983,6 +41298,20 @@ function setTrainCategory(cat){
   activeTrainCategory = cat;
   trainCategoryChosen = true;    // an explicit choice is never overridden
   renderTrainView();
+  revealOnce(document.getElementById('trainPlan'));   // D175
+}
+/* D175 — an entrance that plays once, when the athlete asked for what it shows: the class is added after the draw and is
+   never part of any renderer's markup, so a later redraw of the same thing appears still. Reduce Motion stills it. */
+function revealOnce(el){
+  if(!el || !el.classList) return;
+  el.classList.remove('d175-reveal');
+  void el.offsetWidth;
+  el.classList.add('d175-reveal');
+  /* gone when it has played — or, under Reduce Motion (no animation, so no animationend) and when the list is hidden
+     mid-entrance (a hidden element's entrance would replay on its return), after its own length */
+  const done = () => el.classList.remove('d175-reveal');
+  el.addEventListener('animationend', done, { once: true });
+  setTimeout(done, 400);
 }
 
 /* ---------- RENDER: HISTORY ---------- */
@@ -51458,6 +51787,7 @@ let timePickerOpen = false;
 function toggleTimePicker(){
   timePickerOpen = !timePickerOpen;
   renderTodayWorkout();
+  if(timePickerOpen) revealOnce(document.querySelector('#todayWorkout .time-picker'));   // D175
   if(timePickerOpen) showHintIn('todayWorkout', 'timeMode');
 }
 function timePickerHtml(tpl){

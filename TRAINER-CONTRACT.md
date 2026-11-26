@@ -21698,3 +21698,46 @@ LOOP doesn't compare these counts." The summary beside "Last time" says "unit no
 - E115: the coach's effort words ("1.5 reps in reserve") are said in reps for every lift.
 - E116: at 320px a finished set's count unit runs under "Add RIR". This has been true since 10.49 and affects every lift. It
   is left for the active-workout pass of the visual redesign.
+
+## §220 — TODAY AND TRAIN: A QUIET GROUND AND ONE LIT STAGE (D175 · LOOP 10.97 · loop-v274)
+
+**The problem.** Today stacked a header, a rank card, a workout card with three equal secondary buttons and a boxed
+coaching strip, then This Week, Objectives (gold band), Training Foundation (violet band), Log activity and Check in — each
+framed differently, with small capitals over most of them. The athlete's one action competed with everything around it.
+Train put four ways to start ahead of the athlete's own plan, repeated Build workout in an empty My workouts box, and clipped
+its plan chips inside a box. Tablet and desktop showed a phone column under a full-width header.
+
+**The direction.** One lit surface per screen and a quiet ground for everything else.
+- **The stage.** Today's workout is the only lit surface: the category's colour lights it from one corner, its D165 band
+  stays, and the workout's name is the largest type on the screen. Its kicker reads "Today's Workout · Legs" on one line.
+  Start Workout and View workout sit on one row; Change time and Change workout are one quiet line beneath; the day's
+  coaching is a line under a hairline, not a box in the box.
+- **The ground.** Everything under the stage wears one panel style (a faint fill, a hairline, no shadow, no gradient, no
+  band) with sentence-case headings of one size. Objectives keep their gold on the XP they pay; the Foundation its family
+  chips. Log activity and Check in share one panel. Missed days keep their D158 shape in a quiet grey.
+- **Precedence.** An unfinished workout's Resume is the primary button and today's Start steps back to an outline (Today
+  draws both, as D156 decided). A paused or ended program's card offers View program / What's next and Train anyway side by
+  side as choices, and the header's day word says Paused while a program is paused (it named the weekly plan's day).
+- **Train.** When today's session is still to train (`data-due="today"`, from `trainNextUp().today` with no workout under
+  way), the plan comes first; otherwise the ways to start something else do. Resume always leads. The plan chips run to the
+  screen's edges and the chosen chip is brought to the middle (`trainRevealActiveChip`). An empty My workouts says "No saved
+  workouts yet." in one line.
+- **Wide screens.** From 760px the header lines up with a 760px content column; Today flows in two balanced columns under
+  the day's card, Train puts the plan on the left and Quick start and My workouts on the right. From 1100px the column is
+  1080px and the day's card takes the left column's head. The tab bar keeps the same width as the content.
+- **Motion.** Press states on every action; a chip's list and a picker the athlete opens fade in once (`revealOnce` adds a
+  class after the draw, so a redraw never replays it). Reduce Motion stills all of it (the global rule).
+
+**E116 (closed).** A finished set's count ran under "Add RIR". It was wider than recorded: a bodyweight set kept an empty
+46px weight field at every phone width, and below 380px the one-line row had 112–146px for values needing ~150. The field is
+width 0 for bodyweight again; below 380px each finished field is as wide as its value (16px digits, 11px units, "BW").
+
+**E115 (closed).** The coach says a hold's or a carry's effort as a number in reserve ("1.5 in reserve"), never "reps"
+(`fmtReserveOf`). Wording only.
+
+**Unchanged.** Every engine: scheduling, D44 fulfilment, coaching and progression, objectives and their XP, Session Score,
+records, XP, levels, mastery, achievements, prescriptions, week moves, rest timers, measurements, backup, Friends, storage.
+No markup a renderer writes changed except the empty-library line and the paused header word; no static markup changed. A
+lift counted in reps is coached exactly as in 10.96.
+
+**Held.** E113 (migration 0007); E117 — Exercise Detail still says "reps" for a timed or distance lift (its own reader).

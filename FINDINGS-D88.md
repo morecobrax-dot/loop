@@ -3247,7 +3247,7 @@ Its target is the prescription, in its unit, at the load D49 holds: "You reached
 toward 40 m." Loads still move only on recorded evidence (the top with reserve, or grinding under it). Reps are 10.95's to the
 byte (Contract 298 P1–P3, C7). See TRAINER-CONTRACT §219.
 
-## E115 — The coach's effort words are reps for holds and carries · P5 · OBSERVED · OPEN
+## E115 — The coach's effort words are reps for holds and carries · P5 · **CLOSED in D175 (LOOP 10.97)**
 
 Found in D174. The coach's target line and reasons say the prescribed effort in reps: "40 m · 1.5 reps in reserve" for a
 carry, "4 reps in reserve" for a hold. The set row's own field is labelled "RIR". The effort scale is the program's
@@ -3255,12 +3255,36 @@ carry, "4 reps in reserve" for a hold. The set row's own field is labelled "RIR"
 words are unchanged. Wording effort for a timed or distance set (for example "about 1–2 more in the tank") is a product-copy
 decision for the visual redesign.
 
-## E116 — A finished set's values run under "Add RIR" on a 320px phone · P4 · OBSERVED · OPEN
+**Closed in D175 (LOOP 10.97).** The coach's effort for a hold or a carry is said as a number in reserve, without "reps":
+"40 m · 1.5 in reserve", "Target: 30–45 s at 2 in reserve", "Last set: 50 lb × 38 m at 1 in reserve", and the easy-set
+reason "That set was 4 in reserve against a target of 1.5". One wording helper, `fmtReserveOf(r, measure)`, returns
+`fmtRir`'s text for a count in reps (no measure, or reps) and the number alone otherwise; it is read by
+`deriveNextSetCoach` (prescribed and easy reasons), `setCoachHtml` and `coachDetailHtml`. What is recorded (the RIR field)
+and every decision the coach makes are unchanged; every coach answer for a lift counted in reps is 10.96's to the byte
+(Contract 299 E-checks). Exercise Detail's "× N reps" for a timed lift is a separate reader (E117).
+
+## E116 — A finished set's values run under "Add RIR" on a 320px phone · P4 · **CLOSED in D175 (LOOP 10.97)**
 
 Found in D174, present since 10.49 (D132's one-line set row): at 320px the completed set's weight and count steppers (about
 134px together) are wider than the row's value column (about 113px), so the count's unit ("reps", "m", "sec") runs under
 the "Add RIR" control. It happens for every lift, reps included, and not from 360px up. The set row and the dock are
 protected in D174, so it is left for the active-workout pass of the visual redesign (D175).
+
+**Closed in D175 (LOOP 10.97), wider than recorded.** Measured in Edge at 320, 360, 375, 390 and 430 px for a set in reps, a
+bodyweight set, a timed hold, a carry in metres and a 1045.5 lb × 115 set:
+- a bodyweight finished set kept an empty 46 px weight field before its "bodyweight" label at EVERY phone width (D156's
+  "width: 0" lost to an older `min-width: 46px`), so its count ran under "Add RIR" at 390 and 430 too;
+- below 380 px the one-line row had 112–146 px for values that need about 150.
+Fix (CSS only, the D175 layer): the bodyweight field is width 0 again at every width; below 380 px each finished field is as
+wide as its value (4ch weight, 3ch count; 16 px, so editing never zooms on iOS), units 11 px (bodyweight says "BW", as Last
+time does), gaps tighter. No overlap at any of the 25 cases; every target ≥ 44 px; the set being logged is untouched.
+
+## E117 — Exercise Detail says "reps" for a timed or distance lift · P5 · OBSERVED · OPEN
+
+Found in D175 while closing E115. Exercise Detail's Last/Next tiles and their spoken summary (`exDetailNextHtml`'s
+`'× ' + topReps + ' reps'`, "pounds for N reps", "reps in reserve not logged") say reps for a carry or hold counted in
+seconds or metres. The numbers are right (D173/D174 compare and target only in the unit); the words are a rep's. It is a
+presentation reader of its own, outside D175's Today/Train scope, and is left for a measurement-words pass.
 
 ## Not findings — checked and clean
 
