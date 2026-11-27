@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.98",
+  "version": "10.99",
   "phase": null,
-  "status": "stable",
+  "status": "release_ready",
   "needsQa": false,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "LOOP 10.98 is live (loop-v275, released 2026-11-26). Next: D177, Exercise Detail in the Progress and Log language, with timed-move wording and the 320px calendar tap size.",
+  "nextAction": "LOOP 10.99 release (loop-v276): automated gates passed; deploying to GitHub Pages, then confirming the live app.",
   "blocker": null,
-  "updatedAt": "2026-11-26T16:06:31Z"
+  "updatedAt": "2026-11-27T05:09:53Z"
 }

@@ -12359,6 +12359,213 @@ header{ padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom:
   #sv-calendar > #historySelectedDay, #sv-calendar > #historyRecent{ margin-left: calc(46% + 12px); }
 }
 /* ==== D176 PROGRESS AND LOG END ==== */
+/* ==== D177 WORKOUT BEGIN ==== */
+/* D177 — PREMIUM REDESIGN, PART 3: THE WORKOUT. D175's direction carried into the room where sets are logged: a quiet ground
+   and one lit stage — the set you are on.
+   · The head says where you are in one line (the count, the workout's progress as slim segments, Add), then the exercise:
+     its drawing at its approved size, its name, its muscles as words, and Swap · Edit beside them (the exercise's own two
+     controls, reached from the head — wsRowAct), so the sets start higher on every phone.
+   · The set you are on (or the set chosen to edit, D167) is the one lit panel: large values in quiet wells, and Done — the
+     tick, labelled — where the eye already is, apart from the steppers. Every other set stays one scannable line; a set
+     done is quieter, ticked green, and keeps Add RIR.
+   · Bodyweight sets drop steppers that could not step; an assisted lift's load says it is assistance (lb assist).
+   · Finishing a set: the tick's own settle, a short green wash on the set just done, and the sets gliding to their new
+     places (d177Glide — transform only, --dur-step). Reduce Motion: the new state at once (the global rule).
+   · Rest: the card drops the exercise name it truncated (the exercise is on screen), and the dock's rest chip steps aside
+     while a set field has the keyboard, so nothing floats over the value being typed.
+   · Swap says what it replaces; Add exercises and Swap share the quiet panels; Exercise Detail speaks in sentence case.
+   · Log: a calendar day is a 44px target at 320px, and switching Calendar / By exercise takes the shared feedback time.
+   No stored value, engine or timer is read or written differently by anything in this block. */
+
+/* ---------- the head: where you are, then the exercise ---------- */
+#logOverlay.stepper-on .ws-head{ padding: 2px 0 10px; border-bottom: 0; }
+#logOverlay.stepper-on .ws-head .ws-k{
+  min-height: 44px; gap: 12px; text-transform: none; letter-spacing: 0;
+  font-family: var(--font-ui), 'Inter', sans-serif; font-size: 13px; font-weight: 600; color: var(--text-dim); white-space: nowrap;
+}
+#logOverlay.stepper-on .ws-head .ws-k-add{
+  margin: 0 -6px 0 0; padding: 0 6px; min-width: 44px; justify-content: center;
+  text-transform: none; letter-spacing: 0; font-family: var(--font-ui), 'Inter', sans-serif; font-size: 13.5px; font-weight: 600;
+}
+#logOverlay.stepper-on .ws-head .ws-k-flag{ text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; }
+/* the workout's progress: one slim segment per exercise, tapped as a 44px stop (it jumps there, as before) */
+#logOverlay.stepper-on .ws-k .ws-bar{ display: flex; flex: 1 1 auto; min-width: 0; margin: 0; gap: 3px; }
+#logOverlay.stepper-on .ws-k .ws-seg{ flex: 1 1 0; min-width: 0; height: 44px; }
+#logOverlay.stepper-on .ws-k .ws-seg::before{
+  left: 0; right: 0; top: 20px; height: 4px; border-radius: 2px; background: var(--surface-3);
+  transition: background-color var(--dur-feedback) var(--ease-out), transform var(--dur-feedback) var(--ease-out);
+}
+#logOverlay.stepper-on .ws-k .ws-seg::after{ display: none; }
+#logOverlay.stepper-on .ws-k .ws-seg-done::before{ background: var(--success); }
+#logOverlay.stepper-on .ws-k .ws-seg-now::before{ transform: scaleY(1.5); background: var(--accent); }
+#logOverlay.stepper-on .ws-k .ws-seg-skip::before{ background: transparent; box-shadow: inset 0 0 0 1px var(--warning); }
+#logOverlay.stepper-on .ws-k .ws-seg-warmup{ flex: 0 0 14px; }
+#logOverlay.stepper-on .ws-k .ws-seg:focus-visible{ outline: 2px solid var(--accent); outline-offset: -8px; border-radius: 8px; }
+/* the exercise: drawing, name, muscles in words, Swap · Edit */
+#logOverlay.stepper-on .ws-title{ margin-top: 2px; gap: 14px; align-items: flex-start; }
+#logOverlay.stepper-on .ws-title-main{ display: flex; flex-wrap: wrap; align-items: center; column-gap: 10px; min-width: 0; flex: 1 1 auto; padding-top: 2px; }
+#logOverlay.stepper-on .ws-title .ws-name{ flex: 0 0 100%; font-size: 24px; line-height: 1.15; overflow-wrap: anywhere; }
+#logOverlay.stepper-on .ws-title .ws-chips{ display: flex; flex-wrap: wrap; flex: 0 1 auto; min-width: 0; gap: 0; margin: 4px 0 0; }
+#logOverlay.stepper-on .ws-title .ws-chip{
+  padding: 0; background: none; border-radius: 0; text-transform: none; letter-spacing: 0;
+  font-family: var(--font-ui), 'Inter', sans-serif; font-size: 13px; font-weight: 500; line-height: 18px; color: var(--text-dim);
+}
+#logOverlay.stepper-on .ws-title .ws-chip-p{ color: var(--text); font-weight: 600; }
+#logOverlay.stepper-on .ws-title .ws-chip + .ws-chip::before{ content: '·'; margin: 0 6px; color: var(--text-faint); font-weight: 600; }
+#logOverlay.stepper-on .ws-acts{ display: flex; gap: 2px; margin: 0 -8px -8px auto; padding-top: 2px; }
+#logOverlay.stepper-on .ws-act{
+  min-width: 44px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 12px; background: none; cursor: pointer;
+  font-family: var(--font-ui), 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; color: var(--accent);
+  -webkit-tap-highlight-color: transparent;
+}
+#logOverlay.stepper-on .ws-act:active{ background: var(--accent-soft); transform: var(--press); transition: transform var(--dur-press) var(--ease-out); }
+#logOverlay.stepper-on .ws-act:focus-visible{ outline: 2px solid var(--accent); outline-offset: 0; }
+/* the exercise's own Swap / Edit row is reached from the head; while Edit is open it shows again (its Done), and the head's
+   pair steps aside */
+#logOverlay.stepper-on .ws-current > .ex-actions{ display: none; }
+#logOverlay.stepper-on .ws-current > .ex-actions:has(.ex-edit-btn[aria-expanded="true"]){ display: flex; }
+#logOverlay.stepper-on:has(.ws-current .ex-edit-btn[aria-expanded="true"]) .ws-acts{ display: none; }
+/* short phones: D156 left the muscles to the preview; as one line of words they fit again */
+@media (max-height: 740px){
+  #logOverlay.stepper-on .ws-title .ws-chips{ display: flex; }
+  #logOverlay.stepper-on .ws-title .ws-name{ font-size: 21px; }
+}
+
+/* the coach: the plan for today, on the quiet panel — the lit stage is the set itself */
+#logOverlay.stepper-on .ws-current .coach{ background: var(--d175-panel); border-color: var(--d175-panel-edge); box-shadow: none; }
+
+/* narrow phones: the primary muscle only, so Swap · Edit share its line; Last time and Note share a row again (D133 parted
+   them for the old capitals' width — its own exceptions still part them: an open Last time, none yet, a saved note) */
+@media (max-width: 359px){
+  #logOverlay.stepper-on .ws-title .ws-chip-s{ display: none; }
+  #logOverlay.stepper-on .ex-brief > .ex-context{ grid-column: 1; }
+  #logOverlay.stepper-on .ex-brief > .ex-note-wrap{ grid-column: 2; grid-row: 1; display: flex; }
+  #logOverlay.stepper-on .ex-brief .ex-note-btn{ width: auto; justify-content: center; }
+  #logOverlay.stepper-on .ex-brief > .ex-note-wrap:has(.ex-note-memory),
+  #logOverlay.stepper-on .ex-brief:has(> .ex-context.open) > .ex-note-wrap,
+  #logOverlay.stepper-on .ex-brief:has(> .ex-context.is-empty) > .ex-note-wrap{ grid-column: 1 / -1; grid-row: auto; display: block; }
+  #logOverlay.stepper-on .ex-brief:has(> .ex-note-wrap .ex-note-memory) > .ex-context,
+  #logOverlay.stepper-on .ex-brief:has(> .ex-context.open) > .ex-context{ grid-column: 1 / -1; }
+  #logOverlay.stepper-on .ex-brief:has(> .ex-context.open) .ex-note-btn,
+  #logOverlay.stepper-on .ex-brief:has(> .ex-context.is-empty) .ex-note-btn{ width: 100%; justify-content: flex-start; }
+  #logOverlay.stepper-on .ex-brief .exc-summary{ min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
+
+/* ---------- labels in sentence case ---------- */
+#logOverlay .exc-k, #logOverlay .ex-brief .warmup-label, #logOverlay .ex-sets-k, #logOverlay .coach-k, #logOverlay .fb-label,
+#logOverlay .rest-panel-label, #logOverlay .ex-brief .ex-note-label, #logOverlay .ws-rest-k{
+  text-transform: none; letter-spacing: 0; font-family: var(--font-ui), 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+}
+#logOverlay .exc-k, #logOverlay .ex-brief .warmup-label, #logOverlay .ex-sets-k, #logOverlay .fb-label, #logOverlay .ws-rest-k{ color: var(--text-dim); }
+
+/* ---------- the set you are on: the one lit panel ---------- */
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)),
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus{
+  grid-template-columns: 36px minmax(0, 1fr) auto; margin: 8px -12px; padding: 8px 12px 12px; row-gap: 10px;
+  background: radial-gradient(130% 120% at 0% 0%, rgba(76,194,255,0.10), rgba(76,194,255,0) 62%), var(--surface-1);
+  border-radius: var(--d175-r); box-shadow: inset 0 0 0 1px rgba(76,194,255,0.26);
+}
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .stepper,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .stepper{
+  height: 60px; background: var(--surface-inset); border: 1px solid rgba(148,170,205,0.16); border-radius: 14px;
+}
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .stepper button,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .stepper button{ height: 58px; color: var(--text-dim); font-size: 20px; }
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .stepper input,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .stepper input{
+  height: 58px; padding: 0 0 15px; font-family: 'Space Grotesk', var(--font-ui), sans-serif; font-size: 24px; letter-spacing: -0.01em;
+}
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .stepper::after,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .stepper::after{ bottom: 7px; font-size: 11px; font-weight: 600; color: var(--text-faint); }
+/* Done: the tick, labelled, on the panel's top line — the one primary action, apart from the steppers below it */
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .set-complete-btn,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .set-complete-btn{
+  width: auto; min-width: 96px; height: 44px; padding: 0 18px 0 13px; gap: 6px; border-radius: 22px;
+  background: var(--accent); color: #04131F; box-shadow: 0 6px 18px rgba(76,194,255,0.20);
+  font-family: var(--font-ui), 'Inter', sans-serif; font-size: 15px; font-weight: 700;
+}
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .set-complete-btn::after,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .set-complete-btn::after{ content: 'Done'; content: 'Done' / ''; }
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .scb-svg,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .scb-svg{ width: 20px; height: 20px; }
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .scb-track,
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .scb-ring,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .scb-track,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .scb-ring{ display: none; }
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .scb-check,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .scb-check{ stroke: currentColor; stroke-width: 3; stroke-dashoffset: 0; transition: none; }
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus.completed .set-complete-btn{
+  background: var(--success-soft); color: var(--success); box-shadow: inset 0 0 0 1px rgba(75,156,129,0.50);
+}
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus.completed .set-complete-btn::after{ content: 'Completed'; content: 'Completed' / ''; }
+#logOverlay.stepper-on .ws-current .set-complete-btn:focus-visible{ outline: 2px solid var(--accent); outline-offset: 2px; }
+/* bodyweight: no steppers that cannot step — the word, in its well */
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .stepper:has(.set-weight-in:disabled),
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .stepper:has(.set-weight-in:disabled){ justify-content: center; }
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .stepper:has(.set-weight-in:disabled) button,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .stepper:has(.set-weight-in:disabled) button{ display: none; }
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .stepper:has(.set-weight-in:disabled) input,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .stepper:has(.set-weight-in:disabled) input{ flex: 0 0 0; width: 0; }
+#logOverlay.stepper-on .ws-current .sets-list:not(:has(> .set-row.set-focus)) > .set-row:nth-child(1 of .set-row:not(.completed)) .stepper:has(.set-weight-in:disabled)::after,
+#logOverlay.stepper-on .ws-current .sets-list > .set-row.set-focus .stepper:has(.set-weight-in:disabled)::after{
+  position: static; transform: none; content: 'Bodyweight'; content: 'Bodyweight' / ''; font-size: 15px; font-weight: 600; color: var(--text-dim);
+}
+/* an assisted lift: the number is help, and says so (D152) */
+#logOverlay.stepper-on:has(.ws-title.ws-assisted) .ws-current .stepper:has(.set-weight-in:not(:disabled))::after{ content: 'lb assist'; content: 'lb assist' / ''; }
+
+/* ---------- every other set: one line; a set done is quieter ---------- */
+#logOverlay.stepper-on .ws-current .set-row.completed:not(.set-focus) .stepper input{ color: var(--text-dim); }
+#logOverlay.stepper-on .ws-current .set-row:not(.completed) .stepper:has(.set-weight-in:disabled)::after{ content: 'Bodyweight'; content: 'Bodyweight' / ''; }
+/* a finished bodyweight set: the word from 380px; below, 10.98's BW keeps its count clear of Add RIR (E116) */
+@media (min-width: 380px){
+  #logOverlay.stepper-on .ws-current .set-row.completed .stepper:has(.set-weight-in:disabled)::after{ content: 'Bodyweight'; content: 'Bodyweight' / ''; }
+}
+#logOverlay.stepper-on .ws-current .set-row.d177-done{ animation: d177Done .6s var(--ease-out) both; border-radius: 12px; }
+@keyframes d177Done{ from{ background-color: rgba(75,156,129,0.18); } to{ background-color: rgba(75,156,129,0); } }
+
+/* ---------- rest ---------- */
+#logOverlay.stepper-on .ws-current .rest-panel .rest-panel-sub{ display: none; }
+#logOverlay.stepper-on .ws-current .rest-panel .rest-panel-label{ font-size: 15px; color: var(--text); }
+#logOverlay.stepper-on:has(.ws-current .set-row input:focus) .ws-rest{ display: none; }
+
+/* ---------- Swap: what it replaces; Add exercises: the same quiet rows ---------- */
+#subOverlay .sub-current-k, #subOverlay .sub-label, #exPickerOverlay .xp-sec, #exPickerOverlay .xp-row-in{ text-transform: none; letter-spacing: 0; }
+#subOverlay .sub-current-k{ font-size: 12.5px; font-weight: 600; color: var(--text-dim); }
+#subOverlay .sub-label, #exPickerOverlay .xp-sec{ font-family: var(--font-ui), 'Inter', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
+#exPickerOverlay .xp-row-in{ font-size: 12.5px; font-weight: 600; color: var(--text-dim); }
+#subOverlay .sub-current, #subOverlay .sub-option, #exPickerOverlay .xp-row{ background: var(--d175-panel); border-color: var(--d175-panel-edge); }
+#subOverlay .sub-note{ background: none; border: 0; padding: 0 2px; font-size: 13px; line-height: 1.45; color: var(--text-dim); }
+#subOverlay .sub-note-dim{ font-size: 12px; color: var(--text-faint); }
+
+/* ---------- Exercise Detail: sentence case, the quiet panel ---------- */
+#exDetailOverlay .exd-k, #exDetailOverlay .exd-ln-k, #exDetailOverlay .exd-ev-d, #exDetailOverlay .snap-label, #exDetailOverlay .mastery-label, #exDetailOverlay .exd-art span{
+  text-transform: none; letter-spacing: 0;
+}
+#exDetailOverlay .exd-next-quiet, #exDetailOverlay .exd-best, #exDetailOverlay .exd-mastery{ background: var(--d175-panel); border-color: var(--d175-panel-edge); box-shadow: none; }
+#exDetailOverlay .exd-k{ font-family: var(--font-ui), 'Inter', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
+
+/* ---------- Log: a calendar day is a 44px target at 320px; the view switch at the shared feedback time ---------- */
+#sv-calendar.d175-reveal, #sv-exercise.d175-reveal{ animation-duration: var(--dur-feedback); }
+@media (max-width: 359px){
+  /* seven 44px days need 308px: the month runs to the screen's edges, each day drawn at 40px with a 4px gap, and its press
+     reaches 2px past its drawn edge on every side (::before, placed from inside the day's 1px border: -3px), so neighbouring
+     days' targets meet in the middle of the gap and never overlap */
+  #view-history .cal-card{ margin-left: -20px; margin-right: -20px; padding-left: 8px; padding-right: 8px; border-radius: 0; border-left: 0; border-right: 0; }
+  #view-history .cal-card .cal-grid, #view-history .cal-card .cal-weekdays{ margin-left: 0; margin-right: 0; column-gap: 4px; }
+  #view-history #historyCalGrid{ column-gap: 4px; row-gap: 4px; }
+  #view-history #historyCalGrid .cal-cell{ position: relative; }
+  #view-history #historyCalGrid .cal-cell:not(.cal-empty)::before{ content: ''; position: absolute; inset: -3px; border-radius: 12px; }
+}
+
+/* ---------- landscape tablet and desktop: the plan beside the sets ---------- */
+@media (min-width: 1000px){
+  #logOverlay.stepper-on .sheet-scroll > #wsHead, #logOverlay.stepper-on .sheet-scroll > #wsStage{ max-width: 980px; }
+  #logOverlay.stepper-on .ws-current > .recommend-wrap, #logOverlay.stepper-on .ws-current > .ex-brief{ float: left; clear: left; width: 41%; }
+  #logOverlay.stepper-on .ws-current > .recommend-wrap{ margin-top: 0; }
+  #logOverlay.stepper-on .ws-current > :not(.recommend-wrap):not(.ex-brief){ margin-left: 45%; }
+  #logOverlay.stepper-on .ws-current::after{ content: ''; display: block; clear: both; }
+}
+/* ==== D177 WORKOUT END ==== */
 </style>
 </head>
 <body>
@@ -23130,6 +23337,37 @@ const LOOP_UPDATES = [
       'Exercise Detail says metres or seconds, not reps, for lifts like a sled push that are counted in distance or time',
       'For a lift whose older workouts don’t say whether they were metres or seconds, Exercise Detail now compares only workouts in the same unit',
       'A lift logged for the first time is called a first-time baseline, not a new record, on the calendar’s selected day and in the workout view',
+      'Records, PRs, XP and your training data are unchanged'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-99',
+    version: 'LOOP 10.99',
+    title: 'The Workout',
+    date: '2026-11-27',
+    swVersion: 'loop-v276',
+    summary: 'The workout screen is clearer at a glance: the set you are on stands out with Done right on it, and your sets start higher on every phone.',
+    newFeatures: [
+      'Done is a labelled button on the set you are on, away from its plus and minus buttons',
+      'On landscape tablets and wider screens, the coach and Last time sit beside your sets'
+    ],
+    improvements: [
+      'The exercise count and the workout’s progress share one line, so your sets start higher on the screen',
+      'Swap and Edit sit beside the exercise name, and its muscles are listed as words',
+      'The set you are on is the one highlighted panel, with larger numbers, and finished sets are quieter',
+      'Finishing a set moves the next one smoothly into place; with Reduce Motion it changes at once',
+      'Bodyweight sets no longer show plus and minus buttons that could not change anything, and assisted lifts say lb assist',
+      'The rest timer no longer repeats the exercise name, and the rest reminder above Previous steps aside while you type a set',
+      'Swap says which exercise it is replacing, and Swap, Add exercises and Exercise Detail use sentence-case labels',
+      'On the smallest phones, the set you are on and its plus and minus buttons show above Previous and Skip, and calendar days are full-size touch targets',
+      'Switching between Calendar and By exercise in Log is quicker'
+    ],
+    bugFixes: [
+      'Exercise Detail says Longest set, not Longest hold, for timed exercises that are not holds, like Mountain Climbers',
+      'Exercise Detail calls the chart of a timed or distance exercise Long-term progress, not Long-term strength',
+      'A quick double tap on a set you just finished no longer undoes it or opens it again',
+      'Going back to an exercise no longer leaves the set you are on hidden under the rest timer or below Previous and Skip',
       'Records, PRs, XP and your training data are unchanged'
     ],
     changes: []
@@ -51684,7 +51922,8 @@ function exDetailTrendHtml(d){
      directly under the answer. It is Strength's own figure (computeExerciseTrends, D98) over every workout, not the
      evidence D49 decides by: the two can disagree without either being wrong (a heavier load for fewer reps dips the
      estimate while D49 counts it as progress), so it is named for what it is. */
-  const head = '<div class="exd-head"><h3 class="exd-k" id="exdTrendH">Long-term strength</h3></div>';
+  /* D177 — a lift counted in seconds or metres has no strength estimate; what it can show is its progress */
+  const head = '<div class="exd-head"><h3 class="exd-k" id="exdTrendH">' + ((d.measure || MEASURE_REPS) === MEASURE_REPS ? 'Long-term strength' : 'Long-term progress') + '</h3></div>';
   const lift = d.name.trim();
   /* D152 (E76) — no strength is estimated from help, or from a number LOOP can't tell is help or load. */
   if(d.assisted) return head + '<p class="exd-empty">' + (d.assisted === 'counterweight'
@@ -51721,10 +51960,15 @@ function exDetailTrendHtml(d){
   if(d.repPoints && d.repPoints.length >= 2){
     const pts = d.repPoints, first = pts[0], lastP = pts[pts.length - 1];
     const hold = m === MEASURE_TIME;   // D172 — a bodyweight hold: its count is seconds
-    const label = lift + (hold ? ': longest hold, in seconds, across ' : ': most reps in a set across ') + pts.length + ' workouts, from ' + first.value + ' on '
+    /* D177 — a timed lift is a hold only when it is one (the registry's timed kind: substitutionIsHold); a timed interval
+       such as Mountain Climbers counts seconds too, but its figure is its longest set */
+    let isHold = false;
+    try{ isHold = hold && substitutionIsHold(resolveExerciseId(lift), lift); }catch(e){ isHold = false; }
+    const tWord = isHold ? 'hold' : 'set';
+    const label = lift + (hold ? ': longest ' + tWord + ', in seconds, across ' : ': most reps in a set across ') + pts.length + ' workouts, from ' + first.value + ' on '
       + exdDate(first.date) + ' to ' + lastP.value + ' on ' + exdDate(lastP.date) + '.';
     return head
-      + '<p class="exd-sub exd-sub-lead">' + (hold ? 'Longest hold, each workout · ' : 'Most reps in a set, each workout · ') + pts.length + ' workouts</p>'
+      + '<p class="exd-sub exd-sub-lead">' + (hold ? 'Longest ' + tWord + ', each workout · ' : 'Most reps in a set, each workout · ') + pts.length + ' workouts</p>'
       + '<div class="exd-chart">' + exerciseTrendSvg(pts, label) + '</div>'
       + '<div class="exd-ends">' + end('First', first, hold ? 's' : 'reps') + end('Latest', lastP, hold ? 's' : 'reps') + '</div>';
   }
@@ -51751,8 +51995,15 @@ function exDetailBestsHtml(d){
   const more = newest.length > shown.length
     ? '<button type="button" class="exd-link" onclick="exDetailShowAllBests()">Show all ' + newest.length + '</button>' : '';
   return '<div class="exd-pbs"><div class="exd-pbs-head"><span class="exd-pbs-t">Personal bests</span>'
-    + '<span class="exd-head-n">' + (d.bests.isBW ? (timedBW ? 'longest hold' : 'most reps') : 'heaviest weight') + '</span></div>'
+    + '<span class="exd-head-n">' + (d.bests.isBW ? (timedBW ? exDetailTimedWord(d) : 'most reps') : 'heaviest weight') + '</span></div>'
     + '<ol class="exd-pb-list">' + rows + '</ol>' + more + '</div>';
+}
+/* D177 — the word for a timed lift's longest figure, read as the long-term chart reads it: a hold only when the registry
+   gives the lift a timed kind (substitutionIsHold); a timed interval such as Mountain Climbers is counted by its longest set */
+function exDetailTimedWord(d){
+  let lift = '';
+  try{ lift = String(d && d.name || '').trim(); }catch(e){ lift = ''; }
+  try{ return substitutionIsHold(resolveExerciseId(lift), lift) ? 'longest hold' : 'longest set'; }catch(e){ return 'longest set'; }
 }
 function exDetailRecordsHtml(d){
   const bestTxt = d.prMode === PR_MODE.UNKNOWN ? '—' : exerciseBestSetText(d.best, d.isBW, d.measure);
@@ -64397,7 +64648,7 @@ function openSubstitutions(btn){
   const gymKnown = isGymProfileConfigured();
 
   const current = '<div class="sub-current">' + exerciseThumbHtml(name, { static: true }) +
-    '<span class="sub-current-main"><span class="sub-current-k">Now</span>' +
+    '<span class="sub-current-main"><span class="sub-current-k">Replacing</span>' +
     '<span class="sub-current-name">' + escapeHtml(name) + '</span></span></div>';
   const note = `<div class="sub-note">Replaces this exercise for today's workout only. Your plan, history and records are untouched.` +
     (done && !allDone ? ` Your ${done} finished set${done === 1 ? '' : 's'} stay${done === 1 ? 's' : ''} logged as ${escapeHtml(name)}.` : '') +
@@ -67095,20 +67346,27 @@ function renderWorkoutStep(opts){
     const row = rows[i];
     const name = workoutStepName(row);
     head.innerHTML =
+      /* D177 — the count and the workout's progress share one line (the bar's stops keep their 44px height and their jump),
+         so the exercise itself starts higher; an assisted lift is marked for its unit (lb assist). */
       '<div class="ws-k">Exercise ' + (i + 1) + ' of ' + rows.length +
         (exerciseRowSkipped(row) ? '<span class="ws-k-flag">Skipped</span>' : '') +
+        workoutStepBarHtml(rows, i) +
         /* D61 — adding one more is reachable from every exercise, as the
            count it changes, without leaving the one on screen. */
         '<button type="button" class="ws-k-add" onclick="openWorkoutExercisePicker(\'step\')"' +
           ' aria-label="Add exercises to this workout">' + plusIconSvg(11) + 'Add</button></div>' +
-      workoutStepBarHtml(rows, i) +
       /* Phase B — the exercise's picture sits beside its name and opens How
          To; a swapped exercise says what it stands in for, and offers the way
          back. */
-      '<div class="ws-title">' + exerciseThumbHtml(name, { size: 'lg' }) +
+      '<div class="ws-title' + (wsAssistedLift(name) ? ' ws-assisted' : '') + '">' + exerciseThumbHtml(name, { size: 'lg' }) +
         '<div class="ws-title-main">' +
           '<h3 class="ws-name">' + escapeHtml(name) + '</h3>' +
           workoutStepMusclesHtml(name) +
+          /* D177 — Swap and Edit beside the name they act on: the exercise's own two controls (wsRowAct) */
+          '<div class="ws-acts">' +
+            '<button type="button" class="ws-act" onclick="wsRowAct(\'swap\')" aria-label="Swap exercise">Swap</button>' +
+            '<button type="button" class="ws-act" onclick="wsRowAct(\'edit\')" aria-label="Rename or remove this exercise">Edit</button>' +
+          '</div>' +
         '</div>' +
       '</div>' +
       workoutStepSwapHtml(row);
@@ -67151,6 +67409,10 @@ function renderWorkoutStep(opts){
       void stage.offsetWidth;
       stage.classList.add(opts.dir === 'back' ? 'ws-in-l' : 'ws-in-r');
     }
+    /* D177 — a step opens with the set you are on clear of the pinned rest card and the dock — on the smallest phones a
+       tall coach above it had left it out of sight (revealSetRow: only as far as needed, never past the set's top; a scroll,
+       nothing written) */
+    try{ d177RevealOpenSet(rows[i]); }catch(e){}
   }
 }
 
@@ -68318,6 +68580,110 @@ function workoutStepSwapHtml(row){
   return '<p class="ws-swap">Instead of <b>' + escapeHtml(slot) + '</b>' +
     '<button type="button" class="ws-swap-undo" onclick="undoExerciseSwapAt(null)"' +
     ' aria-label="' + escapeAttr('Go back to ' + slot) + '">Undo</button></p>';
+}
+
+/* D177 — Swap and Edit sit beside the exercise's name in the head. Each is the exercise's own control, pressed: the row on
+   screen's Swap (openSubstitutions) or Edit (toggleExerciseEdit), exactly as before — the head only reaches them. */
+function wsRowAct(kind){
+  let rows = [];
+  try{ rows = workoutStepRows(); }catch(e){ rows = []; }
+  const row = rows[logStepIndex];
+  if(!row || !row.querySelector) return false;
+  const b = row.querySelector(kind === 'edit' ? '.ex-edit-btn' : '.ex-replace-btn');
+  if(!b) return false;
+  b.click();
+  return true;
+}
+/* D177 — the set you are on, or the set chosen to edit, brought clear of a running rest card or the dock when a step opens
+   (revealSetRow decides: it scrolls only when the set runs under them, and never past the set's top) */
+function d177RevealOpenSet(row){
+  if(!row || !row.querySelector) return false;
+  const sets = setRowsOf(row.querySelector('.sets-list'));
+  const open = sets.find(r => r.classList.contains('set-focus')) || sets.find(r => !r.classList.contains('completed'));
+  if(!open) return false;
+  revealNextSetAfterLayout(open);
+  return true;
+}
+/* D177 — an assisted lift (D152's exerciseLoadMeaning: a counterweight or other help) logs help, not load */
+function wsAssistedLift(name){
+  try{ return !!exerciseLoadMeaning(name); }catch(e){ return false; }
+}
+/* D177 — FINISHING A SET, SEEN AND FELT.
+   The tick keeps its own handler (toggleSetComplete): the set, the rest, the coach and the draft are written first and
+   exactly as before. Only then does the set just done mark itself once (.d177-done: the tick settles in), and the sets of
+   that exercise glide from where they were drawn to where they now sit — a transform for the step's length, nothing
+   laid out again — so the editor moving to the next set never jumps. Under Reduce Motion the new state is simply there.
+   A second press on the set just done — its tick, or anywhere on its row — within 450 ms of completing it is one double tap,
+   not an undo and not a choice to reopen it: it is let go. */
+const D177_DONE_AT = (typeof WeakMap === 'function') ? new WeakMap() : null;
+function d177ReducedMotion(){
+  try{ return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); }catch(e){ return false; }
+}
+function d177SetTops(list){
+  return setRowsOf(list).map(r => r.getBoundingClientRect().top);
+}
+function d177Glide(list, before){
+  if(!list || !before || d177ReducedMotion()) return false;
+  const rows = setRowsOf(list);
+  if(rows.length !== before.length) return false;
+  let moved = 0;
+  rows.forEach((r, i) => {
+    const dy = before[i] - r.getBoundingClientRect().top;
+    if(Math.abs(dy) < 1) return;
+    r.style.transition = 'none';
+    r.style.transform = 'translateY(' + Math.round(dy) + 'px)';
+    moved++;
+  });
+  if(!moved) return false;
+  void list.offsetWidth;
+  rows.forEach(r => {
+    if(!r.style.transform) return;
+    r.style.transition = 'transform var(--dur-step) var(--ease-out)';
+    r.style.transform = '';
+  });
+  setTimeout(() => rows.forEach(r => { r.style.transition = ''; }), 320);
+  return true;
+}
+function d177TickPressed(el){
+  const row = el && el.closest ? el.closest('.set-row') : null;
+  if(!row) return null;
+  const at = D177_DONE_AT ? D177_DONE_AT.get(row) : 0;
+  if(at && row.classList.contains('completed') && Date.now() - at < 450) return 'repeat';
+  const btn = el.closest('.set-complete-btn');
+  if(!btn) return null;
+  return { btn, row, list: row.parentElement, was: row.classList.contains('completed'), tops: d177SetTops(row.parentElement) };
+}
+function d177TickSettled(p){
+  if(!p || !p.btn || !p.row) return false;
+  const now = p.row.classList.contains('completed');
+  if(now && !p.was){
+    if(D177_DONE_AT) D177_DONE_AT.set(p.row, Date.now());
+    p.row.classList.remove('d177-done');
+    void p.row.offsetWidth;
+    p.row.classList.add('d177-done');
+    setTimeout(() => p.row.classList.remove('d177-done'), 700);
+  }
+  d177Glide(p.list, p.tops);
+  return now && !p.was;
+}
+if(typeof window !== 'undefined' && window.addEventListener){
+  let d177Pending = null;
+  /* before the tick's own handler and the row's (capture, on the window): where the sets are drawn now; a double tap stops here */
+  window.addEventListener('click', e => {
+    const t = e.target;
+    const el = t && t.closest ? t.closest('#logOverlay.stepper-on .ws-current .set-row') && t : null;
+    d177Pending = null;
+    if(!el) return;
+    const p = d177TickPressed(el);
+    if(!p) return;
+    if(p === 'repeat'){ e.stopPropagation(); e.preventDefault(); return; }
+    d177Pending = p;
+  }, true);
+  /* after it (the last listener the press reaches): the mark and the glide */
+  window.addEventListener('click', () => {
+    const p = d177Pending; d177Pending = null;
+    if(p && p.btn.isConnected) d177TickSettled(p);
+  });
 }
 
 /* D104 — the ONE writer of a set's label. In the stepper the badge shows the

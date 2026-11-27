@@ -21786,3 +21786,45 @@ assisted lift is listed with its sessions and the word "assisted", and no figure
 Score, mastery and its thresholds, achievements, adherence and weekly completion, late-session matching, paused semantics,
 editing, measurements, record rules, coaching and progression, backup, Friends, storage keys, art and rank art. Rendering
 Progress or Log writes nothing. No static markup changed.
+
+## §222 — THE WORKOUT: ONE LIT SET, DONE ON IT (D177 · LOOP 10.99 · loop-v276)
+
+**The problem.** The live workout spent most of a phone's height before the first set: an uppercase count line, a 60px
+row of dots, uppercase muscle chips, a rule, and Swap and Edit as two slabs on a row of their own (the first set at 489px
+of 844; at 320×568 only the top 63px of the set you are on showed above the dock). The completion control was an unlabelled
+circle on the set's top line. Bodyweight sets drew steppers that could not step; an assisted lift's help read plain "lb".
+The rest card repeated the exercise name and cut it ("Bench Pr…"); the dock's rest chip sat over a set being typed when the
+keyboard was up; returning to an exercise whose rest ran left the set you are on under the pinned rest card, and at 320×568
+a tall coach could leave it wholly below the dock. A quick double tap on the tick completed and undid the set. Exercise
+Detail said "Longest hold" for Mountain Climbers (a timed interval, not a hold: the registry's timed kind) — on its chart
+and over its personal bests — and "Long-term strength" over seconds and metres.
+
+**The direction.** D175's language carried into the room where sets are logged: a quiet ground and one lit stage — the set.
+- **Head.** "Exercise 1 of 7", the workout's progress as slim segments (each still a 44px stop that jumps there) and Add on
+  one line; then the drawing at its approved size, the name, the muscles as words (the primary one only below 360px) and
+  Swap · Edit beside them. They are the exercise's own controls pressed (`wsRowAct` → `openSubstitutions` /
+  `toggleExerciseEdit` on the row on screen); the row's own pair shows again while Edit is open (its Done).
+- **The set you are on** (or the set chosen to edit, D167) is the one lit panel: values in quiet wells, larger, and Done — the
+  tick, labelled — on its top line, apart from the steppers. A completed set reopened says Completed. Every other set stays
+  one line; a finished set is quieter and keeps Add RIR. Bodyweight wells say Bodyweight without steppers; an assisted lift
+  (`exerciseLoadMeaning`, D152) says "lb assist".
+- **Finishing a set.** The tick's own handler runs first and alone writes (the set, the rest, the coach, the draft — all
+  10.98's); then the set just done takes a short green wash and the sets glide from where they were drawn to where they sit
+  (`d177Glide`: a transform for `--dur-step`). Reduce Motion: the new state at once. A second press on the set just done — its tick
+  or anywhere on its row — within 450 ms of completing it is a double tap and is let go (`d177TickPressed`, a window capture
+  listener): never an undo, never a choice to reopen it. After that the tick is the undo and the row a choice, as before.
+- **Rest.** The card drops the name (the exercise is on screen). The dock's chip steps aside while a set field has focus. A
+  step opening brings the set you are on clear of the card and the dock (`d177RevealOpenSet` → `revealSetRow`'s own rule:
+  only when it runs under them, only as far as needed, never past the set's top) — on larger phones it is already clear.
+- **Coach** on the quiet panel. **Swap** says "Replacing"; Swap, Add exercises and Exercise Detail use sentence case and the
+  quiet panel. **Exercise Detail**: "Long-term progress" for seconds and metres; "Longest set" for a timed lift that is not a
+  hold (`substitutionIsHold`), "Longest hold" for one that is — on the chart and over the personal bests (`exDetailTimedWord`).
+- **Phones.** At 320×568 the set you are on and its steppers show above the dock (Last time and Note share a row again —
+  D133 parted them for the old capitals). **Wide screens:** from 1000px the coach and Last time sit left of the sets.
+- **Log.** At 320px the month runs to the screen's edges and a day is drawn at 40px with a 4px gap; its press reaches 2px
+  past each drawn edge (`::before` at -3px inside the 1px border: 44px targets that meet and never overlap, measured by
+  hit-testing); the Calendar / By exercise switch fades in at the shared feedback time (140ms).
+
+**Unchanged.** Completing a set, the rest timer and its triggers, the chosen set (D167/D168), the dock's height and mode,
+the coach, the draft and its restore, saving, set types, RIR, swaps and their ranking, records, XP, Session Score and every
+engine. No storage key, no migration. Contract 301 holds it.

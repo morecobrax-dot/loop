@@ -3308,6 +3308,30 @@ Found in D176's audit. `allExerciseFactOf` printed a lift's heaviest load × cou
 the most help (D152: LOOP singles out no "top" set for one). All exercises showed "Assisted Pull-Up — 90 lb × 8 reps". An
 assisted lift is now listed with its sessions and the word "assisted", and no figure; By exercise reads the same fact.
 
+## E120 — A quick double tap on a set's tick completed it and undid it · P4 · **CLOSED in D177 (LOOP 10.99)**
+
+Found in D177's audit. The tick toggles (`toggleSetComplete`), so a double tap — a tremor, a sweaty finger, a press the screen
+read twice — completed the set and then undid it, with the rest timer started and stopped. A press on the same tick within
+450 ms of it completing the set — or a press anywhere else on that row, which would have reopened it — is now let go before
+any handler (a window capture listener, `d177TickPressed`); after that the tick is the athlete's undo and the row a choice to
+correct it, exactly as before. `toggleSetComplete` is unchanged.
+
+## E121 — Returning to an exercise whose rest ran left the set you are on under the rest card · P4 · **CLOSED in D177 (LOOP 10.99)**
+
+Found in D177's capture: finish a set (the rest card pins to the foot of the scroll, D59), move to the next exercise and back.
+A step starts at its top, and with the coach and Last time above it the set you are on sat under the pinned card — its
+steppers covered. D59's reveal (`revealSetRow`) ran only after a tick. A step opening now runs the same reveal for the
+set you are on (or the set chosen to edit): only when it runs under the rest card or the dock, only as far as needed, never
+past its top; a scroll only. Found with it at 320×568: a tall coach left the set wholly below the dock.
+
+## E122 — Exercise Detail called a timed interval's figure its "longest hold" · P5 · **CLOSED in D177 (LOOP 10.99)**
+
+Noted in D176's report: Mountain Climbers is counted in seconds but is not a hold (the registry gives it no timed kind), yet
+its chart said "Longest hold, each workout", under "Long-term strength", and its personal bests were headed "longest hold".
+A timed lift is now a hold only when `substitutionIsHold` says so ("Longest hold"); otherwise its figure is its "Longest
+set", on the chart and over the bests. A lift counted in seconds or metres
+is headed "Long-term progress". The numbers are unchanged.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.
