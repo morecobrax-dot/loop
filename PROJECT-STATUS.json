@@ -3,11 +3,11 @@
   "appId": "loop",
   "version": "10.100",
   "phase": null,
-  "status": "release_ready",
+  "status": "stable",
   "needsQa": false,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "LOOP 10.100 release (loop-v277): automated gates passed; deploying to GitHub Pages, then confirming the live app.",
+  "nextAction": "LOOP 10.100 is live (loop-v277, released 2026-11-28). Next: D179, Programs UX consolidation and customization; E123 awaits an owner decision.",
   "blocker": null,
-  "updatedAt": "2026-11-28T11:01:46Z"
+  "updatedAt": "2026-11-28T12:01:56Z"
 }
