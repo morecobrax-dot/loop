@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
   "appId": "loop",
-  "version": "10.99",
+  "version": "10.100",
   "phase": null,
-  "status": "stable",
+  "status": "release_ready",
   "needsQa": false,
   "needsDecision": false,
   "currentTask": null,
-  "nextAction": "LOOP 10.99 is live (loop-v276, released 2026-11-27). Next: D178, the finished-workout summary and resume in the same workout language.",
+  "nextAction": "LOOP 10.100 release (loop-v277): automated gates passed; deploying to GitHub Pages, then confirming the live app.",
   "blocker": null,
-  "updatedAt": "2026-11-27T06:24:43Z"
+  "updatedAt": "2026-11-28T11:01:46Z"
 }

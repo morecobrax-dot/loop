@@ -12566,6 +12566,223 @@ header{ padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom:
   #logOverlay.stepper-on .ws-current::after{ content: ''; display: block; clear: both; }
 }
 /* ==== D177 WORKOUT END ==== */
+/* ==== D178 COMPLETION BEGIN ==== */
+/* D178 — PREMIUM REDESIGN, PART 4: FINISHING A WORKOUT. The same direction carried to the last screen of a workout: a quiet
+   ground and one lit stage.
+   · The summary's stage is the workout done — its name, how long it took (D105's main stat), what it held, and that it is
+     saved, with the one way to the full workout. It is lit in success green, because finishing is a success.
+   · What it earned follows, quieter: a level reached (XP's gold), its records (green, D165's band) and first-time baselines
+     (no trophy), its XP total in gold with how it adds up one tap away. Then the Session Score, which says what it measures,
+     and the evidence beneath it — this session against last time, planned against done, next time, the coach, the cooldown.
+   · One primary action, Done; Edit beside it, quiet. The cooldown's start is no longer a second primary button.
+   · The hand-over from logging plays once per finished workout (.d178-celebrate): the mark, then the stage, then what it
+     earned, each a short rise on the shared motion tokens. Nothing counts up; every number is its final value from the
+     first frame. Reduce Motion: the final state at once.
+   · The workout room's remaining D177 corrections: Swap · Edit share the muscles' line at every width; below 360px the top
+     bar keeps the step and Add; "How'd it feel?" rides the rest card while a rest runs.
+   Presentation only: no engine is read differently. */
+
+/* ---------- the summary sheet: the ground ---------- */
+#summaryOverlay .summary-sheet{ text-align: left; }
+#summaryOverlay .summary-sheet .sheet-scroll{ padding-top: 6px; }
+#summaryOverlay .section-label{ margin: 22px 2px 8px; }
+
+/* ---------- the stage ---------- */
+#summaryOverlay .sum-hero{
+  position: relative; text-align: center; border-radius: 22px; padding: 22px 18px 14px; margin-top: 4px;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(70,195,142,0.20) 0%, rgba(70,195,142,0.05) 48%, rgba(70,195,142,0) 74%),
+    linear-gradient(180deg, #131C2A 0%, #0F1623 100%);
+  box-shadow: inset 0 1px 0 var(--edge-hi), 0 22px 40px -26px rgba(0,0,0,0.9);
+}
+#summaryOverlay .sum-hero .summary-mark{ width: 52px; height: 52px; margin: 0 auto 10px; }
+#summaryOverlay .sum-hero h2{ font-size: 24px; line-height: 1.15; letter-spacing: -0.02em; margin: 0; }
+#summaryOverlay .sum-hero #summaryTitle{ margin-top: 4px; font-size: 15px; color: var(--text-dim); overflow-wrap: anywhere; }
+#summaryOverlay .sum-hero-stats:empty{ display: none; }
+#summaryOverlay .sum-dur{ display: flex; flex-direction: column; align-items: center; gap: 2px; margin-top: 18px; }
+#summaryOverlay .sum-dur-n{
+  font-family: var(--font-display); font-size: 44px; font-weight: 700; line-height: 1; letter-spacing: -0.03em;
+  color: var(--text); font-variant-numeric: tabular-nums;
+}
+#summaryOverlay .sum-dur-l{ font-size: 13px; font-weight: 600; color: var(--text-dim); }
+#summaryOverlay .sum-facts{ display: flex; justify-content: center; flex-wrap: wrap; gap: 4px 0; margin-top: 16px; }
+#summaryOverlay .sum-fact{ display: flex; flex-direction: column; align-items: center; min-width: 78px; padding: 0 12px; }
+#summaryOverlay .sum-fact + .sum-fact{ border-left: 1px solid var(--hairline); }
+#summaryOverlay .sum-fact-n{
+  font-family: var(--font-display); font-size: 20px; font-weight: 700; line-height: 1.15; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+#summaryOverlay .sum-fact-l{ font-size: 12px; font-weight: 500; color: var(--text-dim); }
+#summaryOverlay .sum-saved{
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0 6px; min-height: 44px;
+  margin: 14px -6px 0; padding-top: 6px; border-top: 1px solid var(--hairline);
+  font-size: 13px; font-weight: 500; color: var(--text-dim);
+}
+#summaryOverlay .sum-saved:empty{ display: none; }
+#summaryOverlay .sum-saved-ic{ display: inline-flex; color: var(--c-progress); }
+#summaryOverlay .sum-link{
+  min-height: 44px; padding: 0 10px; margin-left: 2px; border: 0; border-radius: 12px; background: none; cursor: pointer;
+  font-family: var(--font-ui), 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; color: var(--accent);
+}
+#summaryOverlay .sum-link:focus-visible{ outline: 2px solid var(--accent); outline-offset: 0; }
+
+/* ---------- what it earned ---------- */
+/* a level reached: XP's gold, on the quiet panel; the medal keeps its reveal */
+#summaryOverlay .levelup-banner{
+  margin-top: 14px; padding: 16px; border-radius: var(--d175-r);
+  background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); box-shadow: inset 3px 0 0 var(--c-mastery);
+}
+#summaryOverlay .levelup-label{ text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 700; color: var(--c-mastery); }
+#summaryOverlay .levelup-nums{ color: var(--text); }
+#summaryOverlay .levelup-rank{ text-transform: none; letter-spacing: 0; color: var(--text-dim); }
+/* records: green, D165's band; baselines: the quiet panel, no trophy */
+#summaryOverlay .pr-callout{
+  margin-top: 8px; padding: 12px 14px; border-radius: 16px; animation: none;
+  background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); box-shadow: inset 3px 0 0 var(--c-progress);
+}
+#summaryOverlay .pr-callout-icon{ background: var(--c-progress-soft); color: var(--c-progress); border-color: transparent; }
+#summaryOverlay .pr-callout-title{ font-size: 15px; font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+#summaryOverlay .pr-callout-sub{ font-size: 12.5px; color: var(--text-dim); }
+#summaryOverlay .sum-base{ background: var(--d175-panel); border-color: var(--d175-panel-edge); border-radius: 16px; }
+#summaryOverlay .sum-base-n{ overflow-wrap: anywhere; }
+/* XP: the total in gold leads; how it adds up, one tap away */
+#summaryOverlay .sum-xp{ padding: 14px 16px 6px; border-radius: var(--d175-r); background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); }
+#summaryOverlay .sum-xp-total{
+  font-family: var(--font-display); font-size: 26px; font-weight: 700; line-height: 1.1; color: var(--c-mastery);
+  font-variant-numeric: tabular-nums;
+}
+#summaryOverlay .sum-xp .xp-identity{ margin-top: 10px; padding: 0; background: none; border: 0; }
+#summaryOverlay .sum-xp .xp-identity-lvl,
+#summaryOverlay .sum-xp .xp-breakdown-level{
+  font-family: var(--font-ui), 'Inter', sans-serif; text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 600; color: var(--text-dim);
+}
+#summaryOverlay .sum-xp .xp-breakdown-level{ margin-top: 8px; }
+#summaryOverlay .sum-xp .xp-streak{ text-transform: none; letter-spacing: 0; font-size: 12px; }
+#summaryOverlay .sum-xp-more{
+  display: block; min-height: 44px; margin: 4px -10px 0; padding: 0 10px; border: 0; border-radius: 12px; background: none; cursor: pointer;
+  font-family: var(--font-ui), 'Inter', sans-serif; font-size: 13.5px; font-weight: 600; color: var(--accent); text-align: left;
+}
+#summaryOverlay .sum-xp-more:focus-visible{ outline: 2px solid var(--accent); outline-offset: 0; }
+#summaryOverlay .sum-xp .xp-breakdown-card{ margin: 0 0 8px; padding: 0; background: none; border: 0; box-shadow: none; }
+#summaryOverlay .sum-xp .xp-breakdown-card[hidden]{ display: none; }
+
+/* ---------- the score and the evidence: the quiet panel ---------- */
+#summaryOverlay #summaryScore{ margin-top: 22px; }
+#summaryOverlay .ss, #summaryOverlay .ss-none{
+  text-align: left; padding: 14px 16px; border-radius: var(--d175-r);
+  background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); box-shadow: none;
+}
+#summaryOverlay .ss-k{
+  font-family: var(--font-ui), 'Inter', sans-serif; text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 700; color: var(--text);
+}
+#summaryOverlay .ss-head{ display: flex; align-items: baseline; gap: 10px; margin-top: 6px; }
+#summaryOverlay .ss-num{ font-size: 34px; line-height: 1; letter-spacing: -0.03em; margin: 0; }
+#summaryOverlay .ss-word{ margin: 0; font-size: 15px; font-weight: 600; }
+#summaryOverlay .ss-what{ margin: 8px 0 0; font-size: 13px; line-height: 1.45; color: var(--text-dim); }
+#summaryOverlay .ss-reasons{ margin-top: 10px; padding-top: 10px; }
+#summaryOverlay .ss-more{ min-height: 44px; margin-top: 8px; }
+#summaryOverlay .ss-none{ font-size: 13.5px; line-height: 1.45; color: var(--text-dim); }
+#summaryOverlay .ss-none .ss-k{ margin-bottom: 4px; }
+#summaryOverlay .summary-stats{ display: block; margin-top: 12px; }
+#summaryOverlay .summary-stats:empty{ display: none; }
+#summaryOverlay .quality-block, #summaryOverlay .dur-planned{
+  margin: 0 0 10px; padding: 12px 16px; border-radius: var(--d175-r); background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); box-shadow: none;
+}
+#summaryOverlay .quality-title{ text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+#summaryOverlay .nexttime-card{ background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); border-radius: var(--d175-r); box-shadow: none; }
+#summaryOverlay .coach-note{ margin-top: 8px; background: var(--d175-panel); border-color: var(--d175-panel-edge); box-shadow: none; }
+/* the cooldown: an offer on the quiet panel — its start is not a second primary button beside Done */
+#summaryOverlay .prep-card{ background: var(--d175-panel); border: 1px solid var(--d175-panel-edge); box-shadow: none; margin-top: 22px; }
+#summaryOverlay .prep-card-label{ text-transform: none; letter-spacing: 0; font-size: 15px; font-weight: 700; color: var(--text); }
+#summaryOverlay .prep-card-time{ text-transform: none; letter-spacing: 0; }
+#summaryOverlay .prep-card .prep-start-btn{
+  background: var(--surface-3); color: var(--text); border: 1px solid var(--hairline-strong); box-shadow: none; min-height: 44px;
+}
+
+/* ---------- one primary action ---------- */
+#summaryOverlay #summaryActionsLive .btn-secondary{ flex: 1 1 0; background: none; border-color: var(--hairline-strong); }
+#summaryOverlay #summaryActionsLive .btn-primary{ flex: 2 1 0; }
+
+/* ---------- the hand-over: once, short, final values from the first frame ---------- */
+#summaryOverlay:not(.d178-celebrate) .summary-mark,
+#summaryOverlay:not(.d178-celebrate) .summary-stats .stat,
+#summaryOverlay:not(.d178-celebrate) .ss-num,
+#summaryOverlay:not(.d178-celebrate) .prep-card{ animation: none; }
+#summaryOverlay.d178-celebrate .sum-hero{ animation: d178Rise var(--dur-sheet) var(--ease-out) both; }
+#summaryOverlay.d178-celebrate .sum-hero .summary-mark{ animation: sumMarkIn var(--dur-celebrate) var(--ease-out) 80ms both; }
+#summaryOverlay.d178-celebrate .sum-hero-stats,
+#summaryOverlay.d178-celebrate .sum-saved{ animation: d178Rise var(--dur-sheet) var(--ease-out) 220ms both; }
+#summaryOverlay.d178-celebrate #summaryLevelUp,
+#summaryOverlay.d178-celebrate #summaryPRs,
+#summaryOverlay.d178-celebrate #summaryXP{ animation: d178Rise var(--dur-sheet) var(--ease-out) 360ms both; }
+#summaryOverlay.d178-celebrate #summaryScore,
+#summaryOverlay.d178-celebrate .summary-stats{ animation: d178Rise var(--dur-sheet) var(--ease-out) 460ms both; }
+@keyframes d178Rise{ from{ opacity: 0; transform: translateY(8px); } to{ opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce){
+  #summaryOverlay.d178-celebrate .sum-hero, #summaryOverlay.d178-celebrate .sum-hero .summary-mark, #summaryOverlay.d178-celebrate .sum-hero-stats,
+  #summaryOverlay.d178-celebrate .sum-saved, #summaryOverlay.d178-celebrate #summaryLevelUp, #summaryOverlay.d178-celebrate #summaryPRs,
+  #summaryOverlay.d178-celebrate #summaryXP, #summaryOverlay.d178-celebrate #summaryScore, #summaryOverlay.d178-celebrate .summary-stats{ animation: none; }
+}
+
+/* ---------- small phones and wide screens ---------- */
+@media (max-width: 359px){
+  #summaryOverlay .sum-hero{ padding: 18px 12px 12px; }
+  #summaryOverlay .sum-dur-n{ font-size: 38px; }
+  #summaryOverlay .sum-fact{ min-width: 0; padding: 0 9px; }
+}
+@media (min-width: 760px){
+  #summaryOverlay .summary-sheet{ max-width: 600px; margin-left: auto; margin-right: auto; }
+}
+
+/* ---------- the workout room: D177's corrections ---------- */
+/* Swap · Edit share the muscles' line at every width: the name has its row; the muscles wrap in their own column */
+#logOverlay.stepper-on .ws-title-main{
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "name name" "mus acts"; align-items: center; column-gap: 6px;
+}
+#logOverlay.stepper-on .ws-title .ws-name{ grid-area: name; }
+#logOverlay.stepper-on .ws-title .ws-chips{ grid-area: mus; align-self: center; }
+#logOverlay.stepper-on .ws-acts{ grid-area: acts; margin: 0 -8px 0 0; padding-top: 0; align-self: center; }
+/* a separator trails its word, so a wrapped line never starts with one (below 360px only the primary muscles show) */
+#logOverlay.stepper-on .ws-title .ws-chip + .ws-chip::before{ content: none; }
+#logOverlay.stepper-on .ws-title .ws-chip:not(:last-child)::after{ content: '·'; margin: 0 6px; color: var(--text-faint); font-weight: 600; }
+@media (max-width: 359px){
+  #logOverlay.stepper-on .ws-title .ws-chip-p:has(+ .ws-chip-s)::after{ content: none; }
+}
+/* below 360px the top bar keeps the step ("Push · 1 of 7") and Add, which revealing the set you are on can scroll away */
+#logOverlay .ws-top-add{ display: none; }
+@media (max-width: 359px){
+  #logOverlay.stepper-on .ws-top-add:not([hidden]){
+    display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; padding: 0;
+    border: 0; border-radius: 12px; background: none; color: var(--accent); cursor: pointer;
+  }
+  #logOverlay.stepper-on .ws-top-add:focus-visible{ outline: 2px solid var(--accent); outline-offset: -2px; }
+  #logOverlay.stepper-on #logTopbarTitle[data-step]::after{ content: ' · ' attr(data-step); content: ' · ' attr(data-step) / ''; font-weight: 500; color: var(--text-dim); white-space: nowrap; }
+}
+/* "How'd it feel?" on the rest card while a rest runs; the strip below steps aside until it ends */
+#logOverlay .ws-current .rest-panel:has(.rest-fb){ flex-wrap: wrap; }
+#logOverlay .ws-current .rest-panel .rest-fb{ flex: 0 0 100%; margin: 2px 0 0; padding-top: 10px; border-top-color: rgba(148,170,205,0.14); }
+#logOverlay .ws-current:has(> .rest-panel:not([style*="none"]) .rest-fb) > .fb-strip:not(.rest-fb){ display: none; }
+@media (max-width: 359px){
+  #logOverlay .ws-current .rest-panel .rest-fb .fb-label{ display: none; }
+  #logOverlay .ws-current .rest-panel .rest-fb{ flex-wrap: nowrap; }
+  #logOverlay .ws-current .rest-panel .rest-fb .fb-chip{ flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; }
+  /* the card keeps D107's height: the dial and its three controls share the first row (the label stays for a screen reader —
+     the dial says the time), the chips the second, so the set you are on keeps its room above the card */
+  #logOverlay .ws-current .rest-panel:has(.rest-fb){ row-gap: 6px; }
+  #logOverlay .ws-current .rest-panel:has(.rest-fb) .rest-panel-info{ position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  #logOverlay .ws-current .rest-panel:has(.rest-fb){ padding-left: 10px; padding-right: 10px; column-gap: 8px; }
+  #logOverlay .ws-current .rest-panel:has(.rest-fb) .rest-panel-controls{ flex: 1 1 auto; justify-content: flex-end; gap: 4px; min-width: 0; }
+  #logOverlay .ws-current .rest-panel:has(.rest-fb) .rest-skip-btn{ padding: 0 9px; }
+}
+/* ---------- an unfinished workout: one language on Today and Train, one primary action ---------- */
+/* Train's card says it as Today's does (sentence case, the effort colour of a workout left open), on the quiet panel */
+#view-train .tr-resume{ background: var(--d175-panel); border: 1px solid rgba(240,168,69,0.30); box-shadow: none; }
+#view-train .tr-resume-k{ font-size: 13px; letter-spacing: 0; text-transform: none; color: var(--c-effort); }
+/* while one is open, Resume is the one primary action: a plan row's Start (which asks before discarding it) is secondary */
+#view-train:has(.tr-resume) .tl-start.is-next:not(.tr-resume .tl-start){
+  background: none; color: var(--text); border: 1px solid var(--hairline-strong); box-shadow: none;
+}
+/* ==== D178 COMPLETION END ==== */
 </style>
 </head>
 <body>
@@ -12998,7 +13215,7 @@ header{ padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom:
     <div class="workout-topbar">
       <button class="workout-back" onclick="closeLogSheet()" aria-label="Back">‹</button>
       <div class="workout-topbar-title" id="logTopbarTitle">Workout</div>
-      <span class="workout-topbar-spacer"></span>
+      <span class="workout-topbar-spacer ws-top-end"><button type="button" class="ws-top-add" id="wsTopAdd" onclick="openWorkoutExercisePicker('step')" aria-label="Add exercises to this workout" hidden></button></span>
     </div>
     <div class="sheet-scroll">
     <!-- Which step of the workout is on screen. Filled by renderWorkoutStep(). -->
@@ -13795,15 +14012,21 @@ header{ padding-top: calc(10px + env(safe-area-inset-top, 0px)); padding-bottom:
 <div class="overlay" id="summaryOverlay" onclick="backdropDismiss(event, closeSummary)">
   <div class="sheet summary-sheet">
     <div class="sheet-scroll">
+    <!-- D178 — one lit stage: the workout done, its name, how long it took and what it held, and that it is saved. What
+         it earned follows (a level, its records and baselines, its XP); then the score and the evidence beneath it. -->
+    <div class="sum-hero" id="summaryHeroCard">
     <div class="summary-mark" id="summaryMark"></div>
     <h2 style="text-align:center" id="summaryHeading">Workout Complete</h2>
     <div class="sheet-sub" id="summaryTitle" style="text-align:center"></div>
-    <!-- D47 — the score anchors the page, above everything it is a summary of. -->
-    <div id="summaryScore"></div>
+    <div class="sum-hero-stats" id="summaryHero"></div>
+    <p class="sum-saved" id="summarySaved"></p>
+    </div>
     <div id="summaryLevelUp"></div>
-    <div class="summary-stats" id="summaryStats"></div>
     <div id="summaryPRs"></div>
     <div id="summaryXP"></div>
+    <!-- D47 — the score: how closely the session followed what was prescribed (D178: after what the workout earned) -->
+    <div id="summaryScore"></div>
+    <div class="summary-stats" id="summaryStats"></div>
     <div id="summaryNextTime"></div>
     <div id="summaryCoach"></div>
     <div id="summaryCooldown"></div>
@@ -23369,6 +23592,34 @@ const LOOP_UPDATES = [
       'A quick double tap on a set you just finished no longer undoes it or opens it again',
       'Going back to an exercise no longer leaves the set you are on hidden under the rest timer or below Previous and Skip',
       'Records, PRs, XP and your training data are unchanged'
+    ],
+    changes: []
+  },
+  {
+    id: 'v10-100',
+    version: 'LOOP 10.100',
+    title: 'Finishing Your Workout',
+    date: '2026-11-28',
+    swVersion: 'loop-v277',
+    summary: 'The end of a workout now shows what you did at a glance: how long it took, what it held, that it is saved, and what you earned.',
+    newFeatures: [
+      'The workout summary leads with how long it took, how many exercises and sets you did and your volume, with Saved to your Log and a link to the full workout',
+      'Before you finish, the review step says how many sets you have not ticked will be saved with the values shown'
+    ],
+    improvements: [
+      'New records, first-time baselines and your XP come next, with the XP total first and how it adds up one tap away',
+      'The Session Score sits after what you earned and says what it measures: how closely the session followed what LOOP prescribed, not a comparison with another workout',
+      'Finishing a workout plays a short, quiet hand-over once; opening the summary again shows it straight away, and Reduce Motion skips it',
+      'Done is the one main button on the summary, and the cooldown offer no longer competes with it',
+      'Swap and Edit stay on the same line as the exercise’s muscles',
+      'On the smallest phones, the top bar shows which exercise you are on and keeps Add in reach',
+      'How’d it feel? appears on the rest timer while you rest, instead of hiding underneath it',
+      'An unfinished workout looks the same on Today and Train, with Resume as the main action, and starting a new one asks whether to discard it or keep it'
+    ],
+    bugFixes: [
+      'A workout of holds and carries no longer shows 0 lb of volume',
+      'Exercise Detail shows its chart and personal best dates as Oct 30, not OCT 30',
+      'Records, PRs, XP, Session Scores and your training data are unchanged'
     ],
     changes: []
   }
@@ -51939,7 +52190,7 @@ function exDetailTrendHtml(d){
       ? escapeHtml(lift) + ' is ' + word + ', so LOOP doesn’t estimate a one-rep max for it. Its records compare ' + (m === MEASURE_TIME ? 'time' : 'distance') + (d.isBW ? '.' : ' at the same load.')
       : 'Some sessions of ' + escapeHtml(lift) + ' were logged before LOOP recorded whether the count was time or distance, so LOOP doesn’t estimate a one-rep max or a trend from them.') + '</p>';
   }
-  const end = (k, p, unit) => '<span class="exd-end"><i>' + escapeHtml(k) + ' · ' + escapeHtml(formatDateShort(p.date)) + '</i>'
+  const end = (k, p, unit) => '<span class="exd-end"><i>' + escapeHtml(k) + ' · ' + escapeHtml(exdDate(p.date)) + '</i>'
     + '<b>' + p.value + '<small> ' + (unit === 'reps' && p.value === 1 ? 'rep' : unit) + '</small></b></span>';
   if(d.trend){
     const t = d.trend, pts = d.points, first = pts[0], lastP = pts[pts.length - 1];
@@ -51990,7 +52241,7 @@ function exDetailBestsHtml(d){
     const prev = newest[i + 1];
     const tag = i === newest.length - 1 ? 'First logged' : i === 0 ? 'Current' : '+' + exdNum(m.value - prev.value) + ' ' + unit(m.value - prev.value);
     return '<li class="exd-pb' + (tag === 'Current' ? ' exd-pb-cur' : '') + '"><span class="exd-pb-v">' + m.value + '<small> ' + unit(m.value) + '</small></span>'
-      + '<span class="exd-pb-d">' + escapeHtml(formatDateShort(m.date)) + '</span><span class="exd-pb-tag">' + escapeHtml(tag) + '</span></li>';
+      + '<span class="exd-pb-d">' + escapeHtml(exdDate(m.date)) + '</span><span class="exd-pb-tag">' + escapeHtml(tag) + '</span></li>';
   }).join('');
   const more = newest.length > shown.length
     ? '<button type="button" class="exd-link" onclick="exDetailShowAllBests()">Show all ' + newest.length + '</button>' : '';
@@ -66333,11 +66584,11 @@ function renderCooldownCard(entry){
        one primary full-width action, one quiet skip. */
     '<div class="prep-card" style="margin-top:18px;margin-bottom:0">' +
       '<div class="prep-card-head">' +
-        '<span class="prep-card-label">COOLDOWN</span>' +
-        '<span class="prep-card-time">~' + mins + ' MIN</span>' +
+        '<span class="prep-card-label">Cooldown</span>' +
+        '<span class="prep-card-time">~' + mins + ' min</span>' +
       '</div>' +
       '<div class="prep-card-sub">' + seq.length + ' stretches for what you trained.</div>' +
-      '<button class="btn-primary prep-start-btn" onclick="startCooldown(' + arg + ')">Start Cooldown</button>' +
+      '<button class="btn-primary prep-start-btn" onclick="startCooldown(' + arg + ')">Start cooldown</button>' +
       '<button class="prep-skip-btn" onclick="dismissCooldownCard()">Skip</button>' +
     '</div>';
 }
@@ -67305,6 +67556,7 @@ function renderWorkoutStep(opts){
   /* D61 — what kind of workout this was is a question for the end, beside its
      name and date, not a row of chips above every exercise of it. */
   sheet.classList.toggle('ws-at-finish', i === STEP_FINISH);
+  try{ d178TopbarStep(i, rows.length); }catch(e){}   // D178
 
   /* The finish action exists on the review step and nowhere else. Inside the
       stepper it lives in the navigation itself (D59): the review step used to
@@ -67334,6 +67586,7 @@ function renderWorkoutStep(opts){
       workoutStepBarHtml(rows, i) +
       '<h3 class="ws-name">Review and save</h3>' +
       '<p class="ws-lede">' + escapeHtml(workoutStepSummaryLine(rows)) + '</p>' +
+      d178UntickedHtml(rows) +
       /* D61 — the end of the workout is where "one more exercise" is decided,
          so adding sits under the summary rather than below the notes. */
       '<button type="button" class="ws-add" onclick="openWorkoutExercisePicker(\'review\')">' +
@@ -67424,6 +67677,33 @@ function workoutStepSummaryLine(rows){
   return out + '.';
 }
 
+/* D178 — FINISH SAYS WHAT IT SAVES. saveLog keeps every set with a value in an exercise that was not skipped, ticked or
+   not (D21: typed-but-unticked logging predates the stepper), and a bodyweight set always has one. So "0 of 7 exercises
+   logged" above Finish could save twenty planned sets as done. The rule is unchanged (E123, recorded for the owner); the
+   review step now says what Finish will do, counted exactly as saveLog counts. */
+function d178UntickedSets(rows){
+  let n = 0;
+  (rows || []).forEach(row => {
+    if(!row || !row.querySelectorAll || exerciseRowSkipped(row)) return;
+    const nameIn = row.querySelector('.ex-name-in');
+    if(nameIn && !String(nameIn.value || '').trim()) return;
+    const bwIn = row.querySelector('.ex-bw-in');
+    const bw = !!(bwIn && bwIn.checked);
+    row.querySelectorAll('.set-row').forEach(sr => {
+      if(sr.classList.contains('completed')) return;
+      const wIn = sr.querySelector('.set-weight-in'), rIn = sr.querySelector('.set-reps-in');
+      const w = bw ? 'BW' : normalizePerformedWeight(wIn ? wIn.value : '');
+      const r = String(rIn ? rIn.value : '').trim();
+      if(w || r) n++;
+    });
+  });
+  return n;
+}
+function d178UntickedHtml(rows){
+  const n = d178UntickedSets(rows);
+  if(!n) return '';
+  return '<p class="ws-lede ws-unticked">' + n + ' set' + (n === 1 ? '' : 's') + ' you have not ticked will be saved with the values shown. Skip an exercise to leave its unticked sets out.</p>';
+}
 /* D61 — the head of an empty workout: where the athlete is, what to do, and
    the one alternative. The primary action is in the finish bar below. */
 function workoutBuilderEmptyHtml(){
@@ -67777,7 +68057,11 @@ async function confirmOverwriteDraft(){
   renderTodayWorkout();
   const done = (draft.exercises||[]).reduce((n,ex)=>n+ex.sets.filter(s=>s.completed).length,0);
   const label = draft.title || 'a workout';
-  return confirm(`You have "${label}" already in progress (${done} set${done===1?'':'s'} logged).\n\nStarting a new workout will discard it. Continue?`);
+  /* D178 — the same confirmation, saying what each answer does: an unfinished workout from another day is named with its
+     day (it keeps that date if resumed), and Cancel is the way to keep it */
+  const today = localDateStr();
+  const from = draft.date && draft.date !== today ? ' from ' + exdDate(draft.date) : '';
+  return confirm(`"${label}"${from} is unfinished (${done} set${done===1?'':'s'} logged).\n\nDiscard it and start a new workout? Choose Cancel to keep it and resume it instead.`);
 }
 
 /* D103 — WHICH WORKOUT DOES THIS START MEAN? ONE ANSWER, FOR VIEW AND START.
@@ -68683,6 +68967,40 @@ if(typeof window !== 'undefined' && window.addEventListener){
   window.addEventListener('click', () => {
     const p = d177Pending; d177Pending = null;
     if(p && p.btn.isConnected) d177TickSettled(p);
+  });
+}
+/* D178 — "HOW'D IT FEEL?" WHERE IT CAN BE SEEN. The strip is revealed after the sets (revealFeedbackStrip), which is
+   exactly where the rest card pins: at 390 its top ran under the card and at 320 the whole strip did. While a rest runs,
+   its card carries the same three chips — the same buttons, the same setExerciseFeedback, which already sets every chip
+   of the exercise at once — and the strip below steps aside (CSS); when the rest ends the strip is there again. Nothing
+   is written that was not written before. */
+function d178RestFeedback(exRow){
+  if(!exRow || !exRow.querySelector) return false;
+  const panel = exRow.querySelector('.rest-panel');
+  if(!panel || panel.style.display === 'none') return false;
+  if(!exRow.querySelector('.fb-strip')) return false;
+  if(panel.querySelector('.rest-fb')) return true;
+  panel.insertAdjacentHTML('beforeend', feedbackStripHtml(exRow.dataset.shadowFeedback).replace('class="fb-strip"', 'class="fb-strip rest-fb"'));
+  return true;
+}
+/* D178 — the step in the workout's top bar: "1 of 7" beside the name, and Add, shown below 360px (CSS), where revealing
+   the set you are on can scroll the step's own count line out of view. Elsewhere the count line is on screen. */
+function d178TopbarStep(i, n){
+  const t = document.getElementById('logTopbarTitle');
+  const add = document.getElementById('wsTopAdd');
+  const on = i >= 0 && i < n;
+  if(t){ if(on) t.setAttribute('data-step', (i + 1) + ' of ' + n); else t.removeAttribute('data-step'); }
+  if(add){ if(!add.innerHTML) add.innerHTML = plusIconSvg(18); add.hidden = !on; }
+  return on;
+}
+/* D178 — after the tick's own handler and D177's (registered after them, on the window): a rest the tick started carries
+   the exercise's feedback chips. A double tap D177 lets go never reaches it. */
+if(typeof window !== 'undefined' && window.addEventListener){
+  window.addEventListener('click', e => {
+    const t = e.target;
+    const btn = t && t.closest ? t.closest('#logOverlay.stepper-on .ws-current .set-complete-btn') : null;
+    if(!btn) return;
+    try{ d178RestFeedback(btn.closest('.ex-log-row')); }catch(err){}
   });
 }
 
@@ -70377,8 +70695,11 @@ function renderSummaryScore(entry){
   /* A session LOOP never prescribed cannot be judged on how well it was
      followed. Freeform training and every workout logged before D47 land
      here, and they are told plainly rather than given a number. */
+  /* D178 — the score sits after what the workout earned, on the quiet panel, and says what it measures: how closely the
+     session followed its own prescription. It is never a comparison with another workout, and a session with no
+     prescription keeps its plain sentence — no stand-in rating. */
   if(!r || !r.available){
-    el.innerHTML = '<div class="ss-none">No session score — this workout was not logged against a prescribed plan.</div>';
+    el.innerHTML = '<div class="ss-none"><div class="ss-k">Session score</div>No session score — this workout was not logged against a prescribed plan.</div>';
     return;
   }
   const reasons = r.reasons.map(x =>
@@ -70386,9 +70707,10 @@ function renderSummaryScore(entry){
   el.innerHTML =
     '<div class="ss" role="group" aria-label="' + escapeAttr('Session score ' + r.score
       + ' out of 100. ' + r.word + '. ' + r.reasons.join('. ')) + '">' +
-      '<div class="ss-k">Session Score</div>' +
-      '<div class="ss-num" aria-hidden="true">' + r.score + '</div>' +
-      '<div class="ss-word">' + escapeHtml(r.word) + '</div>' +
+      '<div class="ss-k">Session score</div>' +
+      '<div class="ss-head"><div class="ss-num" aria-hidden="true">' + r.score + '</div>' +
+      '<div class="ss-word">' + escapeHtml(r.word) + '</div></div>' +
+      '<p class="ss-what">How closely this session followed what LOOP prescribed for it — its sets, reps and effort. It is not a comparison with another workout.</p>' +
       '<ul class="ss-reasons">' + reasons + '</ul>' +
       (r.confident ? '' :
         '<div class="ss-cov">Judged on ' + scoredDimensionWords(r) + ' — effort was not recorded for every set</div>') +
@@ -70524,9 +70846,15 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
   matchedNames = matchedNames || [];
   const vol = sessionVolume(entry);
   const streak = live ? computeWeekStreak() : 0;
+  const overlay = document.getElementById('summaryOverlay');
   const heading = document.getElementById('summaryHeading');
-  if(heading) heading.textContent = live ? 'Workout Complete' : 'Workout Summary';
-  try{ document.getElementById('summaryOverlay').classList.toggle('is-live', !!live); }catch(e){}   // D156
+  /* D178 — sentence case, as every other screen now speaks */
+  if(heading) heading.textContent = live ? 'Workout complete' : 'Workout summary';
+  try{ overlay.classList.toggle('is-live', !!live); }catch(e){}   // D156
+  /* D178 — the hand-over from logging plays once per finished workout: a summary drawn again for the same workout (after
+     an edit from it, or opened again) shows its final state at once. Nothing is stored; a review never plays it. */
+  const celebrate = !!live && d178FirstCelebration(entry.id);
+  try{ overlay.classList.toggle('d178-celebrate', celebrate); }catch(e){}
   const deleteBtn = document.getElementById('summaryDeleteBtn');
   if(deleteBtn) deleteBtn.hidden = !live;
   const liveActions = document.getElementById('summaryActionsLive');
@@ -70549,7 +70877,7 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
     levelUpEl.innerHTML = `
       <div class="levelup-banner${promoted ? ' levelup-promoted' : ''}">
         ${promoted ? `<div class="levelup-medal">${rankMedalSvg(rank, 88)}</div>
-        <div class="levelup-label">New Rank</div>` : `<div class="levelup-label">Level Up</div>`}
+        <div class="levelup-label">New rank</div>` : `<div class="levelup-label">Level up</div>`}
         <div class="levelup-nums">${xpEntry.levelBefore} → ${xpEntry.levelAfter}</div>
         <div class="levelup-rank">${rank}</div>
       </div>
@@ -70579,6 +70907,28 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
   const quality = live ? computeWorkoutQuality(entry, newPREvents) : null;
   const time = summaryTimeStat(entry);
   const totalSets = entry.exercises.reduce((n,ex) => n + (ex.sets||[]).length, 0);
+  /* D178 — THE STAGE. How long it took leads (D105); then what it held, counted exactly as 10.99 counted it (the sets
+     logged; the exercises that have one), and its volume only where volume means something — a workout of holds and
+     carries has no pounds lifted to report, and 0 lb is not an accomplishment. Then that it is saved, and where. */
+  const exCount = entry.exercises.filter(ex => (ex.sets || []).length).length;
+  const facts = [
+    { n: String(exCount), l: exCount === 1 ? 'exercise' : 'exercises' },
+    { n: String(totalSets), l: totalSets === 1 ? 'set' : 'sets' }
+  ];
+  if(vol > 0) facts.push({ n: vol.toLocaleString(), l: 'lb volume' });
+  const heroEl = document.getElementById('summaryHero');
+  if(heroEl) heroEl.innerHTML =
+    '<div class="sum-dur"><span class="sum-dur-n">' + escapeHtml(String(time.num)) + '</span><span class="sum-dur-l">' + escapeHtml(time.label) + '</span></div>' +
+    '<div class="sum-facts">' + facts.map(f => '<div class="sum-fact"><span class="sum-fact-n">' + escapeHtml(f.n) + '</span><span class="sum-fact-l">' + escapeHtml(f.l) + '</span></div>').join('') + '</div>';
+  const savedEl = document.getElementById('summarySaved');
+  if(savedEl){
+    /* the summary opens only after the workout is written (saveLog's persistLog, an edit's save): it says so, and the
+       one place to see all of it — the full workout, where it can also be edited */
+    savedEl.innerHTML = live
+      ? '<span class="sum-saved-ic" aria-hidden="true">' + checkIconSvg(12) + '</span><span>Saved to your Log</span>' +
+        '<button type="button" class="sum-link" onclick="d178OpenFullWorkout()">Full workout</button>'
+      : '<span>' + escapeHtml(exdDate(entry.date)) + '</span>';
+  }
 
   /* D45B — the /100 score is gone, and this is the reason.
 ​
@@ -70619,30 +70969,29 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
     readLines.push((volPct >= 0 ? '+' : '') + volPct
       + '% volume vs your last ' + (CAT_LABEL[entry.category] || 'session').toLowerCase());
   }
+  /* D178 — the stage carries the counts; what stays here is the evidence beneath them (this session against last time,
+     planned against done), on the quiet panel. */
   document.getElementById('summaryStats').innerHTML = `
     ${readLines.length ? `<div class="quality-block">
       <div class="quality-title">This session</div>
       ${readLines.map(l => `<div class="quality-read">${escapeHtml(l)}</div>`).join('')}
     </div>` : ''}
-    <div class="stat"><div class="stat-num">${vol.toLocaleString()}</div><div class="stat-label">Volume (lb)</div></div>
-    <div class="stat"><div class="stat-num">${totalSets}</div><div class="stat-label">Sets</div></div>
-    <div class="stat"><div class="stat-num">${time.num}</div><div class="stat-label">${time.label}</div></div>
   ` + plannedVsActualHtml(entry);
   const prsEl = document.getElementById('summaryPRs');
   /* D156 — a lift's first session is logged against 0 (the record engine, unchanged): it is a baseline, listed apart,
      without a trophy and without "Previous 0 lb". Records are the ones that beat an earlier best. */
   const recordEvents = newPREvents.filter(ev => !prIsBaseline(ev));
   const baselineEvents = newPREvents.filter(prIsBaseline);
-  const baselineHtml = baselineEvents.length ? `<div class="section-label" style="margin-top:18px">First-time baselines</div>
+  const baselineHtml = baselineEvents.length ? `<div class="section-label">First-time baselines</div>
     <div class="sum-base">${baselineEvents.map(ev => { const f = formatPREventHeadline(ev);
       return `<div class="sum-base-row"><span class="sum-base-n">${escapeHtml(ev.exerciseName)}</span><span class="sum-base-v">${escapeHtml(f ? f.current : '')}</span></div>`; }).join('')}</div>
     <p class="sum-base-foot">First time logged — the number to beat next time.</p>` : '';
   if(recordEvents.length){
-    prsEl.innerHTML = `<div class="section-label" style="margin-top:18px">New Records</div>` + recordEvents.map(ev => {
+    prsEl.innerHTML = `<div class="section-label">New records</div>` + recordEvents.map(ev => {
       const f = formatPREventHeadline(ev);
       if(!f) return '';
       return `
-        <div class="pr-callout pr-callout-fresh" style="margin-top:8px;">
+        <div class="pr-callout pr-callout-fresh">
           <span class="pr-callout-icon">PR</span>
           <div class="pr-callout-body">
             <div class="pr-callout-title">${escapeHtml(ev.exerciseName)} — ${f.current}</div>
@@ -70678,24 +71027,29 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
         <div class="xp-identity">
           ${rankMedalSvg(pNow.rank, 40)}
           <div class="xp-identity-txt">
-            <span class="xp-identity-lvl">LEVEL ${pNow.level} · ${escapeHtml(pNow.rank)}</span>
+            <span class="xp-identity-lvl">Level ${pNow.level} · ${escapeHtml(pNow.rank)}</span>
             <span class="hdr-level-bar"><span style="width:${pctNow}%"></span></span>
           </div>
           ${streak >= 2 ? `<span class="xp-streak">${streak}-week streak</span>` : ''}
         </div>`;
       }catch(e){
-        identity = `<div class="xp-breakdown-level">LEVEL ${xpEntry.levelAfter} · ${calculateRankFromLevel(xpEntry.levelAfter)}</div>`;
+        identity = `<div class="xp-breakdown-level">Level ${xpEntry.levelAfter} · ${calculateRankFromLevel(xpEntry.levelAfter)}</div>`;
       }
     } else {
-      identity = `<div class="xp-breakdown-level">LEVEL ${xpEntry.levelAfter} · ${calculateRankFromLevel(xpEntry.levelAfter)}</div>`;
+      identity = `<div class="xp-breakdown-level">Level ${xpEntry.levelAfter} · ${calculateRankFromLevel(xpEntry.levelAfter)}</div>`;
     }
+    /* D178 — the total, in XP's own gold, leads; how it adds up is one tap away (the same canonical breakdown rows) */
     xpEl.innerHTML = `
-      <div class="section-label" style="margin-top:18px">XP Earned</div>
-      <div class="xp-breakdown-card">
-        ${xpEntry.breakdown.map(b => `<div class="xp-breakdown-row"><span>${escapeHtml(baselineXPLabel(b.label, newPREvents))}</span><span>+${b.xp} XP</span></div>`).join('')}
-        <div class="xp-breakdown-total"><span>Total</span><span>+${xpEntry.xpTotal} XP</span></div>
+      <div class="section-label">XP earned</div>
+      <div class="sum-xp">
+        <div class="sum-xp-total">+${xpEntry.xpTotal} XP</div>
+        ${identity}
+        <button type="button" class="sum-xp-more" onclick="d178ToggleXP(this)" aria-expanded="false">How it adds up</button>
+        <div class="xp-breakdown-card" hidden>
+          ${xpEntry.breakdown.map(b => `<div class="xp-breakdown-row"><span>${escapeHtml(baselineXPLabel(b.label, newPREvents))}</span><span>+${b.xp} XP</span></div>`).join('')}
+          <div class="xp-breakdown-total"><span>Total</span><span>+${xpEntry.xpTotal} XP</span></div>
+        </div>
       </div>
-      ${identity}
     `;
   } else {
     xpEl.innerHTML = '';
@@ -70710,7 +71064,7 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
   if(nextEl){
     const notes = live ? computeNextTimeNotes(entry) : [];
     nextEl.innerHTML = notes.length ? `
-      <div class="section-label" style="margin-top:18px">Next Time</div>
+      <div class="section-label">Next time</div>
       <div class="nexttime-card">
         ${notes.map(n => `
           <div class="nexttime-row nexttime-${escapeAttr(n.tag)}">
@@ -70737,8 +71091,8 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
   }
   if(coachEl){
     coachEl.innerHTML = coachLines.length
-      ? `<div class="section-label" style="margin-top:18px">Coach</div>` + coachLines.map(c => `
-          <div class="coach-note coach-${c.tag}" style="margin-top:8px;" onclick="this.classList.toggle('expanded')">
+      ? `<div class="section-label">Coach</div>` + coachLines.map(c => `
+          <div class="coach-note coach-${c.tag}" onclick="this.classList.toggle('expanded')">
             <div class="coach-note-header"><span class="coach-mark">●</span><span class="coach-text">${escapeHtml(c.text)}</span></div>
             <div class="coach-detail">${escapeHtml(c.detail)}</div>
           </div>
@@ -70746,12 +71100,45 @@ function showWorkoutSummary(entry, newPREvents, matchedNames, volumeInsight, liv
       : '';
   }
 
-  document.getElementById('summaryOverlay').classList.add('open');
+  /* D178 — a summary always opens at its stage (the scroll a previous one left is not kept). The sheet takes the focus as
+     every sheet does (syncSheetAccessibility); the dialog is named by its heading, so a screen reader says "Workout complete"
+     (or "Workout summary") as it opens */
+  try{ const sc = overlay.querySelector('.sheet-scroll'); if(sc) sc.scrollTop = 0; }catch(e){}
+  try{ overlay.setAttribute('aria-labelledby', 'summaryHeading'); }catch(e){}
+  overlay.classList.add('open');
 }
 
 function closeSummary(){
-  document.getElementById('summaryOverlay').classList.remove('open');
+  const o = document.getElementById('summaryOverlay');
+  o.classList.remove('open');
+  o.classList.remove('d178-celebrate');
   renderAll();
+}
+/* D178 — once per finished workout, in this page's life only: nothing is written, and a summary opened again (or drawn
+   again after an edit from it) is shown in its final state at once */
+const D178_CELEBRATED = new Set();
+function d178FirstCelebration(id){
+  if(id == null || D178_CELEBRATED.has(String(id))) return false;
+  D178_CELEBRATED.add(String(id));
+  return true;
+}
+/* D178 — how a workout's XP adds up: the same canonical rows, one tap away from the total */
+function d178ToggleXP(btn){
+  const card = btn && btn.parentNode ? btn.parentNode.querySelector('.xp-breakdown-card') : null;
+  if(!card) return false;
+  const open = card.hasAttribute('hidden');
+  if(open) card.removeAttribute('hidden'); else card.setAttribute('hidden', '');
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  btn.textContent = open ? 'Hide how it adds up' : 'How it adds up';
+  return open;
+}
+/* D178 — the full workout of the summary on screen (Day detail, where it can be edited or deleted) */
+function d178OpenFullWorkout(){
+  const id = lastLoggedEntryId;
+  if(id == null || !workoutLog.some(l => l.id === id)) return false;
+  closeSummary();
+  openDayDetail(id);
+  return true;
 }
 
 /* D102 — permanent access to any completed workout's summary, from history.

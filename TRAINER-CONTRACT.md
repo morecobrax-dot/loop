@@ -21828,3 +21828,46 @@ and over its personal bests — and "Long-term strength" over seconds and metres
 **Unchanged.** Completing a set, the rest timer and its triggers, the chosen set (D167/D168), the dock's height and mode,
 the coach, the draft and its restore, saving, set types, RIR, swaps and their ranking, records, XP, Session Score and every
 engine. No storage key, no migration. Contract 301 holds it.
+
+## §223 — FINISHING A WORKOUT: ONE LIT STAGE, WHAT IT EARNED, THEN THE EVIDENCE (D178 · LOOP 10.100 · loop-v277)
+
+**The problem.** The summary put a Session Score above everything it summarised, then three equal tiles (Volume, Sets,
+Duration — D105's main stat last), records, a long XP breakdown, Next Time, a coach line and a cooldown whose Start button
+was as large as Done; labels were capitals; a workout of holds and carries reported "0 Volume (lb)"; nothing said the
+workout was saved or where to see it. The celebration replayed when the summary was drawn again after an edit. In the
+workout, Swap · Edit wrapped under the muscles at 390px; at 320px revealing the set could scroll "Exercise 1 of 7 / Add"
+away; "How'd it feel?" sat under the rest card (E124). The review step said "0 of 7 exercises logged" above a Finish that
+would save every untouched planned set (E123).
+
+**The summary.**
+- **The stage** (`#summaryHeroCard`, the one gradient — success green): the mark, "Workout complete" (or "Workout summary"
+  looking back, dated), the workout's name, how long it took (`summaryTimeStat`, large), then its exercises and sets
+  (counted as 10.99 counted them) and its volume only when there is some; "Saved to your Log" and Full workout
+  (`d178OpenFullWorkout` → Day detail, where it can be edited).
+- **What it earned**, quieter: a level reached (XP's gold band), new records (green band) and first-time baselines (no
+  trophy — a first workout never claims to beat its own history), XP: the total in gold, the level, and the same canonical
+  breakdown rows one tap away (`d178ToggleXP`).
+- **The score and the evidence**: the Session Score on the quiet panel, with what it measures — how closely the session
+  followed what LOOP prescribed, never a comparison with another workout; with nothing prescribed, 10.99's sentence and no
+  number. Then this session against last time, planned vs done, Next time, the coach, the cooldown (its start secondary).
+- **One primary action**: Done; Edit beside it, quiet.
+- **The hand-over** plays once per finished workout in this page's life (`d178FirstCelebration`; nothing stored): the
+  stage rises, the mark settles, then what it earned, then the score — opacity and transform on the shared tokens, every
+  number its final value from the first frame. Drawn again (after an edit, or reopened) it is simply there; a review never
+  plays it; Reduce Motion stills it. The summary opens at its top and moves focus to its heading.
+
+**Unfinished workouts.** Today and Train say it the same way (sentence case, the effort colour); while one is open,
+Resume is Train's one primary action. Starting something new asks "Discard it and start a new workout? Choose Cancel to
+keep it…", naming an earlier day's date. The review step says how many unticked sets Finish will save (`d178UntickedSets`,
+saveLog's own rule) and how to leave them out.
+
+**D177's corrections.** Swap · Edit sit on the muscles' line at every width (a grid; separators trail their word). Below
+360px the top bar shows "Push · 1 of 7" and an Add button (`d178TopbarStep`), so revealing the set never costs the
+athlete where they are. While a rest runs, its card carries the feedback chips (`d178RestFeedback`, E124); below 360px the
+card keeps D107's height (the dial and its controls share a row, the label kept for a screen reader, the chips beneath), so
+the set you are on keeps its room — a first version 199px tall covered it, and the D167/D168/D177 rigs caught that. Exercise
+Detail's chart and personal-best dates use its own sentence case (`exdDate`).
+
+**Unchanged.** Saving and what it saves (E123 open), drafts, records and baselines, XP and levels, the Session Score and its
+reasons, every comparison, Next time, deleting and editing, resuming and discarding, completing a set, the rest timer and
+its triggers, the feedback chips' meaning, D49, D125 and every engine. No storage key, no migration. Contract 302 holds it.

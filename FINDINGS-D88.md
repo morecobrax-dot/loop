@@ -3332,6 +3332,36 @@ A timed lift is now a hold only when `substitutionIsHold` says so ("Longest hold
 set", on the chart and over the bests. A lift counted in seconds or metres
 is headed "Long-term progress". The numbers are unchanged.
 
+## E123 — Finish saved an exercise's untouched planned sets as performed · P3 · OPEN (the review step now says so; the save rule is unchanged, for the owner)
+
+Found in D178's audit, by its capture of the real flow: start a workout from a template, tick two sets, jump to the review
+step and press Finish Workout. The review said "0 of 7 exercises logged", and the workout was saved with twenty sets —
+every prefilled set of every exercise not skipped — and the summary then counted them, named records from them and said
+"Completed all prescribed work". This is `saveLog`'s long-standing rule (D21): in an exercise the athlete did not skip,
+every set with a value is recorded, ticked or not, because typed-but-unticked logging predates the stepper; a bodyweight
+set always has a value. Only a skipped exercise drops its unticked sets.
+
+Changing what is saved is a change to workout storage, set completion, records and XP — protected systems — and it is a
+product decision (an athlete who types values and never ticks would lose them). D178 does not change it. What D178 does:
+the review step now says, counted exactly as `saveLog` counts (`d178UntickedSets`), "N sets you have not ticked will be
+saved with the values shown. Skip an exercise to leave its unticked sets out." The owner's options: (A) keep the rule and
+the warning; (B) save only ticked sets from a stepper workout, keeping typed-but-unticked for the plain logger; (C) ask
+at Finish when unticked prefilled sets would be saved.
+
+## E124 — "How'd it feel?" sat under the rest card · P4 · **CLOSED in D178 (LOOP 10.100)**
+
+Reported in D177 and reproduced in D178: the feedback strip is revealed after the sets (`revealFeedbackStrip`), exactly
+where the rest card pins. At 390×844 the card's top covered the top of the strip; at 320×568 it covered all of it and none
+of the three chips could be pressed. While a rest runs, its card now carries the same three chips (`d178RestFeedback`; the
+same `setExerciseFeedback`, which already sets every chip of the exercise), and the strip below steps aside until the rest
+ends. Measured at 320, 360, 390 and 430: every chip hit-tests on the card, and on the strip once the rest ends.
+
+## E125 — The summary reported "0 Volume (lb)" for a workout of holds and carries · P5 · **CLOSED in D178 (LOOP 10.100)**
+
+`sessionVolume` counts load × reps, so a workout of timed holds and carries in metres is 0, and the summary drew it as a
+stat beside the sets and the time. The summary's stage now shows volume only when there is some; the exercises and sets
+are always shown. `sessionVolume` is unchanged.
+
 ## Not findings — checked and clean
 
 Recorded so a later pass does not re-litigate them.
